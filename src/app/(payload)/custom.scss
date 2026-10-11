@@ -1,0 +1,11 @@
+// The admin keeps Payload's own look – plus what the features bring along.
+
+// Charts and tiles of the analytics views.
+@use "../../features/analytics/admin";
+
+// Quiet admin buttons in custom fields: a tinted ground, no border.
+.btn.field-btn {
+  --btn-border: none;
+  --hover-btn-border: none;
+  border: none;
+}

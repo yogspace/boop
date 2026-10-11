@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+/*
+ * Boop's look: warm paper, ink lines, one flat color per stamp. Shapes have
+ * a 2px ink outline and a hard offset shadow – like stickers on paper.
+ * The colors match features/calendar/model.ts (COLORS).
+ */
+@theme {
+  --color-paper: #fff4e8;
+  --color-paper-deep: #ffe9d2;
+  --color-card: #ffffff;
+  --color-ink: #1f1d2b;
+  --color-muted: #6b6878;
+  --color-line: #ece6f2;
+
+  --color-coral: #ff7a59;
+  --color-sun: #ffc23d;
+  --color-mint: #3ccf91;
+  --color-sky: #4aa8ff;
+  --color-grape: #8b6cf6;
+  --color-pink: #ff6fae;
+
+  --font-sans: var(--font-nunito), ui-rounded, system-ui, sans-serif;
+  --font-doodle: var(--font-gaegu), var(--font-nunito), cursive;
+
+  --shadow-sticker: 3px 3px 0 0 var(--color-ink);
+  --shadow-sticker-sm: 2px 2px 0 0 var(--color-ink);
+
+  --animate-boop: boop 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-wiggle: wiggle 600ms ease-in-out;
+
+  @keyframes boop {
+    0% {
+      transform: scale(0.4) rotate(var(--r, 0deg));
+      opacity: 0;
+    }
+    60% {
+      transform: scale(1.15) rotate(var(--r, 0deg));
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1) rotate(var(--r, 0deg));
+    }
+  }
+
+  @keyframes wiggle {
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+    25% {
+      transform: rotate(-4deg);
+    }
+    75% {
+      transform: rotate(4deg);
+    }
+  }
+}
+
+@layer base {
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    min-height: 100dvh;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-sky);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      transition-duration: 1ms !important;
+    }
+  }
+}
