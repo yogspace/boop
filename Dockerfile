@@ -16,6 +16,10 @@ RUN pnpm install --frozen-lockfile
 FROM base AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+# The public address is baked in at build time: canonical links, sitemap,
+# share pictures and the app manifest name it (repository variable).
+ARG NEXT_PUBLIC_SERVER_URL
+ENV NEXT_PUBLIC_SERVER_URL=${NEXT_PUBLIC_SERVER_URL}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build

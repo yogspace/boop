@@ -8,7 +8,9 @@ import type { ActionName } from "./actions";
  * name or anything written in a calendar.
  *
  * sendBeacon survives leaving the page; fetch with keepalive is the fallback.
- * Statistics must never break the page.
+ * Offline (the installed app without a connection) nothing is sent and
+ * nothing is queued for later: a view that cannot be counted now is simply
+ * not counted. Statistics must never break the page.
  */
 
 /**
@@ -40,6 +42,7 @@ export const setDeviceExcludeToken = (token: string | null): void => {
 
 const send = (url: string, body: Record<string, unknown>) => {
   try {
+    if (navigator.onLine === false) return;
     const token = deviceExcludeToken();
     const data = new Blob(
       [JSON.stringify(token ? { ...body, exclude: token } : body)],

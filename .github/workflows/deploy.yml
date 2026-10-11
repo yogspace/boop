@@ -70,6 +70,9 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          # Public, so a repository variable – baked into the pages.
+          build-args: |
+            NEXT_PUBLIC_SERVER_URL=${{ vars.NEXT_PUBLIC_SERVER_URL }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -90,24 +93,28 @@ jobs:
 
             cd /opt/apps/boop
 
-            # The runtime settings come from the repository's secrets (same
-            # names as in .env.example). Written to .env.new first and only
+            # The runtime settings come from the repository's variables
+            # (public: address, sender) and secrets (everything else) – same
+            # names as in .env.example. Written to .env.new first and only
             # swapped in when the essential ones are there – otherwise stop
             # here: the running version and its .env stay. Quoted heredoc: the
             # values are taken as they are, nothing in them is expanded.
             : > .env.new
             chmod 600 .env.new
             cat > .env.new <<'ENV'
-            NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}
+            NEXT_PUBLIC_SERVER_URL=${{ vars.NEXT_PUBLIC_SERVER_URL }}
+            GOOGLE_SITE_VERIFICATION=${{ vars.GOOGLE_SITE_VERIFICATION }}
             PAYLOAD_SECRET=${{ secrets.PAYLOAD_SECRET }}
+            PAYLOAD_ADMIN_EMAIL=${{ secrets.PAYLOAD_ADMIN_EMAIL }}
+            PAYLOAD_ADMIN_PASSWORD=${{ secrets.PAYLOAD_ADMIN_PASSWORD }}
             RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
-            MAIL_FROM=${{ secrets.MAIL_FROM }}
+            MAIL_FROM=${{ vars.MAIL_FROM }}
             CRON_SECRET=${{ secrets.CRON_SECRET }}
             MAIL_STATS_RECIPIENT=${{ secrets.MAIL_STATS_RECIPIENT }}
             ENV
             for key in NEXT_PUBLIC_SERVER_URL PAYLOAD_SECRET; do
               if ! grep -qE "^${key}=.+" .env.new; then
-                echo "✗ Secret ${key} is missing in the repository – see README."
+                echo "✗ ${key} is missing in the repository's variables/secrets – see README."
                 rm -f .env.new
                 exit 1
               fi

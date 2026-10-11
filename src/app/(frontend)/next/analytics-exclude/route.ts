@@ -1,6 +1,7 @@
 import configPromise from "@payload-config";
 import { NextResponse } from "next/server";
 import { getPayload } from "payload";
+import { isAdminRequest } from "@/features/analytics/auth";
 import { readBody } from "@/features/analytics/count";
 import {
   isExcludedToken,
@@ -8,7 +9,6 @@ import {
   readExcludeToken,
   writeExcludeToken,
 } from "@/features/analytics/exclude";
-import { isAdminRequest } from "@/features/analytics/auth";
 
 /**
  * One's own devices out of the statistics (features/analytics/exclude.ts) –

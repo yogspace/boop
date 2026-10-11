@@ -44,7 +44,7 @@ export const osLabel = (userAgent: string): string => {
   if (android) {
     // Android often sends the model: “Android 14; SM-S911B Build/…”
     const model = userAgent.match(
-      /Android \d+(?:\.\d+)*;\s*([^;)]+?)(?: Build)?[;)]/
+      /Android \d+(?:\.\d+)*;\s*([^;)]+?)(?:\s+Build\/[^;)]*)?[;)]/
     );
     const name = model?.[1]?.trim();
     return name && name !== "K"

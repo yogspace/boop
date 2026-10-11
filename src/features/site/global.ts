@@ -37,7 +37,9 @@ const addressLine = (
 export const Site: GlobalConfig = {
   slug: "site",
   label: "Site",
-  access: { read: anyone, update: adminOnly },
+  // Explicit: accounts are logged-in Payload users too, and Payload's
+  // default would let any of them write here.
+  access: { read: anyone, readVersions: adminOnly, update: adminOnly },
   hooks: expireOnChange(TAGS.site),
   admin: {
     group: "Settings",

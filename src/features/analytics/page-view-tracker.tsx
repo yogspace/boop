@@ -10,7 +10,8 @@ import { trackView } from "./client";
  *
  * Only the pathname counts: a change of query or hash is the same page. The
  * last path is remembered so React's double effect in development (strict
- * mode) does not count a page twice.
+ * mode) does not count a page twice. Offline, the view is skipped – not
+ * queued (client.ts).
  */
 export const PageViewTracker = () => {
   const pathname = usePathname();

@@ -1,0 +1,92 @@
+// The analytics global's admin views (features/analytics/admin/*).
+// Loaded from src/app/(payload)/custom.scss.
+
+// Quiet buttons in the analytics sidebar fields: a tinted ground, no border.
+.btn.boop-viz-button {
+  --btn-border: none;
+  --hover-btn-border: none;
+  border: none;
+}
+
+// The data colors, checked with the dataviz validator against Payload's
+// grounds (white, #141414). Device classes in three fixed hues; magnitude in
+// one blue ramp – turned round in dark, so more always stands further from
+// the ground. Text never wears them.
+.boop-viz {
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-other: #a9a8a1;
+  --viz-before: #898781;
+  --viz-wash: rgb(42 120 214 / 0.1);
+  --viz-select: rgb(42 120 214 / 0.12);
+  --viz-seq-1: #cde2fb;
+  --viz-seq-2: #9ec5f4;
+  --viz-seq-3: #6da7ec;
+  --viz-seq-4: #3987e5;
+  --viz-seq-5: #256abf;
+  --viz-seq-6: #184f95;
+  --viz-seq-7: #0d366b;
+  --viz-seq-ink-1: #0b0b0b;
+  --viz-seq-ink-2: #0b0b0b;
+  --viz-seq-ink-3: #0b0b0b;
+  --viz-seq-ink-4: #ffffff;
+  --viz-seq-ink-5: #ffffff;
+  --viz-seq-ink-6: #ffffff;
+  --viz-seq-ink-7: #ffffff;
+  // Changes against the period before, as text: dark enough to read.
+  --viz-up-text: #006300;
+  --viz-down-text: #b42f2f;
+}
+
+html[data-theme="dark"] .boop-viz {
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-other: #5f5e59;
+  --viz-wash: rgb(57 135 229 / 0.16);
+  --viz-select: rgb(57 135 229 / 0.18);
+  --viz-seq-1: #0d366b;
+  --viz-seq-2: #184f95;
+  --viz-seq-3: #256abf;
+  --viz-seq-4: #3987e5;
+  --viz-seq-5: #6da7ec;
+  --viz-seq-6: #9ec5f4;
+  --viz-seq-7: #cde2fb;
+  --viz-seq-ink-1: #ffffff;
+  --viz-seq-ink-2: #ffffff;
+  --viz-seq-ink-3: #ffffff;
+  --viz-seq-ink-4: #ffffff;
+  --viz-seq-ink-5: #0b0b0b;
+  --viz-seq-ink-6: #0b0b0b;
+  --viz-seq-ink-7: #0b0b0b;
+  --viz-up-text: #0ca30c;
+  --viz-down-text: #e66767;
+}
+
+// Cards around each chart, a grid of them where there is room.
+.boop-viz__grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  margin-bottom: 16px;
+}
+
+.boop-viz__card {
+  background: var(--theme-elevation-0);
+  border: 1px solid var(--theme-elevation-100);
+  border-radius: var(--style-radius-m);
+  margin-bottom: 16px;
+  min-width: 0;
+  padding: 16px 18px 14px;
+
+  .boop-viz__grid > & {
+    margin-bottom: 0;
+  }
+}
+
+.boop-viz__focusable:focus-visible {
+  outline: 2px solid var(--viz-1);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

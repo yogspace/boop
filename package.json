@@ -6,7 +6,7 @@
   "type": "module",
   "packageManager": "pnpm@10.28.2",
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=--no-deprecation next dev -p 3001",
+    "dev": "cross-env NODE_OPTIONS=--no-deprecation next dev -p 3000",
     "build": "cross-env NODE_OPTIONS=--no-deprecation next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",

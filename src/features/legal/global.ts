@@ -37,7 +37,9 @@ import {
 export const Legal: GlobalConfig = {
   slug: "legal",
   label: "Imprint & privacy",
-  access: { read: anyone, update: adminOnly },
+  // Explicit: accounts are logged-in Payload users too, and Payload's
+  // default would let any of them write here.
+  access: { read: anyone, readVersions: adminOnly, update: adminOnly },
   hooks: expireOnChange(TAGS.legal),
   admin: {
     group: "Content",
