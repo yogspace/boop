@@ -1,0 +1,126 @@
+name: Deploy Boop
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/yogspace/boop
+
+jobs:
+  verify:
+    name: Lint, types, tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+
+      # After the pnpm setup: `cache: pnpm` needs pnpm installed.
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Biome (Format + Lint)
+        run: pnpm exec biome ci .
+
+      - name: TypeScript
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
+  build:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    needs: verify
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Hetzner
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Deploy on Hetzner
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            set -e
+
+            cd /opt/apps/boop
+
+            # The runtime settings come from the repository's secrets (same
+            # names as in .env.example). Written to .env.new first and only
+            # swapped in when the essential ones are there – otherwise stop
+            # here: the running version and its .env stay. Quoted heredoc: the
+            # values are taken as they are, nothing in them is expanded.
+            : > .env.new
+            chmod 600 .env.new
+            cat > .env.new <<'ENV'
+            NEXT_PUBLIC_SERVER_URL=${{ secrets.NEXT_PUBLIC_SERVER_URL }}
+            PAYLOAD_SECRET=${{ secrets.PAYLOAD_SECRET }}
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            MAIL_FROM=${{ secrets.MAIL_FROM }}
+            CRON_SECRET=${{ secrets.CRON_SECRET }}
+            MAIL_STATS_RECIPIENT=${{ secrets.MAIL_STATS_RECIPIENT }}
+            ENV
+            for key in NEXT_PUBLIC_SERVER_URL PAYLOAD_SECRET; do
+              if ! grep -qE "^${key}=.+" .env.new; then
+                echo "✗ Secret ${key} is missing in the repository – see README."
+                rm -f .env.new
+                exit 1
+              fi
+            done
+            mv .env.new .env
+
+            git fetch origin main
+            git reset --hard origin/main
+
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -f
+
+            # The cron jobs – idempotent, so on every deploy. Not
+            # worth failing the deploy over.
+            bash scripts/setup-cron.sh || echo "⚠ Cron job not installed."

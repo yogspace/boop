@@ -1,0 +1,67 @@
+services:
+  # Service name = host name in the proxy network: the proxy stack routes
+  # boop.mxwr.de → boop:3000. Must be unique in the `web` network.
+  boop:
+    image: ghcr.io/yogspace/boop:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: mongodb://mongo:27017/boop
+      MEDIA_DIR: /data/media
+    # Secrets and mail settings (see .env.example) – /opt/apps/boop/.env.
+    env_file:
+      - .env
+    # Uploads outlive the deploys here.
+    volumes:
+      - media:/data/media
+    depends_on:
+      mongo:
+        condition: service_healthy
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - internal
+      - web
+
+  # Accounts, calendars, statistics. Only in the internal network – not
+  # reachable from outside.
+  mongo:
+    # Pinned: Linux ≥ 6.19 turns on CET shadow stacks, and MongoDB 8.x
+    # coroutines swap the stack pointer by hand → SIGSEGV crash loop (MongoDB
+    # SERVER-121912). Workaround: shadow stacks off for mongod
+    # (GLIBC_TUNABLES). Do NOT switch to `mongo:8.0` – that refuses to start on
+    # ≥ 6.19. Unpin once MongoDB ships a fix.
+    image: mongo:8.2.9
+    restart: unless-stopped
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
+    environment:
+      GLIBC_TUNABLES: "glibc.cpu.hwcaps=-SHSTK"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - internal
+
+volumes:
+  mongo_data:
+  media:
+
+networks:
+  internal:
+  # Shared network of the proxy stack (/opt/apps/proxy), created externally.
+  web:
+    external: true
