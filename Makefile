@@ -28,12 +28,21 @@ deploy:
 	echo "→ push development"; \
 	git push origin development; \
 	echo "→ checkout main + pull"; \
-	git checkout main; \
-	git pull --ff-only origin main; \
+	if git show-ref --verify --quiet refs/heads/main; then \
+		git checkout main; \
+	elif git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then \
+		git checkout -b main --track origin/main; \
+	else \
+		echo "→ main gibt es noch nicht – wird aus development angelegt"; \
+		git checkout -b main; \
+	fi; \
+	if git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then \
+		git pull --ff-only origin main; \
+	fi; \
 	echo "→ merge development → main"; \
 	if git merge --no-edit development; then \
 		echo "→ push main"; \
-		git push origin main; \
+		git push -u origin main; \
 		echo "✓ development nach main gemerged und gepusht."; \
 	else \
 		echo "✗ Merge-Konflikt. Bitte manuell lösen; kehre zu development zurück."; \
