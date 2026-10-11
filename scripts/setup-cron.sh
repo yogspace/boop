@@ -48,10 +48,11 @@ CURRENT="$(crontab -l 2>/dev/null | sed "/${MARKER}/,/${MARKER_END}/d" || true)"
 {
   printf '%s\n' "$CURRENT"
   printf '%s\n' "$MARKER"
-  # Daily at 06:15 UTC.
-  printf '15 6 * * * %s\n' "$STATS_CMD"
+  # Daily at 06:45 UTC.
+  printf '45 6 * * * %s\n' "$STATS_CMD"
   printf '%s\n' "$MARKER_END"
 } | crontab -
 
+# The deploy log is public – the secret never goes into it.
 echo "✓ Cron installed:"
-crontab -l | sed -n "/${MARKER}/,/${MARKER_END}/p"
+crontab -l | sed -n "/${MARKER}/,/${MARKER_END}/p" | sed -E 's/secret=[^ '\''"]*/secret=***/'
