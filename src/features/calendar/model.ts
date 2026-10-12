@@ -67,10 +67,22 @@ export const FACE = {
  * are flat pairs – [x0, y0, x1, y1, …] – rounded to 3 decimals.
  */
 export type Stroke = { w: number; p: number[] };
-export type Drawing = { v: 1; strokes: Stroke[] };
 
-/** Limits that keep one stamp small (a few dozen KB at most). */
-export const DRAWING_LIMITS = { strokes: 200, points: 4000 } as const;
+/**
+ * A filled area – from an uploaded picture (import-svg.ts): closed outlines,
+ * each flat pairs like a stroke's points. Where they overlap they make holes
+ * by SVG's rules: non-zero winding, or even-odd when `rule` says so.
+ */
+export type Fill = { p: number[][]; rule?: "evenodd" };
+
+/** Drawings made before pictures could be uploaded have no `fills`. */
+export type Drawing = { v: 1; strokes: Stroke[]; fills?: Fill[] };
+
+/**
+ * Limits that keep one stamp small (a few dozen KB at most) – the points of
+ * strokes and fills counted together.
+ */
+export const DRAWING_LIMITS = { strokes: 200, fills: 100, points: 4000 } as const;
 
 /** A calendar day, as the date it shows: "2026-10-11" – no time, no zone. */
 export type DayKey = string;
@@ -132,10 +144,31 @@ export type PlacementDoc = Synced & {
 /** A drawing as it came from a device – checked and trimmed, or null. */
 export const cleanDrawing = (value: unknown): Drawing | null => {
   if (!value || typeof value !== "object") return null;
-  const strokes = (value as { strokes?: unknown }).strokes;
+  const { strokes, fills } = value as { strokes?: unknown; fills?: unknown };
   if (!Array.isArray(strokes)) return null;
-  const clean: Stroke[] = [];
   let points = 0;
+  // Fills first – an outline cut short would be another shape, so one that
+  // doesn't fit whole is left out.
+  const areas: Fill[] = [];
+  for (const fill of Array.isArray(fills)
+    ? fills.slice(0, DRAWING_LIMITS.fills)
+    : []) {
+    if (!fill || typeof fill !== "object") continue;
+    const { p, rule } = fill as { p?: unknown; rule?: unknown };
+    if (!Array.isArray(p)) continue;
+    const rings: number[][] = [];
+    for (const ring of p) {
+      if (!Array.isArray(ring)) continue;
+      const pairs = Math.floor(ring.length / 2);
+      if (pairs < 3 || points + pairs > DRAWING_LIMITS.points) continue;
+      points += pairs;
+      rings.push(ring.slice(0, pairs * 2).map((n) => unit(n)));
+    }
+    if (rings.length) {
+      areas.push({ p: rings, ...(rule === "evenodd" && { rule }) });
+    }
+  }
+  const clean: Stroke[] = [];
   for (const stroke of strokes.slice(0, DRAWING_LIMITS.strokes)) {
     if (!stroke || typeof stroke !== "object") continue;
     const { w, p } = stroke as { w?: unknown; p?: unknown };
@@ -147,7 +180,8 @@ export const cleanDrawing = (value: unknown): Drawing | null => {
     points += take;
     clean.push({ w: Math.min(Math.max(w, 0.005), 0.2), p: coords });
   }
-  return clean.length ? { v: 1, strokes: clean } : null;
+  if (!(clean.length || areas.length)) return null;
+  return { v: 1, strokes: clean, ...(areas.length && { fills: areas }) };
 };
 
 /** A number clamped into 0–1, rounded to 3 decimals; junk becomes 0.5. */

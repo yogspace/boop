@@ -4,9 +4,9 @@ import { outlinePath } from "./outline";
 
 /**
  * A stamp flat, as SVG – the drawing while it is being made (its rim and the
- * lines, in its color) and the print it leaves on a day: what stands raised
- * on the rubber – the rim and the doodle – in ink, blotchy and a little
- * frayed, like real ink.
+ * doodle – lines and filled areas – in its color) and the print it leaves on
+ * a day: what stands raised on the rubber – the rim and the doodle – in ink,
+ * blotchy and a little frayed, like real ink.
  *
  * The face lives in the unit square (FACE) but is drawn 100× up: Safari
  * can't run the ink filter in a space one unit wide – the prints vanished.
@@ -31,6 +31,20 @@ export const strokePath = (p: readonly number[]) => {
   d += `L${p[p.length - 2]} ${p[p.length - 1]}`;
   return d;
 };
+
+/** The SVG path of one filled area – each of its outlines, closed. */
+export const fillPath = (fill: ReadonlyFill) =>
+  fill.p
+    // Less than three points enclose nothing.
+    .filter((ring) => ring.length >= 6)
+    .map((ring) => {
+      let d = `M${ring[0]} ${ring[1]}`;
+      for (let i = 2; i < ring.length - 1; i += 2) {
+        d += `L${ring[i]} ${ring[i + 1]}`;
+      }
+      return `${d}Z`;
+    })
+    .join("");
 
 /**
  * The face's outline in the unit square (outline.ts): one path, with the same
@@ -61,11 +75,17 @@ export const ShapeOutline = ({
   );
 };
 
+type ReadonlyFill = {
+  readonly p: readonly (readonly number[])[];
+  readonly rule?: "evenodd";
+};
+
 type ReadonlyDrawing = {
   readonly strokes: readonly {
     readonly w: number;
     readonly p: readonly number[];
   }[];
+  readonly fills?: readonly ReadonlyFill[];
 };
 
 export const StampSvg = ({
@@ -93,14 +113,29 @@ export const StampSvg = ({
   const id = useId();
   const ink = COLORS[color];
   const fade = { transition: "stroke 400ms, fill 400ms" };
-  // The doodle, kept inside the outline.
-  const lines = drawing && (
+  // Something drawn? Lines or filled areas – an empty drawing is none.
+  const drawn =
+    drawing && (drawing.strokes.length || drawing.fills?.length)
+      ? drawing
+      : null;
+  // The doodle – filled areas below, the lines on top – kept inside the
+  // outline.
+  const doodle = drawn && (
     <g clipPath={`url(#${id}-clip)`}>
-      {drawing.strokes.map((stroke, i) => (
+      {drawn.fills?.map((fill, i) => (
+        <path
+          d={fillPath(fill)}
+          fill={ink}
+          fillRule={fill.rule ?? "nonzero"}
+          key={`fill-${i}`}
+          style={fade}
+        />
+      ))}
+      {drawn.strokes.map((stroke, i) => (
         <path
           d={strokePath(stroke.p)}
           fill="none"
-          key={i}
+          key={`stroke-${i}`}
           stroke={ink}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -185,17 +220,17 @@ export const StampSvg = ({
       </defs>
       {print ? (
         // The print: what stands raised on the rubber – the rim and the
-        // doodle – in ink, nothing filled.
+        // doodle – in ink; the face around them stays bare.
         <g filter={`url(#${id}-ink)`} opacity={0.9}>
           <g transform="scale(100)">
             <ShapeOutline
               fill="none"
               shape={shape}
               stroke={ink}
-              strokeDasharray={drawing ? undefined : "0.06 0.06"}
+              strokeDasharray={drawn ? undefined : "0.06 0.06"}
               strokeWidth={FACE.rim}
             />
-            {lines}
+            {doodle}
           </g>
         </g>
       ) : (
@@ -204,10 +239,10 @@ export const StampSvg = ({
             fill={filled ? `color-mix(in srgb, ${ink} 14%, white)` : "none"}
             shape={shape}
             stroke={ink}
-            strokeDasharray={drawing || filled ? undefined : "0.06 0.06"}
+            strokeDasharray={drawn || filled ? undefined : "0.06 0.06"}
             strokeWidth={FACE.rim}
           />
-          {lines}
+          {doodle}
         </g>
       )}
     </svg>

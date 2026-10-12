@@ -62,11 +62,11 @@ const FLOATING = [
 const REACH = 420;
 /** The most a sticker leans (deg) and drifts (px) – times its depth. */
 const LEAN = 16;
-const DRIFT = 12;
+const DRIFT = 8;
 
 /** The card's turn – a touch towards the pointer (x, y: −1…1). */
 const cardTurn = (x = 0, y = 0) =>
-  `rotateX(${14 - y * 4}deg) rotateY(${-16 + x * 5}deg) rotateZ(2deg)`;
+  `rotateX(${14 - y * 2.5}deg) rotateY(${-16 + x * 3}deg) rotateZ(2deg)`;
 
 /** A sticker leaning towards the pointer and drifting to it a little. */
 const lean = (x: number, y: number, depth: number) =>
@@ -308,7 +308,7 @@ export const StickerRow = ({ className }: { className?: string }) => (
         key={stamp.key}
         style={
           {
-            "--tilt": `${(i % 2 ? 1 : -1) * (4 + i)}deg`,
+            "--tilt": `${(i % 2 ? 1 : -1) * (3 + i * 0.7)}deg`,
             animationDelay: `${i * 0.35}s`,
           } as React.CSSProperties
         }

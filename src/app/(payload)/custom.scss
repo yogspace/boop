@@ -2,6 +2,8 @@
 
 // Charts and tiles of the analytics views.
 @use "../../features/analytics/admin";
+// The stamp colors' picker and preview in “Site”.
+@use "../../features/site/admin" as site;
 
 // Quiet admin buttons in custom fields: a tinted ground, no border.
 .btn.field-btn {

@@ -358,16 +358,23 @@ export const deleteStamp = async (id: string) => {
   await enqueue({ type: "stamp", id, changedAt, deleted: true });
 };
 
-export const placeStamp = async (placement: {
+export const placeStamp = async ({
+  scale = 1,
+  z,
+  ...placement
+}: {
   calendar: string;
   date: DayKey;
   stamp: string;
   x: number;
   y: number;
   rotation: number;
-  ink: ColorName;
+  ink: ColorName | null;
+  /** Its size and its place in the stack – new prints go on top. */
+  scale?: number;
+  z?: number;
 }) => {
-  const z =
+  const top =
     Math.max(
       0,
       ...Object.values(boop.placements)
@@ -379,8 +386,8 @@ export const placeStamp = async (placement: {
   const doc: PlacementDoc = {
     id: newId(),
     ...placement,
-    scale: 1,
-    z,
+    scale,
+    z: z ?? top,
     placedBy: me(),
     changedAt: now(),
     deleted: false,
@@ -390,6 +397,37 @@ export const placeStamp = async (placement: {
   await enqueue({ type: "placement", id, changedAt, data });
   return id;
 };
+
+/**
+ * A removed print back where it was (undo) – as a new one, with a new id:
+ * the server never brings a deleted document back (sync/apply.ts), and the
+ * outbox keeps `deleted` once it is set. Returns the new id.
+ */
+export const restorePlacement = (
+  print: Pick<
+    PlacementDoc,
+    | "calendar"
+    | "date"
+    | "stamp"
+    | "x"
+    | "y"
+    | "rotation"
+    | "scale"
+    | "z"
+    | "ink"
+  >
+) =>
+  placeStamp({
+    calendar: print.calendar,
+    date: print.date,
+    stamp: print.stamp,
+    x: print.x,
+    y: print.y,
+    rotation: print.rotation,
+    scale: print.scale,
+    z: print.z,
+    ink: print.ink,
+  });
 
 export const movePlacement = async (
   id: string,

@@ -29,6 +29,10 @@ export type StickerInput = {
       readonly w: number;
       readonly p: readonly number[];
     }[];
+    readonly fills?: readonly {
+      readonly p: readonly (readonly number[])[];
+      readonly rule?: "evenodd";
+    }[];
   } | null;
 };
 
@@ -182,6 +186,17 @@ const faceMap = (input: StickerInput, mirror: boolean) =>
     ctx.fillStyle = "#fff";
     tracePath(ctx, input.shape, 0);
     ctx.clip();
+    for (const fill of input.drawing?.fills ?? []) {
+      ctx.beginPath();
+      for (const ring of fill.p) {
+        for (let i = 0; i + 1 < ring.length; i += 2) {
+          if (i) ctx.lineTo(ring[i], ring[i + 1]);
+          else ctx.moveTo(ring[i], ring[i + 1]);
+        }
+        ctx.closePath();
+      }
+      ctx.fill(fill.rule ?? "nonzero");
+    }
     for (const stroke of input.drawing?.strokes ?? []) {
       const p = stroke.p;
       if (p.length < 2) continue;
@@ -337,22 +352,38 @@ const LETTERS: [number, number][][][] = [
 const ADVANCE = 0.72;
 
 /**
+ * Where the watermark fits on a shape's plate: its baseline (`at`, towards
+ * the stamp's +Y edge when positive) and its size. No room on the diamond.
+ */
+const MARK: Record<StampShape, { at: number; size: number } | null> = {
+  circle: { at: 0.31, size: 0.12 },
+  square: { at: 0.31, size: 0.12 },
+  octagon: { at: 0.3, size: 0.12 },
+  triangle: { at: -0.25, size: 0.1 },
+  diamond: null,
+};
+
+/**
  * The watermark on the plate, drawn into its height map (unit square, y
  * down). The plate is turned to face −Z (the stamp's back), so the lettering
- * is laid out turned round: read from outside, its baseline lies towards the
- * stamp's +Y edge and it rises towards the knob.
+ * is read from outside: at the +Y edge it is laid out turned round – its
+ * baseline towards the edge – at the −Y edge upright; either way it rises
+ * towards the knob.
  */
-const watermarkMap = () =>
+const watermarkMap = (shape: StampShape) =>
   heightMap((ctx) => {
-    const size = 0.12;
+    const mark = MARK[shape];
+    if (!mark) return;
+    const { at, size } = mark;
+    const turn = at > 0 ? -1 : 1;
     const width = (LETTERS.length - 1) * ADVANCE + 0.54;
     ctx.lineWidth = 0.032;
     LETTERS.forEach((letter, n) => {
       for (const points of letter) {
         ctx.beginPath();
         points.forEach(([gx, gy], i) => {
-          const x = -(n * ADVANCE + gx - width / 2) * size;
-          const y = 0.31 - gy * size;
+          const x = turn * (n * ADVANCE + gx - width / 2) * size;
+          const y = at + turn * gy * size;
           // Local (y up) to the map's unit square (y down).
           if (i) ctx.lineTo(x + 0.5, 0.5 - y);
           else ctx.moveTo(x + 0.5, 0.5 - y);
@@ -423,7 +454,7 @@ export const buildSticker = (
   const back = blockFront - BLOCK.depth - 2 * BLOCK.bevel;
 
   // The plate on the back with “boop” pressed in – turned to face −Z.
-  const watermark = watermarkMap();
+  const watermark = watermarkMap(input.shape);
   const plate = new THREE.Mesh(
     shapedSlab(THREE, {
       outline: localOutline(input.shape, RUBBER.grow, PLATE.size),

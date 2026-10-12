@@ -82,7 +82,8 @@ const shrink = (points: Point[], by: number): Point[] => {
   });
   return lines.map((b, i) => {
     const a = lines[(i + n - 1) % n];
-    const t = ((b.x - a.x) * b.dy - (b.y - a.y) * b.dx) / (a.dx * b.dy - a.dy * b.dx);
+    const t =
+      ((b.x - a.x) * b.dy - (b.y - a.y) * b.dx) / (a.dx * b.dy - a.dy * b.dx);
     return [a.x + a.dx * t, a.y + a.dy * t];
   });
 };

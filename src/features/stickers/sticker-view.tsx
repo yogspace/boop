@@ -30,9 +30,9 @@ const VIEW = 2 * DISTANCE * Math.tan(HALF_FOV);
 /** The drawing's view box: the unit square and a little beyond (its rim). */
 const VIEW_BOX = 1.04;
 /** How it shows itself: the face tilted towards you, block and knob behind. */
-const SHOWCASE: [number, number, number] = [0.95, 0.55, -0.12];
+const SHOWCASE: [number, number, number] = [0.85, 0.55, -0.12];
 /** Its width then, of the box's – it has room to turn every way. */
-const SIZE = 0.58;
+const SIZE = 0.6;
 /** Kept off the box's edge at any angle (radians of the view). */
 const MARGIN = 0.02;
 /** The face-on beat before it turns (ms). */
@@ -48,7 +48,7 @@ const spring = (frequency: number, ratio: number) => ({
 /** Turning to show itself – it overshoots a little. */
 const REVEAL = spring(8, 0.55);
 /** Growing out of the drawing: shrinking into the room, the turn's center moving to the middle. */
-const GROW = spring(10, 0.8);
+const GROW = spring(10, 0.7);
 /** Swinging back after it was turned by hand – softer. */
 const BACK = spring(6, 0.65);
 const STILL = spring(6, 1);
@@ -102,6 +102,7 @@ export const StickerView = ({
       const sticker = buildSticker(THREE, stamp);
       scene.add(sticker);
       const reach = reachOf(THREE, sticker);
+      console.log('DEBUG reach', reach);
 
       const canvas = renderer.domElement;
       canvas.style.display = "block";
@@ -251,12 +252,15 @@ export const StickerView = ({
       observer.observe(box);
 
       let frame = 0;
-      let first = 0;
-      let last = 0;
+      let first = -1;
+      let last = -1;
       const tick = (now: number) => {
         frame = requestAnimationFrame(tick);
-        first ||= now;
-        const dt = Math.min(0.05, Math.max(0, (now - (last || now)) / 1000));
+        const fresh = first < 0;
+        if (fresh) first = now;
+        // Seconds since the last frame – never a leap (a slow frame, a tab
+        // coming back).
+        const dt = last < 0 ? 0 : Math.min(0.05, Math.max(0, now - last) / 1000);
         last = now;
         const time = (now - first) / 1000;
         if (now - first >= HOLD) {
@@ -280,12 +284,13 @@ export const StickerView = ({
         sticker.quaternion.copy(turn);
         sticker.position.y = calm * 0.012 * Math.sin(time * 1.5);
         renderer.render(scene, camera);
-        if (now === first) shown();
+        if (fresh) shown();
       };
+      // Only while the page is looked at.
       const wake = () => {
         cancelAnimationFrame(frame);
         if (document.hidden) return;
-        last = 0;
+        last = -1;
         frame = requestAnimationFrame(tick);
       };
       document.addEventListener("visibilitychange", wake);

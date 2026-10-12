@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { PageViewTracker } from "@/features/analytics/page-view-tracker";
+import { PaletteProvider } from "@/features/calendar/palette-provider";
 import { ServiceWorker } from "@/features/pwa/service-worker";
+import { getSite } from "@/features/site/get-site";
 import { TransitionDone } from "@/features/transitions/link";
 import { isLocale, LOCALES } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
@@ -54,13 +56,19 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-/** The frame of every page in a language: fonts, statistics, offline. */
+/**
+ * The frame of every page in a language: fonts, the stamp colors, statistics,
+ * offline.
+ */
 const LocaleLayout = async ({
   children,
   params,
 }: Props & { children: ReactNode }) => {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
+  // The CMS's colors, in the page itself – so they are there from the first
+  // paint, and offline too (the service worker keeps the page).
+  const { stampColors } = await getSite();
   return (
     <html lang={locale}>
       <head>
@@ -74,7 +82,7 @@ const LocaleLayout = async ({
         />
       </head>
       <body>
-        {children}
+        <PaletteProvider colors={stampColors}>{children}</PaletteProvider>
         <PageViewTracker />
         <TransitionDone />
         <ServiceWorker />

@@ -199,7 +199,7 @@ export interface Stamp {
   id: string;
   name?: string | null;
   color: 'ink' | 'coral' | 'sun' | 'mint' | 'sky' | 'grape' | 'pink';
-  shape: 'circle' | 'square';
+  shape: 'circle' | 'square' | 'octagon' | 'triangle' | 'diamond';
   drawing?:
     | {
         [k: string]: unknown;
@@ -588,7 +588,7 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   createdAt?: T;
 }
 /**
- * The owner's address for the imprint and privacy policy, and the link to mxwr.de.
+ * The owner's address for the imprint and privacy policy, the link to mxwr.de, and the colors to stamp with.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "site".
@@ -604,6 +604,26 @@ export interface Site {
     city: string;
     country: string;
   };
+  /**
+   * The inks to pick from – for a stamp, a calendar and the ink pads, in this order. The first one is the default – and the color of anything whose own is gone.
+   */
+  stampColors?:
+    | {
+        /**
+         * The color's identity – stamps, calendars and prints refer to it, e.g. “mint”. Never change or delete a key once it is in use: whatever wears it would turn into the first color. To change a color, change its hex and name and keep the key – everything in it follows.
+         */
+        key: string;
+        /**
+         * As #rrggbb, e.g. #22c993 – or pick it. Below: a stamp in it, as the app shows it.
+         */
+        color: string;
+        /**
+         * Shown when pointing at it, read out aloud – one per language (switch at the top).
+         */
+        name: string;
+        id?: string | null;
+      }[]
+    | null;
   links: {
     /**
      * The legal text's “Site link”. Keep the utm part – it shows where visits came from.
@@ -671,6 +691,14 @@ export interface SiteSelect<T extends boolean = true> {
         street?: T;
         city?: T;
         country?: T;
+      };
+  stampColors?:
+    | T
+    | {
+        key?: T;
+        color?: T;
+        name?: T;
+        id?: T;
       };
   links?:
     | T

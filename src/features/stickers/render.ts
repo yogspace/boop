@@ -58,10 +58,13 @@ const cache = new Map<string, Promise<string>>();
 const done = new Map<string, string>();
 let queue: Promise<unknown> = Promise.resolve();
 
-/** A short fingerprint of what the stamp looks like. */
+/**
+ * A short fingerprint of what the stamp looks like – the whole drawing goes
+ * in (strokes, filled areas, whatever it holds).
+ */
 export const stickerKey = (input: StickerInput, kind: Pose = "face") => {
   let hash = 0;
-  const text = `${kind}|${input.shape}|${input.color}|${JSON.stringify(input.drawing?.strokes ?? [])}`;
+  const text = `${kind}|${input.shape}|${input.color}|${JSON.stringify(input.drawing)}`;
   for (let i = 0; i < text.length; i++) {
     hash = (hash * 31 + text.charCodeAt(i)) | 0;
   }

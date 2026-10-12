@@ -1,0 +1,163 @@
+// The “Site” global's stamp colors in the admin (stamp-color-field.tsx).
+// Loaded from src/app/(payload)/custom.scss.
+
+// The hex field with a color picker beside it.
+.stamp-color-input {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+
+  > .field-type {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.stamp-color-picker {
+  flex: none;
+  width: 3.25rem;
+  height: 3.25rem;
+  // Level with the input, below the field's label.
+  margin-top: 1.6rem;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+
+  // Each engine's pseudo-element in a rule of its own – a rule naming the
+  // other's is dropped whole.
+  &::-webkit-color-swatch {
+    border: 3px solid var(--theme-elevation-0);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px var(--theme-elevation-150);
+  }
+
+  &::-moz-color-swatch {
+    border: 3px solid var(--theme-elevation-0);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px var(--theme-elevation-150);
+  }
+}
+
+// A stamp in the color, the ways the app shows one. The app's parts come
+// without their Tailwind classes here, so everything they need is set below –
+// in the app's own colors (styles.css), light also in the dark admin: that
+// is how the app looks.
+.stamp-color-preview {
+  --scp-ink: #1d1b3a;
+  --scp-card: #ffffff;
+  --scp-soft: #efeaff;
+  --scp-line: #e6e0fb;
+  --scp-dots: radial-gradient(var(--scp-line) 1.3px, transparent 1.3px) 0 0 / 18px 18px;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.25rem;
+  margin-top: 0.75rem;
+
+  figure {
+    display: grid;
+    justify-items: center;
+    gap: 0.4rem;
+    margin: 0;
+  }
+
+  figcaption {
+    font-size: 0.8rem;
+    color: var(--theme-elevation-650);
+  }
+}
+
+// Each one's place: a square, what it shows in its middle.
+.scp-box {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 6.5rem;
+  aspect-ratio: 1;
+}
+
+.scp-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+// The drawing surface (stamp-drawer.tsx).
+.scp-drawing {
+  padding: 0.4rem;
+  background: var(--scp-dots), var(--scp-soft);
+  border-radius: 1.1rem;
+}
+
+// A day's page (day-sheet.tsx), the print soaked into it.
+.scp-paper {
+  padding: 0.75rem;
+  background: var(--scp-dots), var(--scp-card);
+  border: 2px solid var(--scp-ink);
+  border-radius: 1.1rem;
+}
+
+.scp-print {
+  mix-blend-mode: multiply;
+  rotate: -6deg;
+}
+
+// An ink pad (day-sheet.tsx) – its surface comes inline, in the color.
+.scp-pad {
+  width: 2.75rem;
+  height: 2.5rem;
+  border: 2px solid var(--scp-ink);
+  border-radius: 1rem;
+  box-shadow: 2px 2px 0 0 var(--scp-ink);
+}
+
+// The stamp in 3D (sticker.tsx): its picture, or the drawing without WebGL.
+.scp-sticker {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+
+  > img,
+  > svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  > img {
+    filter: drop-shadow(0 6px 6px rgb(29 27 58 / 0.18));
+  }
+
+  > svg {
+    padding: 14%;
+  }
+}
+
+// A color's row, closed: its swatch, name and key.
+.stamp-color-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+
+  i {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.15);
+  }
+
+  small {
+    color: var(--theme-elevation-500);
+  }
+}
