@@ -22,6 +22,9 @@ const SHELLS = ["/de/app", "/en/app"];
 /** A slow network counts as none after this long – the copy shows. */
 const NETWORK_TIMEOUT_MS = 4000;
 
+// Push notifications: shown, tapped, renewed (features/push).
+importScripts("/sw-push.js");
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
