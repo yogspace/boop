@@ -8,7 +8,6 @@ import {
   unit,
 } from "@/features/calendar/model";
 import { isColorKey } from "@/features/calendar/palette";
-import { defaultColor } from "@/features/site/stamp-colors";
 import type { Change, SyncType } from "./protocol";
 
 /**
@@ -29,7 +28,9 @@ import type { Change, SyncType } from "./protocol";
  *
  * A color is a stamp color's key – taken by its form alone (`isColorKey`),
  * not by what the CMS has right now: a device may be ahead of or behind the
- * palette, and what is stored must outlive a color taken out of it.
+ * palette, and what is stored must outlive a color taken out of it. A new
+ * calendar or stamp that names none gets its collection's default
+ * (calendar/color-field.ts).
  */
 
 export const COLLECTION = {
@@ -155,8 +156,8 @@ const applyCalendar = async (
   };
   if (!existing) {
     await write({
+      ...defined({ color: fields.color }),
       name: fields.name || "Boop",
-      color: fields.color ?? (await defaultColor(ctx.req, "coral")),
       owner: ctx.me,
       members: [ctx.me],
       personal: false,
@@ -207,7 +208,6 @@ const applyStamp = async (
     await write({
       ...defined(fields),
       name: fields.name ?? "",
-      color: fields.color ?? (await defaultColor(ctx.req, "ink")),
       shape: fields.shape ?? "circle",
       owner: ctx.me,
       deleted: false,

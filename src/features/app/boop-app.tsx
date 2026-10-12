@@ -13,11 +13,11 @@ import {
 } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import {
-  COLORS,
   type ColorName,
   type DayKey,
   stampsOf,
 } from "@/features/calendar/model";
+import { hexOf, nextKey } from "@/features/calendar/palette";
 import {
   createCalendar,
   deleteCalendar,
@@ -39,16 +39,6 @@ import { ShareSheet } from "./share-sheet";
 import { StampDrawer } from "./stamp-drawer";
 import { StampSheet } from "./stamp-sheet";
 import { SyncBadge } from "./sync-badge";
-
-/** New calendars take turns with these colors. */
-const NEW_COLORS: ColorName[] = [
-  "sky",
-  "pink",
-  "mint",
-  "sun",
-  "coral",
-  "grape",
-];
 
 /** A stable little tilt per stamp – the shelf looks hand-placed. */
 const tilt = (id: string) => ((id.charCodeAt(0) + id.charCodeAt(5)) % 9) - 4;
@@ -239,7 +229,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
                 >
                   <span
                     className="h-3 w-3 rounded-full border-2 border-current"
-                    style={{ background: COLORS[c.color] }}
+                    style={{ background: hexOf(c.color) }}
                   />
                   {c.name}
                   {c.members.length > 1 && (
@@ -390,7 +380,8 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
       )}
       {dialog === "new" && (
         <CalendarSheet
-          color={NEW_COLORS[calendars.length % NEW_COLORS.length]}
+          // New calendars take turns with the stamp colors (palette.ts).
+          color={nextKey(calendars.map((c) => c.color))}
           locale={locale}
           onClose={() => setDialog(null)}
           onSave={(name, color) => void onNewCalendar(name, color)}

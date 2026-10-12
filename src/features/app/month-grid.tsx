@@ -1,7 +1,8 @@
 "use client";
 
-import { type CSSProperties, useMemo } from "react";
+import { useMemo } from "react";
 import { ArrowLeft, ArrowRight } from "@/components/doodles";
+import { Ruling } from "@/components/ruling";
 import { buttonClass, ROUND_BUTTON } from "@/components/ui";
 import { type DayKey, todayKey } from "@/features/calendar/model";
 import { StampSvg } from "@/features/calendar/stamp-svg";
@@ -18,8 +19,8 @@ const key = (year: number, month: number, day: number): DayKey =>
 
 /**
  * A day in the ruled month: no frame of its own (the table's lines are the
- * month's, `scribble-grid`) – a soft blob under the pointer, the focus ring
- * inside its lines.
+ * month's, `Ruling`) – a soft blob under the pointer, the focus ring inside
+ * its lines.
  */
 const DAY =
   "scribble scribble-bare scribble-clear scribble-sm flex aspect-square min-h-0 flex-col rounded-xl p-1 text-left [--scribble-inset:4px] [--scribble-ring:5px] hover:scribble-soft active:scribble-soft sm:p-2";
@@ -119,12 +120,10 @@ export const MonthGrid = ({
           </div>
         ))}
       </div>
-      {/* The ruled table stays as it is from month to month (drawing its
-          lines is the costly part) – only the days in it are swapped. */}
-      <div
-        className="scribble-grid rounded-2xl [--shade:2]"
-        style={{ "--rows": rows } as CSSProperties}
-      >
+      {/* The ruled table stays as it is from month to month – only the days
+          in it are swapped (and fade in). */}
+      <div className="relative isolate">
+        <Ruling className="[--scribble-width:2.5px]" rows={rows} shade={2} />
         <div
           className="grid animate-fade grid-cols-7"
           key={`${month.year}-${month.month}`}

@@ -2,7 +2,9 @@
 
 import { type FormEvent, type ReactNode, useState } from "react";
 import { Button, Field } from "@/components/ui";
-import { COLOR_NAMES, COLORS, type ColorName } from "@/features/calendar/model";
+import type { ColorName } from "@/features/calendar/model";
+import { knownKey } from "@/features/calendar/palette";
+import { usePalette } from "@/features/calendar/palette-provider";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
@@ -18,7 +20,7 @@ export const CalendarSheet = ({
   locale,
   title,
   name: initialName = "",
-  color: initialColor = "sky",
+  color: initialColor = knownKey("sky"),
   submit,
   onSave,
   onClose,
@@ -34,6 +36,10 @@ export const CalendarSheet = ({
   const t = dictionaryOf(locale);
   const [name, setName] = useState(initialName);
   const [color, setColor] = useState<ColorName>(initialColor);
+  // The stamp colors to pick from. A calendar whose color the palette no
+  // longer has shows in the first – and keeps its own until another is picked.
+  const palette = usePalette();
+  const shown = knownKey(color, palette);
   const save = (event: FormEvent) => {
     event.preventDefault();
     const clean = name.trim().slice(0, 60);
@@ -56,17 +62,17 @@ export const CalendarSheet = ({
         {/* Ink blots to pick from – the picked one gets a scribbled ring. */}
         <fieldset className="flex flex-wrap items-center gap-3.5">
           <legend className="mb-3 font-bold text-sm">{t.app.draw.color}</legend>
-          {COLOR_NAMES.map((c) => (
+          {palette.map(({ key: c, hex, name: names }) => (
             <button
-              aria-label={t.colors[c]}
-              aria-pressed={color === c}
+              aria-label={names[locale]}
+              aria-pressed={shown === c}
               className={cn(
                 "scribble scribble-sm scribble-clear h-9 w-9 rounded-full transition-transform duration-150 [--scribble-inset:-5px] [--scribble-ring:-9px] [filter:var(--scribble-c)]",
-                color === c ? "scale-110" : "scribble-bare hover:scale-110"
+                shown === c ? "scale-110" : "scribble-bare hover:scale-110"
               )}
               key={c}
               onClick={() => setColor(c)}
-              style={{ background: COLORS[c] }}
+              style={{ background: hex }}
               type="button"
             />
           ))}

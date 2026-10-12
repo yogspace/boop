@@ -391,19 +391,19 @@
 /*
  * Scribbled lines and shading – the same marker without a box.
  *
- *   scribble-rule       an empty block as a ruled marker line (currentColor,
- *                       --scribble-width, 2px)
+ *   scribble-rule       an empty block as a ruled marker line, lying flat
+ *                       (currentColor; --scribble-width, 2px)
+ *   scribble-rule-y     the same, standing
  *   scribble-underline  a marker line under the text it is on (its ::after) –
  *                       for one line of text; also hover:scribble-underline
- *   scribble-grid       a marker-ruled table over a box of equal cells:
- *                       --cols (7) and --rows of them, a frame around, and –
- *                       with --shade: n – the last n columns hatched. The
- *                       lines lie over the cells (its ::after); keep the box
- *                       itself in place and swap what is in it, so they are
- *                       drawn only once (features/app/month-grid.tsx).
+ *   scribble-hatch      pencil hatching over the box it is on (--color-line)
  *   boil                the element itself boils (a doodle: `boil`,
  *                       `group-hover:boil`; with `scribble-sm` when it is
  *                       small) – never a panel
+ *
+ * A ruled table – the month – is made of single lines, not of one filtered
+ * box: components/ruling.tsx. A line is a few pixels across, so drawing it
+ * costs next to nothing; a box the size of the table costs all its pixels.
  */
 @utility scribble-rule {
   display: block;
@@ -411,6 +411,47 @@
   background: linear-gradient(currentColor, currentColor) center / 100%
     var(--scribble-width, 2px) no-repeat;
   filter: var(--scribble-seed, url(#scribble-h1));
+
+  /* Lines side by side take turns with the five wobbles. */
+  &:nth-child(5n + 2) {
+    filter: var(--scribble-seed, url(#scribble-h2));
+  }
+
+  &:nth-child(5n + 3) {
+    filter: var(--scribble-seed, url(#scribble-h3));
+  }
+
+  &:nth-child(5n + 4) {
+    filter: var(--scribble-seed, url(#scribble-h4));
+  }
+
+  &:nth-child(5n) {
+    filter: var(--scribble-seed, url(#scribble-h5));
+  }
+}
+
+@utility scribble-rule-y {
+  display: block;
+  width: 12px;
+  background: linear-gradient(currentColor, currentColor) center /
+    var(--scribble-width, 2px) 100% no-repeat;
+  filter: var(--scribble-seed, url(#scribble-v1));
+
+  &:nth-child(5n + 2) {
+    filter: var(--scribble-seed, url(#scribble-v2));
+  }
+
+  &:nth-child(5n + 3) {
+    filter: var(--scribble-seed, url(#scribble-v3));
+  }
+
+  &:nth-child(5n + 4) {
+    filter: var(--scribble-seed, url(#scribble-v4));
+  }
+
+  &:nth-child(5n) {
+    filter: var(--scribble-seed, url(#scribble-v5));
+  }
 }
 
 @utility scribble-underline {
@@ -430,62 +471,17 @@
   }
 }
 
-@utility scribble-grid {
-  position: relative;
-  isolation: isolate;
+/*
+ * Six short strokes to a 48px tile, none quite like the next, wrapping
+ * sideways – drawn once as a picture and laid out like tiles: no filter, so
+ * it costs nothing however large. A mask, so the color is the token's.
+ */
+@utility scribble-hatch {
+  --hatch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' fill='none' stroke='%23000' stroke-linecap='round'%3E%3Cpath stroke-width='1.5' d='M-45.5 45.5Q-22.8 23 -2.5 2.5M2.5 45.5Q25.2 23 45.5 2.5M50.5 45.5Q73.2 23 93.5 2.5'/%3E%3Cpath stroke-width='1.4' d='M-36.6 44Q-16.7 23.6 5.9 1.5M11.4 44Q31.3 23.6 53.9 1.5M59.4 44Q79.3 23.6 101.9 1.5'/%3E%3Cpath stroke-width='1.6' d='M-29.9 46.5Q-7.7 26.6 12.6 4M18.1 46.5Q40.3 26.6 60.6 4M66.1 46.5Q88.3 26.6 108.6 4'/%3E%3Cpath stroke-width='1.5' d='M-20.5 44.5Q0.3 21.7 22.8 1.2M27.5 44.5Q48.4 21.7 70.8 1.2M75.5 44.5Q96.4 21.7 118.8 1.2'/%3E%3Cpath stroke-width='1.4' d='M-14.8 46Q8.2 25.1 28.2 3M33.2 46Q56.2 25.1 76.2 3M81.2 46Q104.2 25.1 124.2 3'/%3E%3Cpath stroke-width='1.6' d='M-2.8 43.5Q17.4 23.4 39.7 1M45.2 43.5Q65.4 23.4 87.7 1M93.2 43.5Q113.4 23.4 135.7 1'/%3E%3C/svg%3E");
 
-  &::before,
-  &::after {
-    content: "";
-    position: absolute;
-    pointer-events: none;
-  }
-
-  /* The hatching – under the cells, so it never crosses a print. */
-  &::before {
-    inset-block: 0;
-    right: 0;
-    z-index: -1;
-    width: calc(100% * var(--shade, 0) / var(--cols, 7));
-    border-top-right-radius: inherit;
-    border-bottom-right-radius: inherit;
-    background: repeating-linear-gradient(
-      -56deg,
-      var(--color-line) 0 1.5px,
-      transparent 1.5px 7px
-    );
-    filter: var(--scribble-c);
-  }
-
-  /*
-   * The lines – over the cells, so whatever a cell shows stays inside them.
-   * On a layer of their own (see `scribble`): a hover on a day must not
-   * redraw the whole table.
-   */
-  &::after {
-    inset: 0;
-    z-index: 1;
-    border: var(--scribble-width, 3px) solid var(--color-ink);
-    border-radius: inherit;
-    background:
-      repeating-linear-gradient(
-        to right,
-        var(--color-ink) 0 1px,
-        transparent 1px calc(100% / var(--cols, 7) - 1px),
-        var(--color-ink) calc(100% / var(--cols, 7) - 1px)
-          calc(100% / var(--cols, 7))
-      ),
-      repeating-linear-gradient(
-        to bottom,
-        var(--color-ink) 0 1px,
-        transparent 1px calc(100% / var(--rows, 5) - 1px),
-        var(--color-ink) calc(100% / var(--rows, 5) - 1px)
-          calc(100% / var(--rows, 5))
-      );
-    background-origin: border-box;
-    filter: var(--scribble-seed, var(--scribble-a));
-    will-change: transform;
-  }
+  background-color: var(--color-line);
+  -webkit-mask: var(--hatch) 0 0 / 48px 48px;
+  mask: var(--hatch) 0 0 / 48px 48px;
 }
 
 @utility boil {

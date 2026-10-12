@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Arrow, Star, Ticks } from "@/components/doodles";
+import { Ruling } from "@/components/ruling";
 import { StampSvg } from "@/features/calendar/stamp-svg";
 import { DEMO_STAMPS, demoStamp } from "@/features/stickers/demo";
 import { Sticker } from "@/features/stickers/sticker";
@@ -230,7 +231,8 @@ export const HeroScene = ({ locale }: { locale: Locale }) => {
             </p>
           ))}
         </div>
-        <div className="scribble-grid grid grid-cols-7 rounded-xl [--rows:5] [--scribble-width:2.5px] [--shade:2]">
+        <div className="relative isolate grid grid-cols-7">
+          <Ruling rows={5} shade={2} />
           {Array.from({ length: 3 }, (_, i) => (
             <span key={`gap-${i}`} />
           ))}

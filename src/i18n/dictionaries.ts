@@ -1,4 +1,3 @@
-import type { ColorName } from "@/features/calendar/model";
 import type { Locale } from "./config";
 
 /**
@@ -249,15 +248,6 @@ const de = {
     logoutPending: (n: number) =>
       `${n === 1 ? "1 Änderung ist" : `${n} Änderungen sind`} noch nicht abgeglichen und gehen beim Abmelden verloren.`,
   },
-  colors: {
-    ink: "Tinte",
-    coral: "Koralle",
-    sun: "Sonne",
-    mint: "Minze",
-    sky: "Himmel",
-    grape: "Traube",
-    pink: "Rosa",
-  } satisfies Record<ColorName, string>,
 };
 
 export type Dictionary = typeof de;
@@ -510,15 +500,6 @@ const en: Shape<Dictionary> = {
     logoutOffline: "Logging out needs a connection.",
     logoutPending: (n: number) =>
       `${n === 1 ? "1 change isn't" : `${n} changes aren't`} synced yet and will be lost when you log out.`,
-  },
-  colors: {
-    ink: "Ink",
-    coral: "Coral",
-    sun: "Sun",
-    mint: "Mint",
-    sky: "Sky",
-    grape: "Grape",
-    pink: "Pink",
   },
 };
 

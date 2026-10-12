@@ -76,7 +76,10 @@ const protectAccount: CollectionBeforeChangeHook = ({
   return next;
 };
 
-/** Every account starts with a calendar of its own. */
+/**
+ * Every account starts with a calendar of its own – in the calendars'
+ * default color (calendar/color-field.ts).
+ */
 const createPersonalCalendar: CollectionAfterChangeHook = async ({
   doc,
   operation,
@@ -88,7 +91,6 @@ const createPersonalCalendar: CollectionAfterChangeHook = async ({
     data: {
       id: newId(),
       name: localeOf(doc) === "de" ? "Mein Kalender" : "My calendar",
-      color: "coral",
       owner: doc.id,
       members: [doc.id],
       personal: true,

@@ -13,14 +13,14 @@ import { Button, Field, Notice } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import { importSvg } from "@/features/calendar/import-svg";
 import {
-  COLOR_NAMES,
-  COLORS,
   type ColorName,
   type Fill,
   SHAPES,
   type StampShape,
   type Stroke,
 } from "@/features/calendar/model";
+import { knownKey } from "@/features/calendar/palette";
+import { usePalette } from "@/features/calendar/palette-provider";
 import { ShapeOutline, StampSvg } from "@/features/calendar/stamp-svg";
 import { createStamp } from "@/features/offline/store";
 import { STAGE, StickerView } from "@/features/stickers/sticker-view";
@@ -109,7 +109,11 @@ export const StampDrawer = ({
   // Prints the other way round: the face in ink, the doodle cut out.
   const [inverted, setInverted] = useState(false);
   const [shape, setShape] = useState<StampShape>("circle");
-  const [color, setColor] = useState<ColorName>("grape");
+  // Its color: one of the stamp colors – the one picked as long as the
+  // palette has it; else, and to begin with, “grape” or the palette's first.
+  const palette = usePalette();
+  const [picked, setColor] = useState<ColorName>("grape");
+  const color = knownKey(picked, palette);
   const [name, setName] = useState("");
   const [shared, setShared] = useState(false);
   const [error, setError] = useState(false);
@@ -405,9 +409,9 @@ export const StampDrawer = ({
         >
           <fieldset className="flex flex-wrap items-center justify-center gap-2.5">
             <legend className="sr-only">{t.app.draw.color}</legend>
-            {COLOR_NAMES.map((c) => (
+            {palette.map(({ key: c, hex, name: names }) => (
               <button
-                aria-label={t.colors[c]}
+                aria-label={names[locale]}
                 aria-pressed={color === c}
                 className={cn(
                   "h-9 w-9 rounded-full border-2 border-ink transition-transform duration-200",
@@ -417,7 +421,7 @@ export const StampDrawer = ({
                 )}
                 key={c}
                 onClick={() => setColor(c)}
-                style={{ background: COLORS[c] }}
+                style={{ background: hex }}
                 type="button"
               />
             ))}

@@ -13,15 +13,14 @@ import { Circle } from "@/components/doodles";
 import { Button } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import {
-  COLOR_NAMES,
   type ColorName,
   type DayKey,
-  isColorName,
   type PlacementDoc,
   type StampDoc,
   todayKey,
 } from "@/features/calendar/model";
-import { hexOf } from "@/features/calendar/palette";
+import { isColorKey, knownKey } from "@/features/calendar/palette";
+import { usePalette } from "@/features/calendar/palette-provider";
 import { StampSvg } from "@/features/calendar/stamp-svg";
 import {
   movePlacement,
@@ -186,13 +185,18 @@ export const DaySheet = ({
     return () => observer.disconnect();
   }, []);
 
-  // The ink in use – and a dip of the tray's stamps when it changes.
-  const [ink, setInk] = useState<ColorName>("ink");
+  // The inks to dip into: the stamp colors. The one in use is the one last
+  // chosen – on this device, too – as long as the palette has it; else, and
+  // to begin with, “ink” or the palette's first. And a dip of the tray's
+  // stamps when it changes.
+  const palette = usePalette();
+  const [chosen, setInk] = useState<ColorName>("ink");
+  const ink = knownKey(chosen, palette);
   const [dip, setDip] = useState(0);
   useEffect(() => {
     try {
       const saved = localStorage.getItem(INK_KEY);
-      if (isColorName(saved)) setInk(saved);
+      if (isColorKey(saved)) setInk(saved);
     } catch {
       // No storage – the default ink.
     }
@@ -596,9 +600,9 @@ export const DaySheet = ({
           {/* Flat blots of ink, in a row that wraps – nothing scrolls, so
               the marker ring round the one in use is never cut. */}
           <div className="flex flex-wrap gap-1.5">
-            {COLOR_NAMES.map((c, i) => (
+            {palette.map(({ key: c, hex, name: names }, i) => (
               <button
-                aria-label={t.colors[c]}
+                aria-label={names[locale]}
                 aria-pressed={ink === c}
                 className={cn(
                   "relative flex h-11 w-11 items-center justify-center rounded-full transition-transform",
@@ -616,7 +620,7 @@ export const DaySheet = ({
                 <svg
                   aria-hidden="true"
                   className="h-9 w-9"
-                  fill={hexOf(c)}
+                  fill={hex}
                   // Each lies a little differently.
                   style={{ rotate: `${(i * 67) % 360}deg` }}
                   viewBox="0 0 40 40"
