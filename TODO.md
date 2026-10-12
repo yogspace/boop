@@ -2,47 +2,18 @@
 
 Stand: 12.10.2026
 
-## Wünsche (als Nächstes)
+## Offen
 
-- **3D-Stempel im Cartoon-Stil rendern** – nur die 3D-Elemente, nicht die
-  Seite. Gemeint ist der „gezeichnete“ Look von 3D-Renderfiltern (Referenz:
-  3D-Szenen mit Tuschelinien, nur als Stilvorlage): ganz flache Farben ohne
-  Glanz und Verlauf, dazu kräftige schwarze Linien – am Umriss UND innen,
-  zwischen den Teilen (Griff, Block, Gummi) und an den Kanten des Reliefs –,
-  leicht unruhig wie von Hand gezogen.
-  - Zwei Probeläufe in WebKit (außerhalb des Repos): flache Farben gehen
-    sofort (unbeleuchtetes Material). Die einfache Kontur über aufgeblasene
-    Rückseiten (`OutlineEffect`) reicht nicht: dünn ist sie zu zaghaft, dick
-    franst sie am Relief aus und verdoppelt Linien.
-  - Richtiger Weg: die Linien im Bild finden statt am Modell – ein zweiter
-    Durchgang, der Kanten aus Tiefe, Flächenrichtung und Teil-Kennung zieht
-    (Kantenfilter) und als gleichmäßig dicke Tuschelinie über die flachen
-    Farben legt; dann leicht verwackeln (wie die Scribble-Rahmen).
-  - Betrifft alles, was Stempel rendert: Bilder (`render.ts`), die Ansicht
-    im Editor (`sticker-view.tsx`), den Stempel am Cursor
-    (`stamp-hand.tsx`); die Materialien kommen aus `build.ts`.
-- **Rahmenmuster wählbar** (Bordüre): statt nur dem glatten Rand ein Muster,
-  z. B. gestrichelt, gepunktet, Wellen, Zacken, doppelte Linie. Im Editor
-  auswählen; gilt für Zeichnung, Abdruck und den erhabenen Rand am
-  3D-Gummi. Am Stempel speichern wie „invertiert“ (in der Zeichnung).
-
-- **Special-Stempel** für einmalige Erlebnisse. Entschieden:
-  - Es glitzert beides: der Abdruck auf dem Tag und der 3D-Stempel.
-  - Mehrmals setzbar – „besonders“, nicht auf einen Abdruck begrenzt.
-  - Etwa 30 % größer als ein normaler Abdruck: spürbar, nicht riesig.
-  - Noch offen: wie er in der Monatsansicht auffällt (Annahme: dort ebenfalls
-    etwas größer und mit Glitzer, solange es in die Tageszelle passt).
-
-## Offen aus der laufenden Runde
-
-- **Scribble-Redesign ausrollen** auf Tagesansicht (`day-sheet.tsx`),
-  Stempel-Editor (`stamp-drawer.tsx`), Stempel-Detail (`stamp-sheet.tsx`)
-  und die 3D-Bühne (`sticker-view.tsx`) – die nutzen noch die alten
-  Farbklassen. Bausteine dafür: die `scribble…`-Klassen in `styles.css` und
-  `ROUND_BUTTON`, `PILL`, `BADGE`, `FIELD_BOX` aus `components/ui.tsx`.
-  Danach die Übergangs-Aliasse (`*-soft`, `shadow-sticker*`) löschen.
-- **Altes Lila in den Mails**: `lib/mail-layout.ts` (Papier, Tinte,
+- **Mails noch im alten Look**: `lib/mail-layout.ts` (Papier, Tinte,
   Button noch lila) – auf Papierweiß/Tinte wie die Seite.
+- **Im Admin gelöschte Kalender** räumen ihre Abdrücke nicht ab – das tut
+  nur das Löschen über die App (`sync/apply.ts`). Ein Hook an `calendars`
+  (beim Löschen oder `deleted` setzen) fehlt.
+- **Stickerbilder** werfen noch einen Schatten im alten Tintenton
+  (`sticker.tsx`, `rgba(29,27,58,…)`) – passt nicht zu „keine Schatten“.
+- **Stempelfarben im CMS**: Wer die Zeilen unter „Site“ → Stamp colors
+  schon gespeichert hat, hat dort noch „Tinte“ als erste Farbe – von Hand
+  auf Rot ändern (Schlüssel `red`, `#ee3b33`).
 
 ## Noch selbst prüfen
 
