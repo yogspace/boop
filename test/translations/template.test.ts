@@ -10,10 +10,7 @@ import {
 
 describe("placeholders", () => {
   it("finds each once, in order", () => {
-    expect(placeholdersOf("{name}, {when} – {name}")).toEqual([
-      "name",
-      "when",
-    ]);
+    expect(placeholdersOf("{name}, {when} – {name}")).toEqual(["name", "when"]);
     expect(placeholdersOf("Hallo!")).toEqual([]);
   });
 
@@ -50,8 +47,9 @@ describe("checking a text from the CMS", () => {
   });
 
   it("refuses placeholders in a plain text", () => {
-    expect(checkPlaceholders("Hallo {name}", { known: [], required: [] }))
-      .toMatch("no placeholders");
+    expect(
+      checkPlaceholders("Hallo {name}", { known: [], required: [] })
+    ).toMatch("no placeholders");
     expect(checkPlaceholders("Hallo", { known: [], required: [] })).toBe(true);
   });
 });

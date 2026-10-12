@@ -98,9 +98,7 @@ export const syncTranslations = async (
       overrideAccess: true,
     });
 
-    const missing = TRANSLATION_KEYS.filter(
-      (key) => !textAt(doc, key)?.trim()
-    );
+    const missing = TRANSLATION_KEYS.filter((key) => !textAt(doc, key)?.trim());
     kept += TRANSLATION_KEYS.length - missing.length;
     added.push(...missing.map((key) => `${locale}:${key}`));
     misfits.push(
@@ -116,11 +114,7 @@ export const syncTranslations = async (
     const data: Record<string, unknown> = {};
     for (const key of TRANSLATION_KEYS) {
       const stored = textAt(doc, key);
-      setValueAt(
-        data,
-        key,
-        stored?.trim() ? stored : CODE_TEXTS[locale][key]
-      );
+      setValueAt(data, key, stored?.trim() ? stored : CODE_TEXTS[locale][key]);
     }
     await payload.updateGlobal({
       slug: "translations",

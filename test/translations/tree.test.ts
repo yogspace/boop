@@ -113,21 +113,22 @@ describe("the fields", () => {
     expect(fieldAt(fields, "app.months._0")).toMatchObject({ label: "1" });
   });
 
+  type Check = {
+    validate: (value: unknown, options: { previousValue?: unknown }) => unknown;
+  };
+
   it("refuse a placeholder the code doesn't fill, or one missing", () => {
-    const { validate } = fieldAt(fields, "app.hello.named") as unknown as {
-      validate: (value: unknown, options: { previousValue?: unknown }) => unknown;
-    };
+    const { validate } = fieldAt(fields, "app.hello.named") as unknown as Check;
     expect(validate("Moin {name}!", {})).toBe(true);
     expect(validate("Moin {nmae}!", {})).toMatch("{nmae}");
     expect(validate("Moin!", {})).toMatch("{name}");
     // Empty: the code's text shows.
     expect(validate("", {})).toBe(true);
     // Stored before the code changed, untouched: saving others still works.
-    expect(validate("Moin {vorname}!", { previousValue: "Moin {vorname}!" }))
-      .toBe(true);
-    const plain = fieldAt(fields, "app.push.on") as unknown as typeof hello & {
-      validate: typeof validate;
-    };
+    expect(
+      validate("Moin {vorname}!", { previousValue: "Moin {vorname}!" })
+    ).toBe(true);
+    const plain = fieldAt(fields, "app.push.on_") as unknown as Check;
     expect(plain.validate("An {x}", {})).toMatch("no placeholders");
   });
 });
@@ -144,7 +145,10 @@ describe("the stored texts", () => {
     expect(
       storedTexts(doc, ["landing.title.0", "app.push.on", "app.save"])
     ).toEqual({
-      de: { "landing.title.0": "Jeder Tag verdient einen ", "app.push.on": "An" },
+      de: {
+        "landing.title.0": "Jeder Tag verdient einen ",
+        "app.push.on": "An",
+      },
       en: { "app.push.on": "On" },
     });
   });
