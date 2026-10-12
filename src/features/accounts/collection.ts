@@ -94,7 +94,9 @@ const addFirstCalendar: CollectionAfterChangeHook = async ({
  * Before an account goes: its calendars are deleted (the other members'
  * devices learn of it by the marker), it leaves the others' calendars, and
  * its stamps and the stamps it placed elsewhere are removed – with its
- * stamps' prints, whoever made them, and the invitations it sent.
+ * stamps' prints, whoever made them, and the invitations it sent. Its notes
+ * elsewhere stay without its name; its notification devices and settings
+ * go (features/push).
  */
 const removeData: CollectionBeforeDeleteHook = async ({ id, req }) => {
   const account = String(id);
@@ -186,6 +188,28 @@ const removeData: CollectionBeforeDeleteHook = async ({ id, req }) => {
     overrideAccess: true,
     req,
   });
+
+  // Its notes in others' calendars are the calendar's – they stay, only
+  // without it as their writer. No change of the words: `changedAt` stays,
+  // so an edit still waiting on a device wins over this.
+  await payload.update({
+    collection: "notes",
+    where: { editedBy: { equals: account } },
+    data: { editedBy: null },
+    context: { sync: true },
+    overrideAccess: true,
+    req,
+  });
+
+  // Its devices hear nothing more, and what it wanted to hear of goes.
+  for (const collection of ["push-subscriptions", "push-settings"] as const) {
+    await payload.delete({
+      collection,
+      where: { account: { equals: account } },
+      overrideAccess: true,
+      req,
+    });
+  }
 };
 
 export const Accounts: CollectionConfig = {

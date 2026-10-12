@@ -18,8 +18,8 @@ import type { CalendarView } from "../offline/store";
 
 /** The views' words in the address, in each language. */
 export const VIEW_SLUGS = {
-  de: { today: "heute", month: "monat" },
-  en: { today: "today", month: "month" },
+  de: { today: "heute", month: "monat", year: "jahr" },
+  en: { today: "today", month: "month", year: "year" },
 } as const satisfies Record<Locale, Record<CalendarView, string>>;
 
 /** A view by its word – in either language (a link may come from the other). */

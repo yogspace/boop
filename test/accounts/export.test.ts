@@ -138,6 +138,63 @@ const invites = [
   },
 ];
 
+const notes = [
+  {
+    id: "note-mine",
+    calendar: "cal-annas",
+    date: "2026-10-11",
+    content: {
+      v: 1,
+      lines: [[{ text: "Kuchen", b: true }, { text: " bei Anna" }], []],
+    },
+    editedBy: ME,
+    createdAt: "2026-10-11T19:00:00.000Z",
+    changedAt: "2026-10-11T19:30:00.000Z",
+    deleted: false,
+  },
+  { id: "note-gone", calendar: "cal-mine", editedBy: ME, deleted: true },
+  // Anna wrote last – hers.
+  {
+    id: "note-annas",
+    calendar: "cal-mine",
+    date: "2026-10-10",
+    content: { v: 1, lines: [[{ text: "Annas Notiz" }]] },
+    editedBy: ANNA,
+    deleted: false,
+  },
+];
+
+const pushSettings = {
+  id: "push-settings-id",
+  account: ME,
+  reminderAt: "21:30",
+  calendars: [
+    { id: "row-id", calendar: "cal-annas", reminder: false, stamped: true },
+  ],
+};
+
+const pushDevices = [
+  {
+    id: "device-id",
+    account: ME,
+    endpoint: "https://web.push.apple.com/endpoint-secret",
+    keys: { p256dh: "p256dh-secret", auth: "auth-secret" },
+    session: "session-id-secret",
+    timeZone: "Europe/Berlin",
+    locale: "de",
+    remindedOn: "2026-10-11",
+    createdAt: "2026-10-01T08:00:00.000Z",
+    lastUsedAt: "2026-10-11T18:00:00.000Z",
+  },
+  // Not its own – should it ever be passed in.
+  {
+    id: "device-annas",
+    account: ANNA,
+    endpoint: "https://fcm.googleapis.com/fcm/send/annas",
+    keys: { p256dh: "x", auth: "y" },
+  },
+];
+
 const people = { [ME]: "Max", [ANNA]: "Anna", [BEN]: "Ben" };
 
 const data = accountExport({
@@ -145,7 +202,10 @@ const data = accountExport({
   calendars,
   stamps,
   placements,
+  notes,
   invites,
+  pushSettings,
+  pushDevices,
   people,
   now: NOW,
 });
@@ -247,6 +307,42 @@ describe("the account's data as a file", () => {
     ]);
   });
 
+  it("has the notes it wrote last, as text and as written", () => {
+    expect(data.notes).toEqual([
+      {
+        id: "note-mine",
+        calendar: "cal-annas",
+        date: "2026-10-11",
+        text: "Kuchen bei Anna",
+        content: {
+          v: 1,
+          lines: [[{ text: "Kuchen", b: true }, { text: " bei Anna" }]],
+        },
+        createdAt: "2026-10-11T19:00:00.000Z",
+        changedAt: "2026-10-11T19:30:00.000Z",
+      },
+    ]);
+  });
+
+  it("has its notifications – the push service by name, not its address", () => {
+    expect(data.notifications).toEqual({
+      reminderAt: "21:30",
+      calendars: [{ calendar: "cal-annas", reminder: false, stamped: true }],
+      devices: [
+        {
+          service: "web.push.apple.com",
+          timeZone: "Europe/Berlin",
+          locale: "de",
+          lastRemindedOn: "2026-10-11",
+          createdAt: "2026-10-01T08:00:00.000Z",
+          lastUsedAt: "2026-10-11T18:00:00.000Z",
+        },
+      ],
+    });
+    expect(file).not.toContain("endpoint");
+    expect(file).not.toContain("fcm.googleapis.com");
+  });
+
   it("lists the invitations it sent that are still open", () => {
     expect(data.invites).toEqual([
       {
@@ -265,6 +361,8 @@ describe("the account's data as a file", () => {
       "fremd@example.com",
       "Annas Wolke",
       "print-annas",
+      "note-annas",
+      "Annas Notiz",
       "inv-annas",
       "cal-foreign",
       "Geheim",
@@ -276,7 +374,13 @@ describe("the account's data as a file", () => {
   });
 
   it("leaves out what is deleted", () => {
-    for (const gone of ["cal-gone", "stamp-gone", "print-gone", "inv-over"]) {
+    for (const gone of [
+      "cal-gone",
+      "stamp-gone",
+      "print-gone",
+      "note-gone",
+      "inv-over",
+    ]) {
       expect(file).not.toContain(gone);
     }
     expect(file).not.toContain("alt@example.com");
@@ -300,8 +404,14 @@ describe("the account's data as a file", () => {
       fresh.memberships,
       fresh.stamps,
       fresh.placements,
+      fresh.notes,
       fresh.invites,
-    ]).toEqual([[], [], [], [], []]);
+    ]).toEqual([[], [], [], [], [], []]);
+    expect(fresh.notifications).toEqual({
+      reminderAt: "20:00",
+      calendars: [],
+      devices: [],
+    });
   });
 
   it("is named by the day", () => {

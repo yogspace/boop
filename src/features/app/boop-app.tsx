@@ -65,6 +65,7 @@ import { SyncBadge } from "./sync-badge";
 import { TodayView } from "./today-view";
 import { useDismiss } from "./use-dismiss";
 import { ViewSwitch } from "./view-switch";
+import { YearGrid } from "./year-grid";
 
 /** A stable little tilt per stamp – the shelf looks hand-placed. */
 const tilt = (id: string) => ((id.charCodeAt(0) + id.charCodeAt(5)) % 9) - 4;
@@ -369,6 +370,12 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     void setCalendarPref(calendar.id, { view: next });
   };
 
+  /** A day's sheet, from the month or the year. */
+  const openDay = (key: DayKey) => {
+    setDay(key);
+    trackEvent("day-opened");
+  };
+
   const onNewCalendar = async (name: string, color: ColorName) => {
     // Not among the slugs yet – its address follows once it is.
     go(await createCalendar(name, color), null);
@@ -625,23 +632,39 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                     key={view}
                     variants={VIEW_TURN}
                   >
-                    {view === "today" ? (
+                    {view === "today" && (
                       <TodayView
                         calendar={calendar.id}
                         keyboard={!covered}
                         locale={locale}
                         stamps={myStamps}
                       />
-                    ) : (
+                    )}
+                    {view === "month" && (
                       <MonthGrid
                         calendar={calendar.id}
                         locale={locale}
                         month={month}
-                        onDay={(key) => {
-                          setDay(key);
-                          trackEvent("day-opened");
-                        }}
+                        onDay={openDay}
                         onMonth={setMonth}
+                      />
+                    )}
+                    {view === "year" && (
+                      // The year of the month that shows – one place in
+                      // time for both: a year picked here, the month opens
+                      // in it.
+                      <YearGrid
+                        calendar={calendar.id}
+                        locale={locale}
+                        onDay={openDay}
+                        onMonth={(at) => {
+                          setMonth(at);
+                          pick("month");
+                        }}
+                        onYear={(year) =>
+                          setMonth({ year, month: month.month })
+                        }
+                        year={month.year}
                       />
                     )}
                   </m.div>
@@ -656,7 +679,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
               {/* The wave swings below its picture's edge (its troughs reach
                 past the viewBox, doodles.tsx) – so the picture may not cut
                 it off. */}
-              <Squiggle className="h-3 w-24 overflow-visible" />
+              <Squiggle className="h-3 w-24" />
             </div>
             <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-3">
               <li>

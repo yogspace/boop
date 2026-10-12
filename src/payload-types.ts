@@ -23,6 +23,8 @@ export interface Config {
   collections: {
     users: User;
     accounts: Account;
+    'push-subscriptions': PushSubscription;
+    'push-settings': PushSetting;
     calendars: Calendar;
     stamps: Stamp;
     placements: Placement;
@@ -39,6 +41,8 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     accounts: AccountsSelect<false> | AccountsSelect<true>;
+    'push-subscriptions': PushSubscriptionsSelect<false> | PushSubscriptionsSelect<true>;
+    'push-settings': PushSettingsSelect<false> | PushSettingsSelect<true>;
     calendars: CalendarsSelect<false> | CalendarsSelect<true>;
     stamps: StampsSelect<false> | StampsSelect<true>;
     placements: PlacementsSelect<false> | PlacementsSelect<true>;
@@ -177,6 +181,52 @@ export interface Account {
     | null;
   password?: string | null;
   collection: 'accounts';
+}
+/**
+ * Devices that get notifications – one per browser that said yes. They stop with the login they were turned on in, and go when their push service no longer knows them.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "push-subscriptions".
+ */
+export interface PushSubscription {
+  id: string;
+  account: string | Account;
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  session?: string | null;
+  timeZone: string;
+  locale: 'de' | 'en';
+  remindedOn?: string | null;
+  /**
+   * When the device last said it still wants them, or a notification last reached it – once a day at most.
+   */
+  lastUsedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * What an account wants to hear of. A calendar not listed has both on – the reminder and “someone else stamped”.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "push-settings".
+ */
+export interface PushSetting {
+  id: string;
+  account: string | Account;
+  reminderAt: string;
+  calendars?:
+    | {
+        calendar: string | Calendar;
+        reminder?: boolean | null;
+        stamped?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * People's calendars. Members see and stamp a calendar; the owner names it, shares it and deletes it.
@@ -381,6 +431,14 @@ export interface PayloadLockedDocument {
         value: string | Account;
       } | null)
     | ({
+        relationTo: 'push-subscriptions';
+        value: string | PushSubscription;
+      } | null)
+    | ({
+        relationTo: 'push-settings';
+        value: string | PushSetting;
+      } | null)
+    | ({
         relationTo: 'calendars';
         value: string | Calendar;
       } | null)
@@ -512,6 +570,45 @@ export interface AccountsSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "push-subscriptions_select".
+ */
+export interface PushSubscriptionsSelect<T extends boolean = true> {
+  account?: T;
+  endpoint?: T;
+  keys?:
+    | T
+    | {
+        p256dh?: T;
+        auth?: T;
+      };
+  session?: T;
+  timeZone?: T;
+  locale?: T;
+  remindedOn?: T;
+  lastUsedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "push-settings_select".
+ */
+export interface PushSettingsSelect<T extends boolean = true> {
+  account?: T;
+  reminderAt?: T;
+  calendars?:
+    | T
+    | {
+        calendar?: T;
+        reminder?: T;
+        stamped?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -180,6 +180,12 @@
     background: var(--color-bg);
     color: var(--color-ink);
     -webkit-tap-highlight-color: transparent;
+    /*
+     * The scrollbar's room is kept even while a sheet holds the page still
+     * (overflow hidden, features/app/sheet.tsx) – the page doesn't jump
+     * sideways as one opens. (Overlay scrollbars take no room anyway.)
+     */
+    scrollbar-gutter: stable;
   }
 
   body {

@@ -65,6 +65,16 @@ Stand: 12.10.2026
 - Tagesansicht: Stempel kommt in seiner eigenen Farbe; Namensschild beim
   Hover in der Stempelauswahl.
 - Kontomenü und Sync-Notiz schließen bei Klick daneben.
+- Gezeichnete Linien jetzt als Vektoren (Zeichner im Browser,
+  `components/scribble-draw.ts`): in echtem Safari/iPhone ansehen – Knöpfe,
+  Karten, Monatstabelle, Fokusringe, Hover-Fleck. Im Dev-Modus springen die
+  Rahmen kurz nach dem Laden von gerade auf gewackelt (im Build nicht).
+- Tagesnotiz mit Server und zweitem Gerät: kommt sie an, gewinnt die
+  spätere Änderung, schreiben zwei Geräte offline in dieselbe Notiz statt
+  zwei anzulegen? Auf dem iPhone: Autokorrektur, Diktat, bleibt die Tastatur
+  bei B/U offen?
+- Ein alter, offener Tab hält das Datenbank-Upgrade (Version 2) auf, bis er
+  zu ist – danach lädt er neu.
 - Sheets scrollen in sich (Titel bleibt, ohne Scrollleiste, Fade an den
   Rändern) – auf dem iPhone: scrollt die Seite dahinter wirklich nicht mit?
 - STL in einem echten Slicer: steht jetzt auf der Gummifläche, Knauf nach
@@ -84,10 +94,6 @@ Stand: 12.10.2026
 
 ## Ideen am Rand
 
-- keine pixeligen styles, sondern abgerundete (svg drawing, nicht pixel). der style ist komplett super, aber die pixelkanten sind doof.
-- cursor-pointer, wo sinnvoll
-- jeder tag bekommt ein textfeld, was gemacht wurde (sehr simples richtext, mit underline, bold & zeilenumbrüche)
-- das textfeld wird auch in der übersicht berücksichtigt (also skribble text linie zickzack oder so)
 - auf der startseite sollte eher today gezeigt werden und dann der monat als übersicht. also so wie jetzt, aber today bekommt extra nochmal eine eigene view (es gibt einen toggle je kalender, today ist aber zuerst ausgewählt)
 - die slug des kalenders ergibt sich aus dem namen. man muss aber nach account auflösen, weil ja mehrere accounts die gleichen namen nutzen. also das muss schon sinn ergeben
 - jahresansicht als dritte ansicht (heute / monat / jahr): zwölf kleine monate, klick auf monat → monat, klick auf tag → tag

@@ -58,8 +58,8 @@ export type CalendarPrefs = {
   view?: CalendarView;
 };
 
-/** How a calendar shows: today's page, or the month as an overview. */
-export type CalendarView = "today" | "month";
+/** How a calendar shows: today's page, the month, or the whole year. */
+export type CalendarView = "today" | "month" | "year";
 
 export type BoopState = {
   status: "loading" | "ready" | "signedOut" | "offlineNoAccount";

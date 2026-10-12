@@ -1,5 +1,6 @@
 import type { CollectionConfig } from "payload";
 import { adminOnly } from "@/access";
+import { notifyStamped } from "@/features/push/stamped";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
 import { colorField } from "../color-field";
 import { isDayKey } from "../model";
@@ -76,5 +77,9 @@ export const Placements: CollectionConfig = {
     },
     ...syncFields,
   ],
-  hooks: { beforeChange: [touchChangedAt] },
+  hooks: {
+    beforeChange: [touchChangedAt],
+    // A new print from a device: the other members hear of it (push).
+    afterChange: [notifyStamped],
+  },
 };

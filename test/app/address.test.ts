@@ -139,6 +139,8 @@ describe("the address", () => {
   it("reads the views in either language", () => {
     expect(readAddress("/en/app/familie/monat").view).toBe("month");
     expect(readAddress("/de/app/familie/today").view).toBe("today");
+    expect(readAddress("/de/app/familie/year").view).toBe("year");
+    expect(readAddress("/en/app/family/jahr").view).toBe("year");
     expect(viewOf("Heute")).toBeNull();
     expect(viewOf(undefined)).toBeNull();
   });
@@ -160,12 +162,14 @@ describe("the address", () => {
     expect(addressOf("de", "familie", "today")).toBe("/de/app/familie/heute");
     expect(addressOf("de", "familie", "month")).toBe("/de/app/familie/monat");
     expect(addressOf("en", "family", "today")).toBe("/en/app/family/today");
+    expect(addressOf("de", "familie", "year")).toBe("/de/app/familie/jahr");
+    expect(addressOf("en", "family", "year")).toBe("/en/app/family/year");
     expect(addressOf("en", null, "month")).toBe("/en/app");
   });
 
   it("reads back what it writes", () => {
     for (const locale of ["de", "en"] as const) {
-      for (const view of ["today", "month"] as const) {
+      for (const view of ["today", "month", "year"] as const) {
         expect(readAddress(addressOf(locale, "wg-kueche", view))).toEqual({
           calendar: "wg-kueche",
           view,

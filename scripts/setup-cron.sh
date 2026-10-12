@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Installs the server-side cron jobs, once a day each:
-# - the statistics report (/next/cron/stats-digest): the route itself decides
-#   from the interval set in the admin whether a report is due, and prunes
-#   old rows.
-# - the cleanup (/next/cron/cleanup): expired invitations, sign-ups never
-#   confirmed, accounts long unused – warned by mail first, deleted a month
-#   later (src/features/accounts/retention.ts). Counts go to the log.
+# Installs the server-side cron jobs:
+# - the statistics report (/next/cron/stats-digest), daily: the route itself
+#   decides from the interval set in the admin whether a report is due, and
+#   prunes old rows.
+# - the cleanup (/next/cron/cleanup), daily: expired invitations, sign-ups
+#   never confirmed, accounts long unused – warned by mail first, deleted a
+#   month later (src/features/accounts/retention.ts). Counts go to the log.
+# - the reminder (/next/cron/push-reminder), every 15 minutes: devices whose
+#   reminder time has come on their clock (src/features/push/reminder.ts).
+#   Without VAPID keys it only answers `"enabled":false`.
 #
 # Runs ON THE HETZNER SERVER (not locally) – by the deploy pipeline after
 # every deploy, or by hand:
@@ -45,6 +48,7 @@ cron_cmd() {
 }
 STATS_CMD="$(cron_cmd /next/cron/stats-digest)"
 CLEANUP_CMD="$(cron_cmd /next/cron/cleanup)"
+REMINDER_CMD="$(cron_cmd /next/cron/push-reminder)"
 
 # The current crontab WITHOUT our old block.
 CURRENT="$(crontab -l 2>/dev/null | sed "/${MARKER}/,/${MARKER_END}/d" || true)"
@@ -56,6 +60,8 @@ CURRENT="$(crontab -l 2>/dev/null | sed "/${MARKER}/,/${MARKER_END}/d" || true)"
   printf '45 6 * * * %s\n' "$STATS_CMD"
   # Daily at 07:15 UTC – its warning mails arrive in the morning.
   printf '15 7 * * * %s\n' "$CLEANUP_CMD"
+  # Every 15 minutes – a reminder comes at most that late.
+  printf '*/15 * * * * %s\n' "$REMINDER_CMD"
   printf '%s\n' "$MARKER_END"
 } | crontab -
 

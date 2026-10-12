@@ -191,6 +191,9 @@ const de = {
       label: "Ansicht",
       today: "Heute",
       month: "Monat",
+      year: "Jahr",
+      prevYear: "Vorheriges Jahr",
+      nextYear: "Nächstes Jahr",
     },
     draw: {
       title: "Neuer Stempel",
@@ -292,7 +295,6 @@ const de = {
       own: {
         title: "Nur für dich",
         text: "Das stellt jede:r für sich ein.",
-        colorOwner: "Deine Farbe. Wer selbst keine wählt, sieht sie auch.",
         colorMember:
           "Nur bei dir, auf diesem Gerät – die anderen sehen ihre eigene Farbe.",
         colorReset: "Wie der Kalender",
@@ -305,6 +307,36 @@ const de = {
       deleteType: (name: string) =>
         `Ganz sicher? Dann tipp zur Bestätigung seinen Namen ein: ${name}`,
       deleteForGood: "Endgültig löschen",
+    },
+    push: {
+      title: "Benachrichtigungen",
+      on: "Auf diesem Gerät an. Was du hier einstellst, gilt für alle deine Geräte.",
+      enable: "Benachrichtigungen einschalten",
+      disable: "Auf diesem Gerät ausschalten",
+      unsupported: "Dieser Browser kann leider keine Benachrichtigungen.",
+      install:
+        "Auf dem iPhone erst zum Home-Bildschirm hinzufügen: Teilen → „Zum Home-Bildschirm“. Dann Boop von dort öffnen.",
+      denied:
+        "Benachrichtigungen sind für Boop blockiert. Erlaub sie in den Einstellungen deines Browsers – auf dem iPhone unter Einstellungen → Mitteilungen → Boop.",
+      failed: "Das hat nicht geklappt. Versuch es bitte noch einmal.",
+      offline: "Zum Ändern brauchst du eine Verbindung.",
+      reminder: "Erinnern, wenn ich heute noch nicht gestempelt habe",
+      stamped: "Wenn jemand anderes hier stempelt",
+      time: "Erinnerung um",
+      timeHint: "Für alle deine Kalender – in der Uhrzeit deines Geräts.",
+      // What the notifications say – in the device's language.
+      someone: "Jemand",
+      stampedTitle: "Boop!",
+      stampedBody: (name: string, calendar: string) =>
+        `${name} hat in „${calendar}“ gestempelt.`,
+      reminderTitle: "Heute schon gestempelt?",
+      reminderBody: (calendars: string[]) => {
+        const names = calendars.map((name) => `„${name}“`);
+        const last = names.pop() ?? "";
+        return names.length
+          ? `${names.join(", ")} und ${last} warten noch auf deinen Stempel.`
+          : `${last} wartet noch auf deinen Stempel.`;
+      },
     },
     stamp: {
       untitled: "Stempel",
@@ -331,11 +363,11 @@ const de = {
         "Der Name ließ sich nicht speichern. Versuch es bitte noch einmal.",
       email: (email: string) => `Angemeldet als ${email}`,
       stored:
-        "Bei Boop liegen dein Name, deine E-Mail-Adresse und was du anlegst: Kalender, Stempel und Abdrücke.",
+        "Bei Boop liegen dein Name, deine E-Mail-Adresse und was du anlegst: Kalender, Stempel, Abdrücke und Notizen – und, wenn du sie einschaltest, deine Geräte für Benachrichtigungen.",
       privacy: "Mehr im Datenschutz",
       exportTitle: "Deine Daten",
       exportText:
-        "Dein Konto, deine Kalender, Stempel, Abdrücke und Einladungen in einer Datei (JSON).",
+        "Dein Konto, deine Kalender, Stempel, Abdrücke, Notizen, Einladungen und Benachrichtigungen in einer Datei (JSON).",
       export: "Daten herunterladen",
       exportFailed:
         "Das Herunterladen hat nicht geklappt. Versuch es bitte noch einmal.",
@@ -343,10 +375,10 @@ const de = {
       deleteLead:
         "Das lässt sich nicht rückgängig machen. Für immer weg sind dann:",
       deleteGone: [
-        "deine Kalender mit allen Abdrücken – auch für alle, mit denen du sie teilst",
+        "deine Kalender mit allen Abdrücken und Notizen – auch für alle, mit denen du sie teilst",
         "deine Stempel und ihre Abdrücke, auch in den Kalendern anderer",
-        "alles, was du in den Kalendern anderer gestempelt hast",
-        "dein Konto selbst und die Einladungen, die du verschickt hast",
+        "alles, was du in den Kalendern anderer gestempelt hast – deine Notizen dort bleiben, ohne deinen Namen",
+        "dein Konto selbst, die Einladungen, die du verschickt hast, und deine Benachrichtigungen",
       ],
       deleteTip:
         "Magst du etwas behalten? Dann lad vorher deine Daten herunter.",
@@ -554,6 +586,9 @@ const en: Shape<Dictionary> = {
       label: "View",
       today: "Today",
       month: "Month",
+      year: "Year",
+      prevYear: "Previous year",
+      nextYear: "Next year",
     },
     draw: {
       title: "New stamp",
@@ -654,7 +689,6 @@ const en: Shape<Dictionary> = {
       own: {
         title: "Just for you",
         text: "Everyone sets this for themselves.",
-        colorOwner: "Your color. Whoever doesn't pick one sees it too.",
         colorMember:
           "Only for you, on this device – the others see their own color.",
         colorReset: "Same as the calendar",
@@ -667,6 +701,35 @@ const en: Shape<Dictionary> = {
       deleteType: (name: string) =>
         `Really sure? Then type its name to confirm: ${name}`,
       deleteForGood: "Delete for good",
+    },
+    push: {
+      title: "Notifications",
+      on: "On for this device. What you set here counts on all your devices.",
+      enable: "Turn on notifications",
+      disable: "Turn off on this device",
+      unsupported: "Sorry, this browser can't do notifications.",
+      install:
+        "On the iPhone, add Boop to your Home Screen first: Share → “Add to Home Screen”. Then open it from there.",
+      denied:
+        "Notifications are blocked for Boop. Allow them in your browser's settings – on the iPhone under Settings → Notifications → Boop.",
+      failed: "That didn't work. Please try again.",
+      offline: "Changing this needs a connection.",
+      reminder: "Remind me when I haven't stamped today",
+      stamped: "When someone else stamps here",
+      time: "Reminder at",
+      timeHint: "For all your calendars – on your device's clock.",
+      someone: "Someone",
+      stampedTitle: "Boop!",
+      stampedBody: (name: string, calendar: string) =>
+        `${name} stamped in “${calendar}”.`,
+      reminderTitle: "Stamped yet today?",
+      reminderBody: (calendars: string[]) => {
+        const names = calendars.map((name) => `“${name}”`);
+        const last = names.pop() ?? "";
+        return names.length
+          ? `${names.join(", ")} and ${last} are still waiting for your stamp.`
+          : `${last} is still waiting for your stamp.`;
+      },
     },
     stamp: {
       untitled: "Stamp",
@@ -691,20 +754,20 @@ const en: Shape<Dictionary> = {
       nameFailed: "The name couldn't be saved. Please try again.",
       email: (email: string) => `Logged in as ${email}`,
       stored:
-        "Boop keeps your name, your email address and what you make: calendars, stamps and prints.",
+        "Boop keeps your name, your email address and what you make: calendars, stamps, prints and notes – and, once you turn them on, your devices for notifications.",
       privacy: "More in the privacy notes",
       exportTitle: "Your data",
       exportText:
-        "Your account, calendars, stamps, prints and invitations in one file (JSON).",
+        "Your account, calendars, stamps, prints, notes, invitations and notification settings in one file (JSON).",
       export: "Download data",
       exportFailed: "The download didn't work. Please try again.",
       delete: "Delete account",
       deleteLead: "This can't be undone. Gone for good are then:",
       deleteGone: [
-        "your calendars with all their prints – for everyone you share them with, too",
+        "your calendars with all their prints and notes – for everyone you share them with, too",
         "your stamps and their prints, in other people's calendars too",
-        "everything you stamped in other people's calendars",
-        "your account itself and the invitations you sent",
+        "everything you stamped in other people's calendars – your notes there stay, without your name",
+        "your account itself, the invitations you sent and your notifications",
       ],
       deleteTip: "Want to keep something? Then download your data first.",
       password: "To be safe: your password",

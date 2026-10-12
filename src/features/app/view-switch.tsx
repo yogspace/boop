@@ -8,13 +8,17 @@ import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
 /** The views, in the switch's order – today first. */
-const VIEWS = ["today", "month"] as const satisfies readonly CalendarView[];
+const VIEWS = [
+  "today",
+  "month",
+  "year",
+] as const satisfies readonly CalendarView[];
 
 /**
- * A calendar's two views side by side in a drawn pill: today's page and the
- * month. The one showing is marked with the highlighter, in the calendar's
- * color (`--cal-mark`, like its name beside it) – picked, the stroke slides
- * over to the other.
+ * A calendar's views side by side in a drawn pill: today's page, the month,
+ * the year. The one showing is marked with the highlighter, in the
+ * calendar's color (`--cal-mark`, like its name beside it) – picked, the
+ * stroke slides over to the other.
  */
 export const ViewSwitch = ({
   view,

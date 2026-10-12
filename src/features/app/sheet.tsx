@@ -176,7 +176,7 @@ export const Sheet = ({
           inert={leaving}
           role="dialog"
         >
-          <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-5 pb-2 sm:px-6 sm:pt-6">
+          <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-5 pb-1 sm:px-6 sm:pt-6">
             <h2 className="font-black text-2xl">{title}</h2>
             <button
               aria-label="Close"
@@ -189,7 +189,7 @@ export const Sheet = ({
           </div>
           <div
             className={cn(
-              "flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pt-2 pb-5 sm:px-6 sm:pb-6",
+              "flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pt-3 pb-5 sm:px-6 sm:pb-6",
               FADING
             )}
             ref={scroller}

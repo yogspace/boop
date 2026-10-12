@@ -2,6 +2,13 @@ import type { PayloadRequest, Where } from "payload";
 // Relative, not `@/…`: the unit tests import this without the app's aliases.
 import { inviteEnd, inviteExpired } from "../calendar/invite-expiry";
 import { sharedWithOf } from "../calendar/model";
+import { cleanNote, noteText } from "../calendar/note";
+import {
+  entriesOf,
+  type PushSettingsDoc,
+  pushServiceOf,
+  reminderAtOf,
+} from "../push/rules";
 
 /**
  * Everything Boop keeps about one account, as one JSON document – the
@@ -9,8 +16,10 @@ import { sharedWithOf } from "../calendar/model";
  * from the account sheet.
  *
  * It is put together field by field: what isn't named here doesn't get out
- * – no password hash, no token, no session id. And it is the account's own: its
- * calendars, its stamps, the prints it made, the invitations it sent. Of
+ * – no password hash, no token, no session id, no push address or key (only
+ * whose push service it is). And it is the account's own: its calendars,
+ * its stamps, the prints it made, the notes it wrote last, the invitations
+ * it sent, its notifications. Of
  * other people only what the app shows it anyway – their names, as members
  * of its calendars and owners of the ones it is in. What they drew and
  * stamped is theirs.
@@ -44,7 +53,10 @@ export const accountExport = ({
   calendars,
   stamps,
   placements,
+  notes = [],
   invites,
+  pushSettings = null,
+  pushDevices = [],
   people,
   now = new Date(),
 }: {
@@ -53,7 +65,13 @@ export const accountExport = ({
   calendars: Doc[];
   stamps: Doc[];
   placements: Doc[];
+  /** The days' notes it wrote last. */
+  notes?: Doc[];
   invites: Doc[];
+  /** What it wants to hear of (features/push) – none: all as by default. */
+  pushSettings?: Doc | null;
+  /** Its devices that get notifications. */
+  pushDevices?: Doc[];
   /** The people in those calendars – names by account id. */
   people: Record<string, string>;
   now?: Date;
@@ -136,6 +154,21 @@ export const accountExport = ({
         createdAt: when(print.createdAt),
         changedAt: when(print.changedAt),
       })),
+    /** The days' notes it wrote last – in its calendars and in others'. */
+    notes: notes
+      .filter((note) => alive(note) && ref(note.editedBy) === me)
+      .map((note) => {
+        const content = cleanNote(note.content);
+        return {
+          id: String(note.id),
+          calendar: ref(note.calendar),
+          date: String(note.date ?? ""),
+          text: noteText(content),
+          content,
+          createdAt: when(note.createdAt),
+          changedAt: when(note.changedAt),
+        };
+      }),
     /** The invitations it sent that are still open – without their link. */
     invites: invites
       .filter(
@@ -148,6 +181,24 @@ export const accountExport = ({
         sentAt: when(invite.createdAt),
         expiresAt: when(inviteEnd(invite)),
       })),
+    /** Notifications: what it wants to hear of, and the devices that do. */
+    notifications: {
+      /** The evening's reminder, on each device's clock. */
+      reminderAt: reminderAtOf(pushSettings as PushSettingsDoc | null),
+      /** Calendars with a switch off – every other one has both on. */
+      calendars: entriesOf(pushSettings as PushSettingsDoc | null),
+      devices: pushDevices
+        .filter((device) => ref(device.account) === me)
+        .map((device) => ({
+          /** Whose push service passes them on – Apple, Google, Mozilla … */
+          service: pushServiceOf(device.endpoint),
+          timeZone: String(device.timeZone ?? ""),
+          locale: String(device.locale ?? ""),
+          lastRemindedOn: device.remindedOn ? String(device.remindedOn) : null,
+          createdAt: when(device.createdAt),
+          lastUsedAt: when(device.lastUsedAt),
+        })),
+    },
   };
 };
 
@@ -160,7 +211,14 @@ export const collectExport = async (
 ): Promise<AccountExport> => {
   const { payload } = req;
   const find = async (
-    collection: "calendars" | "stamps" | "placements" | "invites",
+    collection:
+      | "calendars"
+      | "stamps"
+      | "placements"
+      | "notes"
+      | "invites"
+      | "push-settings"
+      | "push-subscriptions",
     where: Where
   ) =>
     (
@@ -191,7 +249,16 @@ export const collectExport = async (
   const placements = await find("placements", {
     and: [{ placedBy: { equals: me } }, kept],
   });
+  const notes = await find("notes", {
+    and: [{ editedBy: { equals: me } }, kept],
+  });
   const invites = await find("invites", { invitedBy: { equals: me } });
+  const [pushSettings] = await find("push-settings", {
+    account: { equals: me },
+  });
+  const pushDevices = await find("push-subscriptions", {
+    account: { equals: me },
+  });
 
   // The people in its calendars, by name – nothing else about them.
   const ids = [...new Set(calendars.flatMap(memberIds))];
@@ -215,7 +282,10 @@ export const collectExport = async (
     calendars,
     stamps,
     placements,
+    notes,
     invites,
+    pushSettings: pushSettings ?? null,
+    pushDevices,
     people,
   });
 };

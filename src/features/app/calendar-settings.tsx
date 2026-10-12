@@ -14,6 +14,7 @@ import {
   setCalendarPref,
   useBoop,
 } from "@/features/offline/store";
+import { NotificationSettings } from "@/features/push/notification-settings";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { ColorPicker, NameForm } from "./dialogs";
@@ -65,8 +66,8 @@ export const PersonPlus = (props: SVGProps<SVGSVGElement>) => (
  * - **For everyone** – the calendar itself: its name and who is in it. Its
  *   owner's to change – the server holds to that (sync/apply.ts); anyone
  *   else reads.
- * - **Just for you** – how one sees it oneself: its color. `notifications`
- *   come in here.
+ * - **Just for you** – how one sees it oneself: its color, and what one
+ *   hears of it – the notifications (push/notification-settings.tsx).
  *
  * At the very end, below both, the way out: the owner deletes it (asked
  * twice), a member leaves it (asked once).
@@ -83,18 +84,12 @@ export const PersonPlus = (props: SVGProps<SVGSVGElement>) => (
 export const CalendarSettings = ({
   calendar,
   locale,
-  notifications,
   onShare,
   onDeleted,
   onClose,
 }: {
   calendar: Snapshot<CalendarDoc>;
   locale: Locale;
-  /**
-   * The calendar's notifications (a reminder, “someone stamped”) – each
-   * one's own: their place is under “Just for you”, below the color.
-   */
-  notifications?: ReactNode;
   /** To the invitations (the share sheet) – for the owner. */
   onShare?: () => void;
   /** The calendar is gone – whatever showed it moves on. */
@@ -174,11 +169,13 @@ export const CalendarSettings = ({
           onChange={pick}
           value={colorOf(boop, calendar)}
         >
-          <p className="font-medium text-muted text-sm">
-            {owner
-              ? t.app.settings.own.colorOwner
-              : t.app.settings.own.colorMember}
-          </p>
+          {/* A member's pick is theirs alone – said once; the owner's needs
+              no words. */}
+          {!owner && (
+            <p className="font-medium text-muted text-sm">
+              {t.app.settings.own.colorMember}
+            </p>
+          )}
           {/* Back to the calendar's own color – whose dot shows which. */}
           {!owner && own.color && (
             <Button
@@ -195,7 +192,8 @@ export const CalendarSettings = ({
             </Button>
           )}
         </ColorPicker>
-        {notifications}
+        {/* A reminder, “someone stamped” – each one's own. */}
+        <NotificationSettings calendar={calendar} locale={locale} />
       </Part>
       {/* The way out – the owner's or a member's – last of all. */}
       <span aria-hidden="true" className="scribble-rule" />

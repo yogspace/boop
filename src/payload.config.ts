@@ -21,6 +21,8 @@ import { Placements } from "@/features/calendar/collections/placements";
 import { Stamps } from "@/features/calendar/collections/stamps";
 import { Invites } from "@/features/calendar/invites";
 import { Legal } from "@/features/legal/global";
+import { PushSettings, PushSubscriptions } from "@/features/push/collections";
+import { pushEndpoints } from "@/features/push/endpoints";
 import { Site } from "@/features/site/global";
 import { syncEndpoint } from "@/features/sync/endpoint";
 import { liveEndpoint } from "@/features/sync/live";
@@ -40,6 +42,7 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
  * - calendar   calendars, stamps, placements, notes – written through
  * - sync       the one endpoint the app reads and writes with, also after
  *              being offline
+ * - push       notifications: the devices that said yes, their settings
  * - analytics  anonymous statistics and the mail report
  * - site/legal settings, imprint and privacy
  *
@@ -82,6 +85,8 @@ export default buildConfig({
   collections: [
     Users,
     Accounts,
+    PushSubscriptions,
+    PushSettings,
     Calendars,
     Stamps,
     Placements,
@@ -92,7 +97,7 @@ export default buildConfig({
   ],
   // Analytics last – its own group, at the very bottom.
   globals: [Site, Legal, Analytics],
-  endpoints: [syncEndpoint, liveEndpoint, seedEndpoint],
+  endpoints: [syncEndpoint, liveEndpoint, ...pushEndpoints, seedEndpoint],
   // The admin's login cookie, `boop-token` – the app has its own
   // (features/accounts/session.ts). Only sent along from our own pages.
   cookiePrefix: "boop",

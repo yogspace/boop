@@ -12,8 +12,8 @@
  * line came out with frayed, stair-stepped edges. Nine-slice images
  * (border-image, mask-border) can't follow a pill, whose corners are half a
  * height CSS doesn't know, and a mask image is a whole SVG document per
- * frame in Safari. A path per element is a few kilobytes of text, and
- * redrawing it costs no more than painting a border.
+ * frame in Safari. A path per element is a little text, and painting it
+ * costs no more than painting a border.
  *
  * It runs inline at the top of every page (scribble-defs.tsx), so what the
  * server sent is drawn before the first paint. It watches the document for
@@ -25,10 +25,12 @@
  * is the plain border and box it is made of: a straight line, never none.
  *
  * What it reads: the element's size and corner radii, `--scribble-width`,
- * `-style`, `-inset`, `-ring`, `-wobble` and `-seed`, whether it boils
- * (`scribble-boil`, also as `hover:…`) and whether it takes focus. These
- * follow its classes and state attributes (`aria-pressed` …) and the
- * breakpoints – not `:hover`: a line's width or dashes don't change on hover.
+ * `-style`, `-inset`, `-ring`, `-wobble` and `-seed`. These follow its
+ * classes, state attributes (`aria-pressed` …) and the breakpoints – not
+ * `:hover`: a line's width or dashes don't change on hover. Two drawings
+ * wait until they are wanted: the focus ring (when the frame takes focus)
+ * and the boil's two other drawings (when the pointer comes – or at once,
+ * for a plain `scribble-boil`).
  *
  * Self-contained – no imports, nothing from outside the function: it is sent
  * to the browser as its source text. `late` (development): leave each
@@ -58,33 +60,74 @@ export function drawScribbles(late: boolean): void {
 
   // ── Paths ────────────────────────────────────────────────────────────────
 
-  const num = (v: number) => Math.round(v * 10) / 10;
-  const at = (p: Point) => `${num(p[0])} ${num(p[1])}`;
+  /**
+   * Path text, kept small: each step relative to the last point, in tenths
+   * of a pixel – counted in whole tenths, so nothing drifts.
+   */
+  const pen = () => {
+    let x = 0;
+    let y = 0;
+    let d = "";
+    const tenth = (v: number) => Math.round(v * 10);
+    const nums = (values: number[]) =>
+      values.reduce((out, v, i) => {
+        const s = String(v / 10).replace(/^(-?)0\./, "$1.");
+        return out + (i && s[0] !== "-" ? " " : "") + s;
+      }, "");
+    const to = (command: string, p: Point, before: number[] = []) => {
+      const nx = tenth(p[0]);
+      const ny = tenth(p[1]);
+      if (command !== "l" || nx !== x || ny !== y) {
+        d += command + nums([...before, nx - x, ny - y]);
+      }
+      x = nx;
+      y = ny;
+    };
+    return {
+      move: (p: Point) => {
+        x = 0;
+        y = 0;
+        to("M", p);
+      },
+      line: (p: Point) => to("l", p),
+      curve: (c: Point, p: Point) =>
+        to("q", p, [tenth(c[0]) - x, tenth(c[1]) - y]),
+      arc: (r: number, p: Point) => {
+        const t = tenth(r);
+        to(`a${nums([t, t])} 0 0 1 `, p);
+      },
+      close: () => {
+        d += "z";
+      },
+      text: () => d,
+    };
+  };
+  type Pen = ReturnType<typeof pen>;
+
   const mid = (a: Point, b: Point): Point => [
     (a[0] + b[0]) / 2,
     (a[1] + b[1]) / 2,
   ];
 
   /** Smoothly through the points: every one a corner, rounded off from middle to middle. */
-  const trace = (points: Point[], start: "M" | "L") => {
-    let d = `${start}${at(points[0])}`;
+  const trace = (p: Pen, points: Point[], start: boolean) => {
+    if (start) p.move(points[0]);
+    else p.line(points[0]);
     for (let i = 1; i < points.length - 1; i++) {
-      d += `Q${at(points[i])} ${at(mid(points[i], points[i + 1]))}`;
+      p.curve(points[i], mid(points[i], points[i + 1]));
     }
-    return `${d}L${at(points[points.length - 1])}`;
+    p.line(points[points.length - 1]);
   };
 
   /** The same, round and closed. */
-  const loop = (points: Point[]) => {
+  const loop = (p: Pen, points: Point[]) => {
     const last = points.length - 1;
-    let d = `M${at(mid(points[last], points[0]))}`;
-    points.forEach((p, i) => {
-      d += `Q${at(p)} ${at(mid(p, points[i === last ? 0 : i + 1]))}`;
+    p.move(mid(points[last], points[0]));
+    points.forEach((point, i) => {
+      p.curve(point, mid(point, points[i === last ? 0 : i + 1]));
     });
-    return `${d}Z`;
+    p.close();
   };
-
-  const arc = (r: number, to: Point) => `A${num(r)} ${num(r)} 0 0 1 ${at(to)}`;
 
   /** Which way is out at each point – clockwise, the left hand. */
   const normalsOf = (points: Point[], closed: boolean) =>
@@ -105,23 +148,28 @@ export function drawScribbles(late: boolean): void {
     );
 
   /** A stroke with round ends: out along one side, round the end, back along the other. */
-  const capsule = (run: Run) => {
+  const capsule = (p: Pen, run: Run) => {
     const out = side(run, 1);
-    const back = side(run, -1);
-    const last = out.length - 1;
-    return `${trace(out, "M")}${arc(run.half[last], back[last])}${trace(back.reverse(), "L")}${arc(run.half[0], out[0])}Z`;
+    const back = side(run, -1).reverse();
+    trace(p, out, true);
+    p.arc(run.half[run.half.length - 1], back[0]);
+    trace(p, back, false);
+    p.arc(run.half[0], out[0]);
+    p.close();
   };
 
   /** A closed stroke: the ring between its two sides (the inner one turning back, so it is a hole). */
-  const band = (run: Run) =>
-    `${loop(side(run, 1))}${loop(side(run, -1).reverse())}`;
+  const band = (p: Pen, run: Run) => {
+    loop(p, side(run, 1));
+    loop(p, side(run, -1).reverse());
+  };
 
   /**
    * A closed stroke in dashes: some three and a half widths of dash (with its
    * round ends) to two of gap, as a dashed border has them, spaced evenly
    * round – where they start is the seed's.
    */
-  const dashes = (run: Run, width: number, seed: number) => {
+  const dashes = (p: Pen, run: Run, width: number, seed: number) => {
     const { points, normals, half } = run;
     const count = points.length;
     const along = [0];
@@ -158,20 +206,18 @@ export function drawScribbles(late: boolean): void {
         lerp(half[lo], half[j]),
       ];
     };
-    let d = "";
+    const steps = Math.max(2, Math.ceil(dash / 2.5));
     for (let k = 0; k < runs; k++) {
       const start = phase + k * each;
-      const steps = Math.max(2, Math.ceil(dash / 2.5));
       const picked = Array.from({ length: steps + 1 }, (_, i) =>
         pick(start + (dash * i) / steps)
       );
-      d += capsule({
-        points: picked.map((p) => p[0]),
-        normals: picked.map((p) => p[1]),
-        half: picked.map((p) => p[2]),
+      capsule(p, {
+        points: picked.map((q) => q[0]),
+        normals: picked.map((q) => q[1]),
+        half: picked.map((q) => q[2]),
       });
     }
-    return d;
   };
 
   // ── The hand ─────────────────────────────────────────────────────────────
@@ -217,7 +263,7 @@ export function drawScribbles(late: boolean): void {
   /**
    * Points round a box with rounded corners (radii from the top left,
    * clockwise – fitted as CSS does when they don't fit), clockwise, each
-   * with its way out. Close enough that the smallest corner stays round.
+   * with its way out and how far round it lies.
    */
   const around = (
     x: number,
@@ -290,7 +336,7 @@ export function drawScribbles(late: boolean): void {
     let total = 0;
     parts.forEach(([length, place], i) => {
       if (length <= 0) return;
-      const count = Math.ceil(length / (i % 2 ? fine : 5));
+      const count = Math.ceil(length / (i % 2 ? fine : 6));
       for (let k = 0; k < count; k++) {
         const s = (k * length) / count;
         points.push([...place(s), total + s]);
@@ -341,7 +387,7 @@ export function drawScribbles(late: boolean): void {
 
   /**
    * A frame, in its pseudo-elements' own coordinates: the fill's outline,
-   * the line, the line with the focus ring round it.
+   * the line, and – when it has focus – the line with the ring round it.
    */
   const frame = (f: Frame, room: number, seed: number) => {
     const shift = room - f.inset;
@@ -354,8 +400,15 @@ export function drawScribbles(late: boolean): void {
       seed
     );
     if (!run) return null;
-    const line =
-      f.width <= 0 ? "" : f.dashed ? dashes(run, f.width, seed) : band(run);
+    // The fill reaches the line's outer edge, as a box's background reaches
+    // under its border – so a dash's gaps show the fill, as they did.
+    const shape = pen();
+    loop(shape, side(run, 1));
+    const line = pen();
+    if (f.width > 0) {
+      if (f.dashed) dashes(line, run, f.width, seed);
+      else band(line, run);
+    }
     let focus = "";
     if (f.focus) {
       // The ring: a 2px dashed line round its own box, `--scribble-ring` in.
@@ -367,11 +420,11 @@ export function drawScribbles(late: boolean): void {
         f.amp,
         f.seed * 7 + 5
       );
-      focus = line + (ring ? dashes(ring, 2, f.seed) : "");
+      const p = pen();
+      if (ring) dashes(p, ring, 2, f.seed);
+      focus = line.text() + p.text();
     }
-    // The fill reaches the line's outer edge, as a box's background reaches
-    // under its border – so a dash's gaps show the fill, as they did.
-    return { shape: loop(side(run, 1)), line, focus };
+    return { shape: shape.text(), line: line.text(), focus };
   };
 
   // ── Lines ────────────────────────────────────────────────────────────────
@@ -394,7 +447,7 @@ export function drawScribbles(late: boolean): void {
     const to = length - half - 0.5;
     if (to - from < 1 || room < 0) return "";
     const hand = handOf(length, m.seed, Math.min(m.amp, room / 0.85));
-    const count = Math.max(2, Math.ceil((to - from) / 3));
+    const count = Math.max(2, Math.ceil((to - from) / 4));
     const points: Point[] = [];
     const thick: number[] = [];
     for (let i = 0; i <= count; i++) {
@@ -404,19 +457,18 @@ export function drawScribbles(late: boolean): void {
       points.push(m.standing ? [away, s] : [s, away]);
       thick.push(half * t);
     }
-    return capsule({
-      points,
-      normals: normalsOf(points, false),
-      half: thick,
-    });
+    const p = pen();
+    capsule(p, { points, normals: normalsOf(points, false), half: thick });
+    return p.text();
   };
 
   // ── The page ─────────────────────────────────────────────────────────────
 
   const SELECTOR =
     ".scribble, .scribble-rule, .scribble-rule-y, [class*='scribble-underline']";
-  const FOCUSABLE =
-    "a[href], button, input, select, textarea, summary, [tabindex], .scribble-field";
+
+  /** Frames the pointer has been over: their boil is drawn (and kept). */
+  const hot = new WeakSet<Element>();
 
   /** A length from CSS (px, em, rem), or the fallback when it isn't set. */
   const px = (value: string, fallback: number, em: number, rem: number) => {
@@ -471,8 +523,8 @@ export function drawScribbles(late: boolean): void {
           dashed: css.getPropertyValue("--scribble-style").trim() === "dashed",
           amp: get("--scribble-wobble", 3.5),
           seed,
-          boil: (el.getAttribute("class") ?? "").includes("scribble-boil"),
-          focus: el.matches(FOCUSABLE),
+          boil: el.classList.contains("scribble-boil") || hot.has(el),
+          focus: el.matches(":focus, .scribble-field:focus-within"),
         },
       };
     }
@@ -600,6 +652,39 @@ export function drawScribbles(late: boolean): void {
       "aria-selected",
       "aria-checked",
     ],
+  });
+
+  // Focus comes or goes: the frames round it draw their ring, or drop it.
+  const focused = (event: Event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    for (let el = target.closest(".scribble"); el; ) {
+      again(el);
+      el = el.parentElement?.closest(".scribble") ?? null;
+    }
+  };
+  doc.addEventListener("focusin", focused);
+  doc.addEventListener("focusout", focused);
+
+  // The pointer comes: frames that boil when it does (`hover:scribble-boil`,
+  // also round a `group`) get their two other drawings – before the hover
+  // shows.
+  doc.addEventListener("pointerover", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const heat = (el: Element) => {
+      if (hot.has(el) || !el.className.toString().includes("scribble-boil")) {
+        return;
+      }
+      hot.add(el);
+      again(el);
+    };
+    for (let el: Element | null = target; el; el = el.parentElement) {
+      if (el.classList.contains("scribble")) heat(el);
+      if (el.classList.contains("group")) {
+        for (const inner of el.querySelectorAll(".scribble")) heat(inner);
+      }
+    }
   });
 
   // A breakpoint passed: a line's width may be another (`sm:[--scribble-width:…]`).

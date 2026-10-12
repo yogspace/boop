@@ -8,6 +8,7 @@ import { usePalette } from "@/features/calendar/palette-provider";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
+import { InkBlot } from "./ink-blot";
 import { Sheet } from "./sheet";
 
 /**
@@ -40,19 +41,21 @@ export const ColorPicker = ({
   return (
     <fieldset className="flex flex-wrap items-center gap-3.5">
       <legend className="mb-3 font-bold text-sm">{t.app.draw.color}</legend>
-      {palette.map(({ key: c, hex, name: names }) => (
+      {/* Blots of ink, the one picked ringed – like the day's stamp pads. */}
+      {palette.map(({ key: c, hex, name: names }, i) => (
         <button
           aria-label={names[locale]}
           aria-pressed={shown === c}
           className={cn(
-            "scribble scribble-sm scribble-clear h-9 w-9 rounded-full transition-transform duration-150 [--scribble-inset:-5px] [--scribble-ring:-9px] [filter:var(--scribble-c)]",
-            shown === c ? "scale-110" : "scribble-bare hover:scale-110"
+            "relative flex h-10 w-10 items-center justify-center rounded-full transition-transform",
+            shown === c ? "scale-110" : "hover:-rotate-6 hover:scale-110"
           )}
           key={c}
           onClick={() => onChange(c)}
-          style={{ background: hex }}
           type="button"
-        />
+        >
+          <InkBlot hex={hex} index={i} on={shown === c} />
+        </button>
       ))}
       {children && <div className="w-full">{children}</div>}
     </fieldset>
