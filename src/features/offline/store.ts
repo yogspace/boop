@@ -287,12 +287,26 @@ export const createCalendar = async (name: string, color: ColorName) => {
   return doc.id;
 };
 
-export const renameCalendar = async (id: string, name: string) => {
+export const renameCalendar = async (
+  id: string,
+  name: string,
+  color?: ColorName
+) => {
   const doc = boop.calendars[id];
   if (!doc) return;
   const changedAt = now();
-  await keep("calendar", { ...doc, name, changedAt });
-  await enqueue({ type: "calendar", id, changedAt, data: { name } });
+  await keep("calendar", {
+    ...plain(doc),
+    name,
+    ...(color && { color }),
+    changedAt,
+  });
+  await enqueue({
+    type: "calendar",
+    id,
+    changedAt,
+    data: { name, ...(color && { color }) },
+  });
 };
 
 export const deleteCalendar = async (id: string) => {

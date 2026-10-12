@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Sparkle, Squiggle } from "@/components/doodles";
+import { SiteFooter } from "@/components/site-footer";
 import { Button, Logo, Notice } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
-import { COLORS, type DayKey } from "@/features/calendar/model";
-import { legalPath } from "@/features/legal/links";
+import { COLORS, type ColorName, type DayKey } from "@/features/calendar/model";
 import {
   createCalendar,
   deleteCalendar,
@@ -14,17 +14,29 @@ import {
   start,
   useBoop,
 } from "@/features/offline/store";
+import { SITE_DEFAULTS } from "@/features/site/defaults";
 import { Sticker } from "@/features/stickers/sticker";
 import { Link, useTransitionRouter } from "@/features/transitions/link";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { DaySheet } from "./day-sheet";
+import { CalendarSheet, ConfirmSheet } from "./dialogs";
 import { MonthGrid } from "./month-grid";
 import { ShareSheet } from "./share-sheet";
 import { StampDrawer } from "./stamp-drawer";
 import { StampSheet } from "./stamp-sheet";
 import { SyncBadge } from "./sync-badge";
+
+/** New calendars take turns with these colors. */
+const NEW_COLORS: ColorName[] = [
+  "sky",
+  "pink",
+  "mint",
+  "sun",
+  "coral",
+  "grape",
+];
 
 /** A stable little tilt per stamp – the shelf looks hand-placed. */
 const tilt = (id: string) => ((id.charCodeAt(0) + id.charCodeAt(5)) % 9) - 4;
@@ -48,6 +60,9 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   const [sharing, setSharing] = useState(false);
   const [menu, setMenu] = useState(false);
   const [opened, setOpened] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<
+    "new" | "rename" | "delete" | "logout" | null
+  >(null);
 
   useEffect(() => {
     void start();
@@ -95,27 +110,12 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
     );
   }
 
-  const onNewCalendar = async () => {
-    const name = window.prompt(t.app.newCalendarName)?.trim();
-    if (!name) return;
-    const colors = ["sky", "pink", "mint", "sun", "coral", "grape"] as const;
-    setCalendarId(
-      await createCalendar(
-        name.slice(0, 60),
-        colors[calendars.length % colors.length]
-      )
-    );
+  const onNewCalendar = async (name: string, color: ColorName) => {
+    setCalendarId(await createCalendar(name, color));
     trackEvent("calendar-created");
   };
 
-  const onLogout = async () => {
-    if (!navigator.onLine) {
-      window.alert(t.app.logoutOffline);
-      return;
-    }
-    if (boop.pending && !window.confirm(t.app.logoutPending(boop.pending))) {
-      return;
-    }
+  const doLogout = async () => {
     if (await logout()) {
       trackEvent("logout");
       router.replace(`/${locale}`);
@@ -148,9 +148,19 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
                 <p className="font-black">{boop.me?.name}</p>
                 <p className="truncate text-muted text-sm">{boop.me?.email}</p>
               </div>
-              <Button onClick={onLogout} size="sm" variant="plain">
+              <Button
+                disabled={!boop.online}
+                onClick={() =>
+                  boop.pending ? setDialog("logout") : void doLogout()
+                }
+                size="sm"
+                variant="plain"
+              >
                 {t.app.logout}
               </Button>
+              {!boop.online && (
+                <p className="text-muted text-xs">{t.app.logoutOffline}</p>
+              )}
             </div>
           )}
         </div>
@@ -203,7 +213,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
         })}
         <button
           className="shrink-0 rounded-full border-2 border-ink border-dashed px-4 py-2 font-bold text-sm transition hover:bg-card"
-          onClick={onNewCalendar}
+          onClick={() => setDialog("new")}
           type="button"
         >
           + {t.app.newCalendar}
@@ -229,28 +239,14 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
             {owner && !calendar.personal && (
               <>
                 <Button
-                  onClick={() => {
-                    const name = window
-                      .prompt(t.app.newCalendarName, calendar.name)
-                      ?.trim();
-                    if (name) {
-                      void renameCalendar(calendar.id, name.slice(0, 60));
-                    }
-                  }}
+                  onClick={() => setDialog("rename")}
                   size="sm"
                   variant="ghost"
                 >
                   {t.app.rename}
                 </Button>
                 <Button
-                  onClick={() => {
-                    if (
-                      window.confirm(t.app.deleteCalendarConfirm(calendar.name))
-                    ) {
-                      void deleteCalendar(calendar.id);
-                      setCalendarId(null);
-                    }
-                  }}
+                  onClick={() => setDialog("delete")}
                   size="sm"
                   variant="ghost"
                 >
@@ -303,11 +299,12 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
         )}
       </section>
 
-      <footer className="mt-auto pt-6 text-center text-muted text-sm">
-        <Link className="underline underline-offset-4" href={legalPath(locale)}>
-          {t.nav.legal}
-        </Link>
-      </footer>
+      <SiteFooter
+        className="mt-auto px-0 sm:px-0"
+        locale={locale}
+        owner={SITE_DEFAULTS.address.name}
+        website={SITE_DEFAULTS.links.website}
+      />
 
       {calendar && day && (
         <DaySheet
@@ -324,6 +321,54 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
           locale={locale}
           onClose={() => setDrawing(false)}
         />
+      )}
+      {dialog === "new" && (
+        <CalendarSheet
+          color={NEW_COLORS[calendars.length % NEW_COLORS.length]}
+          locale={locale}
+          onClose={() => setDialog(null)}
+          onSave={(name, color) => void onNewCalendar(name, color)}
+          submit={t.app.create}
+          title={t.app.newCalendar}
+        />
+      )}
+      {dialog === "rename" && calendar && (
+        <CalendarSheet
+          color={calendar.color}
+          locale={locale}
+          name={calendar.name}
+          onClose={() => setDialog(null)}
+          onSave={(name, color) =>
+            void renameCalendar(calendar.id, name, color)
+          }
+          submit={t.app.draw.save}
+          title={t.app.rename}
+        />
+      )}
+      {dialog === "delete" && calendar && (
+        <ConfirmSheet
+          confirm={t.app.deleteCalendar}
+          locale={locale}
+          onClose={() => setDialog(null)}
+          onConfirm={() => {
+            void deleteCalendar(calendar.id);
+            setCalendarId(null);
+          }}
+          title={t.app.deleteCalendar}
+        >
+          {t.app.deleteCalendarConfirm(calendar.name)}
+        </ConfirmSheet>
+      )}
+      {dialog === "logout" && (
+        <ConfirmSheet
+          confirm={t.app.logout}
+          locale={locale}
+          onClose={() => setDialog(null)}
+          onConfirm={() => void doLogout()}
+          title={t.app.logout}
+        >
+          {t.app.logoutPending(boop.pending)}
+        </ConfirmSheet>
       )}
       {opened && boop.stamps[opened] && (
         <StampSheet

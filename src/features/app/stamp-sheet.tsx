@@ -28,6 +28,7 @@ export const StampSheet = ({
 }) => {
   const t = dictionaryOf(locale);
   const [busy, setBusy] = useState(false);
+  const [sure, setSure] = useState(false);
   const input = useMemo(
     () => ({ shape: stamp.shape, color: stamp.color, drawing: stamp.drawing }),
     [stamp.shape, stamp.color, stamp.drawing]
@@ -60,20 +61,31 @@ export const StampSheet = ({
       <p className="font-medium text-muted text-xs">
         {t.app.stamp.hint(PRINT_MM)}
       </p>
-      {mine && (
-        <Button
-          onClick={() => {
-            if (window.confirm(t.app.stamp.deleteConfirm)) {
-              void deleteStamp(stamp.id);
-              onClose();
-            }
-          }}
-          size="sm"
-          variant="ghost"
-        >
-          {t.app.stamp.delete}
-        </Button>
-      )}
+      {mine &&
+        (sure ? (
+          <div className="flex animate-fade flex-col gap-3 rounded-2xl border-2 border-pink bg-pink-soft p-4">
+            <p className="font-bold">{t.app.stamp.deleteConfirm}</p>
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setSure(false)} size="sm" variant="ghost">
+                {t.app.draw.cancel}
+              </Button>
+              <Button
+                onClick={() => {
+                  void deleteStamp(stamp.id);
+                  onClose();
+                }}
+                size="sm"
+                variant="pink"
+              >
+                {t.app.stamp.delete}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button onClick={() => setSure(true)} size="sm" variant="ghost">
+            {t.app.stamp.delete}
+          </Button>
+        ))}
     </Sheet>
   );
 };

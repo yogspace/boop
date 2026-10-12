@@ -142,6 +142,8 @@ const de = {
     calendars: "Kalender",
     newCalendar: "Neuer Kalender",
     newCalendarName: "Name des Kalenders",
+    calendarPlaceholder: "z. B. Familie, Sport, Reise …",
+    create: "Anlegen",
     rename: "Umbenennen",
     deleteCalendar: "Kalender löschen",
     deleteCalendarConfirm: (name: string) =>
@@ -222,7 +224,7 @@ const de = {
     logout: "Abmelden",
     logoutOffline: "Zum Abmelden brauchst du eine Verbindung.",
     logoutPending: (n: number) =>
-      `${n} Änderung(en) sind noch nicht abgeglichen und gehen beim Abmelden verloren. Trotzdem abmelden?`,
+      `${n === 1 ? "1 Änderung ist" : `${n} Änderungen sind`} noch nicht abgeglichen und gehen beim Abmelden verloren.`,
   },
   colors: {
     ink: "Tinte",
@@ -380,6 +382,8 @@ const en: Shape<Dictionary> = {
     calendars: "Calendars",
     newCalendar: "New calendar",
     newCalendarName: "Calendar name",
+    calendarPlaceholder: "e.g. family, workouts, trip …",
+    create: "Create",
     rename: "Rename",
     deleteCalendar: "Delete calendar",
     deleteCalendarConfirm: (name: string) =>
@@ -459,7 +463,7 @@ const en: Shape<Dictionary> = {
     logout: "Log out",
     logoutOffline: "Logging out needs a connection.",
     logoutPending: (n: number) =>
-      `${n} change(s) aren't synced yet and will be lost when you log out. Log out anyway?`,
+      `${n === 1 ? "1 change isn't" : `${n} changes aren't`} synced yet and will be lost when you log out.`,
   },
   colors: {
     ink: "Ink",
