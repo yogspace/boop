@@ -3,7 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Squiggle, Ticks } from "@/components/doodles";
 import { SiteFooter } from "@/components/site-footer";
-import { Button, Logo, Notice, PILL, ROUND_BUTTON } from "@/components/ui";
+import {
+  BADGE,
+  Button,
+  Logo,
+  Notice,
+  PILL,
+  ROUND_BUTTON,
+} from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import {
   COLORS,
@@ -108,6 +115,13 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
       stampsOf(Object.values(boop.stamps), me, Object.keys(boop.calendars)),
     [boop.stamps, boop.calendars, me]
   );
+  // On the shelf someone else's stamp wears their first name – and one of
+  // mine that others may use too, two rings.
+  const nameOf = (id: string) => boop.people[id]?.split(" ")[0] || "?";
+  const whose = (s: { owner: string; sharedWith: readonly string[] }) => {
+    if (s.owner !== me) return t.app.stamp.by(nameOf(s.owner));
+    return s.sharedWith.length > 0 ? t.app.stamp.shared : "";
+  };
 
   // Whichever calendar shows goes into the address – chosen, new, or the
   // first when the address names none (or one that is gone). By id: names
@@ -314,18 +328,32 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
             </li>
             {myStamps.map((s) => (
               <li
+                className="relative"
                 key={s.id}
                 style={{ transform: `rotate(${tilt(s.id)}deg)` }}
-                title={s.name || undefined}
+                title={[s.name, whose(s)].filter(Boolean).join(" – ") || undefined}
               >
                 <button
-                  aria-label={s.name || t.app.stamp.untitled}
+                  aria-label={[s.name || t.app.stamp.untitled, whose(s)]
+                    .filter(Boolean)
+                    .join(" – ")}
                   className="scribble scribble-bare scribble-clear flex aspect-square w-full items-center justify-center rounded-3xl p-1 hover:animate-wiggle hover:scribble-soft"
                   onClick={() => setOpened(s.id)}
                   type="button"
                 >
                   <Sticker stamp={s} />
                 </button>
+                {s.owner !== me ? (
+                  <span className="pointer-events-none absolute right-0 bottom-0 flex max-w-full">
+                    <span className={cn(BADGE, "min-w-0")}>
+                      <span className="truncate">{nameOf(s.owner)}</span>
+                    </span>
+                  </span>
+                ) : (
+                  s.sharedWith.length > 0 && (
+                    <SharedSign className="pointer-events-none absolute right-1 bottom-1 h-4 w-4" />
+                  )
+                )}
               </li>
             ))}
           </ul>
@@ -424,6 +452,22 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
     </div>
   );
 };
+
+/** Two rings, one over the other – a stamp of mine that others may use too. */
+const SharedSign = ({ className }: { className?: string }) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeWidth="2.4"
+    viewBox="0 0 24 24"
+  >
+    <circle cx="8.5" cy="12" r="5.5" />
+    <circle cx="15.5" cy="12" r="5.5" />
+  </svg>
+);
 
 const Centered = ({ children }: { children: React.ReactNode }) => (
   <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 text-center">

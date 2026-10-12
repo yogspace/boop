@@ -88,7 +88,10 @@ export const StampDrawer = ({
   locale,
   onClose,
 }: {
-  /** A shared calendar the stamp may belong to – null in the personal one. */
+  /**
+   * The calendar it is drawn in, if its members may get to stamp with it too
+   * – null in the personal one. The stamp is its maker's either way.
+   */
   calendar: string | null;
   locale: Locale;
   onClose: () => void;
@@ -239,7 +242,7 @@ export const StampDrawer = ({
           ...(fills.length > 0 && { fills }),
           ...(inverted && { inverted: true as const }),
         },
-        calendar: shared ? calendar : null,
+        sharedWith: shared && calendar ? [calendar] : [],
       });
       trackEvent("stamp-created");
       onClose();

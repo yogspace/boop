@@ -81,10 +81,10 @@ const Home = async ({ params }: Props) => {
           </p>
           <h1 className="text-balance text-5xl leading-[0.95] sm:text-7xl">
             {before}
-            <span className="relative inline-block whitespace-nowrap px-[0.06em]">
+            <span className="relative mr-[0.14em] inline-block whitespace-nowrap">
               {highlight}
               {/* The one line on the page that keeps boiling – slowly. */}
-              <Circle className="boil pointer-events-none absolute -top-[0.06em] -left-[0.14em] h-[calc(100%+0.22em)] w-[calc(100%+0.3em)] [--boil:960ms] [stroke-width:4px] sm:[stroke-width:5px]" />
+              <Circle className="boil pointer-events-none absolute -top-[0.14em] -left-[0.24em] h-[calc(100%+0.38em)] w-[calc(100%+0.46em)] [--boil:960ms] [stroke-width:3.5px] sm:[stroke-width:4.5px]" />
             </span>
             {after}
           </h1>

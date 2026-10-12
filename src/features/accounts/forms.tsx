@@ -82,12 +82,12 @@ const Frame = ({
     {/* A scribbled sheet; the sticker on its corner is the only color. */}
     <div className="scribble rounded-[32px] p-6 sm:p-8">
       <div
-        className="absolute -top-10 -right-4 w-24 animate-float"
+        className="absolute -top-10 -right-1 w-24 animate-float sm:-right-4"
         style={{ "--tilt": "10deg" } as React.CSSProperties}
       >
         <Sticker stamp={demoStamp(sticker)} />
       </div>
-      <Ticks className="absolute -top-8 right-[5.5rem] h-5 w-8 -rotate-[38deg]" />
+      <Ticks className="absolute -top-8 right-[4.75rem] h-5 w-8 -rotate-[38deg] sm:right-[5.5rem]" />
       <Star className="absolute -top-3.5 left-8 h-7 w-7 -rotate-12" />
       <h1 className="mb-6 pr-16 text-4xl">{title}</h1>
       <div className="flex flex-col gap-5">{children}</div>
