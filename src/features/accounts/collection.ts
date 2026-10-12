@@ -20,6 +20,7 @@ import {
   verifyHtml,
   verifySubject,
 } from "./emails";
+import { sessionEndpoints } from "./session";
 
 /**
  * The people using Boop: email and password (Payload auth). Signing up sends
@@ -220,6 +221,8 @@ export const Accounts: CollectionConfig = {
       options: [...LOCALES],
     },
   ],
+  // Login, logout, “me”, new password – into the app's own cookie.
+  endpoints: sessionEndpoints,
   hooks: {
     beforeOperation: [limitSignups],
     beforeChange: [protectAccount],

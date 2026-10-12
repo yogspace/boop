@@ -26,6 +26,7 @@ export interface Config {
     calendars: Calendar;
     stamps: Stamp;
     placements: Placement;
+    invites: Invite;
     'page-views': PageView;
     actions: Action;
     'payload-kv': PayloadKv;
@@ -40,6 +41,7 @@ export interface Config {
     calendars: CalendarsSelect<false> | CalendarsSelect<true>;
     stamps: StampsSelect<false> | StampsSelect<true>;
     placements: PlacementsSelect<false> | PlacementsSelect<true>;
+    invites: InvitesSelect<false> | InvitesSelect<true>;
     'page-views': PageViewsSelect<false> | PageViewsSelect<true>;
     actions: ActionsSelect<false> | ActionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -240,6 +242,22 @@ export interface Placement {
   createdAt: string;
 }
 /**
+ * Invitations to calendars for addresses without an account. Gone once used or after 30 days.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "invites".
+ */
+export interface Invite {
+  id: string;
+  email: string;
+  calendar: string | Calendar;
+  invitedBy: string | Account;
+  token: string;
+  expiresAt: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "page-views".
  */
@@ -321,6 +339,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'placements';
         value: string | Placement;
+      } | null)
+    | ({
+        relationTo: 'invites';
+        value: string | Invite;
       } | null)
     | ({
         relationTo: 'page-views';
@@ -483,6 +505,19 @@ export interface PlacementsSelect<T extends boolean = true> {
   placedBy?: T;
   changedAt?: T;
   deleted?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "invites_select".
+ */
+export interface InvitesSelect<T extends boolean = true> {
+  email?: T;
+  calendar?: T;
+  invitedBy?: T;
+  token?: T;
+  expiresAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

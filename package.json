@@ -32,6 +32,7 @@
     "react-dom": "^19.2.8",
     "sharp": "0.35.5",
     "tailwind-merge": "^3.7.0",
+    "three": "^0.181.2",
     "valtio": "^2.3.2"
   },
   "devDependencies": {
@@ -40,6 +41,7 @@
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
+    "@types/three": "^0.181.0",
     "fflate": "^0.8.3",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",

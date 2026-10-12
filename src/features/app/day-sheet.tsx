@@ -2,8 +2,13 @@
 
 import { type PointerEvent, useMemo, useRef, useState } from "react";
 import type { Snapshot } from "valtio";
+import { Button } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
-import type { DayKey, StampDoc } from "@/features/calendar/model";
+import {
+  type DayKey,
+  type StampDoc,
+  todayKey,
+} from "@/features/calendar/model";
 import { StampSvg } from "@/features/calendar/stamp-svg";
 import {
   movePlacement,
@@ -11,14 +16,21 @@ import {
   removePlacement,
   useBoop,
 } from "@/features/offline/store";
+import { Sticker } from "@/features/stickers/sticker";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { Sheet } from "./sheet";
 
+type Stamp = Snapshot<StampDoc>;
+
+/** How far a finger moves before a tap becomes a drag. */
+const DRAG = 8;
+
 /**
- * A day of a calendar: its canvas with the placed stamps – drag to move,
- * tap to pick (and remove) – and the tray of stamps to boop onto it.
+ * A day of a calendar: its page with the prints on it, and the tray of 3D
+ * stamps. Tap a stamp – it comes down somewhere on the page; drag it – it
+ * comes down where you let go. Prints can be moved, picked and removed.
  */
 export const DaySheet = ({
   calendar,
@@ -30,20 +42,36 @@ export const DaySheet = ({
   calendar: string;
   date: DayKey;
   locale: Locale;
-  stamps: readonly Snapshot<StampDoc>[];
+  stamps: readonly Stamp[];
   onClose: () => void;
 }) => {
   const t = dictionaryOf(locale);
   const boop = useBoop();
-  const canvas = useRef<HTMLDivElement>(null);
+  const page = useRef<HTMLDivElement>(null);
   const [picked, setPicked] = useState<string | null>(null);
-  // Where a dragged stamp is right now – written once it is let go.
+  // A print being moved – written once it is let go.
   const [drag, setDrag] = useState<{
     id: string;
     x: number;
     y: number;
     moved: boolean;
   } | null>(null);
+  // A stamp from the tray following the finger.
+  const [ghost, setGhost] = useState<{
+    stamp: Stamp;
+    x: number;
+    y: number;
+  } | null>(null);
+  const tray = useRef<{
+    id: string;
+    x: number;
+    y: number;
+    moved: boolean;
+  } | null>(null);
+  // Stamps coming down right now (the press animation).
+  const [presses, setPresses] = useState<
+    { key: number; stamp: Stamp; x: number; y: number }[]
+  >([]);
 
   const placements = useMemo(
     () =>
@@ -59,35 +87,91 @@ export const DaySheet = ({
     month: "long",
   });
 
-  const at = (event: PointerEvent) => {
-    const box = canvas.current?.getBoundingClientRect();
-    if (!box) return { x: 0.5, y: 0.5 };
-    return {
-      x: Math.min(Math.max((event.clientX - box.left) / box.width, 0), 1),
-      y: Math.min(Math.max((event.clientY - box.top) / box.height, 0), 1),
-    };
+  /** A point on the page (0–1), or null when outside it. */
+  const onPage = (clientX: number, clientY: number, clamp = false) => {
+    const box = page.current?.getBoundingClientRect();
+    if (!box) return null;
+    const x = (clientX - box.left) / box.width;
+    const y = (clientY - box.top) / box.height;
+    if (!clamp && (x < 0 || x > 1 || y < 0 || y > 1)) return null;
+    return { x: Math.min(Math.max(x, 0), 1), y: Math.min(Math.max(y, 0), 1) };
   };
 
-  const boopIt = (stamp: string) => {
-    void placeStamp({
-      calendar,
-      date,
-      stamp,
-      x: 0.3 + Math.random() * 0.4,
-      y: 0.3 + Math.random() * 0.4,
-      rotation: Math.round(Math.random() * 30 - 15),
-    });
+  /** Down comes the stamp – the print appears as it presses. */
+  const stampAt = (stamp: Stamp, x: number, y: number) => {
+    const key = Date.now() + Math.random();
+    setPresses((all) => [...all, { key, stamp, x, y }]);
+    setTimeout(() => {
+      void placeStamp({
+        calendar,
+        date,
+        stamp: stamp.id,
+        x,
+        y,
+        rotation: Math.round(Math.random() * 24 - 12),
+      });
+    }, 270);
     trackEvent("stamp-placed");
   };
 
+  const trayDown =
+    (stamp: Stamp) => (event: PointerEvent<HTMLButtonElement>) => {
+      event.currentTarget.setPointerCapture(event.pointerId);
+      tray.current = {
+        id: stamp.id,
+        x: event.clientX,
+        y: event.clientY,
+        moved: false,
+      };
+    };
+
+  const trayMove =
+    (stamp: Stamp) => (event: PointerEvent<HTMLButtonElement>) => {
+      const start = tray.current;
+      if (start?.id !== stamp.id) return;
+      if (
+        !start.moved &&
+        Math.hypot(event.clientX - start.x, event.clientY - start.y) < DRAG
+      ) {
+        return;
+      }
+      start.moved = true;
+      setGhost({ stamp, x: event.clientX, y: event.clientY });
+    };
+
+  const trayUp = (stamp: Stamp) => (event: PointerEvent<HTMLButtonElement>) => {
+    const start = tray.current;
+    tray.current = null;
+    setGhost(null);
+    if (start?.id !== stamp.id) return;
+    if (!start.moved) {
+      stampAt(stamp, 0.25 + Math.random() * 0.5, 0.25 + Math.random() * 0.5);
+      return;
+    }
+    const at = onPage(event.clientX, event.clientY);
+    if (at) stampAt(stamp, at.x, at.y);
+  };
+
   return (
-    <Sheet onClose={onClose} title={title}>
+    <Sheet
+      onClose={onClose}
+      title={
+        <span className="flex items-center gap-2">
+          {title}
+          {date === todayKey() && (
+            <span className="rounded-full border-2 border-ink bg-sun px-2 py-0.5 font-black text-xs">
+              {t.app.today}
+            </span>
+          )}
+        </span>
+      }
+    >
       <div
-        className="relative aspect-square w-full touch-none overflow-hidden rounded-2xl border-2 border-ink bg-paper bg-[radial-gradient(var(--color-line)_1.5px,transparent_1.5px)] bg-size-[18px_18px]"
-        ref={canvas}
+        className="relative aspect-square w-full touch-none overflow-hidden rounded-3xl border-2 border-ink bg-card bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]"
+        ref={page}
       >
-        {placements.length === 0 && (
-          <p className="absolute inset-0 flex items-center justify-center p-8 text-center text-muted">
+        {placements.length === 0 && presses.length === 0 && (
+          <p className="absolute inset-0 flex animate-fade items-center justify-center p-10 text-center font-bold text-muted">
             {t.app.day.empty}
           </p>
         )}
@@ -96,7 +180,7 @@ export const DaySheet = ({
           const here = drag?.id === p.id ? drag : p;
           return (
             <div
-              className="absolute w-[24%]"
+              className="absolute w-[26%]"
               key={p.id}
               style={{
                 left: `${here.x * 100}%`,
@@ -106,18 +190,22 @@ export const DaySheet = ({
               }}
             >
               <button
-                aria-label={stamp?.name || "Stamp"}
+                aria-label={stamp?.name || t.app.day.print}
+                aria-pressed={picked === p.id}
                 className={cn(
-                  "block w-full animate-boop cursor-grab rounded-xl active:cursor-grabbing",
-                  picked === p.id && "outline-2 outline-ink outline-dashed"
+                  "block w-full animate-boop cursor-grab rounded-2xl mix-blend-multiply active:cursor-grabbing",
+                  picked === p.id &&
+                    "bg-violet-soft outline-2 outline-violet outline-dashed"
                 )}
                 onPointerDown={(event) => {
                   event.currentTarget.setPointerCapture(event.pointerId);
-                  setDrag({ id: p.id, ...at(event), moved: false });
+                  const at = onPage(event.clientX, event.clientY, true);
+                  if (at) setDrag({ id: p.id, ...at, moved: false });
                 }}
                 onPointerMove={(event) => {
                   if (drag?.id !== p.id) return;
-                  setDrag({ id: p.id, ...at(event), moved: true });
+                  const at = onPage(event.clientX, event.clientY, true);
+                  if (at) setDrag({ id: p.id, ...at, moved: true });
                 }}
                 onPointerUp={() => {
                   if (drag?.id !== p.id) return;
@@ -137,52 +225,79 @@ export const DaySheet = ({
                   className="pointer-events-none h-auto w-full"
                   color={stamp?.color ?? "ink"}
                   drawing={stamp?.drawing ?? null}
+                  print
                   shape={stamp?.shape}
                 />
               </button>
             </div>
           );
         })}
+        {presses.map((press) => (
+          <div
+            className="pointer-events-none absolute w-[30%] animate-press"
+            key={press.key}
+            onAnimationEnd={() =>
+              setPresses((all) => all.filter((p) => p.key !== press.key))
+            }
+            style={{
+              left: `${press.x * 100}%`,
+              top: `${press.y * 100}%`,
+              zIndex: 2000,
+            }}
+          >
+            <Sticker stamp={press.stamp} />
+          </div>
+        ))}
       </div>
 
-      {picked && (
-        <button
-          className="self-start rounded-full border-2 border-ink bg-card px-4 py-1.5 font-bold text-sm"
-          onClick={() => {
-            void removePlacement(picked);
-            setPicked(null);
-          }}
-          type="button"
-        >
-          {t.app.day.remove}
-        </button>
-      )}
-
-      <div>
-        <p className="mb-2 font-bold text-muted text-sm">{t.app.day.tray}</p>
-        {stamps.length === 0 ? (
-          <p className="text-muted text-sm">{t.app.noStamps}</p>
-        ) : (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {stamps.map((s) => (
-              <button
-                aria-label={s.name || "Stamp"}
-                className="h-16 w-16 shrink-0 rounded-2xl border-2 border-ink bg-card p-2 active:animate-wiggle"
-                key={s.id}
-                onClick={() => boopIt(s.id)}
-                type="button"
-              >
-                <StampSvg
-                  className="h-full w-full"
-                  color={s.color}
-                  drawing={s.drawing}
-                  shape={s.shape}
-                />
-              </button>
-            ))}
-          </div>
+      <div className="flex min-h-10 items-center justify-between gap-2">
+        <p className="font-bold text-muted text-sm">{t.app.day.tray}</p>
+        {picked && (
+          <Button
+            onClick={() => {
+              void removePlacement(picked);
+              setPicked(null);
+            }}
+            size="sm"
+            variant="plain"
+          >
+            {t.app.day.remove}
+          </Button>
         )}
       </div>
+
+      {stamps.length === 0 ? (
+        <p className="text-muted text-sm">{t.app.noStamps}</p>
+      ) : (
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
+          {stamps.map((s) => (
+            <button
+              aria-label={s.name || t.app.day.print}
+              className="h-20 w-20 shrink-0 touch-none rounded-3xl border-2 border-ink bg-soft p-1 transition hover:-rotate-6 hover:bg-violet-soft active:scale-90"
+              key={s.id}
+              onPointerCancel={() => {
+                tray.current = null;
+                setGhost(null);
+              }}
+              onPointerDown={trayDown(s)}
+              onPointerMove={trayMove(s)}
+              onPointerUp={trayUp(s)}
+              type="button"
+            >
+              <Sticker className="pointer-events-none" stamp={s} />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {ghost && (
+        <div
+          className="pointer-events-none fixed z-[100] w-24 -translate-x-1/2 -translate-y-1/2 rotate-[-8deg] scale-110"
+          style={{ left: ghost.x, top: ghost.y }}
+        >
+          <Sticker stamp={ghost.stamp} />
+        </div>
+      )}
     </Sheet>
   );
 };

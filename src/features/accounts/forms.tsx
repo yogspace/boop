@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   type FormEvent,
   type ReactNode,
@@ -9,13 +8,18 @@ import {
   useRef,
   useState,
 } from "react";
-import { Button, Card, Field, Notice } from "@/components/ui";
+import { Sparkle } from "@/components/doodles";
+import { Button, Field, LinkButton, Notice } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import { legalPath } from "@/features/legal/links";
 import { signedIn } from "@/features/offline/store";
+import { demoStamp } from "@/features/stickers/demo";
+import { Sticker } from "@/features/stickers/sticker";
+import { Link, useTransitionRouter } from "@/features/transitions/link";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import {
+  fetchMe,
   forgotPassword,
   login,
   register,
@@ -25,15 +29,67 @@ import {
 
 /**
  * The account pages' forms: log in, sign up, forgot password, new password,
- * confirm address. Each talks to Payload through ./client.ts.
+ * confirm address, invitation. Each talks to the server through ./client.ts.
  */
 
-const Frame = ({ title, children }: { title: string; children: ReactNode }) => (
-  <div className="mx-auto w-full max-w-md px-4 py-10">
-    <Card className="flex flex-col gap-5">
-      <h1 className="font-bold font-doodle text-4xl">{title}</h1>
-      {children}
-    </Card>
+/** An invitation opened before logging in – taken up after the login. */
+const INVITE_KEY = "boop-invite";
+
+const pendingInvite = {
+  get: () => {
+    try {
+      return localStorage.getItem(INVITE_KEY);
+    } catch {
+      return null;
+    }
+  },
+  set: (token: string | null) => {
+    try {
+      if (token) localStorage.setItem(INVITE_KEY, token);
+      else localStorage.removeItem(INVITE_KEY);
+    } catch {
+      // No storage – the address's own invitations still join at login.
+    }
+  },
+};
+
+const acceptInvite = async (token: string) => {
+  const response = await fetch(
+    `/api/invites/${encodeURIComponent(token)}/accept`,
+    { method: "POST", credentials: "include" }
+  ).catch(() => null);
+  return Boolean(response?.ok);
+};
+
+/** After any login: an invitation waiting on this device is taken up. */
+const afterLogin = async () => {
+  const token = pendingInvite.get();
+  if (!token) return;
+  await acceptInvite(token);
+  pendingInvite.set(null);
+};
+
+const Frame = ({
+  title,
+  sticker = "heart",
+  children,
+}: {
+  title: string;
+  sticker?: string;
+  children: ReactNode;
+}) => (
+  <div className="mx-auto w-full max-w-md px-4 pt-10 pb-16">
+    <div className="relative animate-rise rounded-[32px] border-2 border-ink bg-card p-6 shadow-sticker-lg sm:p-8">
+      <div
+        className="absolute -top-10 -right-4 w-24 animate-float"
+        style={{ "--tilt": "10deg" } as React.CSSProperties}
+      >
+        <Sticker stamp={demoStamp(sticker)} />
+      </div>
+      <Sparkle className="absolute -top-3 left-8 h-6 w-6 text-sun" />
+      <h1 className="mb-6 pr-16 text-4xl">{title}</h1>
+      <div className="flex flex-col gap-5">{children}</div>
+    </div>
   </div>
 );
 
@@ -62,9 +118,16 @@ const useSubmit = (locale: Locale) => {
   return { busy, error, run };
 };
 
+const TextLink = (props: React.ComponentProps<typeof Link>) => (
+  <Link
+    className="font-bold text-violet underline decoration-2 underline-offset-4"
+    {...props}
+  />
+);
+
 export const LoginForm = ({ locale }: { locale: Locale }) => {
   const t = dictionaryOf(locale);
-  const router = useRouter();
+  const router = useTransitionRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { busy, error, run } = useSubmit(locale);
@@ -74,12 +137,13 @@ export const LoginForm = ({ locale }: { locale: Locale }) => {
     locked: t.auth.login.locked,
   };
   return (
-    <Frame title={t.auth.login.title}>
+    <Frame sticker="smile" title={t.auth.login.title}>
       <form
         className="flex flex-col gap-4"
         onSubmit={run(async () => {
           const result = await login(email, password);
           if (!result.ok) return reasons[result.reason] ?? t.auth.failed;
+          await afterLogin();
           await signedIn(result.value);
           trackEvent("login");
           router.replace(`/${locale}/app`);
@@ -103,25 +167,17 @@ export const LoginForm = ({ locale }: { locale: Locale }) => {
           value={password}
         />
         {error && <Notice tone="error">{error}</Notice>}
-        <Button disabled={busy} type="submit">
+        <Button disabled={busy} size="lg" type="submit">
           {busy ? t.auth.working : t.auth.login.submit}
         </Button>
       </form>
-      <div className="flex flex-col gap-1 text-sm">
-        <Link
-          className="underline underline-offset-4"
-          href={`/${locale}/forgot-password`}
-        >
+      <div className="flex flex-col gap-2 text-sm">
+        <TextLink href={`/${locale}/forgot-password`}>
           {t.auth.login.forgot}
-        </Link>
-        <span>
+        </TextLink>
+        <span className="font-medium text-muted">
           {t.auth.login.noAccount}{" "}
-          <Link
-            className="font-bold underline underline-offset-4"
-            href={`/${locale}/register`}
-          >
-            {t.nav.register}
-          </Link>
+          <TextLink href={`/${locale}/register`}>{t.nav.register}</TextLink>
         </span>
       </div>
     </Frame>
@@ -137,8 +193,8 @@ export const RegisterForm = ({ locale }: { locale: Locale }) => {
   const { busy, error, run } = useSubmit(locale);
   if (done) {
     return (
-      <Frame title={t.auth.register.doneTitle}>
-        <p>{t.auth.register.doneText}</p>
+      <Frame sticker="sun" title={t.auth.register.doneTitle}>
+        <p className="font-medium text-lg">{t.auth.register.doneText}</p>
       </Frame>
     );
   }
@@ -147,7 +203,7 @@ export const RegisterForm = ({ locale }: { locale: Locale }) => {
     tooMany: t.auth.register.tooMany,
   };
   return (
-    <Frame title={t.auth.register.title}>
+    <Frame sticker="flower" title={t.auth.register.title}>
       <form
         className="flex flex-col gap-4"
         onSubmit={run(async () => {
@@ -185,7 +241,7 @@ export const RegisterForm = ({ locale }: { locale: Locale }) => {
           value={password}
         />
         {error && <Notice tone="error">{error}</Notice>}
-        <Button disabled={busy} type="submit">
+        <Button disabled={busy} size="lg" type="submit">
           {busy ? t.auth.working : t.auth.register.submit}
         </Button>
         <p className="text-muted text-xs">
@@ -197,14 +253,9 @@ export const RegisterForm = ({ locale }: { locale: Locale }) => {
           </Link>
         </p>
       </form>
-      <p className="text-sm">
+      <p className="font-medium text-muted text-sm">
         {t.auth.register.haveAccount}{" "}
-        <Link
-          className="font-bold underline underline-offset-4"
-          href={`/${locale}/login`}
-        >
-          {t.nav.login}
-        </Link>
+        <TextLink href={`/${locale}/login`}>{t.nav.login}</TextLink>
       </p>
     </Frame>
   );
@@ -217,14 +268,14 @@ export const ForgotForm = ({ locale }: { locale: Locale }) => {
   const { busy, error, run } = useSubmit(locale);
   if (done) {
     return (
-      <Frame title={t.auth.forgot.doneTitle}>
-        <p>{t.auth.forgot.doneText}</p>
+      <Frame sticker="star" title={t.auth.forgot.doneTitle}>
+        <p className="font-medium text-lg">{t.auth.forgot.doneText}</p>
       </Frame>
     );
   }
   return (
-    <Frame title={t.auth.forgot.title}>
-      <p className="text-muted">{t.auth.forgot.text}</p>
+    <Frame sticker="cloud" title={t.auth.forgot.title}>
+      <p className="font-medium text-muted">{t.auth.forgot.text}</p>
       <form
         className="flex flex-col gap-4"
         onSubmit={run(async () => {
@@ -244,7 +295,7 @@ export const ForgotForm = ({ locale }: { locale: Locale }) => {
           value={email}
         />
         {error && <Notice tone="error">{error}</Notice>}
-        <Button disabled={busy} type="submit">
+        <Button disabled={busy} size="lg" type="submit">
           {busy ? t.auth.working : t.auth.forgot.submit}
         </Button>
       </form>
@@ -254,17 +305,18 @@ export const ForgotForm = ({ locale }: { locale: Locale }) => {
 
 export const ResetForm = ({ locale }: { locale: Locale }) => {
   const t = dictionaryOf(locale);
-  const router = useRouter();
+  const router = useTransitionRouter();
   const token = useSearchParams().get("token") ?? "";
   const [password, setPassword] = useState("");
   const { busy, error, run } = useSubmit(locale);
   return (
-    <Frame title={t.auth.reset.title}>
+    <Frame sticker="star" title={t.auth.reset.title}>
       <form
         className="flex flex-col gap-4"
         onSubmit={run(async () => {
           const result = await resetPassword(token, password);
           if (!result.ok) return t.auth.reset.invalid;
+          await afterLogin();
           await signedIn(result.value);
           trackEvent("password-reset");
           router.replace(`/${locale}/app`);
@@ -282,7 +334,7 @@ export const ResetForm = ({ locale }: { locale: Locale }) => {
           value={password}
         />
         {error && <Notice tone="error">{error}</Notice>}
-        <Button disabled={busy || !token} type="submit">
+        <Button disabled={busy || !token} size="lg" type="submit">
           {busy ? t.auth.working : t.auth.reset.submit}
         </Button>
       </form>
@@ -311,19 +363,99 @@ export const VerifyPanel = ({ locale }: { locale: Locale }) => {
       .catch(() => setState("failed"));
   }, [token]);
   return (
-    <Frame title={t.auth.verify.title}>
-      {state === "working" && <p>{t.auth.verify.working}</p>}
+    <Frame
+      sticker={state === "done" ? "heart" : "cloud"}
+      title={t.auth.verify.title}
+    >
+      {state === "working" && (
+        <p className="font-medium">{t.auth.verify.working}</p>
+      )}
       {state === "done" && <Notice tone="success">{t.auth.verify.done}</Notice>}
       {state === "failed" && (
         <Notice tone="error">{t.auth.verify.failed}</Notice>
       )}
       {state !== "working" && (
-        <Link
-          className="font-bold underline underline-offset-4"
-          href={`/${locale}/login`}
-        >
+        <LinkButton href={`/${locale}/login`} size="lg">
           {t.auth.verify.toLogin}
-        </Link>
+        </LinkButton>
+      )}
+    </Frame>
+  );
+};
+
+export const InvitePanel = ({ locale }: { locale: Locale }) => {
+  const t = dictionaryOf(locale);
+  const router = useTransitionRouter();
+  const token = useSearchParams().get("token") ?? "";
+  const [invite, setInvite] = useState<
+    { calendar: string; from: string } | null | "missing"
+  >(null);
+  const [account, setAccount] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!token) {
+      setInvite("missing");
+      return;
+    }
+    fetch(`/api/invites/${encodeURIComponent(token)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => setInvite(body ?? "missing"))
+      .catch(() => setInvite("missing"));
+    fetchMe()
+      .then((me) => setAccount(Boolean(me)))
+      .catch(() => setAccount(false));
+  }, [token]);
+
+  if (invite === "missing") {
+    return (
+      <Frame sticker="cloud" title={t.auth.invite.title}>
+        <Notice tone="error">{t.auth.invite.invalid}</Notice>
+      </Frame>
+    );
+  }
+  if (!invite || account === null) {
+    return <Frame title={t.auth.invite.title}>{t.app.loading}</Frame>;
+  }
+
+  const accept = async () => {
+    setBusy(true);
+    const ok = await acceptInvite(token);
+    setBusy(false);
+    if (ok) router.replace(`/${locale}/app`);
+    else setInvite("missing");
+  };
+
+  return (
+    <Frame sticker="heart" title={t.auth.invite.title}>
+      <p className="font-medium text-lg">
+        {t.auth.invite.text(invite.from, invite.calendar)}
+      </p>
+      {account ? (
+        <Button disabled={busy} onClick={accept} size="lg">
+          {t.auth.invite.accept}
+        </Button>
+      ) : (
+        <>
+          <p className="font-medium text-muted">{t.auth.invite.account}</p>
+          <div className="flex flex-wrap gap-3">
+            <LinkButton
+              href={`/${locale}/register`}
+              onClick={() => pendingInvite.set(token)}
+              size="lg"
+            >
+              {t.nav.register}
+            </LinkButton>
+            <LinkButton
+              href={`/${locale}/login`}
+              onClick={() => pendingInvite.set(token)}
+              size="lg"
+              variant="plain"
+            >
+              {t.nav.login}
+            </LinkButton>
+          </div>
+        </>
       )}
     </Frame>
   );

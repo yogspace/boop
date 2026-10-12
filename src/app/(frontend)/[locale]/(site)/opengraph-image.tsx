@@ -26,7 +26,7 @@ const Dot = ({
       width: r * 2,
       height: r * 2,
       borderRadius: r,
-      border: "8px solid #1f1d2b",
+      border: "8px solid #1d1b3a",
       background: color,
       display: "flex",
     }}
@@ -45,19 +45,19 @@ const Image = async ({ params }: { params: Promise<{ locale: string }> }) => {
         flexDirection: "column",
         justifyContent: "center",
         padding: 80,
-        background: "#fff4e8",
-        color: "#1f1d2b",
+        background: "#f5f2ff",
+        color: "#1d1b3a",
         position: "relative",
       }}
     >
-      <Dot color="#ff7a59" r={70} x={900} y={70} />
-      <Dot color="#ffc23d" r={50} x={1010} y={260} />
-      <Dot color="#3ccf91" r={60} x={860} y={400} />
+      <Dot color="#ff5fae" r={70} x={900} y={70} />
+      <Dot color="#ffc928" r={50} x={1010} y={260} />
+      <Dot color="#22c993" r={60} x={860} y={400} />
       <div style={{ fontSize: 150, fontWeight: 800, display: "flex" }}>
-        boop<span style={{ color: "#ff7a59" }}>.</span>
+        boop<span style={{ color: "#ff5fae" }}>.</span>
       </div>
       <div style={{ fontSize: 52, fontWeight: 700, maxWidth: 760 }}>
-        {t.landing.title}
+        {t.landing.title.join("")}
       </div>
     </div>,
     size

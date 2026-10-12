@@ -13,7 +13,10 @@ type Month = { year: number; month: number };
 const key = (year: number, month: number, day: number): DayKey =>
   `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
-/** A month of a calendar, Monday first; each day shows its top stamps. */
+const NAV =
+  "flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink bg-card font-black shadow-sticker-sm transition hover:-translate-y-0.5 active:translate-y-0 active:shadow-none";
+
+/** A month of a calendar, Monday first; each day shows its prints. */
 export const MonthGrid = ({
   calendar,
   locale,
@@ -32,7 +35,7 @@ export const MonthGrid = ({
   const today = todayKey();
 
   const byDay = useMemo(() => {
-    const days = new Map<DayKey, typeof list>();
+    const days = new Map<DayKey, (typeof list)[number][]>();
     const list = Object.values(placements).filter(
       (p) => p.calendar === calendar
     );
@@ -48,35 +51,40 @@ export const MonthGrid = ({
     const next = new Date(month.year, month.month + by, 1);
     onMonth({ year: next.getFullYear(), month: next.getMonth() });
   };
+  const now = new Date();
+  const thisMonth =
+    now.getFullYear() === month.year && now.getMonth() === month.month;
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <button
-          aria-label={t.app.prev}
-          className="rounded-full border-2 border-ink bg-card px-3 py-1 font-bold"
-          onClick={() => shift(-1)}
-          type="button"
-        >
-          ←
-        </button>
-        <h2 className="font-doodle font-bold text-2xl">
-          {t.app.months[month.month]} {month.year}
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <h2 className="text-3xl leading-none">
+          {t.app.months[month.month]}{" "}
+          <span className="font-bold text-muted">{month.year}</span>
         </h2>
         <div className="flex gap-2">
+          {!thisMonth && (
+            <button
+              className={cn(NAV, "w-auto px-3 font-bold text-sm")}
+              onClick={() =>
+                onMonth({ year: now.getFullYear(), month: now.getMonth() })
+              }
+              type="button"
+            >
+              {t.app.today}
+            </button>
+          )}
           <button
-            className="rounded-full border-2 border-ink bg-card px-3 py-1 font-bold text-sm"
-            onClick={() => {
-              const now = new Date();
-              onMonth({ year: now.getFullYear(), month: now.getMonth() });
-            }}
+            aria-label={t.app.prev}
+            className={NAV}
+            onClick={() => shift(-1)}
             type="button"
           >
-            {t.app.today}
+            ←
           </button>
           <button
             aria-label={t.app.next}
-            className="rounded-full border-2 border-ink bg-card px-3 py-1 font-bold"
+            className={NAV}
             onClick={() => shift(1)}
             type="button"
           >
@@ -84,9 +92,15 @@ export const MonthGrid = ({
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-7 gap-1.5 text-center">
+      <div
+        className="grid animate-fade grid-cols-7 gap-1.5 sm:gap-2"
+        key={`${month.year}-${month.month}`}
+      >
         {t.app.weekdays.map((name) => (
-          <div className="pb-1 font-bold text-muted text-xs" key={name}>
+          <div
+            className="pb-1 text-center font-black text-muted text-xs uppercase tracking-wide"
+            key={name}
+          >
             {name}
           </div>
         ))}
@@ -96,29 +110,46 @@ export const MonthGrid = ({
         {Array.from({ length }, (_, i) => {
           const date = key(month.year, month.month, i + 1);
           const day = byDay.get(date) ?? [];
+          const weekend = (offset + i) % 7 >= 5;
+          const isToday = date === today;
           return (
             <button
               className={cn(
-                "relative flex aspect-square flex-col items-center rounded-xl border-2 bg-paper p-1 transition hover:bg-paper-deep",
-                date === today ? "border-coral" : "border-line"
+                "group relative flex aspect-square flex-col rounded-2xl border-2 p-1 text-left transition hover:-translate-y-0.5 hover:border-ink sm:p-1.5",
+                isToday
+                  ? "border-violet bg-violet-soft"
+                  : weekend
+                    ? "border-transparent bg-pink-soft/70"
+                    : "border-transparent bg-soft"
               )}
               key={date}
               onClick={() => onDay(date)}
               type="button"
             >
-              <span className="self-start font-bold text-xs leading-none">
+              <span
+                className={cn(
+                  "font-black text-xs leading-none sm:text-sm",
+                  isToday && "text-violet"
+                )}
+              >
                 {i + 1}
               </span>
-              <span className="grid flex-1 grid-cols-2 place-items-center gap-0.5">
-                {day.slice(0, 4).map((p) => {
+              <span className="grid flex-1 grid-cols-2 place-items-center">
+                {day.slice(0, 4).map((p, n) => {
                   const stamp = stamps[p.stamp];
                   return (
                     <StampSvg
-                      className="h-4 w-4 sm:h-6 sm:w-6"
+                      className="h-[90%] w-[90%] mix-blend-multiply"
                       color={stamp?.color ?? "ink"}
                       drawing={stamp?.drawing ?? null}
                       key={p.id}
+                      print
                       shape={stamp?.shape}
+                      title={
+                        n === 3 && day.length > 4
+                          ? `+${day.length - 3}`
+                          : undefined
+                      }
                     />
                   );
                 })}

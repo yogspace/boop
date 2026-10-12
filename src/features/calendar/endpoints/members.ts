@@ -1,11 +1,13 @@
 import type { Endpoint, PayloadRequest } from "payload";
-import { accountOf } from "@/access";
+import { sessionAccount } from "@/features/accounts/session";
 import { rateLimit } from "@/lib/rate-limit";
+import { invite } from "../invites";
 import { calendarById } from "../membership";
 
 /**
- * Sharing a calendar: its owner adds someone by their email address, and
- * removes members again; a member can leave. The calendar's `changedAt`
+ * Sharing a calendar: its owner adds someone by their email address – or,
+ * without an account, invites them by mail (invites.ts) – and removes
+ * members again; a member can leave. The calendar's `changedAt`
  * moves on, so every member's devices learn of it at the next sync.
  *
  *   POST   /api/calendars/:id/members            { email }
@@ -30,7 +32,7 @@ export const addMember: Endpoint = {
   path: "/:id/members",
   method: "post",
   handler: async (req) => {
-    const me = accountOf(req);
+    const me = await sessionAccount(req);
     if (!me) return Response.json({ error: "Not logged in." }, { status: 401 });
     const calendar = await calendarById(req, String(req.routeParams?.id));
     if (!calendar || calendar.owner !== String(me.id)) {
@@ -62,7 +64,25 @@ export const addMember: Endpoint = {
       req,
     });
     const person = docs[0];
-    if (!person) return Response.json({ added: false });
+    if (!person) {
+      const from = (await req.payload.findByID({
+        collection: "accounts",
+        id: me.id,
+        select: { name: true, locale: true },
+        depth: 0,
+        overrideAccess: true,
+      })) as { name?: string; locale?: string };
+      await invite(req, {
+        email,
+        calendar: calendar.id,
+        from: {
+          id: String(me.id),
+          name: from.name ?? "",
+          locale: from.locale ?? "de",
+        },
+      });
+      return Response.json({ added: false, invited: true });
+    }
     const id = String(person.id);
     if (!calendar.members.includes(id)) {
       await touch(req, calendar.id, [...calendar.members, id]);
@@ -78,7 +98,7 @@ export const removeMember: Endpoint = {
   path: "/:id/members/:accountId",
   method: "delete",
   handler: async (req) => {
-    const me = accountOf(req);
+    const me = await sessionAccount(req);
     if (!me) return Response.json({ error: "Not logged in." }, { status: 401 });
     const calendar = await calendarById(req, String(req.routeParams?.id));
     const who = String(req.routeParams?.accountId);

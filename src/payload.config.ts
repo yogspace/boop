@@ -18,12 +18,14 @@ import { Analytics } from "@/features/analytics/global";
 import { Calendars } from "@/features/calendar/collections/calendars";
 import { Placements } from "@/features/calendar/collections/placements";
 import { Stamps } from "@/features/calendar/collections/stamps";
+import { Invites } from "@/features/calendar/invites";
 import { Legal } from "@/features/legal/global";
 import { Site } from "@/features/site/global";
 import { syncEndpoint } from "@/features/sync/endpoint";
 import { LOCALES } from "@/i18n/config";
 import { devMailAdapter } from "@/lib/dev-mail";
 import { mailSender } from "@/lib/mail";
+import { serverUrl } from "@/lib/server-url";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -81,13 +83,16 @@ export default buildConfig({
     Calendars,
     Stamps,
     Placements,
+    Invites,
     PageViews,
     Actions,
   ],
   globals: [Site, Legal, Analytics],
   endpoints: [syncEndpoint, seedEndpoint],
-  // Both logins (admin and accounts) in one cookie, `boop-token`.
+  // The admin's login cookie, `boop-token` – the app has its own
+  // (features/accounts/session.ts). Only sent along from our own pages.
   cookiePrefix: "boop",
+  csrf: [serverUrl()],
   // The app speaks REST (and the sync) only.
   graphQL: { disable: true },
   editor: lexicalEditor(),

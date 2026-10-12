@@ -2,10 +2,9 @@ import { useId } from "react";
 import { COLORS, type ColorName, type StampShape } from "./model";
 
 /**
- * A stamp as SVG: its body (circle or square) as a thin rim, the doodle
- * inside it in the same color – round ends, smoothed through the midpoints of
- * the drawn points. Scales with its box. The 3D stamp with the doodle
- * embossed comes later; this is its print.
+ * A stamp flat, as SVG – the drawing (while it is being made) and the print
+ * it leaves on a day: its rim in the shape and the doodle inside, in its one
+ * color. As a `print`, the ink is speckled like a real rubber stamp's.
  */
 
 /** The SVG path of one stroke – quadratic curves through the midpoints. */
@@ -28,18 +27,34 @@ export const strokePath = (p: readonly number[]) => {
   return d;
 };
 
-/** The body's outline in the unit square – also what the doodle stays in. */
+/**
+ * The body's outline in the unit square: one rounded rectangle whose corner
+ * radius makes it a circle or a square – so changing the shape morphs
+ * (CSS transition on `rx`).
+ */
+const MORPH =
+  "rx 460ms cubic-bezier(.3,1.4,.5,1), ry 460ms cubic-bezier(.3,1.4,.5,1), fill 400ms, stroke 400ms";
+
 export const ShapeOutline = ({
   shape,
+  style,
   ...props
-}: { shape: StampShape } & React.SVGProps<
-  SVGCircleElement & SVGRectElement
->) =>
-  shape === "circle" ? (
-    <circle cx="0.5" cy="0.5" r="0.48" {...props} />
-  ) : (
-    <rect height="0.96" rx="0.12" width="0.96" x="0.02" y="0.02" {...props} />
+}: { shape: StampShape } & React.SVGProps<SVGRectElement>) => {
+  const r = shape === "circle" ? 0.48 : 0.13;
+  return (
+    <rect
+      height="0.96"
+      rx={r}
+      style={
+        { rx: r, ry: r, transition: MORPH, ...style } as React.CSSProperties
+      }
+      width="0.96"
+      x="0.02"
+      y="0.02"
+      {...props}
+    />
   );
+};
 
 type ReadonlyDrawing = {
   readonly strokes: readonly {
@@ -54,15 +69,22 @@ export const StampSvg = ({
   shape = "circle",
   className,
   title,
+  print = false,
+  filled = false,
 }: {
   drawing: ReadonlyDrawing | null;
   color: ColorName;
   shape?: StampShape;
   className?: string;
   title?: string;
+  /** Speckled like ink from a rubber stamp. */
+  print?: boolean;
+  /** The body tinted in its color – the drawing surface. */
+  filled?: boolean;
 }) => {
-  const clip = useId();
+  const id = useId();
   const ink = COLORS[color];
+  const fade = { transition: "stroke 400ms, fill 400ms" };
   return (
     // Named when given a title (role img), otherwise hidden – decoration.
     // biome-ignore lint/a11y/noSvgWithoutTitle: the title is conditional
@@ -74,32 +96,56 @@ export const StampSvg = ({
     >
       {title && <title>{title}</title>}
       <defs>
-        <clipPath id={clip}>
+        <clipPath id={`${id}-clip`}>
           <ShapeOutline shape={shape} />
         </clipPath>
-      </defs>
-      <ShapeOutline
-        fill="none"
-        shape={shape}
-        stroke={ink}
-        strokeDasharray={drawing ? undefined : "0.06 0.06"}
-        strokeWidth="0.03"
-      />
-      {drawing && (
-        <g clipPath={`url(#${clip})`}>
-          {drawing.strokes.map((stroke, i) => (
-            <path
-              d={strokePath(stroke.p)}
-              fill="none"
-              key={i}
-              stroke={ink}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={stroke.w}
+        {print && (
+          <filter height="120%" id={`${id}-ink`} width="120%" x="-10%" y="-10%">
+            <feTurbulence
+              baseFrequency="38"
+              numOctaves="2"
+              result="noise"
+              seed="7"
+              type="fractalNoise"
             />
-          ))}
-        </g>
-      )}
+            <feColorMatrix
+              in="noise"
+              result="speckle"
+              type="matrix"
+              values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.7"
+            />
+            <feComposite in="SourceGraphic" in2="speckle" operator="in" />
+          </filter>
+        )}
+      </defs>
+      <g
+        filter={print ? `url(#${id}-ink)` : undefined}
+        opacity={print ? 0.92 : 1}
+      >
+        <ShapeOutline
+          fill={filled ? `color-mix(in srgb, ${ink} 14%, white)` : "none"}
+          shape={shape}
+          stroke={ink}
+          strokeDasharray={drawing || filled ? undefined : "0.06 0.06"}
+          strokeWidth="0.035"
+        />
+        {drawing && (
+          <g clipPath={`url(#${id}-clip)`}>
+            {drawing.strokes.map((stroke, i) => (
+              <path
+                d={strokePath(stroke.p)}
+                fill="none"
+                key={i}
+                stroke={ink}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={stroke.w}
+                style={fade}
+              />
+            ))}
+          </g>
+        )}
+      </g>
     </svg>
   );
 };

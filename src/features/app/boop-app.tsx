@@ -1,12 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Notice } from "@/components/ui";
+import { Sparkle, Squiggle } from "@/components/doodles";
+import { Button, Logo, Notice } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
-import type { DayKey } from "@/features/calendar/model";
-import { StampSvg } from "@/features/calendar/stamp-svg";
+import { COLORS, type DayKey } from "@/features/calendar/model";
 import { legalPath } from "@/features/legal/links";
 import {
   createCalendar,
@@ -16,6 +14,8 @@ import {
   start,
   useBoop,
 } from "@/features/offline/store";
+import { Sticker } from "@/features/stickers/sticker";
+import { Link, useTransitionRouter } from "@/features/transitions/link";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
@@ -25,15 +25,18 @@ import { ShareSheet } from "./share-sheet";
 import { StampDrawer } from "./stamp-drawer";
 import { SyncBadge } from "./sync-badge";
 
+/** A stable little tilt per stamp – the shelf looks hand-placed. */
+const tilt = (id: string) => ((id.charCodeAt(0) + id.charCodeAt(5)) % 9) - 4;
+
 /**
  * The app: the account's calendars, a month of the chosen one, a day to
- * stamp on, the own stamps. Everything reads the device's copy
+ * stamp on, the 3D stamps. Everything reads the device's copy
  * (offline/store.ts) – it works the same without a connection.
  */
 export const BoopApp = ({ locale }: { locale: Locale }) => {
   const t = dictionaryOf(locale);
   const boop = useBoop();
-  const router = useRouter();
+  const router = useTransitionRouter();
   const [calendarId, setCalendarId] = useState<string | null>(null);
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -42,6 +45,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   const [day, setDay] = useState<DayKey | null>(null);
   const [drawing, setDrawing] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [menu, setMenu] = useState(false);
 
   useEffect(() => {
     void start();
@@ -74,11 +78,16 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   );
 
   if (boop.status === "loading" || boop.status === "signedOut") {
-    return <Centered>{t.app.loading}</Centered>;
+    return (
+      <Centered>
+        <Logo className="animate-pulse text-5xl" />
+      </Centered>
+    );
   }
   if (boop.status === "offlineNoAccount") {
     return (
       <Centered>
+        <Logo className="text-5xl" />
         <Notice>{t.app.offlineNoAccount}</Notice>
       </Centered>
     );
@@ -87,7 +96,13 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   const onNewCalendar = async () => {
     const name = window.prompt(t.app.newCalendarName)?.trim();
     if (!name) return;
-    setCalendarId(await createCalendar(name.slice(0, 60), "sky"));
+    const colors = ["sky", "pink", "mint", "sun", "coral", "grape"] as const;
+    setCalendarId(
+      await createCalendar(
+        name.slice(0, 60),
+        colors[calendars.length % colors.length]
+      )
+    );
     trackEvent("calendar-created");
   };
 
@@ -106,45 +121,86 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   };
 
   const owner = calendar && calendar.owner === me;
+  const firstName = boop.me?.name.split(" ")[0] ?? "";
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-6 px-4 py-5">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <Link className="font-doodle font-bold text-3xl" href={`/${locale}`}>
-          boop<span className="text-coral">.</span>
+    <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-6 px-4 pt-4 pb-10 sm:px-6">
+      <header className="flex items-center justify-between gap-3">
+        <Link aria-label={t.nav.home} href={`/${locale}`}>
+          <Logo />
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="relative flex items-center gap-2">
           <SyncBadge locale={locale} />
-          <span className="hidden text-muted text-sm sm:inline">
-            {boop.me?.name}
-          </span>
-          <Button
-            className="px-3 py-1.5 text-sm"
-            onClick={onLogout}
-            variant="plain"
+          <button
+            aria-expanded={menu}
+            aria-label={t.app.account}
+            className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink bg-pink font-black text-white shadow-sticker-sm transition active:shadow-none"
+            onClick={() => setMenu(!menu)}
+            type="button"
           >
-            {t.app.logout}
-          </Button>
+            {firstName.slice(0, 1).toUpperCase() || "?"}
+          </button>
+          {menu && (
+            <div className="absolute top-12 right-0 z-40 flex w-60 animate-rise flex-col gap-3 rounded-3xl border-2 border-ink bg-card p-4 shadow-sticker">
+              <div>
+                <p className="font-black">{boop.me?.name}</p>
+                <p className="truncate text-muted text-sm">{boop.me?.email}</p>
+              </div>
+              <Button onClick={onLogout} size="sm" variant="plain">
+                {t.app.logout}
+              </Button>
+            </div>
+          )}
         </div>
       </header>
 
-      <nav aria-label={t.app.calendars} className="flex flex-wrap gap-2">
-        {calendars.map((c) => (
-          <button
-            className={cn(
-              "rounded-full border-2 border-ink px-4 py-1.5 font-bold text-sm",
-              c.id === calendar?.id ? "bg-sun shadow-sticker-sm" : "bg-card"
-            )}
-            key={c.id}
-            onClick={() => setCalendarId(c.id)}
-            type="button"
-          >
-            {c.name}
-            {c.members.length > 1 && ` · ${c.members.length}`}
-          </button>
-        ))}
+      <section className="animate-rise">
+        <h1 className="text-4xl sm:text-5xl">
+          {t.app.hello(firstName)}{" "}
+          <Sparkle className="inline h-8 w-8 animate-wiggle text-sun" />
+        </h1>
+        <p className="mt-1 font-medium text-muted">{t.app.lead}</p>
+      </section>
+
+      <nav
+        aria-label={t.app.calendars}
+        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
+      >
+        {calendars.map((c) => {
+          const active = c.id === calendar?.id;
+          return (
+            <button
+              aria-pressed={active}
+              className={cn(
+                "flex shrink-0 items-center gap-2 rounded-full border-2 border-ink px-4 py-2 font-bold text-sm transition",
+                active
+                  ? "bg-ink text-white shadow-sticker-sm"
+                  : "bg-card hover:-translate-y-0.5"
+              )}
+              key={c.id}
+              onClick={() => setCalendarId(c.id)}
+              type="button"
+            >
+              <span
+                className="h-3 w-3 rounded-full border-2 border-current"
+                style={{ background: COLORS[c.color] }}
+              />
+              {c.name}
+              {c.members.length > 1 && (
+                <span
+                  className={cn(
+                    "text-xs",
+                    active ? "text-white/70" : "text-muted"
+                  )}
+                >
+                  · {c.members.length}
+                </span>
+              )}
+            </button>
+          );
+        })}
         <button
-          className="rounded-full border-2 border-ink border-dashed px-4 py-1.5 font-bold text-sm"
+          className="shrink-0 rounded-full border-2 border-ink border-dashed px-4 py-2 font-bold text-sm transition hover:bg-card"
           onClick={onNewCalendar}
           type="button"
         >
@@ -153,7 +209,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
       </nav>
 
       {calendar && (
-        <Card className="p-4 sm:p-6">
+        <div className="animate-rise rounded-[32px] border-2 border-ink bg-card p-4 shadow-sticker sm:p-6">
           <MonthGrid
             calendar={calendar.id}
             locale={locale}
@@ -164,31 +220,27 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
             }}
             onMonth={setMonth}
           />
-          <div className="mt-4 flex flex-wrap gap-2 text-sm">
-            <Button
-              className="px-3 py-1.5 text-sm"
-              onClick={() => setSharing(true)}
-              variant="plain"
-            >
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button onClick={() => setSharing(true)} size="sm" variant="plain">
               {t.app.share.title}
             </Button>
             {owner && !calendar.personal && (
               <>
                 <Button
-                  className="px-3 py-1.5 text-sm"
                   onClick={() => {
                     const name = window
                       .prompt(t.app.newCalendarName, calendar.name)
                       ?.trim();
-                    if (name)
+                    if (name) {
                       void renameCalendar(calendar.id, name.slice(0, 60));
+                    }
                   }}
-                  variant="plain"
+                  size="sm"
+                  variant="ghost"
                 >
                   {t.app.rename}
                 </Button>
                 <Button
-                  className="px-3 py-1.5 text-sm"
                   onClick={() => {
                     if (
                       window.confirm(t.app.deleteCalendarConfirm(calendar.name))
@@ -197,41 +249,50 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
                       setCalendarId(null);
                     }
                   }}
-                  variant="plain"
+                  size="sm"
+                  variant="ghost"
                 >
                   {t.app.deleteCalendar}
                 </Button>
               </>
             )}
           </div>
-        </Card>
+        </div>
       )}
 
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-doodle font-bold text-2xl">{t.app.stamps}</h2>
-          <Button onClick={() => setDrawing(true)}>+ {t.app.newStamp}</Button>
+      <section className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-3xl">{t.app.stamps}</h2>
+          <Squiggle className="h-3 w-24 text-pink" />
         </div>
-        {myStamps.length === 0 ? (
-          <p className="text-muted">{t.app.noStamps}</p>
-        ) : (
-          <ul className="grid grid-cols-4 gap-3 sm:grid-cols-6">
-            {myStamps.map((s) => (
-              <li
-                className="flex aspect-square items-center justify-center rounded-2xl border-2 border-ink bg-card p-2"
-                key={s.id}
-                title={s.name || undefined}
-              >
-                <StampSvg
-                  className="h-full w-full"
-                  color={s.color}
-                  drawing={s.drawing}
-                  shape={s.shape}
-                  title={s.name || undefined}
-                />
-              </li>
-            ))}
-          </ul>
+        <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+          <li>
+            <button
+              className="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-3xl border-2 border-ink border-dashed bg-card/60 font-bold text-sm transition hover:-translate-y-1 hover:bg-violet-soft"
+              onClick={() => setDrawing(true)}
+              type="button"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink bg-violet font-black text-white text-xl">
+                +
+              </span>
+              {t.app.newStamp}
+            </button>
+          </li>
+          {myStamps.map((s) => (
+            <li
+              className="animate-boop"
+              key={s.id}
+              style={{ transform: `rotate(${tilt(s.id)}deg)` }}
+              title={s.name || undefined}
+            >
+              <div className="flex aspect-square items-center justify-center rounded-3xl border-2 border-ink bg-card p-1 shadow-sticker-sm transition hover:animate-wiggle">
+                <Sticker label={s.name || undefined} stamp={s} />
+              </div>
+            </li>
+          ))}
+        </ul>
+        {myStamps.length === 0 && (
+          <p className="font-medium text-muted">{t.app.noStamps}</p>
         )}
       </section>
 
@@ -269,7 +330,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
 };
 
 const Centered = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-4 text-center">
+  <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 text-center">
     {children}
   </div>
 );

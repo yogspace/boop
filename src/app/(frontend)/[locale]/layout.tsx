@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { PageViewTracker } from "@/features/analytics/page-view-tracker";
 import { ServiceWorker } from "@/features/pwa/service-worker";
+import { TransitionDone } from "@/features/transitions/link";
 import { isLocale, LOCALES } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { serverUrl } from "@/lib/server-url";
@@ -44,7 +45,7 @@ export const generateMetadata = async ({
 };
 
 export const viewport: Viewport = {
-  themeColor: "#fff4e8",
+  themeColor: "#f5f2ff",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -64,7 +65,7 @@ const LocaleLayout = async ({
         <link
           as="font"
           crossOrigin=""
-          href="/fonts/Telma-Variable.woff2"
+          href="/fonts/Satoshi-Variable.woff2"
           rel="preload"
           type="font/woff2"
         />
@@ -72,6 +73,7 @@ const LocaleLayout = async ({
       <body>
         {children}
         <PageViewTracker />
+        <TransitionDone />
         <ServiceWorker />
       </body>
     </html>

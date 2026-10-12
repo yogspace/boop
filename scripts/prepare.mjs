@@ -1,6 +1,6 @@
 // Runs before `pnpm dev` and `pnpm build`.
 //
-// Downloads the Telma font (Indian Type Foundry, ITF Free Font License) from
+// Downloads the Satoshi font (Indian Type Foundry, ITF Free Font License) from
 // Fontshare into public/fonts/ – the variable font only. The license allows
 // self-hosting for your own website but no redistribution, so the files are
 // not in git (public/fonts/ is ignored) but fetched here. If the download
@@ -12,8 +12,8 @@ import { unzipSync } from "fflate";
 
 const target = fileURLToPath(new URL("../public/fonts/", import.meta.url));
 const files = {
-  "Fonts/WEB/fonts/Telma-Variable.woff2": "Telma-Variable.woff2",
-  "License/FFL.txt": "Telma-License.txt",
+  "Fonts/WEB/fonts/Satoshi-Variable.woff2": "Satoshi-Variable.woff2",
+  "License/FFL.txt": "Satoshi-License.txt",
 };
 
 const exists = async (path) => {
@@ -25,11 +25,11 @@ const exists = async (path) => {
   }
 };
 
-if (await exists(join(target, "Telma-Variable.woff2"))) process.exit(0);
+if (await exists(join(target, "Satoshi-Variable.woff2"))) process.exit(0);
 
 try {
   const response = await fetch(
-    "https://api.fontshare.com/v2/fonts/download/telma"
+    "https://api.fontshare.com/v2/fonts/download/satoshi"
   );
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const archive = unzipSync(new Uint8Array(await response.arrayBuffer()));
@@ -39,9 +39,9 @@ try {
     if (!entry) throw new Error(`${suffix} missing in the archive`);
     await writeFile(join(target, name), archive[entry]);
   }
-  console.info("✓ Telma loaded into public/fonts/");
+  console.info("✓ Satoshi loaded into public/fonts/");
 } catch (error) {
   console.warn(
-    `⚠ Telma could not be loaded (${error.message}) – the system font applies.`
+    `⚠ Satoshi could not be loaded (${error.message}) – the system font applies.`
   );
 }

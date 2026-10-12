@@ -5,7 +5,7 @@ import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
-/** Online or not, and whether changes are still waiting – tap to sync now. */
+/** Online or not, and whether changes still wait – tap to sync now. */
 export const SyncBadge = ({ locale }: { locale: Locale }) => {
   const t = dictionaryOf(locale);
   const { online, syncing, pending } = useBoop();
@@ -19,7 +19,7 @@ export const SyncBadge = ({ locale }: { locale: Locale }) => {
   return (
     <button
       aria-live="polite"
-      className="flex items-center gap-2 rounded-full border-2 border-ink bg-card px-3 py-1 text-xs"
+      className="flex h-10 items-center gap-2 rounded-full border-2 border-ink bg-card px-3 font-bold text-xs shadow-sticker-sm transition active:shadow-none"
       onClick={() => void sync()}
       title={label}
       type="button"
@@ -28,10 +28,14 @@ export const SyncBadge = ({ locale }: { locale: Locale }) => {
         aria-hidden="true"
         className={cn(
           "h-2.5 w-2.5 rounded-full",
-          !online ? "bg-muted" : pending || syncing ? "bg-sun" : "bg-mint"
+          !online
+            ? "bg-muted"
+            : pending || syncing
+              ? "animate-pulse-dot bg-sun"
+              : "bg-mint"
         )}
       />
-      <span className="max-w-40 truncate sm:max-w-none">{label}</span>
+      <span className="max-w-28 truncate sm:max-w-none">{label}</span>
     </button>
   );
 };

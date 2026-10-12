@@ -1,58 +1,72 @@
 @import "tailwindcss";
 
 /*
- * Telma (Indian Type Foundry, ITF Free Font License) – the variable font,
+ * Satoshi (Indian Type Foundry, ITF Free Font License) – the variable font,
  * self-hosted. Fetched by scripts/prepare.mjs into public/fonts/, never in
  * git; without it the system font applies.
  */
 @font-face {
-  font-family: "Telma";
-  src: url("/fonts/Telma-Variable.woff2") format("woff2");
+  font-family: "Satoshi";
+  src: url("/fonts/Satoshi-Variable.woff2") format("woff2");
   font-weight: 300 900;
   font-style: normal;
   font-display: swap;
 }
 
 /*
- * Boop's look: warm paper, ink lines, one flat color per stamp. Shapes have
- * a 2px ink outline and a hard offset shadow – like stickers on paper.
- * The colors match features/calendar/model.ts (COLORS).
+ * Boop's look: candy colors on a lilac-white, deep ink outlines, hard offset
+ * shadows – like stickers. Stamps are glossy 3D stickers; what they leave on
+ * a day is an ink print. The stamp colors match features/calendar/model.ts
+ * (COLORS).
  */
 @theme {
-  --color-paper: #fff4e8;
-  --color-paper-deep: #ffe9d2;
+  --color-bg: #f5f2ff;
   --color-card: #ffffff;
-  --color-ink: #1f1d2b;
-  --color-muted: #6b6878;
-  --color-line: #ece6f2;
+  --color-ink: #1d1b3a;
+  --color-muted: #6e6a8f;
+  --color-line: #e6e0fb;
+  --color-soft: #efeaff;
 
-  --color-coral: #ff7a59;
-  --color-sun: #ffc23d;
-  --color-mint: #3ccf91;
-  --color-sky: #4aa8ff;
-  --color-grape: #8b6cf6;
-  --color-pink: #ff6fae;
+  --color-violet: #7c5cff;
+  --color-pink: #ff5fae;
+  --color-sky: #3fa9ff;
+  --color-mint: #22c993;
+  --color-sun: #ffc928;
+  --color-coral: #ff8159;
+  --color-grape: #7c5cff;
 
-  --font-sans: "Telma", ui-rounded, system-ui, sans-serif;
-  --font-doodle: "Telma", ui-rounded, system-ui, sans-serif;
+  --color-violet-soft: #ece6ff;
+  --color-pink-soft: #ffe4f2;
+  --color-sky-soft: #def1ff;
+  --color-mint-soft: #d9f8ec;
+  --color-sun-soft: #fff4cc;
+  --color-coral-soft: #ffe7de;
 
-  --shadow-sticker: 3px 3px 0 0 var(--color-ink);
+  --font-sans: "Satoshi", ui-rounded, system-ui, sans-serif;
+
+  --shadow-sticker: 4px 4px 0 0 var(--color-ink);
   --shadow-sticker-sm: 2px 2px 0 0 var(--color-ink);
+  --shadow-sticker-lg: 6px 6px 0 0 var(--color-ink);
 
-  --animate-boop: boop 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  --animate-wiggle: wiggle 600ms ease-in-out;
+  --animate-boop: boop 460ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-wiggle: wiggle 500ms ease-in-out;
+  --animate-float: float 5s ease-in-out infinite;
+  --animate-press: press 520ms cubic-bezier(0.3, 0.7, 0.4, 1) both;
+  --animate-rise: rise 420ms cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+  --animate-fade: fade 240ms ease-out both;
+  --animate-pulse-dot: pulse-dot 1.2s ease-in-out infinite;
 
   @keyframes boop {
     0% {
-      transform: scale(0.4) rotate(var(--r, 0deg));
+      transform: scale(0.3);
       opacity: 0;
     }
-    60% {
-      transform: scale(1.15) rotate(var(--r, 0deg));
+    55% {
+      transform: scale(1.18);
       opacity: 1;
     }
     100% {
-      transform: scale(1) rotate(var(--r, 0deg));
+      transform: scale(1);
     }
   }
 
@@ -62,17 +76,82 @@
       transform: rotate(0deg);
     }
     25% {
-      transform: rotate(-4deg);
+      transform: rotate(-7deg);
     }
     75% {
-      transform: rotate(4deg);
+      transform: rotate(7deg);
+    }
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0) rotate(var(--tilt, 0deg));
+    }
+    50% {
+      transform: translateY(-12px) rotate(calc(var(--tilt, 0deg) + 4deg));
+    }
+  }
+
+  /* A stamp coming down onto the day, pressing, and lifting off. */
+  @keyframes press {
+    0% {
+      transform: translate(-50%, -110%) scale(1.15) rotate(-8deg);
+      opacity: 0;
+    }
+    35% {
+      transform: translate(-50%, -60%) scale(1.05) rotate(-4deg);
+      opacity: 1;
+    }
+    55% {
+      transform: translate(-50%, -50%) scale(0.92) rotate(0deg);
+    }
+    75% {
+      transform: translate(-50%, -62%) scale(1) rotate(3deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(-50%, -120%) scale(1.05) rotate(6deg);
+      opacity: 0;
+    }
+  }
+
+  @keyframes rise {
+    0% {
+      transform: translateY(40px) scale(0.96);
+      opacity: 0;
+    }
+    100% {
+      transform: none;
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes pulse-dot {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(0.6);
+      opacity: 0.6;
     }
   }
 }
 
 @layer base {
   html {
-    background: var(--color-paper);
+    background: var(--color-bg);
     color: var(--color-ink);
     -webkit-tap-highlight-color: transparent;
   }
@@ -80,22 +159,86 @@
   body {
     min-height: 100dvh;
     font-family: var(--font-sans);
+    font-weight: 500;
     -webkit-font-smoothing: antialiased;
+    /* Candy blobs and a dot grid – fixed, behind everything. */
+    background:
+      radial-gradient(
+        40rem 30rem at 0% 0%,
+        color-mix(in srgb, var(--color-pink) 18%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        36rem 28rem at 100% 8%,
+        color-mix(in srgb, var(--color-sky) 18%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        44rem 32rem at 55% 100%,
+        color-mix(in srgb, var(--color-mint) 16%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(var(--color-line) 1.3px, transparent 1.3px) 0 0 / 22px
+      22px,
+      var(--color-bg);
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-weight: 900;
+    letter-spacing: -0.035em;
   }
 
   :focus-visible {
-    outline: 3px solid var(--color-sky);
+    outline: 3px solid var(--color-violet);
     outline-offset: 2px;
   }
+}
 
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      /* biome-ignore lint/complexity/noImportantStyles: reduced motion must win over every animation class */
-      animation-duration: 1ms !important;
-      /* biome-ignore lint/complexity/noImportantStyles: same as above */
-      transition-duration: 1ms !important;
-    }
+/*
+ * Page transitions (features/transitions): the old page sinks away, the new
+ * one rises – the header stays put. Also for full page loads.
+ */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root) {
+  animation: 180ms ease-in both page-out;
+}
+
+::view-transition-new(root) {
+  animation: 360ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both page-in;
+}
+
+@keyframes page-out {
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.985);
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after,
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must win over every animation class */
+    animation-duration: 1ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: same as above */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: same as above */
+    transition-duration: 1ms !important;
   }
 }

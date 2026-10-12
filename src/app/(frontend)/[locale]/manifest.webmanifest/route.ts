@@ -28,8 +28,8 @@ export const GET = async (
       scope: "/",
       display: "standalone",
       orientation: "portrait",
-      background_color: "#fff4e8",
-      theme_color: "#fff4e8",
+      background_color: "#f5f2ff",
+      theme_color: "#f5f2ff",
       categories: ["lifestyle", "productivity"],
       icons: [
         { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },

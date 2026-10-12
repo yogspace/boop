@@ -2,6 +2,7 @@ import type { CollectionConfig } from "payload";
 import { adminOnly } from "@/access";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
 import { addMember, removeMember } from "../endpoints/members";
+import { inviteEndpoints } from "../invites";
 import { COLOR_NAMES } from "../model";
 
 /**
@@ -82,5 +83,5 @@ export const Calendars: CollectionConfig = {
       },
     ],
   },
-  endpoints: [addMember, removeMember],
+  endpoints: [addMember, removeMember, ...inviteEndpoints],
 };

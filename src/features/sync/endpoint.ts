@@ -1,5 +1,5 @@
 import type { Endpoint } from "payload";
-import { accountOf } from "@/access";
+import { sessionAccount } from "@/features/accounts/session";
 import { calendarsOf } from "@/features/calendar/membership";
 import { isId } from "@/lib/id";
 import { rateLimit } from "@/lib/rate-limit";
@@ -42,7 +42,7 @@ export const syncEndpoint: Endpoint = {
   path: "/sync",
   method: "post",
   handler: async (req) => {
-    const account = accountOf(req);
+    const account = await sessionAccount(req);
     if (!account) {
       return Response.json({ error: "Not logged in." }, { status: 401 });
     }

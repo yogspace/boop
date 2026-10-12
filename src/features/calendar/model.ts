@@ -16,13 +16,13 @@
 
 /** The colors a stamp or calendar can have – one each, never mixed. */
 export const COLORS = {
-  ink: "#1f1d2b",
-  coral: "#ff7a59",
-  sun: "#ffc23d",
-  mint: "#3ccf91",
-  sky: "#4aa8ff",
-  grape: "#8b6cf6",
-  pink: "#ff6fae",
+  ink: "#1d1b3a",
+  coral: "#ff8159",
+  sun: "#ffc928",
+  mint: "#22c993",
+  sky: "#3fa9ff",
+  grape: "#7c5cff",
+  pink: "#ff5fae",
 } as const;
 
 export type ColorName = keyof typeof COLORS;

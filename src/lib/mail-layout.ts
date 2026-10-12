@@ -14,10 +14,10 @@ export const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const PAPER = "#fff4e8";
-const INK = "#1f1d2b";
-const MUTED = "#6b6878";
-const BUTTON = "#ff7a59";
+const PAPER = "#f5f2ff";
+const INK = "#1d1b3a";
+const MUTED = "#6e6a8f";
+const BUTTON = "#7c5cff";
 const FONT =
   "ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', sans-serif";
 
