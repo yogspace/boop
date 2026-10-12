@@ -1,10 +1,11 @@
 import type { PayloadRequest } from "payload";
+// Relative, not `@/…`: the unit tests import this without the app's aliases.
 import {
   cleanPalette,
   DEFAULT_PALETTE,
   knownKey,
   type StampColor,
-} from "@/features/calendar/palette";
+} from "../calendar/palette";
 
 /**
  * The stamp colors' rows as the “Site” global keeps them, checked

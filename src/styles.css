@@ -408,7 +408,8 @@
 @utility scribble-rule {
   display: block;
   height: 12px;
-  background: linear-gradient(currentColor, currentColor) center / 100%
+  background:
+    linear-gradient(currentColor, currentColor) center / 100%
     var(--scribble-width, 2px) no-repeat;
   filter: var(--scribble-seed, url(#scribble-h1));
 
@@ -433,7 +434,8 @@
 @utility scribble-rule-y {
   display: block;
   width: 12px;
-  background: linear-gradient(currentColor, currentColor) center /
+  background:
+    linear-gradient(currentColor, currentColor) center /
     var(--scribble-width, 2px) 100% no-repeat;
   filter: var(--scribble-seed, url(#scribble-v1));
 
@@ -464,7 +466,8 @@
     bottom: -0.36em;
     left: -0.12em;
     height: 0.5em;
-    background: linear-gradient(currentColor, currentColor) center / 100%
+    background:
+      linear-gradient(currentColor, currentColor) center / 100%
       var(--scribble-width, 3px) no-repeat;
     filter: var(--scribble-seed, url(#scribble-h2));
     pointer-events: none;

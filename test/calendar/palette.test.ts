@@ -7,6 +7,8 @@ import {
   getPalette,
   hexOf,
   isColorKey,
+  knownKey,
+  nextKey,
   setPalette,
 } from "../../src/features/calendar/palette";
 
@@ -85,5 +87,36 @@ describe("the stamp colors", () => {
     expect(colorName("pink", "en")).toBe("Moss");
     setPalette(DEFAULT_PALETTE);
     expect(hexOf("pink")).toBe("#ff5fae");
+  });
+
+  it("starts things in a color it has", () => {
+    expect(knownKey("grape")).toBe("grape");
+    expect(knownKey("lime")).toBe("ink");
+    const colors = cleanPalette([
+      { key: "moss", hex: "#335533" },
+      { key: "grape", hex: "#7c5cff" },
+    ]);
+    expect(knownKey("grape", colors)).toBe("grape");
+    expect(knownKey("ink", colors)).toBe("moss");
+    // No colors at all: the code's first.
+    expect(knownKey("grape", [])).toBe("ink");
+  });
+
+  it("gives new calendars a color in turns", () => {
+    // The default – the first – sits out.
+    expect(nextKey([])).toBe("coral");
+    expect(nextKey(["coral"])).toBe("sun");
+    expect(nextKey(["coral", "mint", "sun"])).toBe("sky");
+    // A color that is gone from the palette takes no turn away.
+    expect(nextKey(["gone", "coral"])).toBe("sun");
+    // All taken: round and round, by how many there are.
+    const all = ["coral", "sun", "mint", "sky", "grape", "pink"];
+    expect(nextKey(all)).toBe("coral");
+    expect(nextKey([...all, "coral"])).toBe("sun");
+    // A palette of one has only that one to give.
+    const one = cleanPalette([{ key: "moss", hex: "#335533" }]);
+    expect(nextKey([], one)).toBe("moss");
+    expect(nextKey(["moss", "moss"], one)).toBe("moss");
+    expect(nextKey(["x"], [])).toBe("coral");
   });
 });

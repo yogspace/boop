@@ -35,13 +35,23 @@ Stand: 12.10.2026
 
 ## Offen aus der laufenden Runde
 
-- **App ganz auf die CMS-Farben umstellen**: Farbwähler im Editor,
-  Kalenderfarben, Stempelkissen und die Prüfung auf dem Server nutzen noch
-  die sieben festen Farben; in den Collections sind `color`/`ink` noch
-  Auswahlfelder. Bis dahin wird eine im CMS neu angelegte Farbe abgelehnt
-  (bestehende ändern geht schon).
-- **Scribble-Redesign ausrollen** auf Tagesansicht, Stempel-Editor und
-  Stempel-Detail.
+- **CMS-Farben: im Code komplett umgestellt, aber noch nicht im Browser
+  getestet.** Zuerst prüfen: Registrieren (legt den persönlichen Kalender
+  an) und einen neuen Kalender/Stempel anlegen – die Standardfarbe kommt
+  jetzt aus einem Feld-Default, der das Site-Global liest
+  (`calendar/color-field.ts`); greift der nicht, schlägt das Anlegen fehl.
+  Danach: im Admin eine Farbe neu anlegen, eine ändern, eine löschen und
+  schauen, ob Farbwähler, Stempelkissen, Abdrücke und 3D-Stempel folgen.
+  Bekannt: schon gerenderte Stickerbilder wechseln die Farbe erst nach
+  einem Reload.
+- **Scribble-Redesign ausrollen** auf Tagesansicht (`day-sheet.tsx`),
+  Stempel-Editor (`stamp-drawer.tsx`), Stempel-Detail (`stamp-sheet.tsx`)
+  und die 3D-Bühne (`sticker-view.tsx`) – die nutzen noch die alten
+  Farbklassen. Bausteine dafür: die `scribble…`-Klassen in `styles.css` und
+  `ROUND_BUTTON`, `PILL`, `BADGE`, `FIELD_BOX` aus `components/ui.tsx`.
+  Danach die Übergangs-Aliasse (`*-soft`, `shadow-sticker*`) löschen.
+- **Altes Lila außerhalb der Seite**: `themeColor`, Web-Manifest, OG-Bild,
+  `icon.svg`.
 
 ## Noch selbst prüfen
 
