@@ -69,6 +69,17 @@ A calendar can be subscribed to in Apple Calendar, Google Calendar & co. (`featu
 - **Per account and calendar, from the calendar's settings** (cookie, members only): `GET|POST|DELETE /api/ical/feeds/:calendar`, `POST /api/ical/feeds/:calendar/renew` (the old address is dead at once), and `POST /api/ical/export/:calendar` – the same text once as a file.
 - **`calendar-feeds`**: account, calendar, token, `createdAt`, `lastFetchedAt` (once a day at most). Closed to everyone over the API, the admin too, and hidden in the admin – only server code with `overrideAccess`. The token is stored as it is, on purpose: the settings show the address again. Feeds go with their account (`removeData`), are in its export without the token, and dead ones are swept whenever an address is made.
 
+## Notifications
+
+Web Push (`features/push`), off until the server has VAPID keys. Per account and calendar, from the calendar's settings: a reminder when nothing has been stamped there today (at a time of one's own, the device's clock), and a message when someone else stamped in it. A device subscribes only after the person says yes (a button – Safari wants a gesture; on an iPhone only in the installed app); the subscription is tied to the login, logging out ends it.
+
+- **Sending:** `web-push`, signed with the VAPID keys; only to the known push services (Apple, Google, Mozilla, Microsoft). A device the service no longer knows (404/410) is dropped. Several prints by one person in one calendar within 10 minutes make one message.
+- **Stored:** `push-subscriptions` (one per device: endpoint, keys, zone, language) and `push-settings` (one per account: the switches per calendar, the reminder's time) – closed to everyone over the API (see Access), gone with the account, in its export without endpoint or keys.
+- **The service worker:** `public/sw.js` loads `public/sw-push.js` (shows a message, opens the calendar when tapped, renews a subscription the browser replaced).
+- **The reminder:** `/next/cron/push-reminder` every 15 minutes (`scripts/setup-cron.sh`, only installed when both keys are there; `?dry=1` counts only).
+
+**Switching it on:** `npx web-push generate-vapid-keys`, then in the repository: variable `VAPID_PUBLIC_KEY`, secret `VAPID_PRIVATE_KEY`, optional variable `VAPID_SUBJECT` (`mailto:…`); deploy. Keep the keys: new ones silence every device subscribed with the old ones.
+
 ## Access
 
 Two kinds of login: admins (`users`, Payload's cookie `boop-token`) and accounts. Payload keeps all auth collections in one cookie, so an app login would lock the admin out. Accounts therefore get their own cookie, `boop-session` (`features/accounts/session.ts`). It replaces Payload's login, logout, “me” and reset endpoints for `accounts` and checks the token with Payload's own strategies. App endpoints find their account with `sessionAccount(req)` and refuse cookie requests from other origins.
@@ -121,10 +132,12 @@ Boop uses **Satoshi** (Indian Type Foundry, ITF Free Font License) as a self-hos
 
 `make deploy` merges `development` into `main` and pushes; the pipeline (`.github/workflows/deploy.yml`) then runs lint, types and tests, builds the image and deploys it to `/opt/apps/boop` on the server.
 
-Repository **variables** (public, baked into the build): `NEXT_PUBLIC_SERVER_URL`, `MAIL_FROM`, optional `GOOGLE_SITE_VERIFICATION`.
-Repository **secrets**: `HETZNER_HOST`, `HETZNER_USER`, `HETZNER_SSH_KEY`, `PAYLOAD_SECRET`, `RESEND_API_KEY`, `CRON_SECRET`, `MAIL_STATS_RECIPIENT`, `MAIL_CONTACT_RECIPIENT`, optional `PAYLOAD_ADMIN_EMAIL`/`PAYLOAD_ADMIN_PASSWORD` (first admin).
+Repository **variables** (public): `NEXT_PUBLIC_SERVER_URL`, `MAIL_FROM`, optional `GOOGLE_SITE_VERIFICATION`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`.
+Repository **secrets**: `HETZNER_HOST`, `HETZNER_USER`, `HETZNER_SSH_KEY`, `PAYLOAD_SECRET`, `RESEND_API_KEY`, `CRON_SECRET`, `MAIL_STATS_RECIPIENT`, `MAIL_CONTACT_RECIPIENT`, optional `PAYLOAD_ADMIN_EMAIL`/`PAYLOAD_ADMIN_PASSWORD` (first admin), optional `VAPID_PRIVATE_KEY` (notifications).
 
-The server's `.env` is rewritten from them on every deploy. Two daily crons (`scripts/setup-cron.sh`, installed by the deploy; log: `journalctl -t boop-cron`): the statistics report (`/next/cron/stats-digest`) and the cleanup (`/next/cron/cleanup` – expired invitations, unconfirmed sign-ups, unused accounts; see Access). The cleanup answers with counts only; `?dry=1` shows what it would do without doing it.
+The server's `.env` is rewritten from them on every deploy. The crons (`scripts/setup-cron.sh`, installed by the deploy; log: `journalctl -t boop-cron`): daily the statistics report (`/next/cron/stats-digest`) and the cleanup (`/next/cron/cleanup` – expired invitations, unconfirmed sign-ups, unused accounts, dead calendar feeds; see Access), and every 15 minutes the notifications' reminder when the VAPID keys are set (see Notifications). The cleanup answers with counts only; `?dry=1` shows what it would do without doing it.
+
+The image is built without a database, so its pages carry the code's own stamp colors and texts. Right after the new container is up, the deploy calls `/next/refresh` (`scripts/refresh-pages.sh`, with `CRON_SECRET`): every page renders anew with the CMS's on its next request.
 
 ## SEO
 

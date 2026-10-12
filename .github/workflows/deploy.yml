@@ -112,6 +112,9 @@ jobs:
             CRON_SECRET=${{ secrets.CRON_SECRET }}
             MAIL_STATS_RECIPIENT=${{ secrets.MAIL_STATS_RECIPIENT }}
             MAIL_CONTACT_RECIPIENT=${{ secrets.MAIL_CONTACT_RECIPIENT }}
+            VAPID_PUBLIC_KEY=${{ vars.VAPID_PUBLIC_KEY }}
+            VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}
+            VAPID_SUBJECT=${{ vars.VAPID_SUBJECT }}
             ENV
             for key in NEXT_PUBLIC_SERVER_URL PAYLOAD_SECRET; do
               if ! grep -qE "^${key}=.+" .env.new; then

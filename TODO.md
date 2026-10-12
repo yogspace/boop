@@ -8,11 +8,18 @@ Stand: 12.10.2026
   schon gespeichert hat, hat dort noch „Tinte“ als erste Farbe – von Hand
   auf Rot ändern (Schlüssel `red`, `#ee3b33`).
 
-- **Benachrichtigungen (Web Push)** – gebaut, aber aus, bis es
-  VAPID-Schlüssel gibt (`npx web-push generate-vapid-keys`). Noch offen: die
-  Schlüssel als Secrets in GitHub, ihre Namen in `.env.example`, README und
-  `deploy.yml`, der Cron für die Erinnerung (`setup-cron.sh`, bewusst noch
-  nicht eingetragen), und ein Test mit echtem Push auf einem Gerät.
+- **Benachrichtigungen (Web Push) einschalten** – im Code fertig, aus bis es
+  Schlüssel gibt:
+  1. `npx web-push generate-vapid-keys`
+  2. In GitHub (Settings → Secrets and variables → Actions): Variable
+     `VAPID_PUBLIC_KEY`, Secret `VAPID_PRIVATE_KEY`, optional Variable
+     `VAPID_SUBJECT` (z. B. `mailto:…`).
+  3. Deployen – der Deploy schreibt sie in die `.env` und trägt den Cron für
+     die Erinnerung ein (alle 15 Minuten).
+  4. Auf einem Gerät testen: Kalender-Einstellungen → „Benachrichtigungen
+     einschalten“ (iPhone: nur in der installierten App), zweites Konto
+     stempelt → Nachricht; Erinnerung zur eingestellten Uhrzeit.
+  Schlüssel nicht wechseln: neue Schlüssel machen alle bisherigen Abos stumm.
 - **Texte, die noch nicht im CMS sind**: die Mails (`accounts/emails.ts`,
   die Einladungsmail in `calendar/invites.ts`) und das Kontaktformular – sie
   haben eigene Text-Tabellen.
