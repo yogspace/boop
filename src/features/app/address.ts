@@ -23,7 +23,9 @@ export const VIEW_SLUGS = {
 } as const satisfies Record<Locale, Record<CalendarView, string>>;
 
 /** A view by its word – in either language (a link may come from the other). */
-export const viewOf = (word: string | null | undefined): CalendarView | null => {
+export const viewOf = (
+  word: string | null | undefined
+): CalendarView | null => {
   for (const words of Object.values(VIEW_SLUGS)) {
     for (const [view, slug] of Object.entries(words)) {
       if (slug === word) return view as CalendarView;
@@ -69,8 +71,9 @@ export const slugOf = (name: string, locale: Locale): string => {
   // A dash right after the cut ends a word just there.
   const cut = slug.slice(0, LONGEST + 1);
   const end = cut.lastIndexOf("-");
-  return (end > LONGEST / 2 ? cut.slice(0, end) : cut.slice(0, LONGEST))
-    .replace(/-+$/, "");
+  return (
+    end > LONGEST / 2 ? cut.slice(0, end) : cut.slice(0, LONGEST)
+  ).replace(/-+$/, "");
 };
 
 /** A calendar, as far as its slug goes. */
@@ -154,4 +157,7 @@ export const addressOf = (
   locale: Locale,
   slug: string | null | undefined,
   view: CalendarView
-) => (slug ? `/${locale}/app/${slug}/${VIEW_SLUGS[locale][view]}` : `/${locale}/app`);
+) =>
+  slug
+    ? `/${locale}/app/${slug}/${VIEW_SLUGS[locale][view]}`
+    : `/${locale}/app`;

@@ -61,8 +61,11 @@ const NOTICE = 70;
 const CROSS = { in: 70, out: 140 };
 /** After building a model the page gets this long (ms) before the next. */
 const BREATH = 60;
-/** The models of stamps that just looked: this many, this long (ms). */
-const SPARE = 2;
+/**
+ * The models of stamps that just looked: this many – a row of them looking
+ * together – this long (ms).
+ */
+const SPARE = 6;
 const SPARE_FOR = 8000;
 /** What a stamp is a part of – pointing at it, the stamp looks. */
 const PART_OF = "a, button, [role='button'], .group";

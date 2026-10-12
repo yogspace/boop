@@ -318,7 +318,7 @@ const de = {
       onlyYou: "Bisher nur du",
       print3d: "Für den 3D-Drucker (STL)",
       hint: (mm: number) =>
-        `${mm} mm breit, mit „boop“ auf dem Rücken. Die Stempelfläche ist gespiegelt – so kommt dein Abdruck richtig herum raus.`,
+        `${mm} mm breit, mit „boop“ auf dem Rücken. Er steht auf seiner Stempelfläche, der Knauf zeigt nach oben – nur größere Vertiefungen brauchen Stützen vom Druckbett. Die Fläche ist gespiegelt, so kommt dein Abdruck richtig herum raus.`,
       delete: "Stempel löschen",
       deleteConfirm:
         "Diesen Stempel löschen? Auch seine Abdrücke verschwinden.",
@@ -680,7 +680,7 @@ const en: Shape<Dictionary> = {
       onlyYou: "Just you so far",
       print3d: "For the 3D printer (STL)",
       hint: (mm: number) =>
-        `${mm} mm wide, with “boop” on its back. The stamp face is mirrored – so your print comes out the right way round.`,
+        `${mm} mm wide, with “boop” on its back. It stands on its stamp face, knob up – only bigger hollows need supports from the bed. The face is mirrored, so your print comes out the right way round.`,
       delete: "Delete stamp",
       deleteConfirm: "Delete this stamp? Its prints go too.",
     },

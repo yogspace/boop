@@ -14,13 +14,14 @@
 }
 
 /*
- * Boop's look: black marker on white paper. Everything that frames, labels
- * or decorates is scribbled line art in one ink – wobbly frames (the
+ * Boop's look: black marker on paper. Everything that frames, labels or
+ * decorates is scribbled line art in one ink – wobbly frames (the
  * `scribble` utilities below), doodles (components/doodles.tsx), underlines.
- * The ONLY color on a page are the stamps – 3D rubber stamps, drawn like a
- * cartoon – and the ink prints they leave. So: no tinted surfaces, no colored chips,
- * no shadows; a state shows as a filled frame, a thicker line, a scribble
- * around it.
+ * Color comes from the stamps – 3D rubber stamps, drawn like a cartoon – the
+ * ink prints they leave, and a calendar, which tints its page in its own
+ * tone (features/calendar/tint.ts, through the tokens below). So: no colored
+ * chips, no shadows; a state shows as a filled frame, a thicker line, a
+ * scribble around it.
  */
 @theme {
   /* Paper and marker. */
@@ -49,7 +50,6 @@
   --animate-ink: ink 260ms ease-out both;
   --animate-fade: fade 240ms ease-out both;
   --animate-pulse-dot: pulse-dot 1.2s ease-in-out infinite;
-  --animate-press-dip: press-dip 360ms cubic-bezier(0.3, 0.7, 0.4, 1);
   --animate-twinkle: twinkle 2.6s ease-in-out infinite both;
   --animate-sheen: sheen 5s ease-in-out infinite both;
 
@@ -162,17 +162,6 @@
     }
   }
 
-  /* The stamps dipping into a new ink pad. */
-  @keyframes press-dip {
-    0%,
-    100% {
-      transform: none;
-    }
-    45% {
-      transform: translateY(6px) scale(0.9);
-    }
-  }
-
   @keyframes pulse-dot {
     0%,
     100% {
@@ -221,14 +210,37 @@
   }
 
   /*
-   * The marker's three wobbles (components/scribble-defs.tsx) – what a
-   * scribbled frame takes turns with. `scribble-sm` swaps them for
-   * the finer ones.
+   * What can be clicked shows the hand: buttons, links, a <summary>, a label
+   * with its control – not a text field in one (it keeps its caret), and
+   * nothing turned off.
    */
-  :root {
-    --scribble-a: url(#scribble-1);
-    --scribble-b: url(#scribble-2);
-    --scribble-c: url(#scribble-3);
+  :where(input, textarea) {
+    cursor: auto;
+  }
+
+  :where(
+    a[href],
+    button,
+    [role="button"],
+    summary,
+    select,
+    label:has(input, select, textarea),
+    input:is(
+      [type="checkbox"],
+      [type="radio"],
+      [type="button"],
+      [type="submit"],
+      [type="reset"],
+      [type="file"],
+      [type="color"],
+      [type="range"]
+    )
+  ) {
+    cursor: pointer;
+  }
+
+  :where(:disabled, [aria-disabled="true"], label:has(:disabled)) {
+    cursor: default;
   }
 }
 

@@ -29,14 +29,13 @@ export const ViewSwitch = ({
 }) => {
   const t = dictionaryOf(locale);
   return (
-    <div
-      aria-label={t.app.view.label}
+    <fieldset
       className={cn(
         "scribble scribble-sm scribble-thin scribble-clear flex w-fit shrink-0 gap-0.5 rounded-full p-1",
         className
       )}
-      role="group"
     >
+      <legend className="sr-only">{t.app.view.label}</legend>
       {VIEWS.map((v) => (
         <button
           aria-pressed={view === v}
@@ -61,6 +60,6 @@ export const ViewSwitch = ({
           {t.app.view[v]}
         </button>
       ))}
-    </div>
+    </fieldset>
   );
 };

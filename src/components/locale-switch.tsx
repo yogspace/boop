@@ -19,16 +19,22 @@ import { cn } from "@/lib/cn";
  * the language again. A page that can change its words itself (the app)
  * passes `onPick`: then nothing is loaded or built anew – the address is
  * only rewritten (Next keeps its router in step with `history`), the
- * document's language set, and the page told.
+ * document's language set, and the page told. Where more of the address
+ * is in words than the language (the app's view: /de/app/familie/heute is
+ * /en/app/familie/today), the page says what it is in the other one
+ * (`hrefOf`).
  */
 export const LocaleSwitch = ({
   locale,
   onPick,
+  hrefOf,
   className,
 }: {
   locale: Locale;
   /** Changes the words in place – instead of loading the page anew. */
   onPick?: (locale: Locale) => void;
+  /** The page's path in another language – else only the language swaps. */
+  hrefOf?: (locale: Locale) => string;
   className?: string;
 }) => {
   const pathname = usePathname() ?? `/${locale}`;
@@ -46,7 +52,7 @@ export const LocaleSwitch = ({
       className={cn("flex gap-2 font-medium text-muted text-sm", className)}
     >
       {LOCALES.map((other) => {
-        const href = `/${other}${rest}${tail}`;
+        const href = `${hrefOf ? hrefOf(other) : `/${other}${rest}`}${tail}`;
         return (
           <NextLink
             aria-current={other === locale ? "page" : undefined}

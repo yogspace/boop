@@ -1,4 +1,4 @@
-import { isId } from "@/lib/id";
+import { isId } from "../../lib/id";
 import type { DayKey, NoteContent, NoteRun } from "./model";
 
 /**

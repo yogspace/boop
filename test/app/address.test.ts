@@ -45,8 +45,9 @@ describe("slugOf", () => {
     );
     expect(slug).toBe("unser-grosser-gemeinsamer");
     expect(slugOf("a".repeat(60), "de")).toBe("a".repeat(40));
-    expect(slugOf("Mein ganz besonders langer Kalendername hier", "de").length)
-      .toBeLessThanOrEqual(40);
+    expect(
+      slugOf("Mein ganz besonders langer Kalendername hier", "de").length
+    ).toBeLessThanOrEqual(40);
     expect(slugOf("x ".repeat(30), "de")).not.toMatch(/-$/);
   });
 });

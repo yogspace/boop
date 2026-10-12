@@ -7,6 +7,7 @@ import { SPRING } from "@/components/motion";
 import { Ruling } from "@/components/ruling";
 import { buttonClass, ROUND_BUTTON } from "@/components/ui";
 import { type DayKey, todayKey } from "@/features/calendar/model";
+import { cleanNote, notePreview } from "@/features/calendar/note";
 import { hexOf } from "@/features/calendar/palette";
 import { Glitter, StampSvg } from "@/features/calendar/stamp-svg";
 import { useBoop } from "@/features/offline/store";
@@ -14,6 +15,7 @@ import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { seedOf } from "./day-sheet";
+import { NameTag } from "./name-tag";
 
 type Month = { year: number; month: number };
 
@@ -181,6 +183,40 @@ const Special = ({ hex, wave }: { hex: string; wave: Turn }) => (
 );
 
 /**
+ * Two words of scribbled writing – not letters, what handwriting looks like
+ * from a little way off: humps, a loop, a gap. Drawn once, in a box of
+ * 46 × 8.
+ */
+const WRITING =
+  "M1 6.5C2 6.5 2.4 3 3.4 3S4.3 6.5 5.3 6.5 6.4 2.6 7.4 2.6 8.2 6.5 9.2 6.5 10.3 3.6 11.2 3.6 11.8 6.5 12.8 6.5 14.4 0.8 15.3 0.8 15.6 4.6 14.6 5.6 15.6 6.6 16.8 6.6 17.8 3.6 18.8 3.6 19.3 6.5 20.4 6.4M25.2 6.5C26.2 6.5 26.6 3.2 27.6 3.2S28.4 6.5 29.4 6.5 30.4 3 31.4 3 32 6.5 33 6.5 34.6 1.2 35.5 1.2 35.7 5 34.8 5.8 35.8 6.6 37 6.6 38 3.4 39 3.4 39.6 6.5 40.6 6.5 42 4.4 43 4.6 43.4 6.2 45 6";
+
+/**
+ * A day with a note: a line of scribbled writing along its foot, in the
+ * marker's ink – what is written shows on the day's sheet, this only says
+ * that something is. It lies under the day's prints like the special frame:
+ * they are stamped over it, none is covered. On the left, clear of a
+ * phone's count; on a special day clear of the frame's sparkle there too.
+ */
+const Writing = ({ special, wave }: { special: boolean; wave: Turn }) => (
+  <m.svg
+    aria-hidden="true"
+    className={cn(
+      "pointer-events-none absolute bottom-1 -z-10 aspect-46/8 h-1.5 overflow-visible stroke-[1.25] sm:bottom-2 sm:h-2.5 sm:stroke-[1.6]",
+      special ? "left-3.5 sm:left-6" : "left-1 sm:left-2"
+    )}
+    custom={wave}
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    variants={FRAME_TURN}
+    viewBox="0 0 46 8"
+  >
+    <path d={WRITING} vectorEffect="non-scaling-stroke" />
+  </m.svg>
+);
+
+/**
  * A day of the month before or after, in the cells around this one: only
  * its number, faint. Pointed at, an arrow shows the way; tapped, that month
  * opens.
@@ -269,7 +305,7 @@ const PRINT_TURN: Variants = {
   }),
 };
 
-/** A special day's frame shows once its print has landed. */
+/** A special day's frame – and a note's writing – show once the prints landed. */
 const FRAME_TURN: Variants = {
   hidden: { opacity: 0 },
   shown: ({ order }: Turn) => ({
@@ -292,7 +328,9 @@ const MONTH_TURN: Variants = {
  * A month of a calendar, Monday first; each day shows its prints. Drawn as a
  * table ruled with a marker: today's number is circled and marked with the
  * calendar's highlighter, the weekend is hatched. The prints bring the color
- * – and with a special one the frame its day gets, in that print's ink.
+ * – and with a special one the frame its day gets, in that print's ink. A
+ * day with a note has a line of scribbled writing at its foot; the mouse or
+ * the keyboard on it hangs the note's start from it (`NameTag`).
  */
 export const MonthGrid = ({
   calendar,
@@ -308,7 +346,7 @@ export const MonthGrid = ({
   onMonth: (month: Month) => void;
 }) => {
   const t = dictionaryOf(locale);
-  const { placements, stamps } = useBoop();
+  const { placements, stamps, notes } = useBoop();
   const today = todayKey();
 
   const byDay = useMemo(() => {
@@ -320,6 +358,17 @@ export const MonthGrid = ({
     for (const [, day] of days) day.sort((a, b) => b.z - a.z);
     return days;
   }, [placements, calendar]);
+
+  // The days with a note – their start, on one line (checked once more).
+  const noted = useMemo(() => {
+    const days = new Map<DayKey, string>();
+    for (const note of Object.values(notes)) {
+      if (note.calendar !== calendar) continue;
+      const start = notePreview(cleanNote(note.content));
+      if (start) days.set(note.date, start);
+    }
+    return days;
+  }, [notes, calendar]);
 
   const first = new Date(month.year, month.month, 1);
   const offset = (first.getDay() + 6) % 7;
@@ -445,100 +494,122 @@ export const MonthGrid = ({
               // A special stamp's print makes the day special – the top one
               // lends the frame its ink.
               const big = day.find((p) => stamps[p.stamp]?.drawing?.special);
+              const note = noted.get(date);
               return (
-                <m.button
-                  aria-current={isToday ? "date" : undefined}
-                  className={DAY}
-                  custom={wave}
-                  key={date}
-                  onClick={() => onDay(date)}
-                  type="button"
-                  variants={DAY_TURN}
-                >
-                  {big && (
-                    <Special
-                      hex={hexOf(big.ink ?? stamps[big.stamp]?.color ?? "red")}
-                      wave={wave}
-                    />
-                  )}
-                  <span
-                    className={cn(
-                      "font-black text-[11px] leading-none sm:text-sm",
-                      // Today: circled, and marked with the highlighter in
-                      // the calendar's color (`--cal-mark`, calendar/tint.ts)
-                      // – paper grey where none is set. The circle reaches
-                      // over the number's line – the prints below keep
-                      // their room.
-                      isToday &&
-                        "scribble scribble-sm scribble-thin -my-[0.4em] -ml-[0.3em] flex h-[2.1em] w-[2.1em] shrink-0 items-center justify-center self-start rounded-full [--scribble-fill:var(--cal-mark,var(--color-soft))]"
-                    )}
-                  >
-                    {i + 1}
-                  </span>
-                  {/* One print has the day to itself; more share it. The rows
+                <NameTag id={`note-${date}`} key={date} text={note ?? ""}>
+                  {(anchor) => (
+                    <m.button
+                      aria-current={isToday ? "date" : undefined}
+                      className={DAY}
+                      custom={wave}
+                      onBlur={anchor.onBlur}
+                      onClick={() => {
+                        anchor.onClick();
+                        onDay(date);
+                      }}
+                      onFocus={anchor.onFocus}
+                      onPointerEnter={anchor.onPointerEnter}
+                      onPointerLeave={anchor.onPointerLeave}
+                      style={anchor.style}
+                      type="button"
+                      variants={DAY_TURN}
+                    >
+                      {big && (
+                        <Special
+                          hex={hexOf(
+                            big.ink ?? stamps[big.stamp]?.color ?? "red"
+                          )}
+                          wave={wave}
+                        />
+                      )}
+                      {note && (
+                        <>
+                          <Writing special={Boolean(big)} wave={wave} />
+                          <span className="sr-only">
+                            {t.app.note.inMonth}: {note}
+                          </span>
+                        </>
+                      )}
+                      <span
+                        className={cn(
+                          "font-black text-[11px] leading-none sm:text-sm",
+                          // Today: circled, and marked with the highlighter in
+                          // the calendar's color (`--cal-mark`, calendar/tint.ts)
+                          // – paper grey where none is set. The circle reaches
+                          // over the number's line – the prints below keep
+                          // their room.
+                          isToday &&
+                            "scribble scribble-sm scribble-thin -my-[0.4em] -ml-[0.3em] flex h-[2.1em] w-[2.1em] shrink-0 items-center justify-center self-start rounded-full [--scribble-fill:var(--cal-mark,var(--color-soft))]"
+                        )}
+                      >
+                        {i + 1}
+                      </span>
+                      {/* One print has the day to itself; more share it. The rows
                     take what room there is – a day stays square. On a phone
                     a day is too small to share: the top print shows, big,
                     and a count says how many more there are. */}
-                  <m.span
-                    className={cn(
-                      "grid min-h-0 flex-1 auto-rows-fr place-items-center max-sm:grid-cols-1 max-sm:[&>*:nth-child(n+2)]:hidden",
-                      day.length === 1 ? "grid-cols-1" : "grid-cols-2",
-                      // Clear of the frame's line – a big print reaches it.
-                      big && "mx-0.5 mb-0.5"
-                    )}
-                    custom={wave}
-                    variants={PRINT_TURN}
-                  >
-                    {day.slice(0, 4).map((p, n) => {
-                      const stamp = stamps[p.stamp];
-                      const inked = p.ink ?? stamp?.color ?? "red";
-                      const print = (
-                        <StampSvg
-                          className={
-                            stamp?.drawing?.special
-                              ? "h-full w-full"
-                              : "h-[90%] w-[90%] mix-blend-multiply"
-                          }
-                          color={inked}
-                          drawing={stamp?.drawing ?? null}
-                          key={p.id}
-                          print
-                          seed={seedOf(p.id)}
-                          shape={stamp?.shape}
-                          title={
-                            n === 3 && day.length > 4
-                              ? `+${day.length - 3}`
-                              : undefined
-                          }
-                        />
-                      );
-                      // A special one: as big as its room allows, with a few
-                      // sparkles that hold still – a month has many days.
-                      return stamp?.drawing?.special ? (
-                        <span
-                          className="relative h-full w-full mix-blend-multiply"
-                          key={p.id}
-                        >
-                          {print}
-                          <Glitter
-                            color={inked}
-                            drawing={stamp.drawing}
-                            seed={seedOf(p.id)}
-                            shape={stamp.shape}
-                            still
-                          />
+                      <m.span
+                        className={cn(
+                          "grid min-h-0 flex-1 auto-rows-fr place-items-center max-sm:grid-cols-1 max-sm:[&>*:nth-child(n+2)]:hidden",
+                          day.length === 1 ? "grid-cols-1" : "grid-cols-2",
+                          // Clear of the frame's line – a big print reaches it.
+                          big && "mx-0.5 mb-0.5"
+                        )}
+                        custom={wave}
+                        variants={PRINT_TURN}
+                      >
+                        {day.slice(0, 4).map((p, n) => {
+                          const stamp = stamps[p.stamp];
+                          const inked = p.ink ?? stamp?.color ?? "red";
+                          const print = (
+                            <StampSvg
+                              className={
+                                stamp?.drawing?.special
+                                  ? "h-full w-full"
+                                  : "h-[90%] w-[90%] mix-blend-multiply"
+                              }
+                              color={inked}
+                              drawing={stamp?.drawing ?? null}
+                              key={p.id}
+                              print
+                              seed={seedOf(p.id)}
+                              shape={stamp?.shape}
+                              title={
+                                n === 3 && day.length > 4
+                                  ? `+${day.length - 3}`
+                                  : undefined
+                              }
+                            />
+                          );
+                          // A special one: as big as its room allows, with a few
+                          // sparkles that hold still – a month has many days.
+                          return stamp?.drawing?.special ? (
+                            <span
+                              className="relative h-full w-full mix-blend-multiply"
+                              key={p.id}
+                            >
+                              {print}
+                              <Glitter
+                                color={inked}
+                                drawing={stamp.drawing}
+                                seed={seedOf(p.id)}
+                                shape={stamp.shape}
+                                still
+                              />
+                            </span>
+                          ) : (
+                            print
+                          );
+                        })}
+                      </m.span>
+                      {day.length > 1 && (
+                        <span className="absolute right-0.5 bottom-0.5 rounded-full bg-ink px-1 font-black text-[9px] text-white leading-3.5 sm:hidden">
+                          +{day.length - 1}
                         </span>
-                      ) : (
-                        print
-                      );
-                    })}
-                  </m.span>
-                  {day.length > 1 && (
-                    <span className="absolute right-0.5 bottom-0.5 rounded-full bg-ink px-1 font-black text-[9px] text-white leading-3.5 sm:hidden">
-                      +{day.length - 1}
-                    </span>
+                      )}
+                    </m.button>
                   )}
-                </m.button>
+                </NameTag>
               );
             })}
             {Array.from({ length: rows * 7 - offset - length }, (_, i) => (

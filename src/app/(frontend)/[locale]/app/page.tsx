@@ -4,13 +4,7 @@ import { BoopApp } from "@/features/app/boop-app";
 import { isLocale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 
-type Props = { params: Promise<{ locale: string; calendar?: string[] }> };
-
-/**
- * Built ahead: the bare /de/app. A calendar's address (/de/app/{id}) is the
- * same page – it renders on its first visit.
- */
-export const generateStaticParams = () => [{ calendar: [] }];
+type Props = { params: Promise<{ locale: string }> };
 
 export const generateMetadata = async ({
   params,
@@ -26,8 +20,12 @@ export const generateMetadata = async ({
 /**
  * The app – one static page per language, the same for everyone and every
  * calendar: the data comes from the device (offline/store.ts), so the
- * service worker can keep this page and open it without a connection. The
- * calendar in the address is read in the browser (BoopApp), never here.
+ * service worker can keep this page and open it without a connection.
+ *
+ * Every address below it – a calendar and its view, /de/app/familie/heute
+ * (features/app/address.ts) – is this very page: the proxy hands it over
+ * (src/proxy.ts), and the browser reads the rest (BoopApp), never the
+ * server. So the server keeps one page per language, not one per address.
  */
 const AppPage = async ({ params }: Props) => {
   const { locale } = await params;

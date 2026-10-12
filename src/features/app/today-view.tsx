@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import type { Snapshot } from "valtio";
-import { type DayKey, type StampDoc, todayKey } from "@/features/calendar/model";
+import {
+  type DayKey,
+  type StampDoc,
+  todayKey,
+} from "@/features/calendar/model";
 import type { Locale } from "@/i18n/config";
 import { DayNote } from "./day-note";
 import { DayPage } from "./day-page";
@@ -67,27 +71,28 @@ export const TodayView = ({
   const today = useToday();
   const date = new Date(`${today}T12:00:00`);
   return (
-    // A little wider than the day's sheet, not as wide as the calendar's
-    // page: that square would be taller than most screens.
-    <div className="mx-auto flex w-full max-w-136 flex-col gap-4">
-      <h3 className="text-3xl leading-none">
-        {date.toLocaleDateString(locale, { weekday: "long" })}{" "}
-        <span className="font-bold text-muted">
-          {date.toLocaleDateString(locale, { day: "numeric", month: "long" })}
-        </span>
-      </h3>
-      {/* A new day is a new page: what was in hand, picked or to be taken
-          back stays with the day before. */}
-      <div className="flex animate-fade flex-col gap-4" key={today}>
-        <DayPage
-          calendar={calendar}
-          date={today}
-          keyboard={keyboard}
-          locale={locale}
-          stamps={stamps}
-        />
-        <DayNote calendar={calendar} date={today} locale={locale} />
-      </div>
+    // A new day is a new page: what was in hand, picked or to be taken back
+    // stays with the day before.
+    <div className="flex animate-fade flex-col gap-5" key={today}>
+      <DayPage
+        calendar={calendar}
+        date={today}
+        heading={
+          <h3 className="text-3xl leading-none">
+            {date.toLocaleDateString(locale, { weekday: "long" })}{" "}
+            <span className="font-bold text-muted">
+              {date.toLocaleDateString(locale, {
+                day: "numeric",
+                month: "long",
+              })}
+            </span>
+          </h3>
+        }
+        keyboard={keyboard}
+        locale={locale}
+        stamps={stamps}
+      />
+      <DayNote calendar={calendar} date={today} locale={locale} />
     </div>
   );
 };

@@ -24,21 +24,18 @@ export const SIZE = 320;
 const FINER = 2;
 /**
  * The pictures are taken from far off, with a long lens: the face – nearest
- * to the camera – isn't blown up over what is behind it. The drawing keeps
- * its proportions, and the knob shows behind the block at a gentler angle.
+ * to the camera – isn't blown up over what is behind it, the drawing keeps
+ * its proportions.
  */
 const DISTANCE = 8;
 
 /**
- * The pictures' angle. The face – the drawing – comes first: it looks at you,
- * tipped forward only as far as it takes for the knob to look out over the
- * block's top edge, on every shape. The round, the square and the eight-sided
- * ones hide it longest: tipped by 0.64 or less it is gone there (a triangle
- * and a diamond show it much sooner) – and tipped further the drawing only
- * gets flatter. Hardly turned sideways: there the knob would go behind a
- * square's corner.
+ * The pictures' angle. The face – the drawing – comes first: it looks at
+ * you, turned only a little (about 0.41 rad all in all), so the block's edge
+ * and how thick it is still show. The knob peeks out behind a triangle only
+ * – the others hide it, until the stamp turns to the pointer (look.ts).
  */
-const FACE_TURN = [0.7, 0.1, -0.04] as const;
+const FACE_TURN = [0.36, 0.2, -0.04] as const;
 /** Upright, knob up, seen from a little above – as it comes down on a day. */
 const PRESS_TURN = [Math.PI / 2 + 0.42, 0.5, 0] as const;
 
@@ -110,6 +107,13 @@ export const openStudio = async (): Promise<Studio> => {
   return studio;
 };
 
+/**
+ * Goes up whenever the pictures change (the pose, the lens, the model) – no
+ * picture of before is shown for a stamp then. (They are kept in memory
+ * only, for as long as the page is open.)
+ */
+const VERSION = 2;
+
 const cache = new Map<string, Promise<string>>();
 /** The pictures already there – to show them right away. */
 const done = new Map<string, string>();
@@ -126,7 +130,7 @@ export const stickerKey = (input: StickerInput, kind: Pose = "face") => {
   for (let i = 0; i < text.length; i++) {
     hash = (hash * 31 + text.charCodeAt(i)) | 0;
   }
-  return `${kind}-${input.shape}-${input.color}-${text.length}-${hash}`;
+  return `${VERSION}-${kind}-${input.shape}-${input.color}-${text.length}-${hash}`;
 };
 
 /** The stamp's picture (an object URL) – rendered once, then kept. */

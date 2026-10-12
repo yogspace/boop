@@ -5,13 +5,17 @@
  *
  * - Pages: from the network, the last copy when offline (the app's page is
  *   the same for everyone, so its copy fits every account).
+ * - The app's addresses (/de/app/familie/heute …) are all one page, the
+ *   app's of that language (/de/app) – the server gives it for each of them
+ *   (src/proxy.ts), and so does this: one copy per language, kept since
+ *   installing, so even an address never opened before opens offline.
  * - Next's files (/_next/static, named by their content): cached for good.
  * - Icons, fonts, the manifest: from the cache, refreshed behind.
  * - Never cached: /api, /admin, /next – data, the CMS, statistics.
  *
  * Bump VERSION when this file's logic changes; old caches go on activation.
  */
-const VERSION = "boop-v1";
+const VERSION = "boop-v2";
 const PAGES = `${VERSION}-pages`;
 const FILES = `${VERSION}-files`;
 const SHELLS = ["/de/app", "/en/app"];
@@ -75,17 +79,24 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+/** Where a page's copy is kept – for the app's addresses, the app's page. */
+const keyOf = (pathname) => {
+  const app = pathname.match(/^\/(de|en)\/app(?:\/|$)/);
+  return app ? `/${app[1]}/app` : pathname;
+};
+
 /** A page: the network's answer – or, offline or slow, the last copy. */
 const page = async (request, url) => {
   const cache = await caches.open(PAGES);
+  const key = keyOf(url.pathname);
   try {
     const response = await withTimeout(fetch(request));
     if (response.ok && !response.redirected) {
-      await cache.put(url.pathname, response.clone());
+      await cache.put(key, response.clone());
     }
     return response;
   } catch {
-    const copy = await cache.match(url.pathname);
+    const copy = await cache.match(key);
     if (copy) return copy;
     // Never visited: the app's page of that language is the best offer.
     const locale = url.pathname.startsWith("/en") ? "en" : "de";

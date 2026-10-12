@@ -92,21 +92,21 @@ const asked = (): Address => {
 };
 
 /**
- * The views take turns like the switch's sides: the month comes in from
- * the right, today from the left – a short way, quietly.
+ * The views take turns quietly: one fades, the other settles in from a
+ * little below. Up and down, not sideways – the calendar's page reaches the
+ * screen's edges on a phone, and a step aside would take it past them.
  */
 const VIEW_TURN: Variants = {
-  hidden: (dir: number) => ({ opacity: 0, x: dir * 14 }),
+  hidden: { opacity: 0, y: 10 },
   shown: {
     opacity: 1,
-    x: 0,
+    y: 0,
     transition: { ...SPRING.soft, opacity: { duration: 0.2 } },
   },
-  gone: (dir: number) => ({
+  gone: {
     opacity: 0,
-    x: dir * -14,
     transition: { duration: 0.12, ease: "easeIn" },
-  }),
+  },
 };
 
 /**
@@ -253,9 +253,27 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
       ),
     [boop.calendars]
   );
-  const calendar =
-    calendars.find((c) => c.id === calendarId) ?? calendars[0] ?? null;
   const me = boop.me?.id;
+  // Each calendar's slug in the address – for both languages: they differ
+  // where a name leaves none (“kalender”, “calendar”).
+  const slugs = useMemo(
+    () =>
+      Object.fromEntries(
+        LOCALES.map((l) => [l, slugsOf(calendars, me, l)])
+      ) as Record<Locale, Map<string, string>>,
+    [calendars, me]
+  );
+  // The one the address names – or the first, when it names none of the
+  // account's (or one that is gone).
+  const named = calendarOf(shown.calendar, slugs[locale]);
+  const calendar =
+    calendars.find((c) => c.id === named) ?? calendars[0] ?? null;
+  // Found, it is held by its id: renamed, it stays.
+  if (calendar && shown.calendar !== calendar.id) {
+    setShown({ ...shown, calendar: calendar.id });
+  }
+  const view: CalendarView =
+    shown.view ?? (calendar && prefOf(boop, calendar.id).view) ?? "today";
   // The calendar's color as this account sees it – and the ground in it,
   // once there is something to show.
   const color = calendar ? hexOf(colorOf(boop, calendar)) : null;
@@ -273,19 +291,39 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     return s.sharedWith.length > 0 ? t.app.stamp.shared : "";
   };
 
-  // Whichever calendar shows goes into the address – chosen, new, or the
-  // first when the address names none (or one that is gone). By id: names
-  // repeat and change. Next keeps its own history state and learns the new
-  // path (usePathname) – hence null, not the current state.
-  const shown = calendar?.id;
+  // Whatever shows is in the address – /de/app/familie/heute (address.ts).
+  // A step of one's own (another calendar, the other view) is a new entry
+  // in the history (`go`, below); this sets the address right in place: the
+  // first time, for an address naming none or another calendar (one that
+  // is gone), after a rename, in the other language. The entry keeps the
+  // calendar's id besides (`HELD`). No navigation: the page stays as it is
+  // – Next learns the new path from `history` itself (usePathname), and
+  // adds its own state to ours.
+  const shownId = calendar?.id;
+  const slug = shownId && slugs[locale].get(shownId);
   useEffect(() => {
-    if (!shown) return;
-    const path = `/${locale}/app/${shown}`;
+    if (!shownId) return;
+    const path = addressOf(locale, slug, view);
     const { pathname, search, hash } = window.location;
-    if (pathname !== path) {
-      window.history.replaceState(null, "", `${path}${search}${hash}`);
-    }
-  }, [locale, shown]);
+    const held = window.history.state?.[HELD]?.calendar;
+    if (pathname === path && held === shownId) return;
+    window.history.replaceState(
+      { [HELD]: { calendar: shownId } },
+      "",
+      `${path}${search}${hash}`
+    );
+  }, [locale, shownId, slug, view]);
+
+  // Back and forth in the history: what that entry showed. A day's sheet
+  // open belongs to where it was opened.
+  useEffect(() => {
+    const onPop = () => {
+      setShown(asked());
+      setDay(null);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   if (boop.status === "loading" || boop.status === "signedOut") {
     return (
@@ -303,8 +341,37 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     );
   }
 
+  /**
+   * Shows a calendar – in `next` view, or the one last chosen for it – as a
+   * step of its own: back goes to what showed before.
+   */
+  const go = (id: string, next: CalendarView | null) => {
+    const path = addressOf(
+      locale,
+      slugs[locale].get(id),
+      next ?? prefOf(boop, id).view ?? "today"
+    );
+    const { pathname, search, hash } = window.location;
+    if (pathname !== path) {
+      window.history.pushState(
+        { [HELD]: { calendar: id } },
+        "",
+        `${path}${search}${hash}`
+      );
+    }
+    setShown({ calendar: id, view: next });
+  };
+
+  /** The other view – kept for the calendar, it opens in it next time. */
+  const pick = (next: CalendarView) => {
+    if (!calendar || next === view) return;
+    go(calendar.id, next);
+    void setCalendarPref(calendar.id, { view: next });
+  };
+
   const onNewCalendar = async (name: string, color: ColorName) => {
-    setCalendarId(await createCalendar(name, color));
+    // Not among the slugs yet – its address follows once it is.
+    go(await createCalendar(name, color), null);
     trackEvent("calendar-created");
   };
 
@@ -317,6 +384,13 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
 
   const owner = calendar && calendar.owner === me;
   const firstName = boop.me?.name.split(" ")[0] ?? "";
+  // The address in the other language – the view's word changes with it.
+  const addressIn = (other: Locale) =>
+    addressOf(other, calendar && slugs[other].get(calendar.id), view);
+  // Something lies over the today view – its page's keys are off then.
+  const covered = Boolean(
+    menu || day || drawing || sharing || settings || account || dialog || opened
+  );
 
   return (
     // The calendar's shades, around all that shows it: the frame and the
@@ -338,6 +412,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
             {/* On a phone the bar is full – there it is in the menu. */}
             <LocaleSwitch
               className="mr-1 max-sm:hidden"
+              hrefOf={addressIn}
               locale={locale}
               onPick={setLocale}
             />
@@ -380,6 +455,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                   </div>
                   <LocaleSwitch
                     className="sm:hidden"
+                    hrefOf={addressIn}
                     locale={locale}
                     onPick={setLocale}
                   />
@@ -436,7 +512,9 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                     aria-pressed={active}
                     className={cn(PILL, PILL_ON_GROUND)}
                     key={c.id}
-                    onClick={() => setCalendarId(c.id)}
+                    onClick={() => {
+                      if (!active) go(c.id, null);
+                    }}
                     type="button"
                   >
                     <span
@@ -479,9 +557,10 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
             {calendar && (
               // The calendar's page: a sheet of paper in a pale shade of its
               // color, cut out by hand – no line around it, the month's ruled
-              // table is the drawing. On a phone it reaches into the gutter,
-              // so the days stay as large as they were. Another calendar is
-              // another sheet: it comes anew, its days and prints with it.
+              // table or today's page is the drawing. On a phone it reaches
+              // into the gutter, so the days stay as large as they were.
+              // Another calendar is another sheet: it comes anew, its days
+              // and prints with it.
               <div
                 className="relative isolate -mx-3 animate-fade px-3 py-4 sm:mx-0 sm:p-6"
                 key={calendar.id}
@@ -493,10 +572,15 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                   aria-hidden="true"
                   className="scribble scribble-bare pointer-events-none absolute inset-0 -z-10 rounded-[28px]"
                 />
-                <div className="mb-5 flex items-center gap-2">
+                <div className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-3">
                   <h2 className="wrap-break-word min-w-0 flex-1 text-2xl">
                     <Marked>{calendar.name}</Marked>
                   </h2>
+                  {/* The views: beside the name – on a phone in a line of
+                    their own, under it. */}
+                  <div className="max-sm:order-last max-sm:w-full">
+                    <ViewSwitch locale={locale} onPick={pick} view={view} />
+                  </div>
                   {/* Sharing is the owner's – the server lets no one else. */}
                   {owner && (
                     <NameTag id="share" text={t.app.share.title}>
@@ -533,16 +617,35 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                     )}
                   </NameTag>
                 </div>
-                <MonthGrid
-                  calendar={calendar.id}
-                  locale={locale}
-                  month={month}
-                  onDay={(key) => {
-                    setDay(key);
-                    trackEvent("day-opened");
-                  }}
-                  onMonth={setMonth}
-                />
+                <AnimatePresence initial={false} mode="wait">
+                  <m.div
+                    animate="shown"
+                    exit="gone"
+                    initial="hidden"
+                    key={view}
+                    variants={VIEW_TURN}
+                  >
+                    {view === "today" ? (
+                      <TodayView
+                        calendar={calendar.id}
+                        keyboard={!covered}
+                        locale={locale}
+                        stamps={myStamps}
+                      />
+                    ) : (
+                      <MonthGrid
+                        calendar={calendar.id}
+                        locale={locale}
+                        month={month}
+                        onDay={(key) => {
+                          setDay(key);
+                          trackEvent("day-opened");
+                        }}
+                        onMonth={setMonth}
+                      />
+                    )}
+                  </m.div>
+                </AnimatePresence>
               </div>
             )}
           </div>
@@ -681,7 +784,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
             key="settings"
             locale={locale}
             onClose={() => setSettings(null)}
-            onDeleted={() => setCalendarId(null)}
+            onDeleted={() => setShown({ calendar: null, view: null })}
             onShare={() => {
               shareNext.current = settings;
               setSettings(null);

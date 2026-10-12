@@ -14,6 +14,11 @@ Stand: 12.10.2026
   - Beides je Kalender abschaltbar (Einstellungen pro Kalender).
   - Braucht: Push-Abo im Service Worker, VAPID-Schlüssel, Abos am Account,
     einen Cron für die Erinnerung; auf dem iPhone nur als installierte App.
+- **Oberflächentexte ins CMS (wie ccm)**: Global „Translations“, Felder
+  aus den Schlüsseln in `dictionaries.ts`, Seeds füllen neue Texte und
+  löschen verwaiste, Änderungen im Admin gewinnen. Texte mit Logik als
+  Vorlagen mit Platzhaltern (Einzahl/Mehrzahl). Startet, sobald Heute-Ansicht
+  und Tagesnotiz fertig sind (beide ändern gerade `dictionaries.ts`).
 - **Widget für Apple** (Idee): ginge nur mit einer nativen Hülle, nicht als
   PWA.
 - **Datenschutztext**: Die Vorlage im Code (`features/legal/seed-content.ts`,
@@ -60,6 +65,13 @@ Stand: 12.10.2026
 - Tagesansicht: Stempel kommt in seiner eigenen Farbe; Namensschild beim
   Hover in der Stempelauswahl.
 - Kontomenü und Sync-Notiz schließen bei Klick daneben.
+- STL in einem echten Slicer: steht jetzt auf der Gummifläche, Knauf nach
+  oben; größere Vertiefungen (z. B. das Innere eines Herzens) brauchen
+  Stützen „nur vom Druckbett“.
+- Stempel schauen dich beim Hover an (Regal, Startseite, Feature-Karten,
+  Reihe in der letzten Box) – mit echter GPU und auf dem Phone (dort nichts).
+- „Weiter malen“: der 3D-Stempel fliegt zurück in die Zeichnung.
+- Der neue, glatte Knauf auch in der Hand beim Stempeln.
 - Startseite eingeloggt: „Zur App“ statt Anmelden/Registrieren und der
   Konto-Kreis mit Menü (auch Abmelden) – ohne Flackern beim Laden; nach dem
   Abmelden wieder die Anmelde-Knöpfe. Wer schon vor diesem Stand angemeldet
@@ -70,12 +82,8 @@ Stand: 12.10.2026
 
 ## Ideen am Rand
 
-- reminder mail, bevor account gelöscht wird
 - keine pixeligen styles, sondern abgerundete (svg drawing, nicht pixel). der style ist komplett super, aber die pixelkanten sind doof.
 - cursor-pointer, wo sinnvoll
-- stl stempel ist auf dem kopf!? kugel und griff sind nicht glatt verbunden
-- ui stempel sollen look at bei hover bekommen (stempel regal, startseite usw)
-- weiter malen: 3d stempel fliegt wieder so wie beim start, faded aus.
 - jeder tag bekommt ein textfeld, was gemacht wurde (sehr simples richtext, mit underline, bold & zeilenumbrüche)
 - das textfeld wird auch in der übersicht berücksichtigt (also skribble text linie zickzack oder so)
 - auf der startseite sollte eher today gezeigt werden und dann der monat als übersicht. also so wie jetzt, aber today bekommt extra nochmal eine eigene view (es gibt einen toggle je kalender, today ist aber zuerst ausgewählt)
@@ -85,5 +93,3 @@ Stand: 12.10.2026
 
 - Jede besuchte Kalender-Adresse (`/de/app/{id}`) wird als eigene Seite
   gecacht; ein Rewrite auf `/de/app` würde das sparen.
-- Beim flachen Winkel der Stickerbilder schaut der Griff nicht mehr hervor
-  (`FACE_TURN` in `render.ts`).

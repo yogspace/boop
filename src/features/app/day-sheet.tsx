@@ -2,7 +2,11 @@
 
 import type { Snapshot } from "valtio";
 import { BADGE } from "@/components/ui";
-import { type DayKey, type StampDoc, todayKey } from "@/features/calendar/model";
+import {
+  type DayKey,
+  type StampDoc,
+  todayKey,
+} from "@/features/calendar/model";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
@@ -48,7 +52,12 @@ export const DaySheet = ({
         </span>
       }
     >
-      <DayPage calendar={calendar} date={date} locale={locale} stamps={stamps} />
+      <DayPage
+        calendar={calendar}
+        date={date}
+        locale={locale}
+        stamps={stamps}
+      />
       <DayNote calendar={calendar} date={date} locale={locale} />
     </Sheet>
   );

@@ -203,9 +203,9 @@ export const pull = async (
     );
     add(
       notes,
-      (
-        await find("notes", { and: [{ calendar: { in: fresh } }, alive] })
-      ).map(toNote)
+      (await find("notes", { and: [{ calendar: { in: fresh } }, alive] })).map(
+        toNote
+      )
     );
   }
 
