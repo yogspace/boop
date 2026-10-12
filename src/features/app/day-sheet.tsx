@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import type { Snapshot } from "valtio";
+import { Circle } from "@/components/doodles";
 import { Button } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import {
@@ -93,13 +94,24 @@ const wheelTurn = (event: WheelEvent) => {
   return Math.sign(delta) * Math.min(12, 0.38 * px ** 0.6);
 };
 
-/** An ink pad giving way under the stamp. */
-const squash = (pad: HTMLElement) => {
+/**
+ * An ink blot, drawn by hand a few times over (40 × 40) – the inks take
+ * turns, so no two neighbors are the same blot.
+ */
+const BLOTS = [
+  "M20 3c6-1 12 2 15 8 3 5 3 12-1 17-4 6-10 9-17 8-6-1-11-5-13-11C2 18 4 10 9 6c3-2 7-3 11-3Z",
+  "M18 4c7-2 15 1 18 7 2 5 1 9-1 14-2 6-6 11-13 12-7 1-14-2-17-8C2 23 3 15 6 10c3-4 7-5 12-6Z",
+  "M21 4c5 0 10 2 13 6 4 5 4 11 2 16-2 5-6 9-11 10-3 1-5 0-8 0-6-1-11-4-13-10-2-5-1-12 3-16 4-4 9-6 14-6Z",
+  "M19 3c6 0 11 3 14 7 3 5 5 10 3 16-2 6-8 10-14 11-6 0-12-2-15-7C4 25 3 19 5 13 7 7 13 3 19 3Z",
+];
+
+/** An ink blot giving way under the stamp. */
+const squash = (blot: HTMLElement) => {
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  pad.animate(
+  blot.animate(
     [
       { transform: "none" },
-      { transform: "scale(1.08, 0.78)", offset: 0.3 },
+      { transform: "scale(1.1, 0.86)", offset: 0.3 },
       { transform: "none" },
     ],
     { duration: 280, easing: "ease-out" }
@@ -411,15 +423,15 @@ export const DaySheet = ({
     preview();
   };
 
-  /** With a stamp in hand: down into the pad – it comes up in that ink. */
+  /** With a stamp in hand: down onto the blot – it comes up in that ink. */
   const dipInto =
     (color: ColorName) => (event: PointerEvent<HTMLButtonElement>) => {
       if (!(inHand && hand.current)) return;
       if (event.pointerType === "mouse" && event.button !== 0) return;
-      const pad = event.currentTarget;
+      const blot = event.currentTarget;
       const soak = () => {
         chooseInk(color, false);
-        squash(pad);
+        squash(blot);
       };
       hand.current.press(event.clientX, event.clientY, soak);
     };
@@ -438,15 +450,19 @@ export const DaySheet = ({
         </span>
       }
     >
-      {/* The page and the ink pads: where the stamp in hand shows. */}
+      {/* The page and the inks: where the stamp in hand shows. */}
       <div
-        className={cn("flex flex-col gap-4", inHand && "cursor-none")}
+        className="flex flex-col gap-4"
         onPointerEnter={carry}
         onPointerLeave={letGo}
         onPointerMove={carry}
       >
         <div
-          className="relative aspect-square w-full touch-none select-none overflow-hidden rounded-3xl border-2 border-ink bg-card bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]"
+          className={cn(
+            "relative aspect-square w-full touch-none select-none overflow-hidden rounded-3xl border-2 border-ink bg-card bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]",
+            // The preview marks the spot – no arrow on top of it.
+            inHand && "cursor-none"
+          )}
           onPointerDown={stampHere}
           ref={page}
         >
@@ -570,41 +586,43 @@ export const DaySheet = ({
           <legend className="mb-2 font-bold text-muted text-sm">
             {t.app.day.ink}
           </legend>
-          {/* As many columns as inks, never wider than a pad: nothing to
-              scroll, so the picked pad's badge and shadow stay whole. */}
-          <div
-            className="grid gap-2"
-            style={{
-              gridTemplateColumns: `repeat(${COLOR_NAMES.length}, minmax(0, 2.75rem))`,
-            }}
-          >
-            {COLOR_NAMES.map((c) => (
+          {/* Flat blots of ink, in a row that wraps – nothing scrolls, so
+              the marker ring round the one in use is never cut. */}
+          <div className="flex flex-wrap gap-1.5">
+            {COLOR_NAMES.map((c, i) => (
               <button
                 aria-label={t.colors[c]}
                 aria-pressed={ink === c}
                 className={cn(
-                  "relative h-10 origin-bottom rounded-2xl border-2 border-ink transition-transform",
-                  inHand && "cursor-none",
-                  ink === c
-                    ? "-translate-y-1 shadow-sticker-sm"
-                    : "hover:-translate-y-0.5"
+                  "relative flex h-11 w-11 items-center justify-center rounded-full transition-transform",
+                  ink === c ? "scale-110" : "hover:-rotate-6 hover:scale-110"
                 )}
                 key={c}
-                // With a stamp in hand the pad is dipped into (dipInto) –
+                // With a stamp in hand the blot is dipped into (dipInto) –
                 // unless it is chosen by keyboard.
                 onClick={(event) => {
                   if (!inHand || event.detail === 0) chooseInk(c);
                 }}
                 onPointerDown={dipInto(c)}
-                style={{
-                  background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${COLORS[c]} 55%, white) 0 18%, ${COLORS[c]} 45%, color-mix(in srgb, ${COLORS[c]} 70%, black))`,
-                }}
                 type="button"
               >
+                <svg
+                  aria-hidden="true"
+                  className="h-9 w-9"
+                  fill={COLORS[c]}
+                  // Each lies a little differently.
+                  style={{ rotate: `${(i * 67) % 360}deg` }}
+                  viewBox="0 0 40 40"
+                >
+                  <path d={BLOTS[i % BLOTS.length]} />
+                </svg>
                 {ink === c && (
-                  <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border-2 border-ink bg-card font-black text-[10px]">
-                    ✓
-                  </span>
+                  // The one in use: ringed with a marker.
+                  <Circle
+                    className="pointer-events-none absolute -inset-1 animate-fade text-ink [&_path]:[vector-effect:non-scaling-stroke]"
+                    preserveAspectRatio="none"
+                    strokeWidth={2.5}
+                  />
                 )}
               </button>
             ))}

@@ -56,8 +56,9 @@ const BACK = spring(6, 0.65);
 const STILL = spring(6, 1);
 /** Slowing down while spinning freely (per second). */
 const FRICTION = 1.8;
-/** Below this speed (rad/s) the spring takes hold again – within `CATCH_IN` s. */
+/** Below this speed (rad/s) the spring takes hold again … */
 const CATCH = 2.5;
+/** … fully within this time (s). */
 const CATCH_IN = 0.5;
 /** No flick spins it faster (rad/s). */
 const MAX_SPIN = 18;

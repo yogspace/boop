@@ -13,12 +13,14 @@ import {
 } from "./build";
 
 /**
- * The stamp in your hand, live in 3D. It hovers where the pointer is – a
- * touch behind it, swinging as you carry it – and comes down where you tap:
- * it straightens, touches, squashes a little and lifts off again. Its soft
- * shadow on the paper shows where it will land; pressed, the middle of its
- * face is exactly at the pointer. Turned (`turn()`), it spins about its own
- * axis – its face lies just as the print will.
+ * The stamp in your hand, live in 3D. Carried, it is a small companion of
+ * the pointer – upright, parked up-left of it, swinging a little as it goes;
+ * the spot the pointer is on stays free. Pressed, it flies to that spot,
+ * grows to its real size and tips over onto the page – seen from above now,
+ * its back to you, its outline right where the print will be – touches,
+ * squashes a little, and goes back to the pointer's side, small again.
+ * Turned (`turn()`), it spins about its own axis: pressed, it lies exactly
+ * as the print does.
  *
  * One small canvas that travels along – fixed, on the body itself, so no
  * sheet clips it – moved and drawn without React, through the ref:
@@ -27,15 +29,15 @@ import {
  */
 
 export type StampHandle = {
-  /** The pointer is here (client px) – the stamp hovers over it. */
+  /** The pointer is here (client px) – the stamp keeps to its side. */
   point: (x: number, y: number) => void;
   /** The pointer went elsewhere – the stamp goes too. */
   hide: () => void;
   /**
-   * Down onto this spot and up again – `contact` runs as it touches (at
-   * once without WebGL or with reduced motion). It stays there, hovering,
-   * until it is pointed elsewhere. A press still on its way down when the
-   * next one comes lands right away – every press touches.
+   * Onto this spot and back – `contact` runs as it touches (at once without
+   * WebGL or with reduced motion). It stays beside the spot until it is
+   * pointed elsewhere. A press still on its way down when the next one
+   * comes lands right away – every press touches.
    */
   press: (x: number, y: number, contact: () => void) => void;
   /**
@@ -45,39 +47,46 @@ export type StampHandle = {
   turn: (degrees: number) => void;
 };
 
-/** Held upright: knob up, seen from a little above. */
-const TIP = Math.PI / 2 + 0.42;
+/** Carried: upright, knob up, seen from a little above. */
+const HELD = Math.PI / 2 + 0.42;
+/** Pressed: face down on the page, seen from straight above. */
+const FLAT = Math.PI;
 /**
  * Turned about its axis so the top of its doodle points up the page, like
  * its print's. (From above, the rubber is the print mirrored left to right –
  * as on any stamp.)
  */
 const FACING = Math.PI;
+/** Flat already when it is this far down (0–1) – the rest is the push. */
+const FLAT_BY = 0.85;
+/** Carried, it is this much of its real size … */
+const SMALL = 0.42;
 /**
- * How high it hovers over the paper, along its axis – in print widths. Well
- * clear of it: what the pointer is on stays in view under the stamp – the
- * preview of the print on the page, an ink pad.
+ * … and its foot stands here from the pointer, in print widths: up-left, its
+ * lower right corner just short of the pointer.
  */
-const HOVER = 0.75;
-/** Coming into view, it drops in from this much higher. */
-const DROP = 0.22;
+const PARK = { x: -0.28, y: -0.15 };
+/** How high it stands over its shadow while carried (of its own size). */
+const LIFT = 0.1;
 /** What it swings around: a point up its body, where the fingers are. */
 const GRIP = 0.5;
-/** The canvas: this many print widths square, the pointer this far down it. */
-const SPAN = 3;
-const ANCHOR = 0.62;
-/** The camera's distance – the look of the other views. */
-const DISTANCE = 3;
-/** A press (ms): down, on the paper, up again. */
-const DOWN = 140;
+/** The canvas: this many print widths square, the stamp's foot in the middle. */
+const SPAN = 2.5;
+/**
+ * The camera: far off with a long lens – pressed, the stamp's outline is the
+ * print's, not the wider one of whatever is nearest.
+ */
+const DISTANCE = 8;
+/** A press (ms): to the page, on it, back to the pointer's side. */
+const DOWN = 190;
 const TOUCH = 70;
-const UP = 240;
-/** How much shorter it gets while it touches. */
-const SQUASH = 0.09;
+const UP = 270;
+/** How much flatter – and wider – it gets while it touches. */
+const SQUASH = 0.1;
 /** Leaning into the way it is carried: radians per print width a second. */
 const LEAN = 0.045;
 const NOD = 0.02;
-const MAX_LEAN = 0.42;
+const MAX_LEAN = 0.4;
 /** Following the pointer: quick, never past it (rad/s). */
 const FOLLOW = 34;
 /** Swinging back upright: looser – it sways past a little. */
@@ -93,6 +102,9 @@ const LINGER = 90;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
+
+const mix = (from: number, to: number, amount: number) =>
+  from + (to - from) * amount;
 
 /** A critically damped spring, exact for any step: where and how fast. */
 const follow = (at: number, speed: number, to: number, dt: number) => {
@@ -123,16 +135,23 @@ const sway = (
   return [a, v] as const;
 };
 
-/** Up to 1 and a little beyond on the way – lifting off with a bounce. */
-const bounce = (t: number) => 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2;
+/** Down: it picks up speed and is still moving as it arrives. */
+const drive = (t: number) => t * t * (2.2 - 1.2 * t);
+/** Tipping over: slow, fast, slow. */
+const ease = (t: number) => t * t * (3 - 2 * t);
+/** Back: quick at first, a touch past the end, settled. */
+const settle = (t: number) => 1 + 2 * (t - 1) ** 3 + (t - 1) ** 2;
 
 type View = {
   THREE: typeof Three;
   renderer: Three.WebGLRenderer;
   scene: Three.Scene;
   camera: Three.PerspectiveCamera;
-  /** The canvas' box on the body – what travels with the pointer. */
+  /** The canvas' box on the body – what travels with the stamp. */
   box: HTMLDivElement;
+  /** Its size; `tilt` tips it between carried and pressed. */
+  body: Three.Group;
+  tilt: Three.Group;
   /** Swings around the grip; `seat` holds the stamp below it. */
   grip: Three.Group;
   seat: Three.Group;
@@ -144,8 +163,8 @@ type Press = {
   x: number;
   y: number;
   start: number;
-  /** How high it was when it set off. */
-  from: number;
+  /** Where it was, and how far pressed (0–1), when it set off. */
+  from: { x: number; y: number; pressed: number };
   /** What happens as it touches – null once it has. */
   contact: (() => void) | null;
 };
@@ -158,9 +177,9 @@ const shadowTexture = (THREE: typeof Three) => {
   const ctx = canvas.getContext("2d");
   if (ctx) {
     const fade = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-    fade.addColorStop(0, "rgba(29, 27, 58, 1)");
-    fade.addColorStop(0.45, "rgba(29, 27, 58, 0.55)");
-    fade.addColorStop(1, "rgba(29, 27, 58, 0)");
+    fade.addColorStop(0, "rgba(20, 20, 20, 1)");
+    fade.addColorStop(0.45, "rgba(20, 20, 20, 0.55)");
+    fade.addColorStop(1, "rgba(20, 20, 20, 0)");
     ctx.fillStyle = fade;
     ctx.fillRect(0, 0, 128, 128);
   }
@@ -170,15 +189,16 @@ const shadowTexture = (THREE: typeof Three) => {
 };
 
 /**
- * The hand itself – no React in here. The scene: the paper (tipped, so the
- * stamp stands on it knob up), on it the shadow, over it the grip the stamp
- * swings from. The paper's middle is the pointer; the box follows it.
+ * The hand itself – no React in here. The scene: the stamp standing on its
+ * shadow, tipped as it is held (`tilt`) – or right over, onto the page, which
+ * is the screen then. Its foot is the middle of the box; the box goes where
+ * the stamp is: beside the pointer, or on its way to the spot and back.
  */
 const createHand = () => {
   let view: View | null = null;
   let opening: Promise<View | null> | null = null;
   /** Counts the stamps taken – a slow build must not land in a later hand. */
-  let turn = 0;
+  let taken = 0;
   let unit = 100;
   let ink: ColorName = "ink";
   let frame = 0;
@@ -188,7 +208,8 @@ const createHand = () => {
       ? matchMedia("(prefers-reduced-motion: reduce)")
       : null;
 
-  // The pointer, and the stamp following it (client px, px/s).
+  // The pointer, and what follows it (client px, px/s) – the stamp is
+  // parked beside that.
   let px = 0;
   let py = 0;
   let x = 0;
@@ -204,13 +225,20 @@ const createHand = () => {
   let spin = 0;
   let spinSpeed = 0;
   let spinTo = 0;
-  // How high it is right now.
-  let lift = HOVER;
+  // Where its foot is right now, and how far pressed (0 carried – 1 down).
+  let at = { x: 0, y: 0 };
+  let pressed = 0;
   // Wanted on screen, how much of it is there (0–1), when it is to go.
   let shown = false;
   let presence = 0;
   let hideAt = 0;
   let press: Press | null = null;
+
+  /** Where the stamp is parked when the pointer is here. */
+  const beside = (toX: number, toY: number) => ({
+    x: toX + PARK.x * unit,
+    y: toY + PARK.y * unit,
+  });
 
   const make = async (): Promise<View> => {
     const THREE = await import("three");
@@ -220,14 +248,15 @@ const createHand = () => {
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.setSize(SPAN * unit, SPAN * unit);
     const { scene, camera } = await stage(THREE, renderer);
-    // Wide enough for the whole box; the paper's middle at the anchor.
+    // The whole box, one print width a unit, from far away.
     camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(SPAN / 2 / DISTANCE));
-    camera.position.set(0, (ANCHOR - 0.5) * SPAN, DISTANCE);
+    camera.position.set(0, 0, DISTANCE);
     camera.updateProjectionMatrix();
 
-    const paper = new THREE.Group();
-    paper.rotation.x = TIP;
-    scene.add(paper);
+    const body = new THREE.Group();
+    const tilt = new THREE.Group();
+    body.add(tilt);
+    scene.add(body);
     const shadow = new THREE.Mesh(
       new THREE.PlaneGeometry(1.5, 1.5),
       new THREE.MeshBasicMaterial({
@@ -240,12 +269,12 @@ const createHand = () => {
     );
     // Just under the face when it touches.
     shadow.position.z = 0.004;
-    paper.add(shadow);
+    tilt.add(shadow);
     const grip = new THREE.Group();
     const seat = new THREE.Group();
     seat.position.z = GRIP;
     grip.add(seat);
-    paper.add(grip);
+    tilt.add(grip);
 
     const box = document.createElement("div");
     box.setAttribute("aria-hidden", "true");
@@ -267,6 +296,8 @@ const createHand = () => {
       scene,
       camera,
       box,
+      body,
+      tilt,
       grip,
       seat,
       shadow,
@@ -299,25 +330,14 @@ const createHand = () => {
   };
 
   /** A press on its way down touches now. */
-  const land = (stay: boolean) => {
+  const land = () => {
     const contact = press?.contact;
     if (!(press && contact)) return;
     press.contact = null;
-    if (stay) {
-      // On the paper: exactly there, upright, not going anywhere.
-      x = press.x;
-      y = press.y;
-      vx = 0;
-      vy = 0;
-      lean = 0;
-      leanSpeed = 0;
-      nod = 0;
-      nodSpeed = 0;
-    }
     contact();
   };
 
-  /** Right at the pointer, upright, turned – no gliding in from before. */
+  /** Right beside the pointer, upright, turned – no gliding in from before. */
   const jump = () => {
     x = px;
     y = py;
@@ -329,31 +349,41 @@ const createHand = () => {
     nodSpeed = 0;
     spin = spinTo;
     spinSpeed = 0;
+    at = beside(x, y);
+    pressed = 0;
   };
 
-  const draw = (
-    at: { x: number; y: number },
-    pose: { lift: number; lean: number; nod: number; squash: number }
-  ) => {
+  const draw = (squash: number) => {
     if (!view) return;
-    const { renderer, scene, camera, box, grip, seat, shadow, sticker } = view;
+    const { renderer, scene, camera, box, sticker } = view;
     if (!sticker || presence < 0.004) {
       box.style.opacity = "0";
       return;
     }
     const size = SPAN * unit;
     box.style.opacity = presence.toFixed(3);
-    box.style.transform = `translate3d(${(at.x - size / 2).toFixed(2)}px, ${(at.y - size * ANCHOR).toFixed(2)}px, 0)`;
-    // The stamp's axis is the paper's −Z: up is towards the knob.
-    grip.position.z = -(pose.lift + GRIP);
-    grip.rotation.set(pose.nod, pose.lean, 0);
-    seat.scale.set(1 + pose.squash / 2, 1 + pose.squash / 2, 1 - pose.squash);
-    // Turned as its print will lie – and, carried, a little with the lean.
-    sticker.rotation.z = FACING + spin + pose.lean * TWIST;
+    box.style.transform = `translate3d(${(at.x - size / 2).toFixed(2)}px, ${(at.y - size / 2).toFixed(2)}px, 0)`;
+    // How far down, for what must be exact as it touches (a springy way
+    // back may run a touch past carried).
+    const down = clamp(pressed, 0, 1);
+    view.body.scale.setScalar(mix(SMALL, 1, pressed));
+    // It tips over a little ahead of the rest – it comes down flat.
+    view.tilt.rotation.x = mix(
+      HELD,
+      FLAT,
+      pressed < 0 ? pressed : ease(Math.min(1, down / FLAT_BY))
+    );
+    // The stamp's axis is the tilt's −Z: up is towards the knob.
+    view.grip.position.z = -(LIFT * (1 - down) + GRIP);
+    view.grip.rotation.set(nod * (1 - down), lean * (1 - down), 0);
+    view.seat.scale.set(1 + squash / 2, 1 + squash / 2, 1 - squash);
+    // Turned as its print lies – exactly so once it is down; carried, a
+    // little with the lean too.
+    sticker.rotation.z =
+      FACING + mix(spin, spinTo, down) + lean * (1 - down) * TWIST;
     // The shadow tightens and darkens as the stamp comes down.
-    const height = clamp(pose.lift / HOVER, 0, 1.2);
-    shadow.scale.setScalar(0.78 + 0.42 * height);
-    shadow.material.opacity = 0.55 - 0.36 * Math.min(height, 1);
+    view.shadow.scale.setScalar(0.9 - 0.12 * down);
+    view.shadow.material.opacity = 0.3 + 0.22 * down;
     renderer.render(scene, camera);
   };
 
@@ -372,61 +402,53 @@ const createHand = () => {
     else if (presence < goal) presence = Math.min(1, presence + dt / FADE_IN);
     else if (presence > goal) presence = Math.max(0, presence - dt / FADE_OUT);
 
-    // A press: down (faster and faster, straightening), on the paper
-    // (squashed), up again (a little too far, and back).
-    let height = HOVER;
+    // What follows the pointer – the stamp is parked beside it.
+    if (calm) {
+      x = px;
+      y = py;
+      vx = 0;
+      vy = 0;
+    } else {
+      [x, vx] = follow(x, vx, px, dt);
+      [y, vy] = follow(y, vy, py, dt);
+    }
+    const parked = beside(x, y);
+
+    // A press: to the spot (growing, tipping over), on the page (squashed),
+    // back beside the pointer – wherever that is by now.
     let squash = 0;
-    let straight = 0;
-    let pull = 0;
-    let onPaper = false;
-    let tx = px;
-    let ty = py;
     if (press) {
       const t = Math.max(0, now - press.start);
-      const down = DOWN * clamp(press.from / HOVER, 0.4, 1.5);
+      const { from } = press;
+      const down = DOWN * clamp(1 - from.pressed, 0.35, 1);
       if (t < down) {
-        const k = t / down;
-        height = press.from * (1 - k * k);
-        straight = k;
-        pull = k * k;
-        tx = press.x;
-        ty = press.y;
+        const e = drive(t / down);
+        pressed = mix(from.pressed, 1, e);
+        at = { x: mix(from.x, press.x, e), y: mix(from.y, press.y, e) };
       } else {
-        land(true);
+        land();
         if (t < down + TOUCH) {
-          height = 0;
+          pressed = 1;
           squash = SQUASH * Math.sin((Math.PI * (t - down)) / TOUCH);
-          onPaper = true;
+          at = { x: press.x, y: press.y };
         } else if (t < down + TOUCH + UP) {
-          height = HOVER * bounce((t - down - TOUCH) / UP);
+          const e = settle((t - down - TOUCH) / UP);
+          pressed = 1 - e;
+          at = { x: mix(press.x, parked.x, e), y: mix(press.y, parked.y, e) };
         } else press = null;
       }
     }
-    lift = height;
-
-    if (calm) {
-      x = tx;
-      y = ty;
-      vx = 0;
-      vy = 0;
-    } else if (!onPaper) {
-      [x, vx] = follow(x, vx, tx, dt);
-      [y, vy] = follow(y, vy, ty, dt);
+    if (!press) {
+      pressed = 0;
+      at = parked;
     }
+
     // Carried along, the knob leads and the face trails.
-    const leanTo = calm ? 0 : clamp((-vx / unit) * LEAN, -MAX_LEAN, MAX_LEAN);
-    const nodTo = calm ? 0 : clamp((vy / unit) * NOD, -MAX_LEAN, MAX_LEAN) / 2;
+    const leanTo = clamp((-vx / unit) * LEAN, -MAX_LEAN, MAX_LEAN);
+    const nodTo = clamp((vy / unit) * NOD, -MAX_LEAN, MAX_LEAN) / 2;
     [lean, leanSpeed] = sway(lean, leanSpeed, leanTo, dt);
     [nod, nodSpeed] = sway(nod, nodSpeed, nodTo, dt);
     [spin, spinSpeed] = sway(spin, spinSpeed, spinTo, dt, SPIN);
-    if (calm) {
-      lean = 0;
-      leanSpeed = 0;
-      nod = 0;
-      nodSpeed = 0;
-      spin = spinTo;
-      spinSpeed = 0;
-    }
 
     const moving =
       Boolean(press) ||
@@ -438,21 +460,9 @@ const createHand = () => {
       Math.abs(leanSpeed) + Math.abs(nodSpeed) > 0.01 ||
       Math.abs(spin - spinTo) > 0.001 ||
       Math.abs(spinSpeed) > 0.01;
-    if (!moving) jump();
+    if (calm || !moving) jump();
 
-    draw(
-      // Coming down, it is drawn in to the spot – there as it touches.
-      press?.contact
-        ? { x: x + (press.x - x) * pull, y: y + (press.y - y) * pull }
-        : { x, y },
-      {
-        // Coming into view it drops in; a press is already on its way.
-        lift: height + (press ? 0 : (1 - presence) * DROP),
-        lean: lean * (1 - straight),
-        nod: nod * (1 - straight),
-        squash,
-      }
-    );
+    draw(squash);
     if (moving && presence + goal > 0) frame = requestAnimationFrame(tick);
     else last = 0;
   };
@@ -482,27 +492,27 @@ const createHand = () => {
         contact();
         return;
       }
-      land(false);
-      const hidden = presence < 0.05;
+      land();
+      // Afterwards it is beside this spot – a finger doesn't point first,
+      // and then the stamp is simply there as it taps.
       px = toX;
       py = toY;
+      if (presence < 0.05 || still?.matches) jump();
       shown = true;
       hideAt = 0;
       if (still?.matches) {
+        // No flight: the print is simply there.
         press = null;
-        jump();
         contact();
-        wake();
-        return;
+      } else {
+        press = {
+          x: toX,
+          y: toY,
+          start: performance.now(),
+          from: { ...at, pressed: clamp(pressed, 0, 1) },
+          contact,
+        };
       }
-      if (hidden) jump();
-      press = {
-        x: toX,
-        y: toY,
-        start: performance.now(),
-        from: hidden ? HOVER + DROP : Math.max(lift, 0.02),
-        contact,
-      };
       wake();
     },
 
@@ -519,8 +529,8 @@ const createHand = () => {
 
     /** Takes this stamp (or none) – built once, inked as the hand is. */
     hold: (stamp: StickerInput | null) => {
-      const mine = ++turn;
-      land(false);
+      const mine = ++taken;
+      land();
       press = null;
       if (view?.sticker) {
         view.seat.remove(view.sticker);
@@ -535,7 +545,7 @@ const createHand = () => {
         return;
       }
       void open().then((made) => {
-        if (!made || mine !== turn) return;
+        if (!made || mine !== taken) return;
         const sticker = buildSticker(made.THREE, stamp);
         // Turning – and squashing – around the middle of its face.
         pivot(sticker, 0);
@@ -563,8 +573,8 @@ const createHand = () => {
     },
 
     dispose: () => {
-      turn++;
-      land(false);
+      taken++;
+      land();
       press = null;
       shown = false;
       presence = 0;
@@ -589,7 +599,7 @@ export const StampHand = ({
   stamp: StickerInput | null;
   /** The ink its rubber carries. */
   ink: ColorName;
-  /** One print width where it stamps, in px – its face is that wide. */
+  /** One print width where it stamps, in px – pressed, its face is that wide. */
   unit: number;
   ref?: Ref<StampHandle>;
 }) => {
