@@ -354,6 +354,17 @@ export const DaySheet = ({
     };
   };
 
+  /** Back from the page to the screen – where a spot on it is now. */
+  const onScreen = (spot: { x: number; y: number }) => {
+    const sheet = page.current;
+    if (!sheet) return null;
+    const box = sheet.getBoundingClientRect();
+    return {
+      x: box.left + sheet.clientLeft + spot.x * sheet.clientWidth,
+      y: box.top + sheet.clientTop + spot.y * sheet.clientHeight,
+    };
+  };
+
   /**
    * A print of this stamp on the page, as its preview showed it – noted, so
    * it can be taken back. The next print gets a new id (and look).
@@ -424,7 +435,10 @@ export const DaySheet = ({
         preview();
       }
     };
-    if (hand.current) hand.current.press(event.clientX, event.clientY, touch);
+    // Down right onto its print – kept on the page, so not always where the
+    // pointer is.
+    const there = onScreen(spot);
+    if (hand.current && there) hand.current.press(there.x, there.y, touch);
     else touch();
     aim.current.x = spot.x;
     aim.current.y = spot.y;
