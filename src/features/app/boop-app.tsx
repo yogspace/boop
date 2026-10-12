@@ -111,8 +111,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   const me = boop.me?.id;
   // The same in every calendar: mine, then what others share with me.
   const myStamps = useMemo(
-    () =>
-      stampsOf(Object.values(boop.stamps), me, Object.keys(boop.calendars)),
+    () => stampsOf(Object.values(boop.stamps), me, Object.keys(boop.calendars)),
     [boop.stamps, boop.calendars, me]
   );
   // On the shelf someone else's stamp wears their first name – and one of
@@ -331,7 +330,9 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
                 className="relative"
                 key={s.id}
                 style={{ transform: `rotate(${tilt(s.id)}deg)` }}
-                title={[s.name, whose(s)].filter(Boolean).join(" – ") || undefined}
+                title={
+                  [s.name, whose(s)].filter(Boolean).join(" – ") || undefined
+                }
               >
                 <button
                   aria-label={[s.name || t.app.stamp.untitled, whose(s)]

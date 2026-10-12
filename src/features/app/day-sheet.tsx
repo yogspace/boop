@@ -338,13 +338,18 @@ export const DaySheet = ({
     month: "long",
   });
 
-  /** A point on the page (0–1) – also beyond it, for whoever clamps. */
+  /**
+   * A point on the page (0–1) – also beyond it, for whoever clamps. Inside
+   * its border, where the prints are placed: a print lands right under the
+   * pointer.
+   */
   const onPage = (clientX: number, clientY: number) => {
-    const box = page.current?.getBoundingClientRect();
-    if (!box) return null;
+    const sheet = page.current;
+    if (!sheet) return null;
+    const box = sheet.getBoundingClientRect();
     return {
-      x: (clientX - box.left) / box.width,
-      y: (clientY - box.top) / box.height,
+      x: (clientX - box.left - sheet.clientLeft) / sheet.clientWidth,
+      y: (clientY - box.top - sheet.clientTop) / sheet.clientHeight,
     };
   };
 

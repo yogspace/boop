@@ -470,7 +470,7 @@ export const StampDrawer = ({
             <label className="flex items-center gap-3 font-medium text-sm">
               <input
                 checked={shared}
-                className="h-5 w-5 accent-violet"
+                className="h-5 w-5 shrink-0 accent-violet"
                 onChange={(event) => setShared(event.target.checked)}
                 type="checkbox"
               />

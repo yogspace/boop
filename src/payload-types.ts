@@ -190,7 +190,7 @@ export interface Calendar {
   createdAt: string;
 }
 /**
- * Stamps people drew. Their own – or shared with a calendar's members.
+ * Stamps people drew. Always their owner's – and, if shared, for the members of those calendars too.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "stamps".
@@ -211,7 +211,11 @@ export interface Stamp {
     | null;
   owner: string | Account;
   /**
-   * Shared with this calendar – empty: personal.
+   * These calendars' members may stamp with it too – empty: only its owner.
+   */
+  sharedWith?: (string | Calendar)[] | null;
+  /**
+   * Legacy – from before a stamp could be shared with several calendars. Counts as one more of “Shared with”.
    */
   calendar?: (string | null) | Calendar;
   changedAt: string;
@@ -483,6 +487,7 @@ export interface StampsSelect<T extends boolean = true> {
   shape?: T;
   drawing?: T;
   owner?: T;
+  sharedWith?: T;
   calendar?: T;
   changedAt?: T;
   deleted?: T;
