@@ -140,8 +140,9 @@ void main() {
   part += side ? 2.0 : vRelief > 0.5 ? 1.0 : 0.0;
 #endif
 #ifdef BLOCK
-  // Its back – the rest (the sides, the rounded front) is one with the sides.
-  if (vFacing.z > 0.7) part += 1.0;
+  // Its back (extruded towards the face, so −Z) – the rest, the rounded
+  // front too, is one with the sides.
+  if (vFacing.z < -0.7) part += 1.0;
 #endif
 #ifdef PLATE
   // The engraved “boop”: a shade deeper, no lines.
@@ -332,6 +333,7 @@ export const createInk = (
   );
   const screen = new THREE.Mesh(triangle, composite);
   screen.frustumCulled = false;
+  screen.layers.enableAll();
   const size = new THREE.Vector2();
 
   const pass = (
