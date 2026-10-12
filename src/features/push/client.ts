@@ -156,30 +156,37 @@ export const turnOff = async (): Promise<Device> => {
   return "off";
 };
 
-let refreshed = false;
+/** For which account this page load said it already – none yet. */
+let refreshed: string | null = null;
 
 /**
- * Says once per page load that this device still wants them: it ties the
- * device to the login it's in now (a new login, another account), its zone
- * (travelling) and the app's language. Quiet – nothing asked, nothing
- * shown. Off when the server's key changed since: the device is off then.
+ * Says once per page load and account that this device still wants them:
+ * it ties the device to the login it's in now (a new login, another account
+ * – also one logged into in the same tab), its zone (travelling) and the
+ * app's language. Quiet – nothing asked, nothing shown. Off when the
+ * server's key changed since: the device is off then.
  */
 export const refreshPush = async (
   locale: Locale,
-  publicKey: string
+  publicKey: string,
+  account: string
 ): Promise<Device | null> => {
-  if (refreshed || !supported() || Notification.permission !== "granted") {
+  if (
+    refreshed === account ||
+    !supported() ||
+    Notification.permission !== "granted"
+  ) {
     return null;
   }
   const subscription = await subscriptionOf();
   if (!subscription) return null;
-  refreshed = true;
+  refreshed = account;
   if (!sameKey(subscription, keyBytes(publicKey))) {
     await subscription.unsubscribe().catch(() => false);
     return "off";
   }
   await tell(subscription, locale).catch(() => {
-    refreshed = false;
+    refreshed = null;
   });
   return null;
 };

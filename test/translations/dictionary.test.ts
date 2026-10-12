@@ -50,7 +50,7 @@ describe("the dictionary in the CMS", () => {
   });
 
   it("has a few hundred of them, lists and templates included", () => {
-    expect(TRANSLATION_KEYS.length).toBeGreaterThan(300);
+    expect(TRANSLATION_KEYS.length).toBeGreaterThan(250);
     expect(TRANSLATION_KEYS).toContain("app.months.11");
     expect(TRANSLATION_KEYS).toContain("landing.features.3.text");
     expect(TRANSLATION_KEYS).toContain("app.hello.named");

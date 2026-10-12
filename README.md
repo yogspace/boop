@@ -32,8 +32,9 @@ Each feature lives in `src/features/<name>/` and brings its own collections, glo
 | `pwa` | Service worker registration (`public/sw.js` is the worker) |
 | `analytics` | Anonymous statistics (no cookies, no IP), admin chart views, mail report |
 | `site`, `legal` | Settings, imprint and privacy policy (CMS, with code seeds); contact form (`/next/contact`, sends to `MAIL_CONTACT_RECIPIENT`, stores nothing) |
+| `translations` | The interface texts in the CMS (“Translations” global): fields from the code's keys, reading with fallback, the seed (see Interface texts) |
 
-Pages are in `src/app/(frontend)/[locale]/` (`de`, `en`); texts in `src/i18n/dictionaries.ts`.
+Pages are in `src/app/(frontend)/[locale]/` (`de`, `en`); texts in `src/i18n/dictionaries.ts`, editable in the admin.
 
 ## Offline and sync
 
@@ -79,6 +80,17 @@ An account changes its name, downloads its data as a JSON file (`POST /api/accou
 Accounts don't stay forever (`features/accounts/retention.ts`, run by the daily cleanup): a sign-up never confirmed goes after 30 days; an account unused for 24 months gets a mail and goes 30 days later. “Used” is `lastSeenAt`, noted at a login and a sync (once a day at most); a login or sync after the mail takes it back. An account without `lastSeenAt` counts as seen today, and without a delivered mail (no Resend, or Resend refused) nobody is warned – and so nobody deleted. At most 50 accounts are warned and 50 deleted per run.
 
 Payload's default access ("any logged-in user") would let accounts in everywhere, so **every collection and global sets access explicitly** via `src/access` (`adminOnly`, `isAdmin`). The calendar collections are admin-only over REST; accounts go through the sync, member and invitation endpoints.
+
+## Interface texts
+
+In the admin under **Translations**, German and English (locale switch at the top). The fields come from the keys in `src/i18n/dictionaries.ts`: a new key is a new field right away, the site shows its text from the code; **Seeds → Translations** writes it into the CMS and deletes keys the code no longer has. What is changed in the admin is never overwritten. An empty field, a key the CMS doesn't have yet, no database (the build): the code's text. Saving renders the pages anew – the app's static page included – so the texts show right away.
+
+- **Lists** (months, weekdays, keywords, the front page's features) are numbered fields – `app.months.0` … – and stay as long as the code has them.
+- **Texts with something in them** are templates (`src/i18n/template.ts`): placeholders in braces, “Hallo {name}!”, and one field per wording where the code picks one – `app.pending.one` / `.many`, `app.hello.named` / `.unnamed`. Under each field: the code's text in both languages and the placeholders it keeps. A text with a placeholder the code doesn't fill, or without a needed one, is refused when saving – and on the site, a text that doesn't fit shows the code's instead. Constants are placeholders too (`{days}` of an invitation), filled by the code. A function written by hand in the dictionary still works, but stays out of the CMS (a test lists it as to do).
+- **Reading:** client components call `dictionaryOf(locale)` – the layout hands the CMS's texts to `TextsProvider`, which puts them in use while rendering, on the server and in the browser. Server components, `generateMetadata`, routes and notifications `await getDictionary(locale)` (`features/translations/get-texts.ts`; cached with the tag `texts`).
+- **Size:** a page carries only the CMS's texts that differ from the code's (the code's are in its scripts anyway) – of both languages, since the app switches without loading anew. Unchanged: nothing; everything rewritten in both languages: about 35 KB in the HTML (10 KB gzipped).
+
+Not here (yet): the mails' texts (`features/accounts/emails.ts`, the invitation in `features/calendar/invites.ts`) and the contact form's – they have their own tables in the code.
 
 ## Development
 

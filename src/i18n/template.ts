@@ -66,6 +66,11 @@ export class Template<W extends Wordings = Wordings, R = unknown> {
   ) {}
 }
 
+/** Any template, whatever it makes – for what only takes it apart. */
+type SomeTemplate = Pick<Template, "wordings" | "optional"> & {
+  make: (say: never) => unknown;
+};
+
 /**
  * A text with placeholders, for the German dictionary (see above).
  * `optional`: placeholders a text from the CMS may do without – the others
@@ -102,7 +107,10 @@ export type Placeholders = {
 };
 
 /** A template's wordings by key: its own for one, `key.variant` for several. */
-const wordingsOf = (key: string, { wordings }: Template): [string, string][] =>
+const wordingsOf = (
+  key: string,
+  { wordings }: SomeTemplate
+): [string, string][] =>
   typeof wordings === "string"
     ? [[key, wordings]]
     : Object.entries(wordings).map(([variant, text]) => [
@@ -117,7 +125,7 @@ const wordingsOf = (key: string, { wordings }: Template): [string, string][] =>
  */
 export const partsOf = (
   key: string,
-  made: Template
+  made: SomeTemplate
 ): { key: string; text: string; placeholders: Placeholders }[] =>
   wordingsOf(key, made).map(([part, text]) => {
     const known = placeholdersOf(text);
@@ -137,7 +145,7 @@ export const partsOf = (
  */
 export const resolve = (
   key: string,
-  made: Template,
+  made: SomeTemplate,
   textOf: (key: string) => string
 ): unknown => {
   const say = (part: string) => (values?: Record<string, Value>) =>

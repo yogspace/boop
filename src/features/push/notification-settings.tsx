@@ -40,7 +40,8 @@ export const NotificationSettings = ({
   locale: Locale;
 }) => {
   const t = dictionaryOf(locale).app.push;
-  const { online } = useBoop();
+  const { online, me } = useBoop();
+  const account = me?.id;
   const [state, setState] = useState<PushState | null>(knownPush);
   const [device, setDevice] = useState<Device | null>(null);
   const [busy, setBusy] = useState(false);
@@ -71,9 +72,11 @@ export const NotificationSettings = ({
   // On here: the server hears so again – the login, zone and language now.
   const publicKey = state?.publicKey;
   useEffect(() => {
-    if (device !== "on" || !publicKey || !online) return;
-    void refreshPush(locale, publicKey).then((next) => next && setDevice(next));
-  }, [device, publicKey, online, locale]);
+    if (device !== "on" || !publicKey || !online || !account) return;
+    void refreshPush(locale, publicKey, account).then(
+      (next) => next && setDevice(next)
+    );
+  }, [device, publicKey, online, locale, account]);
 
   useEffect(() => () => clearTimeout(timer.current), []);
 

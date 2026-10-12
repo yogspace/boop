@@ -184,18 +184,22 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   // zone and the language (push/client.ts). Nothing is asked, nothing
   // loaded where they are off on the device – and without the server's key
   // nothing happens at all.
-  const signedIn = boop.status === "ready" && Boolean(boop.me);
-  const confirmed = useRef(false);
+  // Once per account – another one logged into in this tab says it anew.
+  const account = boop.status === "ready" ? (boop.me?.id ?? null) : null;
+  const confirmed = useRef<string | null>(null);
   useEffect(() => {
-    if (confirmed.current || !signedIn || !boop.online) return;
-    confirmed.current = true;
+    if (!account || confirmed.current === account || !boop.online) return;
+    confirmed.current = account;
     void deviceState()
       .then((device) => (device === "on" ? loadPush() : null))
-      .then((push) => push?.publicKey && refreshPush(locale, push.publicKey))
+      .then(
+        (push) =>
+          push?.publicKey && refreshPush(locale, push.publicKey, account)
+      )
       .catch(() => {
         // No connection after all – the next start says it.
       });
-  }, [signedIn, boop.online, locale]);
+  }, [account, boop.online, locale]);
 
   useEffect(() => {
     if (boop.status === "signedOut") router.replace(`/${locale}/login`);
