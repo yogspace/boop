@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { LocaleSwitch } from "@/components/locale-switch";
 import { SiteFooter } from "@/components/site-footer";
 import { LinkButton, Logo } from "@/components/ui";
 import { getSite } from "@/features/site/get-site";
@@ -31,6 +32,7 @@ const SiteLayout = async ({
           <Logo className="text-[32px]" />
         </Link>
         <nav className="flex items-center gap-2">
+          <LocaleSwitch className="mr-1" locale={locale} />
           <LinkButton href={`/${locale}/login`} size="sm" variant="ghost">
             {t.nav.login}
           </LinkButton>

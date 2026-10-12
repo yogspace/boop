@@ -1,13 +1,13 @@
 import { legalPath } from "@/features/legal/links";
 import { Link } from "@/features/transitions/link";
-import { LOCALES, type Locale } from "@/i18n/config";
+import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
 /**
  * The foot of every page: the owner's website on one side; imprint and
- * privacy, the copyright and the languages on the other – under a ruled
- * marker line, no box. The language in use is underlined.
+ * privacy and the copyright on the other – under a ruled marker line, no
+ * box. (The languages are in the bar on top: locale-switch.tsx.)
  */
 export const SiteFooter = ({
   locale,
@@ -51,20 +51,6 @@ export const SiteFooter = ({
         <span aria-hidden="true">·</span>
         <span>
           © {new Date().getFullYear()} {owner}
-        </span>
-        <span aria-hidden="true">·</span>
-        <span className="flex gap-2">
-          {LOCALES.map((other) => (
-            <Link
-              aria-current={other === locale ? "page" : undefined}
-              className="font-black uppercase hover:text-ink aria-[current=page]:scribble-underline aria-[current=page]:text-ink aria-[current=page]:[--scribble-width:2.5px]"
-              href={`/${other}`}
-              hrefLang={other}
-              key={other}
-            >
-              {other}
-            </Link>
-          ))}
         </span>
       </span>
     </footer>

@@ -10,7 +10,7 @@ const OVER = [6, 9, 4, 8, 5, 10, 7, 4, 9, 6];
  * The lines of a table ruled with the marker, over a box of equal cells –
  * the month's days. Every line is drawn by itself (`scribble-rule`,
  * styles.css) and runs a little past the corners. With `shade`, the last
- * columns are hatched – the weekend.
+ * columns are shaded – the weekend: a pale wash, faintly hatched.
  *
  * Put it into the box that holds the cells: `relative isolate`, and nothing
  * that clips. The lines lie over the cells, the hatching under them. Keep
@@ -32,11 +32,15 @@ export const Ruling = ({
 }) => (
   <>
     {shade > 0 && (
+      // A pale wash tells the weekend apart; the hatching on it only hints –
+      // faint, so the prints and numbers on it stay easy to read.
       <span
         aria-hidden="true"
-        className="scribble-hatch pointer-events-none absolute inset-y-0 right-0 -z-10"
+        className="pointer-events-none absolute inset-y-0 right-0 -z-10 bg-soft/70"
         style={{ width: `${(shade / cols) * 100}%` }}
-      />
+      >
+        <span className="scribble-hatch absolute inset-0 opacity-35" />
+      </span>
     )}
     <span
       aria-hidden="true"

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Squiggle, Ticks } from "@/components/doodles";
+import { LocaleSwitch } from "@/components/locale-switch";
 import { SiteFooter } from "@/components/site-footer";
 import {
   BADGE,
@@ -166,6 +167,8 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
           <Logo className="text-[32px]" />
         </Link>
         <div className="relative flex items-center gap-2">
+          {/* On a phone the bar is full – there it is in the menu. */}
+          <LocaleSwitch className="mr-1 max-sm:hidden" locale={locale} />
           <SyncBadge locale={locale} />
           <button
             aria-expanded={menu}
@@ -182,6 +185,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
                 <p className="font-black">{boop.me?.name}</p>
                 <p className="truncate text-muted text-sm">{boop.me?.email}</p>
               </div>
+              <LocaleSwitch className="sm:hidden" locale={locale} />
               <Button
                 disabled={!boop.online}
                 onClick={() =>
