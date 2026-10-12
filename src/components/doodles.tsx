@@ -8,7 +8,9 @@ import type { SVGProps } from "react";
  * All line art in `currentColor` with round ends, a little wobbly on
  * purpose, and hidden from screen readers – decoration, never the only way
  * something is said. Size and color them with classes (`h-6 w-6 text-ink`);
- * add `boil` (styles.css) to let one's line simmer.
+ * add `boil` (styles.css) to let one's line simmer. Each picture (viewBox)
+ * holds its whole line, the marker's width included – an <svg> cuts at its
+ * edges.
  */
 
 type Props = SVGProps<SVGSVGElement>;
@@ -31,11 +33,14 @@ const LINE = { vectorEffect: "non-scaling-stroke" } as const;
 
 // ── Under, around and behind things ─────────────────────────────────────────
 
-/** A wavy underline. */
+/**
+ * A wavy underline. Its picture holds the whole line, with the marker's width
+ * (y 1.75–16.25) – 8 : 1, as it is used (`h-3 w-24`).
+ */
 export const Squiggle = (props: Props) => (
   <svg
     aria-hidden="true"
-    viewBox="0 0 120 14"
+    viewBox="0 1.5 120 15"
     {...base({ strokeWidth: 4, ...props })}
   >
     <path d="M3 9c9-7 15-7 21 0s13 7 20 0 14-7 21 0 13 7 20 0 14-7 21 0 7 3 11 1" />

@@ -34,7 +34,8 @@
     "sharp": "0.35.5",
     "tailwind-merge": "^3.7.0",
     "three": "^0.181.2",
-    "valtio": "^2.3.2"
+    "valtio": "^2.3.2",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
@@ -43,6 +44,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@types/three": "^0.181.0",
+    "@types/web-push": "^3.6.4",
     "fflate": "^0.8.3",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",

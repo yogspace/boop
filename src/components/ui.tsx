@@ -10,10 +10,11 @@ import { Bang, Check, Dot } from "./doodles";
 
 /**
  * Boop's building blocks – marker on paper: every box is a scribbled frame
- * (the `scribble` utilities, styles.css), black on white. What is “on” or
+ * (the `scribble` utilities, styles.css), black on paper. What is “on” or
  * the main thing to do is filled with ink; hovering makes a frame's line
- * boil and lifts it a little, pressing squashes it. No color here – color is
- * for the stamps.
+ * boil and lifts it a little, pressing squashes it. No color of their own –
+ * color is the stamps', their prints', and a calendar's tint, which comes
+ * through the paper tokens.
  */
 
 /** How a frame answers the pointer: it lifts and tilts a touch, boils, squashes when pressed. */

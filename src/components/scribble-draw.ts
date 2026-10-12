@@ -117,9 +117,9 @@ export function drawScribbles(late: boolean): void {
     `${loop(side(run, 1))}${loop(side(run, -1).reverse())}`;
 
   /**
-   * A closed stroke in dashes: three widths of dash (with its round ends) to
-   * a little more than two of gap, spaced evenly round – where they start is
-   * the seed's.
+   * A closed stroke in dashes: some three and a half widths of dash (with its
+   * round ends) to two of gap, as a dashed border has them, spaced evenly
+   * round – where they start is the seed's.
    */
   const dashes = (run: Run, width: number, seed: number) => {
     const { points, normals, half } = run;
@@ -134,7 +134,7 @@ export function drawScribbles(late: boolean): void {
     const period = 5 * width + 2;
     const runs = Math.max(2, Math.round(total / period));
     const each = total / runs;
-    const dash = (each * 2 * width) / period;
+    const dash = (each * 2.7 * width) / period;
     const phase = random(seed)() * each;
     // A point (and its normal and width) anywhere along the line.
     const pick = (s: number): [Point, Point, number] => {
@@ -340,8 +340,8 @@ export function drawScribbles(late: boolean): void {
     Math.ceil(Math.max(f.amp + f.width + 2, f.inset - f.ring + f.amp + 4));
 
   /**
-   * A frame, in its pseudo-elements' own coordinates: the fill's outline
-   * (the line's middle), the line, the line with the focus ring round it.
+   * A frame, in its pseudo-elements' own coordinates: the fill's outline,
+   * the line, the line with the focus ring round it.
    */
   const frame = (f: Frame, room: number, seed: number) => {
     const shift = room - f.inset;
@@ -369,7 +369,9 @@ export function drawScribbles(late: boolean): void {
       );
       focus = line + (ring ? dashes(ring, 2, f.seed) : "");
     }
-    return { shape: loop(run.points), line, focus };
+    // The fill reaches the line's outer edge, as a box's background reaches
+    // under its border – so a dash's gaps show the fill, as they did.
+    return { shape: loop(side(run, 1)), line, focus };
   };
 
   // ── Lines ────────────────────────────────────────────────────────────────
@@ -503,11 +505,11 @@ export function drawScribbles(late: boolean): void {
     style.setProperty("--scribble-room", `${room}px`);
     // The same line drawn three times over, for boiling – else once.
     for (let k = 1; k <= 3; k++) {
-      const drawn = k === 1 || f.boil ? frame(f, room, f.seed * 3 + k) : null;
+      const art = k === 1 || f.boil ? frame(f, room, f.seed * 3 + k) : null;
       const tail = k === 1 ? "" : `-${k}`;
-      style.setProperty(`--scribble-shape${tail}`, clip(drawn?.shape));
-      style.setProperty(`--scribble-stroke${tail}`, clip(drawn?.line));
-      style.setProperty(`--scribble-focus${tail}`, clip(drawn?.focus));
+      style.setProperty(`--scribble-shape${tail}`, clip(art?.shape));
+      style.setProperty(`--scribble-stroke${tail}`, clip(art?.line));
+      style.setProperty(`--scribble-focus${tail}`, clip(art?.focus));
     }
   };
 

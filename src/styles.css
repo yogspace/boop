@@ -245,10 +245,12 @@
 }
 
 /*
- * Scribbled frames – a box drawn with a marker. The frame is the box's
- * ::before: a plain border and the fill, pushed about by a little noise (the
- * SVG filters in components/scribble-defs.tsx). Only the frame is filtered;
- * the text on it stays crisp. The box's own border-radius is the frame's.
+ * Scribbled frames – a box drawn with a marker. The frame is two layers
+ * behind the box's content: its fill (::before) and its line (::after),
+ * each cut to a path the marker drew for this very box
+ * (components/scribble-draw.ts) – smooth vector edges at any size, zoom and
+ * screen. The colors stay here: the fill is `--scribble-fill`, the line ink.
+ * The box's own border-radius is the frame's.
  *
  *   scribble             the frame: a 3px ink line, filled paper-white
  *   scribble-ink         filled with ink, its text paper-white – “on”, primary
@@ -259,71 +261,91 @@
  *   scribble-dashed      a dashed line – “add one”, “not yet”
  *   scribble-thin, -bold a 2px / 4.5px line
  *   scribble-sm          for anything under ~60px (round buttons, swatches,
- *                        badges): a finer wobble with room, so nothing is cut
+ *                        badges): a finer wobble
  *   scribble-seed-1 … 3  which wobble – siblings take turns by themselves
- *   scribble-boil        the line “boils”: the three wobbles in turn, like a
- *                        drawn-by-frame GIF. Sparingly – hover:scribble-boil, a
- *                        hero doodle – never many at once.
+ *   scribble-boil        the line “boils”: drawn three times over, shown in
+ *                        turn like a drawn-by-frame GIF. Sparingly –
+ *                        hover:scribble-boil, a hero doodle – never many at
+ *                        once.
  *   scribble-field       a frame around a control: its focus shows on the
  *                        frame (the control itself: outline-none)
  *
  * Knobs, as arbitrary properties: --scribble-inset (the frame inside its box,
- * e.g. [--scribble-inset:3px]), --scribble-ring (the focus ring's, −6px).
+ * e.g. [--scribble-inset:3px]), --scribble-ring (the focus ring's, −6px),
+ * --scribble-width, --scribble-fill, --scribble-wobble (how far the hand
+ * strays, 3.5px). Width, dashes and wobble may follow classes, state
+ * attributes (aria-pressed …) and breakpoints – not :hover; the fill may
+ * follow anything.
  *
  * Keyboard focus on a frame is a second, dashed scribble around it.
  *
- * Don't clip a frame: it wobbles ~4px beyond its box, the focus ring ~10px –
+ * Before the marker has drawn a frame – no script, or not yet – it is the
+ * plain CSS it is made of: a rounded box with its border, the line straight.
+ * Drawn, both layers reach `--scribble-room` past the box (set by the
+ * marker, with the paths): room for the wobble and the ring, and the border,
+ * now at the outer edge, falls outside the fill's path – cut away.
+ *
+ * Don't clip a frame: it wobbles ~3px beyond its box, the focus ring ~10px –
  * no overflow-hidden on or tightly around one, and scrollers pad their
  * inside. And don't let it scroll away: frame the box, scroll an inner one
  * (features/app/sheet.tsx).
  *
- * What it costs: the filter works on every pixel of the box, each time the
- * frame is painted – and Safari paints it again whenever anything on it
- * changes (a caret blinking in a field on a card: the whole card's frame).
- * So a frame lives on a layer of its own, painted once and kept; only the
- * small ones (scribble-sm) don't – they are cheap to redraw. Measured in
- * Safari's engine: a sheet-sized frame with something changing on it runs
- * at 14 frames a second without the layer, at 60 with it.
+ * What it costs: a path is a few kilobytes of text and is drawn like a
+ * border – no filter works over the box's pixels any more, so a frame needs
+ * no layer of its own, however large, and redrawing one on a resize is
+ * cheap.
  */
 @utility scribble {
   position: relative;
   isolation: isolate;
 
-  &::before {
+  &::before,
+  &::after {
     content: "";
     position: absolute;
-    inset: var(--scribble-inset, 0px);
+    inset: calc(var(--scribble-inset, 0px) - var(--scribble-room, 0px));
     z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  &::before {
     border: var(--scribble-width, 3px) var(--scribble-style, solid)
       var(--color-ink);
-    border-radius: inherit;
     background: var(--scribble-fill, var(--color-card));
-    filter: var(--scribble-seed, var(--scribble-a));
-    pointer-events: none;
-    will-change: var(--scribble-layer, transform);
+    clip-path: var(--scribble-shape, none);
   }
 
-  &:nth-child(3n + 2)::before {
-    filter: var(--scribble-seed, var(--scribble-b));
+  /* Ink wherever the line's path is – none at all before it is drawn. */
+  &::after {
+    --scribble-now: var(--scribble-stroke, inset(50%));
+    --scribble-now-2: var(--scribble-stroke-2, var(--scribble-now));
+    --scribble-now-3: var(--scribble-stroke-3, var(--scribble-now));
+    background: var(--color-ink);
+    clip-path: var(--scribble-now);
   }
 
-  &:nth-child(3n)::before {
-    filter: var(--scribble-seed, var(--scribble-c));
+  /* Before it is drawn, focus is the plain outline (base layer). */
+  &:focus-visible,
+  &:where(.scribble-field):focus-within {
+    outline: 3px dashed var(--color-ink);
+    outline-offset: 3px;
+    outline-width: max(0px, 3px - var(--scribble-room, 0px));
   }
 
-  &:focus-visible {
-    outline: none;
-  }
-
+  /* Drawn: the ring joins the line, over the content. */
   &:focus-visible::after,
   &:where(.scribble-field):focus-within::after {
-    content: "";
-    position: absolute;
-    inset: var(--scribble-ring, -6px);
-    border: 2px dashed var(--color-ink);
-    border-radius: inherit;
-    filter: var(--scribble-b);
-    pointer-events: none;
+    --scribble-now: var(--scribble-focus, var(--scribble-stroke, inset(50%)));
+    --scribble-now-2: var(
+      --scribble-focus-2,
+      var(--scribble-stroke-2, var(--scribble-now))
+    );
+    --scribble-now-3: var(
+      --scribble-focus-3,
+      var(--scribble-stroke-3, var(--scribble-now))
+    );
+    z-index: auto;
   }
 }
 
@@ -370,22 +392,19 @@
 }
 
 @utility scribble-sm {
-  --scribble-a: url(#scribble-s1);
-  --scribble-b: url(#scribble-s2);
-  --scribble-c: url(#scribble-s3);
-  --scribble-layer: auto;
+  --scribble-wobble: 2.5px;
 }
 
 @utility scribble-seed-1 {
-  --scribble-seed: var(--scribble-a);
+  --scribble-seed: 1;
 }
 
 @utility scribble-seed-2 {
-  --scribble-seed: var(--scribble-b);
+  --scribble-seed: 2;
 }
 
 @utility scribble-seed-3 {
-  --scribble-seed: var(--scribble-c);
+  --scribble-seed: 3;
 }
 
 @utility scribble-field {
@@ -395,8 +414,37 @@
 @utility scribble-boil {
   @media (prefers-reduced-motion: no-preference) {
     &::before {
-      animation: scribble-boil var(--boil, 450ms) steps(1, end) infinite;
+      animation: scribble-boil-fill var(--boil, 450ms) steps(1, end) infinite;
     }
+
+    &::after {
+      animation: scribble-boil-line var(--boil, 450ms) steps(1, end) infinite;
+    }
+  }
+}
+
+/* The three drawings in turn – each held, then swapped: frames, no tween. */
+@keyframes scribble-boil-fill {
+  0% {
+    clip-path: var(--scribble-shape, none);
+  }
+  33.4% {
+    clip-path: var(--scribble-shape-2, var(--scribble-shape, none));
+  }
+  66.7% {
+    clip-path: var(--scribble-shape-3, var(--scribble-shape, none));
+  }
+}
+
+@keyframes scribble-boil-line {
+  0% {
+    clip-path: var(--scribble-now);
+  }
+  33.4% {
+    clip-path: var(--scribble-now-2);
+  }
+  66.7% {
+    clip-path: var(--scribble-now-3);
   }
 }
 
@@ -407,65 +455,36 @@
  *                       (currentColor; --scribble-width, 2px)
  *   scribble-rule-y     the same, standing
  *   scribble-underline  a marker line under the text it is on (its ::after) –
- *                       for one line of text; also hover:scribble-underline
+ *                       for one line of text, on a block or an inline box;
+ *                       also hover:scribble-underline
  *   scribble-hatch      pencil hatching over the box it is on (--color-line)
  *   boil                the element itself boils (a doodle: `boil`,
- *                       `group-hover:boil`; with `scribble-sm` when it is
- *                       small) – never a panel
+ *                       `group-hover:boil`) – never a panel
  *
- * A ruled table – the month – is made of single lines, not of one filtered
- * box: components/ruling.tsx. A line is a few pixels across, so drawing it
- * costs next to nothing; a box the size of the table costs all its pixels.
+ * The line is the marker's path (`--scribble-mark`), round at both ends and
+ * inside its box; before it is drawn, a straight one through the middle.
+ *
+ * A ruled table – the month – is made of single lines, not of one box:
+ * components/ruling.tsx.
  */
 @utility scribble-rule {
   display: block;
   height: 12px;
-  background:
-    linear-gradient(currentColor, currentColor) center / 100%
-    var(--scribble-width, 2px) no-repeat;
-  filter: var(--scribble-seed, url(#scribble-h1));
-
-  /* Lines side by side take turns with the five wobbles. */
-  &:nth-child(5n + 2) {
-    filter: var(--scribble-seed, url(#scribble-h2));
-  }
-
-  &:nth-child(5n + 3) {
-    filter: var(--scribble-seed, url(#scribble-h3));
-  }
-
-  &:nth-child(5n + 4) {
-    filter: var(--scribble-seed, url(#scribble-h4));
-  }
-
-  &:nth-child(5n) {
-    filter: var(--scribble-seed, url(#scribble-h5));
-  }
+  background: currentColor;
+  clip-path: var(
+    --scribble-mark,
+    inset(calc(50% - var(--scribble-width, 2px) / 2) 0 round 9px)
+  );
 }
 
 @utility scribble-rule-y {
   display: block;
   width: 12px;
-  background:
-    linear-gradient(currentColor, currentColor) center /
-    var(--scribble-width, 2px) 100% no-repeat;
-  filter: var(--scribble-seed, url(#scribble-v1));
-
-  &:nth-child(5n + 2) {
-    filter: var(--scribble-seed, url(#scribble-v2));
-  }
-
-  &:nth-child(5n + 3) {
-    filter: var(--scribble-seed, url(#scribble-v3));
-  }
-
-  &:nth-child(5n + 4) {
-    filter: var(--scribble-seed, url(#scribble-v4));
-  }
-
-  &:nth-child(5n) {
-    filter: var(--scribble-seed, url(#scribble-v5));
-  }
+  background: currentColor;
+  clip-path: var(
+    --scribble-mark,
+    inset(0 calc(50% - var(--scribble-width, 2px) / 2) round 9px)
+  );
 }
 
 @utility scribble-underline {
@@ -478,10 +497,11 @@
     bottom: -0.36em;
     left: -0.12em;
     height: 0.5em;
-    background:
-      linear-gradient(currentColor, currentColor) center / 100%
-      var(--scribble-width, 3px) no-repeat;
-    filter: var(--scribble-seed, url(#scribble-h2));
+    background: currentColor;
+    clip-path: var(
+      --scribble-mark,
+      inset(calc(50% - var(--scribble-width, 3px) / 2) 0 round 9px)
+    );
     pointer-events: none;
   }
 }
@@ -500,22 +520,27 @@
   mask: var(--hatch) 0 0 / 48px 48px;
 }
 
+/*
+ * A doodle is already a path – it boils by being held a little differently
+ * each frame: turned and squeezed a touch, three frames in turn. A transform
+ * keeps it a path (a filter would make it pixels again); the doodle's own
+ * rotate/translate/scale utilities are properties of their own and stay.
+ */
 @utility boil {
   @media (prefers-reduced-motion: no-preference) {
-    animation: scribble-boil var(--boil, 450ms) steps(1, end) infinite;
+    animation: boil var(--boil, 450ms) steps(1, end) infinite;
   }
 }
 
-/* The three wobbles in turn – each held, then swapped: frames, no tween. */
-@keyframes scribble-boil {
+@keyframes boil {
   0% {
-    filter: var(--scribble-a);
+    transform: none;
   }
   33.4% {
-    filter: var(--scribble-b);
+    transform: rotate(1.2deg) scale(1.016, 0.986);
   }
   66.7% {
-    filter: var(--scribble-c);
+    transform: translate(0.4px, -0.3px) rotate(-0.9deg) scale(0.988, 1.014);
   }
 }
 

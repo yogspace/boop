@@ -485,371 +485,370 @@ export const DayPage = ({
   };
 
   return (
-    // Beside the page: as wide as is left of the room, 15rem at least; the
-    // page as high as the window has room under the app's bar, the
-    // greeting and the calendar's name (23rem) – 16rem at least.
-    <div
-      className={cn(
-        "@container flex flex-col gap-4 @xl:grid @xl:grid-cols-[auto_minmax(0,1fr)] @xl:grid-rows-[auto_1fr] @xl:gap-x-5",
-        className
-      )}
-    >
-      {heading && (
-        <div className="@xl:col-start-2 @xl:row-start-1">{heading}</div>
-      )}
-      {/* A sheet of dotted paper, drawn round with the marker – the frame
+    // How it is laid out goes by its own width (a container – the queries
+    // read the box around, so the layout is the box inside). Beside the
+    // page: as wide as is left of the room, 15rem at least; the page as
+    // high as the window has room under the app's bar, the greeting and the
+    // calendar's name (23rem) – 16rem at least.
+    <div className={cn("@container", className)}>
+      <div className="flex flex-col gap-4 @lg:grid @lg:grid-cols-[auto_minmax(0,1fr)] @lg:grid-rows-[auto_1fr] @lg:gap-x-5">
+        {heading && (
+          <div className="@lg:col-start-2 @lg:row-start-1">{heading}</div>
+        )}
+        {/* A sheet of dotted paper, drawn round with the marker – the frame
           outside, the page inside it clipping the prints at its edge. It is
           the calendar's own paper (`PAPER`, in the shades the app's frame
           hands down): pale in its color, the dots its pencil's. */}
-      <div
-        className="scribble rounded-[27px] p-[3px] @xl:col-start-1 @xl:row-span-2 @xl:row-start-1 @xl:w-[clamp(16rem,calc(100dvh_-_23rem),calc(100cqw_-_15rem))]"
-        style={PAPER as CSSProperties}
-        {...showHand}
-      >
         <div
-          className={cn(
-            "relative aspect-square w-full touch-none select-none overflow-hidden rounded-3xl bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]",
-            // The preview marks the spot – no arrow on top of it.
-            inHand && "cursor-none"
-          )}
-          onPointerDown={stampHere}
-          ref={page}
+          className="scribble rounded-[27px] p-[3px] @lg:col-start-1 @lg:row-span-2 @lg:row-start-1 @lg:w-[clamp(16rem,calc(100dvh_-_23rem),calc(100cqw_-_15rem))]"
+          style={PAPER as CSSProperties}
+          {...showHand}
         >
-          {placements.length === 0 && (
-            <p className="pointer-events-none absolute inset-0 flex animate-fade items-center justify-center p-10 text-center font-bold text-muted">
-              {t.app.day.empty}
-            </p>
-          )}
-          {placements.map((p) => {
-            const stamp = boop.stamps[p.stamp];
-            const here = drag?.id === p.id ? drag : p;
-            const inked = p.ink ?? stamp?.color ?? "red";
-            return (
-              <div
-                className={cn(
-                  "absolute",
-                  glide === p.id && "transition-[left,top] duration-300"
-                )}
-                key={p.id}
-                onTransitionEnd={() => setGlide(null)}
-                style={{
-                  width: `${printOf(stamp) * 100}%`,
-                  left: `${here.x * 100}%`,
-                  top: `${here.y * 100}%`,
-                  transform: `translate(-50%, -50%) rotate(${p.rotation}deg) scale(${p.scale})`,
-                  zIndex: drag?.id === p.id ? 1000 : p.z,
-                }}
-              >
-                <button
-                  aria-label={stamp?.name || t.app.day.print}
-                  aria-pressed={picked === p.id}
+          <div
+            className={cn(
+              "relative aspect-square w-full touch-none select-none overflow-hidden rounded-3xl bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]",
+              // The preview marks the spot – no arrow on top of it.
+              inHand && "cursor-none"
+            )}
+            onPointerDown={stampHere}
+            ref={page}
+          >
+            {placements.length === 0 && (
+              <p className="pointer-events-none absolute inset-0 flex animate-fade items-center justify-center p-10 text-center font-bold text-muted">
+                {t.app.day.empty}
+              </p>
+            )}
+            {placements.map((p) => {
+              const stamp = boop.stamps[p.stamp];
+              const here = drag?.id === p.id ? drag : p;
+              const inked = p.ink ?? stamp?.color ?? "red";
+              return (
+                <div
                   className={cn(
-                    "relative block w-full rounded-2xl mix-blend-multiply",
-                    // With a stamp in hand the page is for stamping.
-                    inHand
-                      ? "pointer-events-none"
-                      : "cursor-grab active:cursor-grabbing",
-                    !old.has(p.id) && "animate-ink",
-                    // Picked: the marker drawn round it – a solid line, so
-                    // it isn't taken for the keyboard's dashed ring, which
-                    // goes round the outside of it. It holds still: a line
-                    // astir would have the print's ink drawn anew with it.
-                    picked === p.id &&
-                      "scribble scribble-sm scribble-clear [--scribble-inset:-6px] [--scribble-ring:-12px]"
+                    "absolute",
+                    glide === p.id && "transition-[left,top] duration-300"
                   )}
-                  onClick={(event) => {
-                    // By keyboard (Enter, Space) – a tap is told from a
-                    // drag below. The stamp in hand is put down for it.
-                    if (event.detail !== 0) return;
-                    if (inHand) take(null);
-                    setPicked(picked === p.id ? null : p.id);
+                  key={p.id}
+                  onTransitionEnd={() => setGlide(null)}
+                  style={{
+                    width: `${printOf(stamp) * 100}%`,
+                    left: `${here.x * 100}%`,
+                    top: `${here.y * 100}%`,
+                    transform: `translate(-50%, -50%) rotate(${p.rotation}deg) scale(${p.scale})`,
+                    zIndex: drag?.id === p.id ? 1000 : p.z,
                   }}
-                  onPointerDown={(event) => {
-                    const at = onPage(event.clientX, event.clientY);
-                    if (!at) return;
-                    event.currentTarget.setPointerCapture(event.pointerId);
-                    setDrag({
-                      id: p.id,
-                      x: p.x,
-                      y: p.y,
-                      grab: { x: at.x - p.x, y: at.y - p.y },
-                      from: { x: event.clientX, y: event.clientY },
-                      moved: false,
-                    });
-                  }}
-                  onPointerMove={(event) => {
-                    if (drag?.id !== p.id) return;
-                    const far =
-                      Math.hypot(
-                        event.clientX - drag.from.x,
-                        event.clientY - drag.from.y
-                      ) >= DRAG;
-                    const at = onPage(event.clientX, event.clientY);
-                    if (!(at && (drag.moved || far))) return;
-                    setDrag({
-                      ...drag,
-                      x: within(at.x - drag.grab.x),
-                      y: within(at.y - drag.grab.y),
-                      moved: true,
-                    });
-                  }}
-                  onPointerUp={() => {
-                    if (drag?.id !== p.id) return;
-                    if (drag.moved) {
-                      const top = Math.max(...placements.map((q) => q.z)) + 1;
-                      note({
-                        kind: "move",
+                >
+                  <button
+                    aria-label={stamp?.name || t.app.day.print}
+                    aria-pressed={picked === p.id}
+                    className={cn(
+                      "relative block w-full rounded-2xl mix-blend-multiply",
+                      // With a stamp in hand the page is for stamping.
+                      inHand
+                        ? "pointer-events-none"
+                        : "cursor-grab active:cursor-grabbing",
+                      !old.has(p.id) && "animate-ink",
+                      // Picked: the marker drawn round it – a solid line, so
+                      // it isn't taken for the keyboard's dashed ring, which
+                      // goes round the outside of it. It holds still: a line
+                      // astir would have the print's ink drawn anew with it.
+                      picked === p.id &&
+                        "scribble scribble-sm scribble-clear [--scribble-inset:-6px] [--scribble-ring:-12px]"
+                    )}
+                    onClick={(event) => {
+                      // By keyboard (Enter, Space) – a tap is told from a
+                      // drag below. The stamp in hand is put down for it.
+                      if (event.detail !== 0) return;
+                      if (inHand) take(null);
+                      setPicked(picked === p.id ? null : p.id);
+                    }}
+                    onPointerDown={(event) => {
+                      const at = onPage(event.clientX, event.clientY);
+                      if (!at) return;
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                      setDrag({
                         id: p.id,
                         x: p.x,
                         y: p.y,
-                        z: p.z,
+                        grab: { x: at.x - p.x, y: at.y - p.y },
+                        from: { x: event.clientX, y: event.clientY },
+                        moved: false,
                       });
-                      void movePlacement(p.id, {
-                        x: drag.x,
-                        y: drag.y,
-                        ...(p.z < top - 1 && { z: top }),
+                    }}
+                    onPointerMove={(event) => {
+                      if (drag?.id !== p.id) return;
+                      const far =
+                        Math.hypot(
+                          event.clientX - drag.from.x,
+                          event.clientY - drag.from.y
+                        ) >= DRAG;
+                      const at = onPage(event.clientX, event.clientY);
+                      if (!(at && (drag.moved || far))) return;
+                      setDrag({
+                        ...drag,
+                        x: within(at.x - drag.grab.x),
+                        y: within(at.y - drag.grab.y),
+                        moved: true,
                       });
-                    } else setPicked(picked === p.id ? null : p.id);
-                    setDrag(null);
-                  }}
-                  type="button"
-                >
-                  <StampSvg
-                    className="pointer-events-none h-auto w-full"
-                    color={inked}
-                    drawing={stamp?.drawing ?? null}
-                    print
-                    seed={seedOf(p.id)}
-                    shape={stamp?.shape}
-                  />
-                  {stamp?.drawing?.special && (
-                    // In the print's blend, so its white falls on ink only.
-                    <Glitter
-                      color={inked}
-                      drawing={stamp.drawing}
-                      seed={seedOf(p.id)}
-                      shape={stamp.shape}
-                    />
-                  )}
-                </button>
-              </div>
-            );
-          })}
-          {inHand && (
-            // The next print, faintly: where and how the stamp will leave
-            // it. Moved by preview(), so no style of React's is in its way.
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute top-0 left-0 aspect-square mix-blend-multiply will-change-transform"
-              ref={ghost}
-              style={{ width: `${size * 100}%`, zIndex: 2000 }}
-            >
-              <div className="relative opacity-0 transition-[rotate,opacity] duration-150 ease-out">
-                <StampSvg
-                  className="h-auto w-full"
-                  color={ink}
-                  drawing={inHand.drawing}
-                  print
-                  seed={seedOf(next)}
-                  shape={inHand.shape}
-                />
-                {inHand.drawing?.special && (
-                  <Glitter
-                    color={ink}
-                    drawing={inHand.drawing}
-                    seed={seedOf(next)}
-                    shape={inHand.shape}
-                    still
-                  />
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* What is beside the page – or under it. */}
-      <div className="flex min-w-0 flex-col gap-4 @xl:col-start-2 @xl:row-start-2">
-        <fieldset className="min-w-0" {...showHand}>
-          <legend className="mb-2 font-bold text-muted text-sm">
-            {t.app.day.ink}
-          </legend>
-          {/* Flat blots of ink, in a row that wraps – nothing scrolls, so
-              the marker ring round the one in use is never cut. */}
-          <div className="flex flex-wrap gap-1.5">
-            {palette.map(({ key: c, hex, name: names }, i) => (
-              <button
-                aria-label={names[locale]}
-                aria-pressed={ink === c}
-                className={cn(
-                  "relative flex h-11 w-11 items-center justify-center rounded-full transition-transform",
-                  ink === c ? "scale-110" : "hover:-rotate-6 hover:scale-110"
-                )}
-                key={c}
-                onClick={() => setInk(c)}
-                type="button"
-              >
-                <InkBlot hex={hex} index={i} on={ink === c} />
-              </button>
-            ))}
-          </div>
-        </fieldset>
-
-        {/* Beside the page there is too little room for the words beside the
-          buttons: they go above them. */}
-        <div className="flex min-h-10 items-center justify-between gap-2 @xl:flex-col @xl:items-start">
-          <p className="font-bold text-muted text-sm">
-            {inHand
-              ? t.app.day.held
-              : marked
-                ? t.app.day.picked
-                : t.app.day.tray}
-            {(inHand || marked) && (
-              // Only where there is likely a wheel – and a keyboard.
-              <span className="hidden [@media(hover:hover)]:inline">
-                {" "}
-                {inHand ? t.app.day.wheel : t.app.day.pickedKeys}
-              </span>
-            )}
-          </p>
-          <div className="flex shrink-0 items-center gap-3">
-            {inHand && (
-              // Turning without a wheel – a pair, apart from undo's arrow.
-              <div className="flex gap-1">
-                {(
-                  [
-                    [-STEP, t.app.day.turnLeft, ""],
-                    // The same arrow, the other way round.
-                    [STEP, t.app.day.turnRight, "-scale-x-100"],
-                  ] as const
-                ).map(([degrees, label, flip]) => (
-                  <button
-                    aria-label={label}
-                    className={ROUND_BUTTON}
-                    key={degrees}
-                    onClick={() => turnBy(degrees)}
-                    title={label}
-                    type="button"
-                  >
-                    <svg
-                      aria-hidden="true"
-                      className={cn("h-4.5 w-4.5", flip)}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2.6"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                      <path d="M3 3v5h5" />
-                    </svg>
-                  </button>
-                ))}
-              </div>
-            )}
-            {marked && (
-              <Button
-                aria-keyshortcuts="Delete Backspace"
-                onClick={() => remove(marked)}
-                size="sm"
-                variant="plain"
-              >
-                {t.app.day.remove}
-              </Button>
-            )}
-            <button
-              aria-label={t.app.day.undo}
-              className={ROUND_BUTTON}
-              disabled={!undoable}
-              onClick={undo}
-              title={t.app.day.undo}
-              type="button"
-            >
-              <svg
-                aria-hidden="true"
-                className="h-4.5 w-4.5"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2.8"
-                viewBox="0 0 24 24"
-              >
-                <path d="M9 14 4 9l5-5" />
-                <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {stamps.length === 0 ? (
-          <p className="text-muted text-sm">{t.app.noStamps}</p>
-        ) : (
-          // Room all round inside the scroller (it clips both ways): a stamp
-          // can lift, turn and wear its badge and focus ring without losing a
-          // corner. The one in hand: lifted, its line drawn thick.
-          <div className="-m-4 flex gap-2.5 overflow-x-auto p-4">
-            {stamps.map((s) => (
-              // Its name on a tag when pointed at – in the top layer, so the
-              // scroller doesn't clip it. (Another anchor than the shelf's.)
-              <NameTag id={`tray-${s.id}`} key={s.id} text={s.name}>
-                {({ onClick: hideTag, ...anchor }) => (
-                  <button
-                    {...anchor}
-                    aria-label={s.name || t.app.day.print}
-                    aria-pressed={held === s.id}
-                    className={cn(
-                      "scribble scribble-thin relative h-20 w-20 shrink-0 rounded-3xl p-1 transition-transform duration-150 ease-out",
-                      held === s.id
-                        ? "scribble-bold -translate-y-1.5"
-                        : "hover:-rotate-6 hover:scribble-boil active:scale-90"
-                    )}
-                    onClick={(event) => {
-                      hideTag();
-                      // By keyboard there is no pointing at the page: the stamp
-                      // comes down somewhere on it – in the hand's ink if it is
-                      // the one held, else in its own.
-                      if (event.detail === 0) {
-                        const spot = () => 0.25 + Math.random() * 0.5;
-                        print(
-                          s,
-                          { x: spot(), y: spot() },
-                          tidy(turn.current),
-                          held === s.id ? ink : knownKey(s.color, palette)
-                        );
-                        return;
-                      }
-                      take(held === s.id ? null : s.id);
+                    }}
+                    onPointerUp={() => {
+                      if (drag?.id !== p.id) return;
+                      if (drag.moved) {
+                        const top = Math.max(...placements.map((q) => q.z)) + 1;
+                        note({
+                          kind: "move",
+                          id: p.id,
+                          x: p.x,
+                          y: p.y,
+                          z: p.z,
+                        });
+                        void movePlacement(p.id, {
+                          x: drag.x,
+                          y: drag.y,
+                          ...(p.z < top - 1 && { z: top }),
+                        });
+                      } else setPicked(picked === p.id ? null : p.id);
+                      setDrag(null);
                     }}
                     type="button"
                   >
-                    <span className="block">
-                      <Sticker className="pointer-events-none" stamp={s} />
-                    </span>
-                    {s.drawing?.special && (
-                      // A stamp for the big days.
-                      <Sparkle className="pointer-events-none absolute top-1 right-1 h-3.5 w-3.5 text-ink" />
-                    )}
-                    {held === s.id && (
-                      // (A frame is `relative` – the badge goes in a box that isn't.)
-                      <span className="absolute -bottom-3 left-1/2 flex -translate-x-1/2 animate-fade">
-                        <span
-                          className={cn(
-                            BADGE,
-                            "scribble-ink whitespace-nowrap px-1.5 text-[10px]"
-                          )}
-                        >
-                          {t.app.day.inHand}
-                        </span>
-                      </span>
+                    <StampSvg
+                      className="pointer-events-none h-auto w-full"
+                      color={inked}
+                      drawing={stamp?.drawing ?? null}
+                      print
+                      seed={seedOf(p.id)}
+                      shape={stamp?.shape}
+                    />
+                    {stamp?.drawing?.special && (
+                      // In the print's blend, so its white falls on ink only.
+                      <Glitter
+                        color={inked}
+                        drawing={stamp.drawing}
+                        seed={seedOf(p.id)}
+                        shape={stamp.shape}
+                      />
                     )}
                   </button>
-                )}
-              </NameTag>
-            ))}
+                </div>
+              );
+            })}
+            {inHand && (
+              // The next print, faintly: where and how the stamp will leave
+              // it. Moved by preview(), so no style of React's is in its way.
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute top-0 left-0 aspect-square mix-blend-multiply will-change-transform"
+                ref={ghost}
+                style={{ width: `${size * 100}%`, zIndex: 2000 }}
+              >
+                <div className="relative opacity-0 transition-[rotate,opacity] duration-150 ease-out">
+                  <StampSvg
+                    className="h-auto w-full"
+                    color={ink}
+                    drawing={inHand.drawing}
+                    print
+                    seed={seedOf(next)}
+                    shape={inHand.shape}
+                  />
+                  {inHand.drawing?.special && (
+                    <Glitter
+                      color={ink}
+                      drawing={inHand.drawing}
+                      seed={seedOf(next)}
+                      shape={inHand.shape}
+                      still
+                    />
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* What is beside the page – or under it. */}
+        <div className="flex min-w-0 flex-col gap-4 @lg:col-start-2 @lg:row-start-2">
+          <fieldset className="min-w-0" {...showHand}>
+            <legend className="mb-2 font-bold text-muted text-sm">
+              {t.app.day.ink}
+            </legend>
+            {/* Flat blots of ink, in a row that wraps – nothing scrolls, so
+              the marker ring round the one in use is never cut. */}
+            <div className="flex flex-wrap gap-1.5">
+              {palette.map(({ key: c, hex, name: names }, i) => (
+                <button
+                  aria-label={names[locale]}
+                  aria-pressed={ink === c}
+                  className={cn(
+                    "relative flex h-11 w-11 items-center justify-center rounded-full transition-transform",
+                    ink === c ? "scale-110" : "hover:-rotate-6 hover:scale-110"
+                  )}
+                  key={c}
+                  onClick={() => setInk(c)}
+                  type="button"
+                >
+                  <InkBlot hex={hex} index={i} on={ink === c} />
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          {/* Beside the page there is too little room for the words beside the
+          buttons: they go above them. */}
+          <div className="flex min-h-10 items-center justify-between gap-2 @lg:flex-col @lg:items-start">
+            <p className="font-bold text-muted text-sm">
+              {inHand
+                ? t.app.day.held
+                : marked
+                  ? t.app.day.picked
+                  : t.app.day.tray}
+              {(inHand || marked) && (
+                // Only where there is likely a wheel – and a keyboard.
+                <span className="hidden [@media(hover:hover)]:inline">
+                  {" "}
+                  {inHand ? t.app.day.wheel : t.app.day.pickedKeys}
+                </span>
+              )}
+            </p>
+            <div className="flex shrink-0 items-center gap-3">
+              {inHand && (
+                // Turning without a wheel – a pair, apart from undo's arrow.
+                <div className="flex gap-1">
+                  {(
+                    [
+                      [-STEP, t.app.day.turnLeft, ""],
+                      // The same arrow, the other way round.
+                      [STEP, t.app.day.turnRight, "-scale-x-100"],
+                    ] as const
+                  ).map(([degrees, label, flip]) => (
+                    <button
+                      aria-label={label}
+                      className={ROUND_BUTTON}
+                      key={degrees}
+                      onClick={() => turnBy(degrees)}
+                      title={label}
+                      type="button"
+                    >
+                      <svg
+                        aria-hidden="true"
+                        className={cn("h-4.5 w-4.5", flip)}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2.6"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                        <path d="M3 3v5h5" />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {marked && (
+                <Button
+                  aria-keyshortcuts="Delete Backspace"
+                  onClick={() => remove(marked)}
+                  size="sm"
+                  variant="plain"
+                >
+                  {t.app.day.remove}
+                </Button>
+              )}
+              <button
+                aria-label={t.app.day.undo}
+                className={ROUND_BUTTON}
+                disabled={!undoable}
+                onClick={undo}
+                title={t.app.day.undo}
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  className="h-4.5 w-4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2.8"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M9 14 4 9l5-5" />
+                  <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {stamps.length === 0 ? (
+            <p className="text-muted text-sm">{t.app.noStamps}</p>
+          ) : (
+            // Room all round inside the scroller (it clips both ways): a stamp
+            // can lift, turn and wear its badge and focus ring without losing a
+            // corner. The one in hand: lifted, its line drawn thick.
+            <div className="-m-4 flex gap-2.5 overflow-x-auto p-4">
+              {stamps.map((s) => (
+                // Its name on a tag when pointed at – in the top layer, so the
+                // scroller doesn't clip it. (Another anchor than the shelf's.)
+                <NameTag id={`tray-${s.id}`} key={s.id} text={s.name}>
+                  {({ onClick: hideTag, ...anchor }) => (
+                    <button
+                      {...anchor}
+                      aria-label={s.name || t.app.day.print}
+                      aria-pressed={held === s.id}
+                      className={cn(
+                        "scribble scribble-thin relative h-20 w-20 shrink-0 rounded-3xl p-1 transition-transform duration-150 ease-out",
+                        held === s.id
+                          ? "scribble-bold -translate-y-1.5"
+                          : "hover:-rotate-6 hover:scribble-boil active:scale-90"
+                      )}
+                      onClick={(event) => {
+                        hideTag();
+                        // By keyboard there is no pointing at the page: the stamp
+                        // comes down somewhere on it – in the hand's ink if it is
+                        // the one held, else in its own.
+                        if (event.detail === 0) {
+                          const spot = () => 0.25 + Math.random() * 0.5;
+                          print(
+                            s,
+                            { x: spot(), y: spot() },
+                            tidy(turn.current),
+                            held === s.id ? ink : knownKey(s.color, palette)
+                          );
+                          return;
+                        }
+                        take(held === s.id ? null : s.id);
+                      }}
+                      type="button"
+                    >
+                      <span className="block">
+                        <Sticker className="pointer-events-none" stamp={s} />
+                      </span>
+                      {s.drawing?.special && (
+                        // A stamp for the big days.
+                        <Sparkle className="pointer-events-none absolute top-1 right-1 h-3.5 w-3.5 text-ink" />
+                      )}
+                      {held === s.id && (
+                        // (A frame is `relative` – the badge goes in a box that isn't.)
+                        <span className="absolute -bottom-3 left-1/2 flex -translate-x-1/2 animate-fade">
+                          <span
+                            className={cn(
+                              BADGE,
+                              "scribble-ink whitespace-nowrap px-1.5 text-[10px]"
+                            )}
+                          >
+                            {t.app.day.inHand}
+                          </span>
+                        </span>
+                      )}
+                    </button>
+                  )}
+                </NameTag>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Pressed, the stamp is as wide as its print – a special one wider. */}

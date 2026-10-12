@@ -65,6 +65,8 @@ Stand: 12.10.2026
 - Tagesansicht: Stempel kommt in seiner eigenen Farbe; Namensschild beim
   Hover in der Stempelauswahl.
 - Kontomenü und Sync-Notiz schließen bei Klick daneben.
+- Sheets scrollen in sich (Titel bleibt, ohne Scrollleiste, Fade an den
+  Rändern) – auf dem iPhone: scrollt die Seite dahinter wirklich nicht mit?
 - STL in einem echten Slicer: steht jetzt auf der Gummifläche, Knauf nach
   oben; größere Vertiefungen (z. B. das Innere eines Herzens) brauchen
   Stützen „nur vom Druckbett“.
@@ -88,6 +90,7 @@ Stand: 12.10.2026
 - das textfeld wird auch in der übersicht berücksichtigt (also skribble text linie zickzack oder so)
 - auf der startseite sollte eher today gezeigt werden und dann der monat als übersicht. also so wie jetzt, aber today bekommt extra nochmal eine eigene view (es gibt einen toggle je kalender, today ist aber zuerst ausgewählt)
 - die slug des kalenders ergibt sich aus dem namen. man muss aber nach account auflösen, weil ja mehrere accounts die gleichen namen nutzen. also das muss schon sinn ergeben
+- jahresansicht als dritte ansicht (heute / monat / jahr): zwölf kleine monate, klick auf monat → monat, klick auf tag → tag
 - die ansicht (heute / monat) steht als slug dahinter in der adresse: `/de/app/{kalender}/{heute|monat}` – so bleibt sie beim neu laden und lässt sich verlinken
 - meantime habe ich die google url bestätigungsfile in public gelegt
 

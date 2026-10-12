@@ -187,22 +187,25 @@ const Special = ({ hex, wave }: { hex: string; wave: Turn }) => (
  * from a little way off: humps, a loop, a gap. Drawn once, in a box of
  * 46 × 8.
  */
-const WRITING =
-  "M1 6.5C2 6.5 2.4 3 3.4 3S4.3 6.5 5.3 6.5 6.4 2.6 7.4 2.6 8.2 6.5 9.2 6.5 10.3 3.6 11.2 3.6 11.8 6.5 12.8 6.5 14.4 0.8 15.3 0.8 15.6 4.6 14.6 5.6 15.6 6.6 16.8 6.6 17.8 3.6 18.8 3.6 19.3 6.5 20.4 6.4M25.2 6.5C26.2 6.5 26.6 3.2 27.6 3.2S28.4 6.5 29.4 6.5 30.4 3 31.4 3 32 6.5 33 6.5 34.6 1.2 35.5 1.2 35.7 5 34.8 5.8 35.8 6.6 37 6.6 38 3.4 39 3.4 39.6 6.5 40.6 6.5 42 4.4 43 4.6 43.4 6.2 45 6";
+const WRITING = [
+  "M1 6.5C2 6.5 2.4 3 3.4 3S4.3 6.5 5.3 6.5 6.4 2.6 7.4 2.6 8.2 6.5 9.2 6.5 10.3 3.6 11.2 3.6 11.8 6.5 12.8 6.5 14.4 0.8 15.3 0.8 15.6 4.6 14.6 5.6 15.6 6.6 16.8 6.6 17.8 3.6 18.8 3.6 19.3 6.5 20.4 6.4",
+  "M25.2 6.5C26.2 6.5 26.6 3.2 27.6 3.2S28.4 6.5 29.4 6.5 30.4 3 31.4 3 32 6.5 33 6.5 34.6 1.2 35.5 1.2 35.7 5 34.8 5.8 35.8 6.6 37 6.6 38 3.4 39 3.4 39.6 6.5 40.6 6.5 42 4.4 43 4.6 43.4 6.2 45 6",
+];
 
 /**
  * A day with a note: a line of scribbled writing along its foot, in the
  * marker's ink – what is written shows on the day's sheet, this only says
  * that something is. It lies under the day's prints like the special frame:
- * they are stamped over it, none is covered. On the left, clear of a
- * phone's count; on a special day clear of the frame's sparkle there too.
+ * they are stamped over it, none is covered. On the left, clear of the
+ * frame's sparkle on a special day; on a phone one word only, clear of the
+ * count in the other corner.
  */
 const Writing = ({ special, wave }: { special: boolean; wave: Turn }) => (
   <m.svg
     aria-hidden="true"
     className={cn(
       "pointer-events-none absolute bottom-1 -z-10 aspect-46/8 h-1.5 overflow-visible stroke-[1.25] sm:bottom-2 sm:h-2.5 sm:stroke-[1.6]",
-      special ? "left-3.5 sm:left-6" : "left-1 sm:left-2"
+      special ? "left-2.5 sm:left-6" : "left-1 sm:left-2"
     )}
     custom={wave}
     fill="none"
@@ -212,7 +215,12 @@ const Writing = ({ special, wave }: { special: boolean; wave: Turn }) => (
     variants={FRAME_TURN}
     viewBox="0 0 46 8"
   >
-    <path d={WRITING} vectorEffect="non-scaling-stroke" />
+    <path d={WRITING[0]} vectorEffect="non-scaling-stroke" />
+    <path
+      className="max-sm:hidden"
+      d={WRITING[1]}
+      vectorEffect="non-scaling-stroke"
+    />
   </m.svg>
 );
 

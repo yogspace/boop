@@ -21,7 +21,7 @@ Each feature lives in `src/features/<name>/` and brings its own collections, glo
 |---|---|
 | `admin` | CMS logins (`users`), first admin from the environment, Seeds page |
 | `accounts` | People using Boop (`accounts`): email + password, verification and reset mails (DE/EN), a first calendar at sign-up, cleanup on delete; the app's own login cookie (`session.ts`, `cookie.ts`) with the account's ways out – its data as a JSON file (`export.ts`), deleting itself with its password; account forms |
-| `calendar` | `calendars`, `stamps`, `placements`, `invites` and the shared model (`model.ts`); member endpoints (share by email, remove, leave); invitations by mail for addresses without an account, good for 14 days (`invites.ts`, `invite-expiry.ts`); shapes and rim patterns (`outline.ts`), SVG import (`import-svg.ts`), the stamp colors from the CMS (`palette.ts`), the flat stamp/print renderer (`stamp-svg.tsx`) |
+| `calendar` | `calendars`, `stamps`, `placements`, `notes`, `invites` and the shared model (`model.ts`); a day's note as data – checked, read from the editor, its id (`note.ts`); member endpoints (share by email, remove, leave); invitations by mail for addresses without an account, good for 14 days (`invites.ts`, `invite-expiry.ts`); shapes and rim patterns (`outline.ts`), SVG import (`import-svg.ts`), the stamp colors from the CMS (`palette.ts`), the flat stamp/print renderer (`stamp-svg.tsx`) |
 | `sync` | `POST /api/sync` – the app's only way to read and write calendar data – and `GET /api/sync/live`, the live nudges (see below) |
 | `stickers` | Stamps in 3D (three.js): the model with raised doodle and “boop” watermark (`build.ts`), the cartoon ink-line renderer (`ink.ts`) and the special stamps' sparkles (`glitter.ts`), pictures for lists (`render.ts`), the live view (`sticker-view.tsx`), the stamp in hand (`stamp-hand.tsx`), STL export for 3D printing (`export-stl.ts`) |
 | `transitions` | Page transitions with the View Transitions API |
@@ -41,7 +41,8 @@ The app always reads and writes the device's copy first. Every change is noted i
 - Documents get their id on the device (UUID), so things made offline keep their id on the server.
 - Every document carries `changedAt` (time of the change on the device): **the later change wins**.
 - Deleting keeps a marker (`deleted: true`, without content) so other devices remove it too.
-- The server checks every change (`src/features/sync/apply.ts`): only owners rename/delete calendars and change their stamps; members place, move and remove stamps in their calendars.
+- The server checks every change (`src/features/sync/apply.ts`): only owners rename/delete calendars and change their stamps; members place, move and remove stamps in their calendars, and write the days' notes.
+- **Notes** (`notes`): one per day of a calendar, its id made of calendar and day (UUID v5, `calendar/note.ts`) – written on two devices at once, it is still one note, and the later change wins. Stored as lines of runs (`{ text, b?, u? }`), never HTML, checked on the server and again before it shows. Emptied, a note is deleted, and may be written again. They go with their calendar.
 - A sync answers with everything new since the last one; calendars new to a device come complete; stamps a device lacks are asked for by id.
 
 **Live:** every open app holds `GET /api/sync/live` (Server-Sent Events). After a sync that changed something, the server nudges all members of the affected calendars, and their devices sync at once. The nudge carries no data. It lives in memory, which fits one server process (several would need a shared channel). Polling every 30 s and on focus remains as the net below.
