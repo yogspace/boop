@@ -619,7 +619,7 @@ export const DaySheet = ({
                 {ink === c && (
                   // The one in use: ringed with a marker.
                   <Circle
-                    className="pointer-events-none absolute -inset-1 animate-fade text-ink [&_path]:[vector-effect:non-scaling-stroke]"
+                    className="pointer-events-none absolute -top-1 -left-1 h-13 w-13 animate-fade text-ink [&_path]:[vector-effect:non-scaling-stroke]"
                     preserveAspectRatio="none"
                     strokeWidth={2.5}
                   />

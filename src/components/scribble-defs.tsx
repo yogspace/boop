@@ -1,10 +1,10 @@
 /**
- * The marker's unsteady hand – the SVG filters behind every scribbled frame
- * and line (the `scribble` utilities in styles.css). Each pushes what it is
- * given about by a little noise, so a plain border comes out hand-drawn.
+ * The marker's wobble – the SVG filters behind every scribbled frame and
+ * line (the `scribble` utilities in styles.css). Each pushes what it is given
+ * about by a little noise, so a plain border comes out as if drawn freely.
  * Mounted once per page (the language's layout); CSS points at them by id.
  *
- * Three wobbles each – the same hand, three times: siblings take turns with
+ * Three wobbles each – the same line, drawn three times: siblings take turns with
  * them, and a “boiling” line swaps through them.
  *
  * - `scribble-1…3`: frames – buttons, fields, cards, sheets. Little room

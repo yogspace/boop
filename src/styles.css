@@ -221,8 +221,8 @@
   }
 
   /*
-   * The marker's three unsteady hands (components/scribble-defs.tsx) – the
-   * wobbles a scribbled frame takes turns with. `scribble-sm` swaps them for
+   * The marker's three wobbles (components/scribble-defs.tsx) – what a
+   * scribbled frame takes turns with. `scribble-sm` swaps them for
    * the finer ones.
    */
   :root {
@@ -250,7 +250,7 @@
  *                        badges): a finer wobble with room, so nothing is cut
  *   scribble-seed-1 … 3  which wobble – siblings take turns by themselves
  *   scribble-boil        the line “boils”: the three wobbles in turn, like a
- *                        hand-drawn GIF. Sparingly – hover:scribble-boil, a
+ *                        drawn-by-frame GIF. Sparingly – hover:scribble-boil, a
  *                        hero doodle – never many at once.
  *   scribble-field       a frame around a control: its focus shows on the
  *                        frame (the control itself: outline-none)
@@ -366,13 +366,13 @@
 }
 
 /*
- * Scribbled lines and shading – the same hand without a box.
+ * Scribbled lines and shading – the same marker without a box.
  *
- *   scribble-rule       an empty block as a hand-ruled line (currentColor,
+ *   scribble-rule       an empty block as a ruled marker line (currentColor,
  *                       --scribble-width, 2px)
  *   scribble-underline  a marker line under the text it is on (its ::after) –
  *                       for one line of text; also hover:scribble-underline
- *   scribble-grid       a hand-ruled table over a CSS grid of equal cells:
+ *   scribble-grid       a marker-ruled table over a CSS grid of equal cells:
  *                       --cols (7) and --rows of them, a frame around, and –
  *                       with --shade: n – the last n columns hatched
  *   boil                the element itself boils (a doodle: `boil`,
