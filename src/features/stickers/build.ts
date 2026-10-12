@@ -430,10 +430,7 @@ export const buildSticker = (
   const light = tint(hex, dark ? BLOCK_TINT.dark : BLOCK_TINT.light);
   const blockMaterial = toonMaterial(THREE, "block", light);
   const knob = rgb(hex);
-  // Below any of the face's ground is the rubber's side.
-  const rubberMaterial = toonMaterial(THREE, "rubber", knob, {
-    SIDE: -(RUBBER.relief + 0.01),
-  });
+  const rubberMaterial = toonMaterial(THREE, "rubber", knob);
 
   // The rubber: rim and doodle raised to z = 0, the ground below.
   const face = faceMap(input, mirror);

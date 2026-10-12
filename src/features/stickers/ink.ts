@@ -25,8 +25,8 @@ export const LINE = 0.016;
 const THINNEST = 1.4;
 /** The ink's color, as sRGB. */
 const INK: Rgb = [0.067, 0.063, 0.078];
-/** Shade: the colors turned from the light take this much of a soft violet. */
-const SHADE: Rgb = [0.83, 0.8, 0.93];
+/** Shade: the colors turned from the light, deeper and a touch violet. */
+const SHADE: Rgb = [0.93, 0.9, 0.98];
 
 /**
  * What every stamp's materials read, set right before it is drawn: how much
@@ -54,7 +54,7 @@ export const tint = (hex: string, white: number): Rgb =>
   rgb(hex).map((c) => c + (1 - c) * white) as unknown as Rgb;
 
 const shaded = (color: Rgb): Rgb =>
-  color.map((c, i) => c * SHADE[i]) as unknown as Rgb;
+  color.map((c, i) => c ** 1.4 * SHADE[i]) as unknown as Rgb;
 
 const vec = (THREE: typeof Three, color: Rgb) =>
   new THREE.Vector3(color[0], color[1], color[2]);
@@ -64,8 +64,8 @@ export type Part = "rubber" | "block" | "plate" | "neck" | "ball";
 
 /**
  * What a spot shows – a different number, a line between. Each part has
- * room for a few: the rubber's ground, its raised parts and its side; the
- * block's back and the rest of it.
+ * room for a few: the rubber's ground and its raised parts; the block's back
+ * and the rest of it.
  */
 const CODE: Record<Part, number> = {
   rubber: 1,
@@ -112,8 +112,9 @@ varying vec3 vLocal;
 varying vec3 vNormal;
 varying vec3 vFacing;
 
-// The light, from the upper left in front – fixed to the view.
-const vec3 LIGHT = vec3(-0.46, 0.6, 0.65);
+// The light, from the front and a little above left – fixed to the view:
+// only what turns well away from it takes the shade.
+const vec3 LIGHT = vec3(-0.36, 0.46, 0.81);
 
 // Low and slow, so the lines swell and thin like drawn by hand – stuck to
 // the stamp, so nothing crawls while it turns.
@@ -125,7 +126,7 @@ float wobble(vec3 p) {
 void main() {
   float light = dot(normalize(vNormal), normalize(LIGHT));
   float soft = fwidth(light);
-  float dark = amount * (1.0 - smoothstep(0.08 - soft, 0.08 + soft, light));
+  float dark = amount * (1.0 - smoothstep(-0.18 - soft, -0.18 + soft, light));
   float part = code;
   vec3 fill = color;
   vec3 shadow = shade;
@@ -134,10 +135,8 @@ void main() {
   float edge = clamp((vRelief - 0.5) / max(fwidth(vRelief), 1e-4) + 0.5, 0.0, 1.0);
   fill = mix(ground, ink, edge);
   shadow = mix(groundShade, inkShade, edge);
-  // The face, or the side around it (straight down, below any of the face).
-  vec3 facet = normalize(cross(dFdx(vLocal), dFdy(vLocal)));
-  bool side = abs(facet.z) < 0.05 || vLocal.z < SIDE;
-  part += side ? 2.0 : vRelief > 0.5 ? 1.0 : 0.0;
+  // Raised or not – the side goes with the rim, inked as far as it is.
+  if (vRelief > 0.5) part += 1.0;
 #endif
 #ifdef BLOCK
   // Its back (extruded towards the face, so −Z) – the rest, the rounded
@@ -160,7 +159,7 @@ void main() {
 /**
  * A stamp part's material: its flat color (sRGB) and shade. The rubber's
  * colors come from `inkRubber()`; `defines` carry what the shader must know
- * of the model (the rubber's SIDE, the plate's GROOVE).
+ * of the model (the plate's GROOVE).
  */
 export const toonMaterial = (
   THREE: typeof Three,
