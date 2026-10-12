@@ -177,7 +177,10 @@ export interface Account {
 export interface Calendar {
   id: string;
   name: string;
-  color: 'ink' | 'coral' | 'sun' | 'mint' | 'sky' | 'grape' | 'pink';
+  /**
+   * A stamp color's key (“Site” → Stamp colors), e.g. “mint”.
+   */
+  color: string;
   owner: string | Account;
   members?: (string | Account)[] | null;
   /**
@@ -198,7 +201,10 @@ export interface Calendar {
 export interface Stamp {
   id: string;
   name?: string | null;
-  color: 'ink' | 'coral' | 'sun' | 'mint' | 'sky' | 'grape' | 'pink';
+  /**
+   * A stamp color's key (“Site” → Stamp colors), e.g. “mint”.
+   */
+  color: string;
   shape: 'circle' | 'square' | 'octagon' | 'triangle' | 'diamond';
   drawing?:
     | {
@@ -239,7 +245,10 @@ export interface Placement {
   rotation?: number | null;
   scale?: number | null;
   z?: number | null;
-  ink?: ('ink' | 'coral' | 'sun' | 'mint' | 'sky' | 'grape' | 'pink') | null;
+  /**
+   * A stamp color's key (“Site” → Stamp colors), e.g. “mint”.
+   */
+  ink?: string | null;
   placedBy?: (string | null) | Account;
   changedAt: string;
   deleted?: boolean | null;

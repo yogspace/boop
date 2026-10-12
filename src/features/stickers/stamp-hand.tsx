@@ -3,8 +3,8 @@
 import { type Ref, useEffect, useImperativeHandle, useState } from "react";
 import type * as Three from "three";
 import type { ColorName, StampShape } from "@/features/calendar/model";
-import { colorKeys } from "@/features/calendar/palette";
 import { outlinePoints } from "@/features/calendar/outline";
+import { colorKeys } from "@/features/calendar/palette";
 import {
   buildSticker,
   disposeSticker,

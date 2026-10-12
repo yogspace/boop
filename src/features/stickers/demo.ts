@@ -2,7 +2,9 @@ import type { ColorName, Drawing, StampShape } from "@/features/calendar/model";
 
 /**
  * A few stamps drawn by code – for the front page and empty states. Same
- * format as drawn ones: strokes of points in the unit square.
+ * format as drawn ones: strokes of points in the unit square. Their colors
+ * are keys of the stamp colors the code knows (palette.ts) – one the CMS no
+ * longer has shows in its first color, like any stamp's.
  */
 
 const r3 = (n: number) => Math.round(n * 1000) / 1000;
