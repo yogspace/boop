@@ -22,9 +22,13 @@ import { createInk } from "./ink";
  * the drawing; its ink lines come as it grows (ink.ts).
  */
 
-/** The square box a stamp is drawn and shown in – dotted paper. */
+/**
+ * The square box a stamp is drawn and shown in – dotted white paper, drawn
+ * round with the marker. The frame is the box's ::before (styles.css): it
+ * moves nothing inside, so the drawing and the 3D stamp sit where they did.
+ */
 export const STAGE =
-  "relative aspect-square w-full rounded-3xl bg-soft bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]";
+  "scribble scribble-clear relative aspect-square w-full rounded-3xl bg-card bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]";
 
 /** The drawing's view box: the unit square and a little beyond (its rim). */
 const VIEW_BOX = 1.04;

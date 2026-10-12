@@ -17,8 +17,8 @@
  * Boop's look: black marker on white paper. Everything that frames, labels
  * or decorates is scribbled line art in one ink – wobbly frames (the
  * `scribble` utilities below), doodles (components/doodles.tsx), underlines.
- * The ONLY color and gloss on a page are the stamps – glossy 3D stickers –
- * and the ink prints they leave. So: no tinted surfaces, no colored chips,
+ * The ONLY color on a page are the stamps – 3D rubber stamps, drawn like a
+ * cartoon – and the ink prints they leave. So: no tinted surfaces, no colored chips,
  * no shadows; a state shows as a filled frame, a thicker line, a scribble
  * around it.
  */

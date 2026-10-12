@@ -1,6 +1,6 @@
 # Boop
 
-A cute doodle stamp calendar. Draw your own stamp – round or square, a few lines – and it turns into a 3D rubber stamp with your doodle engraved. Dip it into an ink pad and boop it onto your days; every print is a little imperfect, like a real one. Calendars can be shared with other accounts (or invited by mail), and changes show up live on everyone's devices. Stamps can be downloaded as STL to 3D-print them for real. Boop installs like an app and works offline; changes sync once you're back online.
+A cute doodle stamp calendar. Draw your own stamp – one of five shapes, a few lines, or an uploaded SVG – and it turns into a 3D rubber stamp with your doodle standing out of its face. Dip it into an ink pad and boop it onto your days; every print is a little imperfect, like a real one. Calendars can be shared with other accounts (or invited by mail), and changes show up live on everyone's devices. Stamps can be downloaded as STL to 3D-print them for real. Boop installs like an app and works offline; changes sync once you're back online.
 
 Live: [boop.mxwr.de](https://boop.mxwr.de)
 
@@ -20,10 +20,10 @@ Each feature lives in `src/features/<name>/` and brings its own collections, glo
 | Feature | What it does |
 |---|---|
 | `admin` | CMS logins (`users`), first admin from the environment, Seeds page |
-| `accounts` | People using Boop (`accounts`): email + password, verification and reset mails (DE/EN), personal calendar at sign-up, cleanup on delete; the app's own login cookie (`session.ts`); account forms |
-| `calendar` | `calendars`, `stamps`, `placements`, `invites` and the shared model (`model.ts`); member endpoints (share by email, remove, leave); invitations by mail for addresses without an account (`invites.ts`); the flat stamp/print renderer (`stamp-svg.tsx`) |
+| `accounts` | People using Boop (`accounts`): email + password, verification and reset mails (DE/EN), a first calendar at sign-up, cleanup on delete; the app's own login cookie (`session.ts`); account forms |
+| `calendar` | `calendars`, `stamps`, `placements`, `invites` and the shared model (`model.ts`); member endpoints (share by email, remove, leave); invitations by mail for addresses without an account (`invites.ts`); shapes and rim patterns (`outline.ts`), SVG import (`import-svg.ts`), the stamp colors from the CMS (`palette.ts`), the flat stamp/print renderer (`stamp-svg.tsx`) |
 | `sync` | `POST /api/sync` – the app's only way to read and write calendar data – and `GET /api/sync/live`, the live nudges (see below) |
-| `stickers` | Stamps in 3D (three.js): the model with engraved doodle and “boop” watermark (`build.ts`), pictures for lists (`render.ts`), the live view (`sticker-view.tsx`), STL export for 3D printing (`export-stl.ts`) |
+| `stickers` | Stamps in 3D (three.js): the model with raised doodle and “boop” watermark (`build.ts`), the cartoon ink-line renderer (`ink.ts`) and the special stamps' sparkles (`glitter.ts`), pictures for lists (`render.ts`), the live view (`sticker-view.tsx`), the stamp in hand (`stamp-hand.tsx`), STL export for 3D printing (`export-stl.ts`) |
 | `transitions` | Page transitions with the View Transitions API |
 | `offline` | The device's copy: IndexedDB (`db.ts`) and the valtio store with outbox and sync (`store.ts`) |
 | `app` | The app UI: calendars, month view, day page with ink pads, drawing a stamp, a stamp up close, sharing, dialogs |
@@ -50,9 +50,9 @@ The app page is static and the same for everyone, so the service worker can open
 
 ## Stamps and prints
 
-A stamp is drawn on a round or square base in one color. In 3D (`features/stickers`) it becomes a rubber stamp: a block in its color with a knob, the doodle engraved into the rubber face, “boop” engraved on top. The rubber face is a closed surface built from a height map of the doodle, so the same model exports as a printable STL (40 mm, engraving mirrored so the real print reads correctly).
+A stamp is drawn on one of five shapes (circle, square, octagon, triangle, diamond) in one color – a key of the stamp colors kept in the CMS (“Site” → Stamp colors). Its drawing may also hold an uploaded SVG's filled areas, a rim pattern, `inverted` (the face in ink, the doodle cut out) and `special` (bigger prints that glitter). In 3D (`features/stickers`) it becomes a rubber stamp drawn like a cartoon – flat colors and ink lines: a block with a knob, the rim and doodle standing out of the rubber face, “boop” engraved on top. The rubber face is a closed surface built from a height map of the drawing, so the same model exports as a printable STL (40 mm, mirrored so the real print reads correctly).
 
-A print (`placements`) records the ink pad it was made with (`ink`). It is drawn negative, like an engraved stamp prints: the shape in ink, the doodle as gaps. A per-print seed makes coverage, grain and edges a little different every time.
+A print (`placements`) records the ink pad it was made with (`ink`). It shows what stands out of the rubber: rim and doodle in ink (an inverted stamp: the face in ink, the doodle as gaps). A per-print seed makes coverage, grain and edges a little different every time.
 
 ## Access
 

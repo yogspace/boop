@@ -198,7 +198,7 @@ const useFollow = (scene: React.RefObject<HTMLDivElement | null>) => {
 
 /**
  * The front page's picture: a month in a tilted 3D card, prints on its days,
- * glossy stamps floating around it – turning to the pointer. The card is
+ * 3D stamps floating around it – turning to the pointer. The card is
  * drawn with the marker (a scribbled sheet, a ruled table, the weekend
  * hatched, today's number in an ink blob); the stamps and their prints are
  * the color.

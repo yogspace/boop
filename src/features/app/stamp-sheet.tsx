@@ -10,7 +10,6 @@ import { PRINT_MM, stampStl, stlName } from "@/features/stickers/export-stl";
 import { STAGE, StickerView } from "@/features/stickers/sticker-view";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
-import { cn } from "@/lib/cn";
 import { Sheet } from "./sheet";
 
 /**
@@ -80,8 +79,7 @@ export const StampSheet = ({
           {t.app.stamp.by(firstName(stamp.owner))}
         </p>
       )}
-      {/* Drawn round with the marker, like the drawer's – the box as it was. */}
-      <div className={cn(STAGE, "scribble scribble-clear bg-card")}>
+      <div className={STAGE}>
         <StickerView className="absolute inset-0" stamp={input} />
       </div>
       <p className="-mt-2 text-center text-muted text-sm">{t.app.draw.turn}</p>

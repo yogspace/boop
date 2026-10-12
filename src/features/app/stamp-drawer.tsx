@@ -359,13 +359,7 @@ export const StampDrawer = ({
       {/* The stage stays where it is: the drawing, then the stamp over it. */}
       <div
         aria-label={draws ? t.app.draw.hint : t.app.draw.turn}
-        className={cn(
-          STAGE,
-          // Drawn round with the marker, on white paper – the box itself
-          // (and so where the drawing and the 3D stamp sit) as it was.
-          "scribble scribble-clear touch-none bg-card",
-          draws && "cursor-crosshair"
-        )}
+        className={cn(STAGE, "touch-none", draws && "cursor-crosshair")}
         onPointerCancel={draws ? stop : undefined}
         onPointerDown={draws ? onDown : undefined}
         onPointerLeave={draws ? stop : undefined}

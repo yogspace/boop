@@ -19,10 +19,7 @@ type Picture = {
  * The stamp's picture – null until rendered. One rendered before shows from
  * the first paint; a new one keeps the old in place until it's there.
  */
-const useStickerImage = (
-  input: StickerInput | null,
-  kind: Pose = "face"
-) => {
+const useStickerImage = (input: StickerInput | null, kind: Pose = "face") => {
   const [picture, setPicture] = useState<Picture>({
     url: null,
     fresh: false,

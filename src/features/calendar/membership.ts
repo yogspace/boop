@@ -74,9 +74,9 @@ export const calendarById = async (
 };
 
 /**
- * A first calendar for an account – at sign-up, and at a sync that finds it
- * in none any more (its last one deleted, or taken out of it by its owner):
- * nobody is without one. In the calendars' default color (color-field.ts).
+ * A first calendar for an account, made at sign-up – a calendar like any
+ * other: it can go, and then the account may have none. In the calendars'
+ * default color (color-field.ts).
  */
 export const createFirstCalendar = async (
   req: PayloadRequest,
