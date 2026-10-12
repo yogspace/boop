@@ -51,7 +51,7 @@ const BLOCK = { depth: 0.16, bevel: 0.04 };
 const KNOB = { neck: 0.11, height: 0.24, ball: 0.2 };
 const PLATE = { size: 0.78, thickness: 0.02, groove: 0.012 };
 /** How much white the block's tint takes – a dark color more. */
-const BLOCK_TINT = { light: 0.45, dark: 0.55 };
+const BLOCK_TINT = { light: 0.45, dark: 0.68 };
 /** The rubber's ground: the ink with this much white – the drawing's. */
 const GROUND = 0.86;
 /** Resolution of the shaped surfaces: rings × steps around. */

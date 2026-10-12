@@ -10,13 +10,16 @@ import {
   type StickerInput,
   stage,
 } from "./build";
+import { addGlitter } from "./glitter";
+import { createInk } from "./ink";
 
 /**
  * The stamp being made, live in 3D. It starts exactly as the drawing –
  * face-on, its rubber right over the doodle, line for line – holds still for
  * a beat, then springs round to show itself as a stamp: the inked face, the
  * block, the knob. Drag to turn it (flicked, it spins on); let go and it
- * swings back, and sways gently while it waits.
+ * swings back, and sways gently while it waits. Drawn flat at first, like
+ * the drawing; its ink lines come as it grows (ink.ts).
  */
 
 /** The square box a stamp is drawn and shown in – dotted paper. */
@@ -90,23 +93,20 @@ export const StickerView = ({
       const THREE = await import("three");
       const box = host.current;
       if (gone || !box) return;
+      // Antialiased: the first frames, flat like the drawing, go straight
+      // onto it.
       const renderer = new THREE.WebGLRenderer({
         alpha: true,
         antialias: true,
       });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
-      renderer.toneMapping = THREE.NeutralToneMapping;
-      const { scene, camera } = await stage(THREE, renderer);
-      if (gone) {
-        scene.environment?.dispose();
-        renderer.dispose();
-        renderer.forceContextLoss();
-        return;
-      }
+      const { scene, camera } = stage(THREE);
+      const ink = createInk(THREE, renderer);
       const sticker = buildSticker(THREE, stamp);
       scene.add(sticker);
       const ball = ballOf(THREE, sticker);
+      // After measuring – the sparkles may reach out of the ball.
+      addGlitter(THREE, sticker, stamp);
 
       // Laid over its box, never stretching it – so the box can shrink.
       const canvas = renderer.domElement;
@@ -300,7 +300,13 @@ export const StickerView = ({
         pivot(sticker, grow * ball.pivot);
         sticker.quaternion.copy(turn);
         sticker.position.y = calm * 0.012 * Math.sin(time * 1.5);
-        renderer.render(scene, camera);
+        // The lines come as it grows out of the drawing.
+        ink.render(scene, camera, {
+          unit: (renderer.getPixelRatio() * height * sticker.scale.x) / view,
+          amount: Math.min(1, Math.max(0, grow * 1.6)),
+          time,
+          twinkle: !reduced,
+        });
         if (fresh) shown();
       };
       // Only while the page is looked at.
@@ -323,7 +329,7 @@ export const StickerView = ({
         canvas.removeEventListener("pointercancel", up);
         canvas.removeEventListener("lostpointercapture", up);
         disposeSticker(sticker);
-        scene.environment?.dispose();
+        ink.dispose();
         renderer.dispose();
         renderer.forceContextLoss();
         canvas.remove();

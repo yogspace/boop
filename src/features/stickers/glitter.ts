@@ -9,13 +9,16 @@ import { inkState, OVER } from "./ink";
  * and are drawn over everything (ink.ts' OVER), one quad each, all in one go.
  */
 
-/** Where (the stamp's own space: face at z = 0, knob towards −Z) and how big. */
+/**
+ * Where (the stamp's own space: face at z = 0, knob towards −Z) and how big
+ * – all close round its middle, so none leaves a picture.
+ */
 const SPARKLES: [number, number, number, number][] = [
-  [0.44, 0.4, 0.06, 0.12],
-  [-0.5, -0.12, 0.02, 0.08],
-  [0.16, -0.5, 0.05, 0.065],
-  [-0.32, 0.44, -0.24, 0.085],
-  [0.36, 0.02, -0.5, 0.06],
+  [0.4, 0.3, -0.15, 0.11],
+  [-0.48, -0.1, -0.3, 0.08],
+  [0.12, -0.46, -0.2, 0.065],
+  [-0.28, 0.4, -0.55, 0.085],
+  [0.3, -0.1, -0.75, 0.06],
 ];
 
 const VERTEX = /* glsl */ `
@@ -45,7 +48,7 @@ varying vec2 vUv;
 // A four-pointed star with curved-in sides (after Inigo Quilez' sdStar).
 float star(vec2 p, float r) {
   const float an = 3.141593 / 4.0;
-  const float en = 3.141593 / 2.35;
+  const float en = 3.141593 / 2.7;
   vec2 acs = vec2(cos(an), sin(an));
   vec2 ecs = vec2(cos(en), sin(en));
   float bn = mod(atan(p.x, p.y), 2.0 * an) - an;
