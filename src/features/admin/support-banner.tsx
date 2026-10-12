@@ -18,9 +18,9 @@ const band: CSSProperties = {
 export const SupportBanner = () =>
   supportMode() ? (
     <div role="status" style={band}>
-      Support mode: personal content visible – calendars, stamps, prints,
-      notes, invitations and notification devices can be read here (not
-      changed). Take ADMIN_SUPPORT out of the server's environment when done.
+      Support mode: personal content visible – calendars, stamps, prints, notes,
+      invitations and notification devices can be read here (not changed). Take
+      ADMIN_SUPPORT out of the server's environment when done.
     </div>
   ) : null;
 

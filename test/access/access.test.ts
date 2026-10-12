@@ -21,11 +21,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
  */
 
 // The app's paths (@/…), which the tests don't resolve – each by its file.
-// A module asked for again while it is still loading (an import cycle, as
-// between invites.ts and session.ts) gets a live view of it, filled in once
-// it is there – what ESM itself does; waiting for it would wait forever.
+// Every file goes through one door, by either name: a module asked for again
+// while it is still loading (an import cycle, as between invites.ts and
+// session.ts) gets a live view of itself, filled in once it is there – as
+// ESM does it; waiting for it would wait forever.
 const sources = import.meta.glob(["../../src/**/*.ts", "../../src/**/*.tsx"]);
-for (const [file, load] of Object.entries(sources)) {
+for (const file of Object.keys(sources)) {
   let module: Record<PropertyKey, unknown> | undefined;
   let loading = false;
   const live = new Proxy(
@@ -35,16 +36,17 @@ for (const [file, load] of Object.entries(sources)) {
       has: (_, key) => !module || key in module,
     }
   );
-  const factory = async () => {
+  const door = async () => {
     if (module) return module;
     if (loading) return live;
     loading = true;
-    module = (await load()) as Record<PropertyKey, unknown>;
+    module = await vi.importActual<Record<PropertyKey, unknown>>(file);
     return module;
   };
-  const path = file.replace("../../src/", "@/").replace(/\.tsx?$/, "");
-  vi.doMock(path, factory);
-  if (path.endsWith("/index")) vi.doMock(path.slice(0, -6), factory);
+  const alias = file.replace("../../src/", "@/").replace(/\.tsx?$/, "");
+  vi.doMock(file, door);
+  vi.doMock(alias, door);
+  if (alias.endsWith("/index")) vi.doMock(alias.slice(0, -6), door);
 }
 // Only read at a request – never while the config is put together.
 vi.doMock("@payload-config", () => ({ default: {} }));
@@ -55,8 +57,10 @@ vi.doMock("payload", async (importOriginal) => ({
   buildConfig: (config: Config) => config,
 }));
 
-const config = ((await import("../../src/payload.config")) as { default: Config })
-  .default;
+// Typed as built (a promise) – here it is the object as written.
+const config = (
+  (await import("../../src/payload.config")) as unknown as { default: Config }
+).default;
 
 type Role = "anonymous" | "account" | "admin";
 type Who = "nobody" | "anyone" | "visitors" | "admin" | "support";
@@ -168,12 +172,17 @@ afterEach(() => {
 });
 
 describe("every collection and global", () => {
-  it("has its rules here", () => {
+  it("has its rules here – and every rule its collection", () => {
+    const slugs = collections.map((c) => c.slug);
+    const globalSlugs = globals.map((g) => g.slug);
+    expect(slugs.filter((slug) => !COLLECTIONS[slug])).toEqual([]);
+    expect(globalSlugs.filter((slug) => !GLOBALS[slug])).toEqual([]);
+    // Also: the config as written was read, not an empty one.
+    expect(Object.keys(COLLECTIONS).filter((s) => !slugs.includes(s))).toEqual(
+      []
+    );
     expect(
-      collections.map((c) => c.slug).filter((slug) => !COLLECTIONS[slug])
-    ).toEqual([]);
-    expect(
-      globals.map((g) => g.slug).filter((slug) => !GLOBALS[slug])
+      Object.keys(GLOBALS).filter((s) => !globalSlugs.includes(s))
     ).toEqual([]);
   });
 
@@ -258,13 +267,16 @@ describe("secrets", () => {
     ["invites", "token"],
     ["push-subscriptions", "keys"],
     ["push-subscriptions", "session"],
-  ])("%s.%s is never read over the API – support mode neither", async (slug, name) => {
-    support(true);
-    const read = (field(slug, name) as { access?: { read?: unknown } })?.access
-      ?.read;
-    expect(typeof read).toBe("function");
-    expect(await ask(read, "admin")).toBe(false);
-  });
+  ])(
+    "%s.%s is never read over the API – support mode neither",
+    async (slug, name) => {
+      support(true);
+      const read = (field(slug, name) as { access?: { read?: unknown } })
+        ?.access?.read;
+      expect(typeof read).toBe("function");
+      expect(await ask(read, "admin")).toBe(false);
+    }
+  );
 
   it("GraphQL stays off", () => {
     expect(config.graphQL?.disable).toBe(true);
