@@ -59,10 +59,11 @@ const POP = "animate-pop-in motion-reduce:animate-fade";
  * its place – then it pops in; where WebGL is missing, the flat drawing
  * does.
  *
- * Its face looks at the pointer (look.ts) – `look`: while that is over it,
- * or over the button, link or card (`group`) it is a part of, or the focus
- * is there (`hover`, the default); wherever the pointer is on the page
- * (`always` – for a few stamps in a scene); or not at all (`never`).
+ * It looks at you, a little towards the pointer (look.ts) – `look`: while
+ * that is over it, or over the button, link or card (`group`) it is a part
+ * of, or the focus is there (`hover`, the default); wherever the pointer is
+ * on the page (`always` – for a few stamps in a scene); or not at all
+ * (`never`).
  */
 export const Sticker = ({
   stamp,
@@ -89,19 +90,16 @@ export const Sticker = ({
   }, [url, looks, shape, color, drawing]);
   return (
     <span
-      className={cn("group/sticker relative block aspect-square", className)}
+      className={cn("relative block aspect-square", className)}
       ref={box}
       {...(label && { role: "img", "aria-label": label })}
     >
       {url ? (
         // The picture gives the box its size. Looking, the stamp is drawn
-        // live over it, and it hides meanwhile (`data-live`, look.ts).
+        // live over it, and it hides meanwhile (look.ts).
         <img
           alt=""
-          className={cn(
-            "h-full w-full object-contain group-data-live/sticker:invisible",
-            fresh && POP
-          )}
+          className={cn("h-full w-full object-contain", fresh && POP)}
           draggable={false}
           // A new picture pops in afresh.
           key={url}

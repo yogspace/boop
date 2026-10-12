@@ -171,7 +171,10 @@ const Home = async ({ params }: Props) => {
         </ol>
       </section>
 
-      <section className="scribble scribble-bold rounded-[36px] px-6 py-14 text-center">
+      {/* A `group`: wherever the pointer is in the box, the stamps above
+          look at it (stickers/look.ts) – and at you, when the button has
+          the focus. */}
+      <section className="group scribble scribble-bold rounded-[36px] px-6 py-14 text-center">
         <StickerRow className="mb-8" />
         <h2 className="text-balance text-4xl sm:text-5xl">
           {t.landing.closing}

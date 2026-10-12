@@ -85,6 +85,7 @@ export const syncEndpoint: Endpoint = {
       calendar: new Set(),
       stamp: new Set(),
       placement: new Set(),
+      note: new Set(),
     };
     const rejected: SyncResponse["rejected"] = [];
 
@@ -129,10 +130,14 @@ export const syncEndpoint: Endpoint = {
     if (changes.length > rejected.length) {
       void (async () => {
         const affected = new Set([...touched.calendar, ...ctx.unshared]);
-        if (touched.placement.size) {
+        for (const [type, collection] of [
+          ["placement", "placements"],
+          ["note", "notes"],
+        ] as const) {
+          if (!touched[type].size) continue;
           const { docs } = await req.payload.find({
-            collection: "placements",
-            where: { id: { in: [...touched.placement] } },
+            collection,
+            where: { id: { in: [...touched[type]] } },
             select: { calendar: true },
             depth: 0,
             pagination: false,

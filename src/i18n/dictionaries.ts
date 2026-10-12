@@ -187,6 +187,11 @@ const de = {
       "Dezember",
     ],
     weekdays: ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
+    view: {
+      label: "Ansicht",
+      today: "Heute",
+      month: "Monat",
+    },
     draw: {
       title: "Neuer Stempel",
       name: "Name (optional)",
@@ -242,6 +247,18 @@ const de = {
       undo: "Rückgängig",
       print: "Abdruck",
       ink: "Stempelkissen",
+    },
+    note: {
+      label: "Notiz zum Tag",
+      today: "Was war heute?",
+      past: "Was war an dem Tag?",
+      future: "Was steht an?",
+      bold: "Fett",
+      underline: "Unterstrichen",
+      ctrl: "Strg",
+      by: (name: string, when: string) => (name ? `${name}, ${when}` : when),
+      justNow: "gerade eben",
+      inMonth: "Notiz",
     },
     share: {
       title: "Teilen",
@@ -533,6 +550,11 @@ const en: Shape<Dictionary> = {
       "December",
     ],
     weekdays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    view: {
+      label: "View",
+      today: "Today",
+      month: "Month",
+    },
     draw: {
       title: "New stamp",
       name: "Name (optional)",
@@ -588,6 +610,18 @@ const en: Shape<Dictionary> = {
       undo: "Undo",
       print: "Print",
       ink: "Ink pad",
+    },
+    note: {
+      label: "Note for the day",
+      today: "What happened today?",
+      past: "What happened that day?",
+      future: "What's coming up?",
+      bold: "Bold",
+      underline: "Underline",
+      ctrl: "Ctrl",
+      by: (name: string, when: string) => (name ? `${name}, ${when}` : when),
+      justNow: "just now",
+      inMonth: "Note",
     },
     share: {
       title: "Share",

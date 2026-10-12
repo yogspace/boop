@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, m, type Variants } from "motion/react";
 import {
   type CSSProperties,
   type ReactNode,
@@ -30,19 +30,29 @@ import {
 import { hexOf, nextKey } from "@/features/calendar/palette";
 import { GROUND, PAPER, tintOf, tintVars } from "@/features/calendar/tint";
 import {
+  type CalendarView,
   colorOf,
   createCalendar,
   logout,
+  prefOf,
+  setCalendarPref,
   start,
   useBoop,
 } from "@/features/offline/store";
 import { SITE_DEFAULTS } from "@/features/site/defaults";
 import { Sticker } from "@/features/stickers/sticker";
 import { Link, useTransitionRouter } from "@/features/transitions/link";
-import type { Locale } from "@/i18n/config";
+import { LOCALES, type Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { AccountSheet } from "./account-sheet";
+import {
+  type Address,
+  addressOf,
+  calendarOf,
+  readAddress,
+  slugsOf,
+} from "./address";
 import { CalendarSettings, PersonPlus, Sliders } from "./calendar-settings";
 import { DaySheet } from "./day-sheet";
 import { CalendarSheet, ConfirmSheet } from "./dialogs";
@@ -52,19 +62,51 @@ import { ShareSheet } from "./share-sheet";
 import { StampDrawer } from "./stamp-drawer";
 import { StampSheet } from "./stamp-sheet";
 import { SyncBadge } from "./sync-badge";
+import { TodayView } from "./today-view";
 import { useDismiss } from "./use-dismiss";
+import { ViewSwitch } from "./view-switch";
 
 /** A stable little tilt per stamp – the shelf looks hand-placed. */
 const tilt = (id: string) => ((id.charCodeAt(0) + id.charCodeAt(5)) % 9) - 4;
 
 /**
- * The calendar in the address – /de/app/{id} – or null. Only the browser
- * knows it: the server's page is the same for every calendar.
+ * Where a history entry of the app keeps the calendar it showed – by its
+ * id, so a reload or the back button finds it even when its name (and so
+ * its address) has changed meanwhile.
  */
-const calendarInAddress = () => {
-  if (typeof window === "undefined") return null;
-  const [, , app, id] = window.location.pathname.split("/");
-  return (app === "app" && id) || null;
+const HELD = "boop";
+
+/**
+ * What the address asks for (address.ts) – only the browser knows: the
+ * server's page is the same for every calendar. The calendar is the one the
+ * history entry kept, where it kept one, else the one the address names.
+ */
+const asked = (): Address => {
+  if (typeof window === "undefined") return { calendar: null, view: null };
+  const address = readAddress(window.location.pathname);
+  const held: unknown = window.history.state?.[HELD]?.calendar;
+  return {
+    calendar: typeof held === "string" ? held : address.calendar,
+    view: address.view,
+  };
+};
+
+/**
+ * The views take turns like the switch's sides: the month comes in from
+ * the right, today from the left – a short way, quietly.
+ */
+const VIEW_TURN: Variants = {
+  hidden: (dir: number) => ({ opacity: 0, x: dir * 14 }),
+  shown: {
+    opacity: 1,
+    x: 0,
+    transition: { ...SPRING.soft, opacity: { duration: 0.2 } },
+  },
+  gone: (dir: number) => ({
+    opacity: 0,
+    x: dir * -14,
+    transition: { duration: 0.12, ease: "easeIn" },
+  }),
 };
 
 /**
@@ -166,10 +208,13 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   }, [locale, first, t]);
   const boop = useBoop();
   const router = useTransitionRouter();
-  // The chosen calendar lives in the address, so a reload stays on it. The
-  // server renders none (null) – no matter: until the device's copy is open
-  // (status "loading", always so while hydrating) no calendar shows.
-  const [calendarId, setCalendarId] = useState(calendarInAddress);
+  // The calendar and the view showing live in the address, so a reload
+  // stays on them, and a link opens them. The calendar: its id once found,
+  // before that what the address named (a slug, or an id). The view: null
+  // for the one last chosen for that calendar – or today. The server
+  // renders none – no matter: until the device's copy is open (status
+  // "loading", always so while hydrating) no calendar shows.
+  const [shown, setShown] = useState(asked);
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };

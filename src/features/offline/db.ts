@@ -1,17 +1,22 @@
 /**
  * The device's copy of the account's data, in IndexedDB – what the app
- * shows, online or not. Five stores: the three synced kinds (by id), the
+ * shows, online or not. Six stores: the four synced kinds (by id), the
  * outbox of changes not yet sent (by sequence) and a few settings (`meta`).
  * Cleared on logout.
+ *
+ * Its versions: 1 had the first five, 2 adds `notes`. An upgrade only adds
+ * what is missing – what a device holds stays, whichever version it comes
+ * from.
  */
 
 const NAME = "boop";
-const VERSION = 1;
+const VERSION = 2;
 
 export type StoreName =
   | "calendars"
   | "stamps"
   | "placements"
+  | "notes"
   | "outbox"
   | "meta";
 
@@ -19,6 +24,7 @@ const STORES: StoreName[] = [
   "calendars",
   "stamps",
   "placements",
+  "notes",
   "outbox",
   "meta",
 ];
@@ -30,7 +36,7 @@ const open = () => {
     const request = indexedDB.open(NAME, VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
-      for (const name of ["calendars", "stamps", "placements"]) {
+      for (const name of ["calendars", "stamps", "placements", "notes"]) {
         if (!db.objectStoreNames.contains(name)) {
           db.createObjectStore(name, { keyPath: "id" });
         }
@@ -40,7 +46,17 @@ const open = () => {
       }
       if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta");
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const db = request.result;
+      // A newer app wants to upgrade the copy (open in another tab, or just
+      // installed): this one lets go and starts anew as that one. Otherwise
+      // the upgrade would wait for this tab to close.
+      db.onversionchange = () => {
+        db.close();
+        window.location.reload();
+      };
+      resolve(db);
+    };
     request.onerror = () => reject(request.error);
   });
   return opening;

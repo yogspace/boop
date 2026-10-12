@@ -13,11 +13,14 @@ import {
   type DayKey,
   type Drawing,
   type KeptStampDoc,
+  type NoteContent,
+  type NoteDoc,
   type PlacementDoc,
   type StampDoc,
   type StampShape,
   stampDoc,
 } from "@/features/calendar/model";
+import { cleanNote, noteId, sameNote } from "@/features/calendar/note";
 import { shownColor } from "@/features/calendar/tint";
 import type {
   Change,
@@ -68,6 +71,8 @@ export type BoopState = {
   calendars: Docs<CalendarDoc>;
   stamps: Docs<StampDoc>;
   placements: Docs<PlacementDoc>;
+  /** The days' notes, by id (`noteId` – of calendar and day). */
+  notes: Docs<NoteDoc>;
   /** Names of the people in the account's calendars, by id. */
   people: Record<string, string>;
   /**
@@ -81,6 +86,7 @@ const KIND = {
   calendar: "calendars",
   stamp: "stamps",
   placement: "placements",
+  note: "notes",
 } as const satisfies Record<SyncType, string>;
 
 export const boop = proxy<BoopState>({
@@ -92,6 +98,7 @@ export const boop = proxy<BoopState>({
   calendars: {},
   stamps: {},
   placements: {},
+  notes: {},
   people: {},
   prefs: {},
 });
@@ -131,6 +138,7 @@ export const start = async () => {
     calendars,
     stamps,
     placements,
+    notes,
     entries,
     me,
     people,
@@ -141,6 +149,7 @@ export const start = async () => {
     getAll<CalendarDoc>("calendars"),
     getAll<KeptStampDoc>("stamps"),
     getAll<PlacementDoc>("placements"),
+    getAll<NoteDoc>("notes"),
     getAll<OutboxEntry>("outbox"),
     getMeta<Me>("me"),
     getMeta<Record<string, string>>("people"),
@@ -164,6 +173,7 @@ export const start = async () => {
     calendars: byId(calendars),
     stamps: byId(stamps.map(stampDoc)),
     placements: byId(placements),
+    notes: byId(notes),
     people: people ?? {},
     prefs: prefs ?? {},
     me: me ?? null,
@@ -215,7 +225,14 @@ export const signedIn = async (account: Me) => {
     outbox = [];
     since = null;
     known = [];
-    set({ calendars: {}, stamps: {}, placements: {}, people: {}, prefs: {} });
+    set({
+      calendars: {},
+      stamps: {},
+      placements: {},
+      notes: {},
+      people: {},
+      prefs: {},
+    });
   }
   await write([{ store: "meta", put: account, key: "me" }]);
   set({ me: account, status: "ready" });
@@ -249,7 +266,9 @@ let nextSeq = 0;
 
 /**
  * Notes a change in the outbox. One still waiting for the same document
- * takes the new fields in – the server gets one change, not ten.
+ * takes the new fields in – the server gets one change, not ten. Deleted
+ * stays deleted – but a day's note, emptied and written again, is the same
+ * note (its id is the day's): its last word counts.
  */
 const enqueue = async (change: Change) => {
   const waiting = outbox.find(
@@ -263,7 +282,10 @@ const enqueue = async (change: Change) => {
     waiting.change = {
       ...waiting.change,
       changedAt: change.changedAt,
-      deleted: change.deleted || waiting.change.deleted,
+      deleted:
+        change.type === "note"
+          ? change.deleted
+          : change.deleted || waiting.change.deleted,
       data: { ...waiting.change.data, ...change.data },
     };
     entry = waiting;
@@ -519,20 +541,67 @@ export const removePlacement = async (id: string) => {
 };
 
 /**
- * A calendar off this device – with its placements. The stamps follow
- * (`tidyStamps`): mine all stay.
+ * A day's note, as it is now – written by any member of its calendar.
+ * Nothing left once checked (`cleanNote`) and it is deleted; the same as
+ * before, and nothing happens. It is the day's (`noteId`): the same day on
+ * another device is the same note, and whoever writes last has it.
+ */
+export const setNote = async (
+  calendar: string,
+  date: DayKey,
+  content: NoteContent | null
+) => {
+  if (!boop.calendars[calendar]) return;
+  const id = noteId(calendar, date);
+  const clean = cleanNote(content);
+  if (sameNote(boop.notes[id]?.content, clean)) return;
+  const changedAt = now();
+  await keep("note", {
+    id,
+    calendar,
+    date,
+    content: clean,
+    editedBy: clean ? me() : "",
+    changedAt,
+    deleted: !clean,
+  } satisfies NoteDoc);
+  await enqueue({
+    type: "note",
+    id,
+    changedAt,
+    deleted: !clean,
+    data: clean ? { calendar, date, content: plain(clean) } : undefined,
+  });
+};
+
+/**
+ * A calendar off this device – with its placements and notes. The stamps
+ * follow (`tidyStamps`): mine all stay.
  */
 const dropCalendar = async (id: string) => {
-  const { calendars, placements } = boop;
+  const { calendars } = boop;
   delete calendars[id];
-  const ops: Op[] = [{ store: "calendars", delete: id }];
+  const ops: Op[] = [{ store: "calendars", delete: id }, ...dropContents(id)];
+  await write([...ops, ...tidyStamps(), ...tidyPrefs()]);
+};
+
+/** What is in a calendar – its placements and notes – off this device. */
+const dropContents = (calendar: string): Op[] => {
+  const { placements, notes } = boop;
+  const ops: Op[] = [];
   for (const p of Object.values(placements)) {
-    if (p.calendar === id) {
+    if (p.calendar === calendar) {
       delete placements[p.id];
       ops.push({ store: "placements", delete: p.id });
     }
   }
-  await write([...ops, ...tidyStamps(), ...tidyPrefs()]);
+  for (const note of Object.values(notes)) {
+    if (note.calendar === calendar) {
+      delete notes[note.id];
+      ops.push({ store: "notes", delete: note.id });
+    }
+  }
+  return ops;
 };
 
 /**
@@ -729,7 +798,7 @@ const merge = async (result: SyncResponse) => {
     return;
   }
   const ops: Op[] = [];
-  const { calendars, stamps, placements } = boop;
+  const { calendars, stamps, placements, notes } = boop;
 
   const take = <T extends { id: string; deleted: boolean }>(
     type: SyncType,
@@ -750,18 +819,31 @@ const merge = async (result: SyncResponse) => {
   take("calendar", calendars, result.calendars);
   take("stamp", stamps, result.stamps.map(stampDoc));
   take("placement", placements, result.placements);
+  // A note is checked again before it is kept – nothing left of it, and it
+  // is gone. (A server from before sends none.)
+  const incoming = (result.notes ?? []).map((note) => {
+    const content = note.deleted ? null : cleanNote(note.content);
+    return { ...note, content, deleted: !content };
+  });
+  take("note", notes, incoming);
 
   // Refused and not sent back: it never made it to the server – it goes.
   const returned = new Set(
-    [...result.calendars, ...result.stamps, ...result.placements].map(
-      (doc) => doc.id
-    )
+    [
+      ...result.calendars,
+      ...result.stamps,
+      ...result.placements,
+      ...incoming,
+    ].map((doc) => doc.id)
   );
   for (const { type, id } of result.rejected) {
     if (returned.has(id) || waiting(type, id)) continue;
-    const docs = { calendar: calendars, stamp: stamps, placement: placements }[
-      type
-    ] as Docs<unknown>;
+    const docs = {
+      calendar: calendars,
+      stamp: stamps,
+      placement: placements,
+      note: notes,
+    }[type] as Docs<unknown>;
     delete docs[id];
     ops.push({ store: KIND[type], delete: id });
   }
@@ -771,13 +853,7 @@ const merge = async (result: SyncResponse) => {
   for (const id of Object.keys(calendars)) {
     if (live.has(id) || waiting("calendar", id)) continue;
     delete calendars[id];
-    ops.push({ store: "calendars", delete: id });
-    for (const p of Object.values(placements)) {
-      if (p.calendar === id) {
-        delete placements[p.id];
-        ops.push({ store: "placements", delete: p.id });
-      }
-    }
+    ops.push({ store: "calendars", delete: id }, ...dropContents(id));
   }
   // The stamps follow the calendars – and what others no longer share goes.
   ops.push(...tidyStamps(result.shared && new Set(result.shared)));
@@ -817,6 +893,7 @@ export const logout = async () => {
     calendars: {},
     stamps: {},
     placements: {},
+    notes: {},
     people: {},
     prefs: {},
   });

@@ -20,8 +20,8 @@ import { createSwing, spring } from "./swing";
  *
  * No WebGL canvas of its own for that: it is drawn in the studio (render.ts
  * – the one the pictures come from), frame by frame, and every frame copied
- * onto a plain canvas lying over the picture, which hides meanwhile
- * (`data-live` on the box). The two cross over in a blink, both ways – at
+ * onto a plain canvas lying over the picture, which hides meanwhile (the
+ * box is marked `data-live`). The two cross over in a blink, both ways – at
  * rest they show the same, but the browser scales them a touch differently.
  * A stamp's model is built when it first looks and kept a moment after.
  * Only for a mouse – nothing on touch, nothing where less motion is asked
@@ -230,19 +230,28 @@ const crossFade = (live: Live, to: 0 | 1, then: () => void) => {
   fade.finished.then(then, () => undefined);
 };
 
+/**
+ * The picture hidden under the live stamp – or there again. Set right on
+ * it, so it works wherever a sticker is shown (the CMS has no Tailwind).
+ */
+const hidePicture = ({ host }: Looker, hidden: boolean) => {
+  const picture = host.querySelector("img");
+  if (picture) picture.style.visibility = hidden ? "hidden" : "";
+  if (hidden) host.dataset.live = "";
+  else delete host.dataset.live;
+};
+
 /** Live – over its picture, which hides once it is. */
 const enter = (looker: Looker, live: Live) => {
   live.leaving = false;
-  crossFade(live, 1, () => {
-    looker.host.dataset.live = "";
-  });
+  crossFade(live, 1, () => hidePicture(looker, true));
 };
 
 /** At rest again: it fades into its picture, then that is all there is. */
 const leave = (looker: Looker, live: Live) => {
   if (live.leaving) return;
   live.leaving = true;
-  delete looker.host.dataset.live;
+  hidePicture(looker, false);
   crossFade(live, 0, () => close(looker));
 };
 
@@ -252,7 +261,7 @@ const close = (looker: Looker) => {
   if (!live) return;
   looker.live = null;
   looking.delete(looker);
-  delete looker.host.dataset.live;
+  hidePicture(looker, false);
   live.fade?.cancel();
   live.canvas.remove();
   // Posed like the picture again, for whoever takes it next.
@@ -327,6 +336,10 @@ const open = async (looker: Looker) => {
     if (!(looker.aim && paper && size > 0)) {
       release(looker);
       return;
+    }
+    // Laid over the picture: its box is the frame.
+    if (getComputedStyle(host).position === "static") {
+      host.style.position = "relative";
     }
     // As big as it shows on screen – the browser has nothing to scale.
     canvas.width = size;
