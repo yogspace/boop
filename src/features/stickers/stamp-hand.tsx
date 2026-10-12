@@ -13,6 +13,8 @@ import {
   type StickerInput,
   stage,
 } from "./build";
+import { addGlitter } from "./glitter";
+import { createInk, type Ink, UNDER } from "./ink";
 
 /**
  * The stamp in your hand, live in 3D. Carried, it is a small companion of
@@ -160,6 +162,7 @@ type View = {
   renderer: Three.WebGLRenderer;
   scene: Three.Scene;
   camera: Three.PerspectiveCamera;
+  ink: Ink;
   /** The canvas' box on the body – what travels with the stamp. */
   box: HTMLDivElement;
   /** Its size; `tilt` tips it between carried and pressed. */
@@ -258,12 +261,12 @@ const createHand = () => {
 
   const make = async (): Promise<View> => {
     const THREE = await import("three");
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    // Not antialiased itself – the ink pass smooths what it draws.
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.setSize(SPAN * unit, SPAN * unit);
-    const { scene, camera } = await stage(THREE, renderer);
+    const { scene, camera } = stage(THREE);
+    const ink = createInk(THREE, renderer);
     // The whole box, one print width a unit, from far away.
     camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(SPAN / 2 / DISTANCE));
     camera.position.set(0, 0, DISTANCE);
@@ -283,8 +286,9 @@ const createHand = () => {
         side: THREE.DoubleSide,
       })
     );
-    // Just under the face when it touches.
+    // Just under the face when it touches – drawn first, without lines.
     shadow.position.z = 0.004;
+    shadow.layers.set(UNDER);
     tilt.add(shadow);
     const grip = new THREE.Group();
     const seat = new THREE.Group();
@@ -311,6 +315,7 @@ const createHand = () => {
       renderer,
       scene,
       camera,
+      ink,
       box,
       body,
       tilt,
@@ -339,7 +344,7 @@ const createHand = () => {
     old.shadow.geometry.dispose();
     old.shadow.material.map?.dispose();
     old.shadow.material.dispose();
-    old.scene.environment?.dispose();
+    old.ink.dispose();
     old.renderer.dispose();
     old.renderer.forceContextLoss();
     old.box.remove();
@@ -371,7 +376,7 @@ const createHand = () => {
 
   const draw = (squash: number) => {
     if (!view) return;
-    const { renderer, scene, camera, box, sticker } = view;
+    const { renderer, scene, camera, ink, box, sticker } = view;
     if (!sticker || presence < 0.004) {
       box.style.opacity = "0";
       return;
@@ -400,7 +405,13 @@ const createHand = () => {
     // The shadow tightens under the stamp as it comes down.
     view.shadow.scale.setScalar(0.9 - 0.18 * down);
     view.shadow.material.opacity = 0.3 + 0.06 * down;
-    renderer.render(scene, camera);
+    // Lines as wide as on a picture of a stamp this big; glitter twinkles
+    // while it moves.
+    ink.render(scene, camera, {
+      unit: renderer.getPixelRatio() * unit * view.body.scale.x,
+      time: performance.now() / 1000,
+      twinkle: !still?.matches,
+    });
   };
 
   const tick = (now: number) => {
@@ -565,7 +576,8 @@ const createHand = () => {
         const sticker = buildSticker(made.THREE, stamp);
         // Turning – and squashing – around the middle of its face.
         pivot(sticker, 0);
-        paintSticker(made.THREE, sticker, ink);
+        addGlitter(made.THREE, sticker, stamp);
+        paintSticker(sticker, ink);
         facing = facingOf(stamp.shape);
         made.seat.add(sticker);
         made.sticker = sticker;
@@ -577,7 +589,7 @@ const createHand = () => {
     paint: (next: ColorName) => {
       ink = next;
       if (!view?.sticker) return;
-      paintSticker(view.THREE, view.sticker, next);
+      paintSticker(view.sticker, next);
       wake();
     },
 

@@ -335,17 +335,17 @@ export const createInk = (
   screen.layers.enableAll();
   const size = new THREE.Vector2();
 
-  const pass = (
-    scene: Three.Object3D,
-    camera: Three.Camera,
-    layer: number
-  ) => {
+  const pass = (scene: Three.Object3D, camera: Three.Camera, layer: number) => {
     camera.layers.set(layer);
     renderer.render(scene, camera);
   };
 
   return {
-    render: (scene, camera, { unit, amount = 1, time = 0, twinkle = false }) => {
+    render: (
+      scene,
+      camera,
+      { unit, amount = 1, time = 0, twinkle = false }
+    ) => {
       const mask = camera.layers.mask;
       const ratio = renderer.getPixelRatio();
       const line = Math.max(LINE * unit, THINNEST * ratio);
