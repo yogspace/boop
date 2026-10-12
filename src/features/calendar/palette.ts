@@ -134,3 +134,34 @@ export const colorName = (color: string, locale: Locale): string => {
   const hex = color.toLowerCase();
   return palette.find((known) => known.hex === hex)?.name[locale] ?? hex;
 };
+
+/**
+ * A key the colors have: the wished one – or, if they have no such color
+ * (anymore), the first's. For what starts out in a color: a new stamp, the
+ * ink pad, a calendar made without one. What is stored already keeps its
+ * key. `colors`: the palette in use – on the server, the CMS's
+ * (`getSite().stampColors`, or `defaultColor` in features/site).
+ */
+export const knownKey = (
+  wished: string,
+  colors: readonly StampColor[] = palette
+): string =>
+  colors.some((color) => color.key === wished)
+    ? wished
+    : (colors[0] ?? DEFAULT_PALETTE[0]).key;
+
+/**
+ * The color for one more of a kind – new calendars take turns: the first
+ * that none of `taken` has yet, and round and round once all are taken. The
+ * very first color sits out while there are others: it is the default, what
+ * anything whose own color is gone shows in.
+ */
+export const nextKey = (
+  taken: readonly string[],
+  colors: readonly StampColor[] = palette
+): string => {
+  const all = colors.length ? colors : DEFAULT_PALETTE;
+  const turns = all.length > 1 ? all.slice(1) : all;
+  const free = turns.find((color) => !taken.includes(color.key));
+  return (free ?? turns[taken.length % turns.length]).key;
+};

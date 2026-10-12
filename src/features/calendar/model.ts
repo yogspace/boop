@@ -16,23 +16,14 @@
  * marker so other devices learn of it). See features/sync.
  */
 
-/** The colors a stamp or calendar can have – one each, never mixed. */
-export const COLORS = {
-  ink: "#1d1b3a",
-  coral: "#ff8159",
-  sun: "#ffc928",
-  mint: "#22c993",
-  sky: "#3fa9ff",
-  grape: "#7c5cff",
-  pink: "#ff5fae",
-} as const;
-
-export type ColorName = keyof typeof COLORS;
-
-export const COLOR_NAMES = Object.keys(COLORS) as ColorName[];
-
-export const isColorName = (value: unknown): value is ColorName =>
-  typeof value === "string" && value in COLORS;
+/**
+ * The color a stamp, a calendar or a print has – one each, never mixed: the
+ * KEY of a stamp color, e.g. “mint”. Which colors there are, their hex and
+ * their names come from the CMS – see palette.ts (`hexOf`, `colorName`,
+ * `usePalette`). A key the palette doesn't have (anymore) is no error: it
+ * shows in the palette's first color.
+ */
+export type ColorName = string;
 
 /**
  * The stamp's body – its outline (outline.ts). The doodle is drawn onto it
