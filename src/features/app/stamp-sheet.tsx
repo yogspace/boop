@@ -2,13 +2,15 @@
 
 import { useMemo, useState } from "react";
 import type { Snapshot } from "valtio";
-import { Button } from "@/components/ui";
+import { Bang } from "@/components/doodles";
+import { Button, Checkbox } from "@/components/ui";
 import type { StampDoc } from "@/features/calendar/model";
 import { deleteStamp, shareStamp, useBoop } from "@/features/offline/store";
 import { PRINT_MM, stampStl, stlName } from "@/features/stickers/export-stl";
 import { STAGE, StickerView } from "@/features/stickers/sticker-view";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
+import { cn } from "@/lib/cn";
 import { Sheet } from "./sheet";
 
 /**
@@ -78,7 +80,8 @@ export const StampSheet = ({
           {t.app.stamp.by(firstName(stamp.owner))}
         </p>
       )}
-      <div className={STAGE}>
+      {/* Drawn round with the marker, like the drawer's – the box as it was. */}
+      <div className={cn(STAGE, "scribble scribble-clear bg-card")}>
         <StickerView className="absolute inset-0" stamp={input} />
       </div>
       <p className="-mt-2 text-center text-muted text-sm">{t.app.draw.turn}</p>
@@ -99,15 +102,13 @@ export const StampSheet = ({
               <ul className="flex flex-col gap-2">
                 {targets.map((calendar) => (
                   <li key={calendar.id}>
-                    <label className="scribble scribble-bare scribble-soft flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-2">
-                      <input
-                        checked={stamp.sharedWith.includes(calendar.id)}
-                        className="h-5 w-5 shrink-0 accent-ink"
-                        onChange={(event) =>
-                          share(calendar.id, event.target.checked)
-                        }
-                        type="checkbox"
-                      />
+                    <Checkbox
+                      checked={stamp.sharedWith.includes(calendar.id)}
+                      className="scribble scribble-bare scribble-soft gap-3 rounded-2xl px-3 py-2 text-base"
+                      onChange={(event) =>
+                        share(calendar.id, event.target.checked)
+                      }
+                    >
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate font-bold">
                           {calendar.name}
@@ -119,7 +120,7 @@ export const StampSheet = ({
                             .join(", ") || t.app.stamp.onlyYou}
                         </span>
                       </span>
-                    </label>
+                    </Checkbox>
                   </li>
                 ))}
               </ul>
@@ -133,8 +134,12 @@ export const StampSheet = ({
       )}
       {mine &&
         (sure ? (
-          <div className="flex animate-fade flex-col gap-3 rounded-2xl border-2 border-pink bg-pink-soft p-4">
-            <p className="font-bold">{t.app.stamp.deleteConfirm}</p>
+          // Watch out: a thick frame and an exclamation mark, like an error.
+          <div className="scribble scribble-bold flex animate-fade flex-col gap-3 rounded-2xl p-4">
+            <p className="flex items-start gap-2.5 font-bold">
+              <Bang className="h-6 w-6 shrink-0" />
+              {t.app.stamp.deleteConfirm}
+            </p>
             <div className="flex justify-end gap-2">
               <Button onClick={() => setSure(false)} size="sm" variant="ghost">
                 {t.app.draw.cancel}
@@ -145,7 +150,7 @@ export const StampSheet = ({
                   onClose();
                 }}
                 size="sm"
-                variant="pink"
+                variant="danger"
               >
                 {t.app.stamp.delete}
               </Button>

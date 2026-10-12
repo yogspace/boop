@@ -35,8 +35,6 @@ const VARIANTS = {
     "scribble-bare scribble-clear hover:scribble-soft hover:translate-y-0 hover:rotate-0",
   /** Something goes for good – filled like the main thing; the words say it. */
   danger: "scribble-ink",
-  /** @deprecated the candy look's name for `danger`. */
-  pink: "scribble-ink",
 } as const;
 
 const SIZES = {
@@ -134,26 +132,38 @@ export const Field = ({
 );
 
 /**
- * A box to tick – a little scribbled square, the tick drawn into it with the
- * marker, reaching out of it. The browser's own checkbox stays underneath,
- * see-through, for the keyboard, screen readers and the label around it.
+ * A box to tick, and what it says – a little scribbled square, the tick
+ * drawn into it with the marker, reaching out of it. The browser's own
+ * checkbox lies over the square, see-through, for the keyboard and screen
+ * readers; the whole line is its label.
  */
 export const Checkbox = ({
   className,
+  children,
   ...props
-}: Omit<InputHTMLAttributes<HTMLInputElement>, "type">) => (
-  <span className={cn("relative flex h-5 w-5 shrink-0", className)}>
-    <input
-      className="peer absolute -inset-1 m-0 cursor-pointer appearance-none rounded-md outline-none disabled:cursor-default"
-      type="checkbox"
-      {...props}
-    />
-    <span
-      aria-hidden="true"
-      className="scribble scribble-sm scribble-thin pointer-events-none h-full w-full rounded-md transition-transform duration-150 peer-hover:-rotate-6 peer-active:scale-90 peer-disabled:opacity-40 peer-focus-visible:outline-3 peer-focus-visible:outline-ink peer-focus-visible:outline-offset-4 peer-focus-visible:outline-dashed"
-    />
-    <Check className="pointer-events-none absolute -top-1.5 -right-1.5 h-7 w-7 scale-50 opacity-0 transition duration-150 peer-checked:scale-100 peer-checked:opacity-100" />
-  </span>
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & {
+  children: ReactNode;
+}) => (
+  <label
+    className={cn(
+      "flex cursor-pointer items-center gap-2.5 font-medium text-sm",
+      className
+    )}
+  >
+    <span className="relative flex h-5 w-5 shrink-0">
+      <input
+        className="peer absolute -inset-1 m-0 cursor-pointer appearance-none rounded-md outline-none disabled:cursor-default"
+        type="checkbox"
+        {...props}
+      />
+      <span
+        aria-hidden="true"
+        className="scribble scribble-sm scribble-thin pointer-events-none h-full w-full rounded-md transition-transform duration-150 peer-hover:-rotate-6 peer-active:scale-90 peer-disabled:opacity-40 peer-focus-visible:outline-3 peer-focus-visible:outline-ink peer-focus-visible:outline-offset-4 peer-focus-visible:outline-dashed"
+      />
+      <Check className="pointer-events-none absolute -top-1.5 -right-1.5 h-7 w-7 scale-50 opacity-0 transition duration-150 peer-checked:scale-100 peer-checked:opacity-100" />
+    </span>
+    {children}
+  </label>
 );
 
 /**

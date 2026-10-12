@@ -8,8 +8,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { Sparkle } from "@/components/doodles";
-import { Button, Field, Notice } from "@/components/ui";
+import { ArrowLeft, Sparkle } from "@/components/doodles";
+import { Button, Checkbox, Field, Notice } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import { importSvg } from "@/features/calendar/import-svg";
 import {
@@ -30,6 +30,7 @@ import { STAGE, StickerView } from "@/features/stickers/sticker-view";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
+import { InkBlot } from "./ink-blot";
 import { Sheet } from "./sheet";
 
 /** Line width of a drawn stroke, relative to the stamp. */
@@ -67,6 +68,13 @@ const BIN =
   "M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5l1 13.5h9l1-13.5M10.5 10.5v6M13.5 10.5v6";
 /** An arrow up out of a tray – uploading a picture. */
 const UPLOAD = "M12 15.5V4M7.5 8.5 12 4l4.5 4.5M4.5 15v4.5h15V15";
+
+/**
+ * A shape or a rim to pick: a small scribbled tile, filled with ink when it
+ * is the one (`aria-pressed`).
+ */
+const TILE =
+  "scribble scribble-sm flex aspect-square w-full items-center justify-center rounded-xl transition-transform duration-150 ease-out hover:-rotate-6 active:scale-90 aria-pressed:scribble-ink aria-pressed:hover:rotate-0";
 
 /**
  * Two sets of controls in one place, one of them showing: one fades away,
@@ -279,10 +287,7 @@ export const StampDrawer = ({
               <button
                 aria-label={t.app.draw.shapes[s]}
                 aria-pressed={shape === s}
-                className={cn(
-                  "flex aspect-square w-full items-center justify-center rounded-xl border-2 border-ink p-1.5 transition",
-                  shape === s ? "bg-ink text-white" : "bg-card hover:bg-soft"
-                )}
+                className={cn(TILE, "p-1.5")}
                 key={s}
                 onClick={() => setShape(s)}
                 title={t.app.draw.shapes[s]}
@@ -343,7 +348,7 @@ export const StampDrawer = ({
             size="sm"
             variant="plain"
           >
-            ← {t.app.draw.back}
+            <ArrowLeft className="h-4 w-4" /> {t.app.draw.back}
           </Button>
           <p className="min-w-0 text-right font-medium text-muted text-sm leading-tight">
             {t.app.draw.turn}
@@ -354,7 +359,13 @@ export const StampDrawer = ({
       {/* The stage stays where it is: the drawing, then the stamp over it. */}
       <div
         aria-label={draws ? t.app.draw.hint : t.app.draw.turn}
-        className={cn(STAGE, "touch-none", draws && "cursor-crosshair")}
+        className={cn(
+          STAGE,
+          // Drawn round with the marker, on white paper – the box itself
+          // (and so where the drawing and the 3D stamp sit) as it was.
+          "scribble scribble-clear touch-none bg-card",
+          draws && "cursor-crosshair"
+        )}
         onPointerCancel={draws ? stop : undefined}
         onPointerDown={draws ? onDown : undefined}
         onPointerLeave={draws ? stop : undefined}
@@ -416,8 +427,8 @@ export const StampDrawer = ({
         )}
         {!draws && (
           <>
-            <Sparkle className="pointer-events-none absolute -top-3 -left-2 h-7 w-7 animate-boop text-sun [animation-delay:700ms]" />
-            <Sparkle className="pointer-events-none absolute -right-2 -bottom-2 h-5 w-5 animate-boop text-pink [animation-delay:850ms]" />
+            <Sparkle className="pointer-events-none absolute -top-3 -left-2 h-7 w-7 animate-boop text-ink [animation-delay:700ms]" />
+            <Sparkle className="pointer-events-none absolute -right-2 -bottom-2 h-5 w-5 animate-boop text-ink [animation-delay:850ms]" />
           </>
         )}
       </div>
@@ -426,23 +437,24 @@ export const StampDrawer = ({
         <div
           className={cn(layer(draws), "flex flex-col justify-between gap-3")}
         >
-          <fieldset className="flex flex-wrap items-center justify-center gap-2.5">
+          {/* Blots of the stamp colors, the one picked ringed – like the
+              day's stamp pads. */}
+          <fieldset className="flex flex-wrap items-center justify-center gap-1">
             <legend className="sr-only">{t.app.draw.color}</legend>
-            {palette.map(({ key: c, hex, name: names }) => (
+            {palette.map(({ key: c, hex, name: names }, i) => (
               <button
                 aria-label={names[locale]}
                 aria-pressed={color === c}
                 className={cn(
-                  "h-9 w-9 rounded-full border-2 border-ink transition-transform duration-200",
-                  color === c
-                    ? "scale-125 shadow-sticker-sm"
-                    : "hover:scale-110"
+                  "relative flex h-10 w-10 items-center justify-center rounded-full transition-transform",
+                  color === c ? "scale-110" : "hover:-rotate-6 hover:scale-110"
                 )}
                 key={c}
                 onClick={() => setColor(c)}
-                style={{ background: hex }}
                 type="button"
-              />
+              >
+                <InkBlot hex={hex} index={i} on={color === c} />
+              </button>
             ))}
           </fieldset>
           {/* The rim's patterns, each on the shape picked – seven in a row. */}
@@ -456,10 +468,7 @@ export const StampDrawer = ({
                 <button
                   aria-label={t.app.draw.rims[r ?? "plain"]}
                   aria-pressed={rim === r}
-                  className={cn(
-                    "flex aspect-square w-full items-center justify-center rounded-xl border-2 border-ink p-1 transition",
-                    rim === r ? "bg-ink text-white" : "bg-card hover:bg-soft"
-                  )}
+                  className={cn(TILE, "p-1")}
                   key={r ?? "plain"}
                   onClick={() => setRim(r)}
                   title={t.app.draw.rims[r ?? "plain"]}
@@ -484,24 +493,18 @@ export const StampDrawer = ({
             })}
           </fieldset>
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-            <label className="flex items-center gap-2 font-medium text-sm">
-              <input
-                checked={inverted}
-                className="h-5 w-5 accent-ink"
-                onChange={(event) => setInverted(event.target.checked)}
-                type="checkbox"
-              />
+            <Checkbox
+              checked={inverted}
+              onChange={(event) => setInverted(event.target.checked)}
+            >
               {t.app.draw.inverted}
-            </label>
-            <label className="flex items-center gap-2 font-medium text-sm">
-              <input
-                checked={special}
-                className="h-5 w-5 accent-ink"
-                onChange={(event) => setSpecial(event.target.checked)}
-                type="checkbox"
-              />
+            </Checkbox>
+            <Checkbox
+              checked={special}
+              onChange={(event) => setSpecial(event.target.checked)}
+            >
               {t.app.draw.special}
-            </label>
+            </Checkbox>
             <Button
               onClick={() => file.current?.click()}
               size="sm"
@@ -537,15 +540,12 @@ export const StampDrawer = ({
             value={name}
           />
           {calendar && (
-            <label className="flex items-center gap-3 font-medium text-sm">
-              <input
-                checked={shared}
-                className="h-5 w-5 shrink-0 accent-violet"
-                onChange={(event) => setShared(event.target.checked)}
-                type="checkbox"
-              />
+            <Checkbox
+              checked={shared}
+              onChange={(event) => setShared(event.target.checked)}
+            >
               {t.app.draw.shared}
-            </label>
+            </Checkbox>
           )}
           {error && <Notice tone="error">{t.auth.failed}</Notice>}
           <Button className="w-full" onClick={onSave} size="lg">
