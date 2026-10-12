@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { type CSSProperties, useMemo } from "react";
+import { ArrowLeft, ArrowRight } from "@/components/doodles";
+import { buttonClass, ROUND_BUTTON } from "@/components/ui";
 import { type DayKey, todayKey } from "@/features/calendar/model";
 import { StampSvg } from "@/features/calendar/stamp-svg";
 import { useBoop } from "@/features/offline/store";
@@ -14,10 +16,19 @@ type Month = { year: number; month: number };
 const key = (year: number, month: number, day: number): DayKey =>
   `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
-const NAV =
-  "flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink bg-card font-black shadow-sticker-sm transition hover:-translate-y-0.5 active:translate-y-0 active:shadow-none";
+/**
+ * A day in the ruled month: no frame of its own (the table's lines are the
+ * month's, `scribble-grid`) – a soft blob under the pointer, the focus ring
+ * inside its lines.
+ */
+const DAY =
+  "scribble scribble-bare scribble-clear scribble-sm flex aspect-square flex-col rounded-xl p-1.5 text-left [--scribble-inset:4px] [--scribble-ring:5px] hover:scribble-soft active:scribble-soft sm:p-2";
 
-/** A month of a calendar, Monday first; each day shows its prints. */
+/**
+ * A month of a calendar, Monday first; each day shows its prints. Drawn as a
+ * table ruled with a marker: today's number sits in an ink blob, the weekend
+ * is hatched – the prints are the only color.
+ */
 export const MonthGrid = ({
   calendar,
   locale,
@@ -55,6 +66,8 @@ export const MonthGrid = ({
   const now = new Date();
   const thisMonth =
     now.getFullYear() === month.year && now.getMonth() === month.month;
+  // How many weeks the table rules.
+  const rows = Math.ceil((offset + length) / 7);
 
   return (
     <div>
@@ -66,7 +79,10 @@ export const MonthGrid = ({
         <div className="flex gap-2">
           {!thisMonth && (
             <button
-              className={cn(NAV, "w-auto px-3 font-bold text-sm")}
+              className={cn(
+                buttonClass({ variant: "plain", size: "sm" }),
+                "h-10"
+              )}
               onClick={() =>
                 onMonth({ year: now.getFullYear(), month: now.getMonth() })
               }
@@ -77,52 +93,48 @@ export const MonthGrid = ({
           )}
           <button
             aria-label={t.app.prev}
-            className={NAV}
+            className={ROUND_BUTTON}
             onClick={() => shift(-1)}
             type="button"
           >
-            ←
+            <ArrowLeft className="h-5 w-5" />
           </button>
           <button
             aria-label={t.app.next}
-            className={NAV}
+            className={ROUND_BUTTON}
             onClick={() => shift(1)}
             type="button"
           >
-            →
+            <ArrowRight className="h-5 w-5" />
           </button>
         </div>
       </div>
-      <div
-        className="grid animate-fade grid-cols-7 gap-1.5 sm:gap-2"
-        key={`${month.year}-${month.month}`}
-      >
+      <div className="grid grid-cols-7 pb-1.5">
         {t.app.weekdays.map((name) => (
           <div
-            className="pb-1 text-center font-black text-muted text-xs uppercase tracking-wide"
+            className="text-center font-black text-muted text-xs uppercase tracking-wide"
             key={name}
           >
             {name}
           </div>
         ))}
+      </div>
+      <div
+        className="scribble-grid grid animate-fade grid-cols-7 rounded-2xl [--shade:2]"
+        key={`${month.year}-${month.month}`}
+        style={{ "--rows": rows } as CSSProperties}
+      >
         {Array.from({ length: offset }, (_, i) => (
           <div key={`gap-${i}`} />
         ))}
         {Array.from({ length }, (_, i) => {
           const date = key(month.year, month.month, i + 1);
           const day = byDay.get(date) ?? [];
-          const weekend = (offset + i) % 7 >= 5;
           const isToday = date === today;
           return (
             <button
-              className={cn(
-                "group relative flex aspect-square flex-col rounded-2xl border-2 p-1 text-left transition hover:-translate-y-0.5 hover:border-ink sm:p-1.5",
-                isToday
-                  ? "border-violet bg-violet-soft"
-                  : weekend
-                    ? "border-transparent bg-pink-soft/70"
-                    : "border-transparent bg-soft"
-              )}
+              aria-current={isToday ? "date" : undefined}
+              className={DAY}
               key={date}
               onClick={() => onDay(date)}
               type="button"
@@ -130,7 +142,8 @@ export const MonthGrid = ({
               <span
                 className={cn(
                   "font-black text-xs leading-none sm:text-sm",
-                  isToday && "text-violet"
+                  isToday &&
+                    "scribble scribble-sm scribble-ink -m-1 flex h-[1.9em] w-[1.9em] items-center justify-center self-start rounded-full"
                 )}
               >
                 {i + 1}

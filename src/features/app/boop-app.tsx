@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Sparkle, Squiggle } from "@/components/doodles";
+import { Plus, Squiggle, Ticks } from "@/components/doodles";
 import { SiteFooter } from "@/components/site-footer";
-import { Button, Logo, Notice } from "@/components/ui";
+import { Button, Logo, Notice, PILL, ROUND_BUTTON } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import { COLORS, type ColorName, type DayKey } from "@/features/calendar/model";
 import {
@@ -165,14 +165,14 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
           <button
             aria-expanded={menu}
             aria-label={t.app.account}
-            className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink bg-pink font-black text-white shadow-sticker-sm transition active:shadow-none"
+            className={cn(ROUND_BUTTON, "aria-expanded:scribble-ink")}
             onClick={() => setMenu(!menu)}
             type="button"
           >
             {firstName.slice(0, 1).toUpperCase() || "?"}
           </button>
           {menu && (
-            <div className="absolute top-12 right-0 z-40 flex w-60 animate-rise flex-col gap-3 rounded-3xl border-2 border-ink bg-card p-4 shadow-sticker">
+            <div className="scribble absolute top-13 right-0 z-40 flex w-60 animate-rise flex-col gap-3 rounded-3xl p-4">
               <div>
                 <p className="font-black">{boop.me?.name}</p>
                 <p className="truncate text-muted text-sm">{boop.me?.email}</p>
@@ -197,8 +197,8 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
 
       <section className="-mt-2">
         <h1 className="text-4xl sm:text-5xl">
-          {t.app.hello(firstName)}{" "}
-          <Sparkle className="inline h-8 w-8 animate-wiggle text-sun" />
+          {t.app.hello(firstName)}
+          <Ticks className="ml-1 inline h-[0.5em] w-[0.8em] -translate-y-[0.5em] rotate-[24deg]" />
         </h1>
         <p className="mt-1 font-medium text-muted">{t.app.lead}</p>
       </section>
@@ -207,22 +207,17 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
         <div className="flex min-w-0 flex-col gap-4">
           {/* On phones a row to swipe, edge to edge – a scroller cuts off
               all round, so it pads (and margins back) room for the pills'
-              shadow, lift and focus ring. Wider, they wrap: nothing cut. */}
+              wobble, lift and focus ring. Wider, they wrap: nothing cut. */}
           <nav
             aria-label={t.app.calendars}
-            className="-mx-4 -my-2 flex gap-2 overflow-x-auto px-4 py-2 sm:m-0 sm:flex-wrap sm:overflow-visible sm:p-0"
+            className="-mx-4 -my-3 flex gap-2.5 overflow-x-auto px-4 py-3 sm:m-0 sm:flex-wrap sm:overflow-visible sm:p-0"
           >
             {calendars.map((c) => {
               const active = c.id === calendar?.id;
               return (
                 <button
                   aria-pressed={active}
-                  className={cn(
-                    "flex shrink-0 items-center gap-2 rounded-full border-2 border-ink px-4 py-2 font-bold text-sm transition",
-                    active
-                      ? "bg-ink text-white shadow-sticker-sm"
-                      : "bg-card hover:-translate-y-0.5"
-                  )}
+                  className={PILL}
                   key={c.id}
                   onClick={() => setCalendarId(c.id)}
                   type="button"
@@ -236,7 +231,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
                     <span
                       className={cn(
                         "text-xs",
-                        active ? "text-white/70" : "text-muted"
+                        active ? "text-card/70" : "text-muted"
                       )}
                     >
                       · {c.members.length}
@@ -246,7 +241,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
               );
             })}
             <button
-              className="shrink-0 rounded-full border-2 border-ink border-dashed px-4 py-2 font-bold text-sm transition hover:bg-card"
+              className={cn(PILL, "scribble-dashed")}
               onClick={() => setDialog("new")}
               type="button"
             >
@@ -255,7 +250,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
           </nav>
 
           {calendar && (
-            <div className="rounded-[32px] border-2 border-ink bg-card p-4 shadow-sticker sm:p-6">
+            <div className="scribble rounded-[32px] p-4 sm:p-6">
               <MonthGrid
                 calendar={calendar.id}
                 locale={locale}
@@ -300,31 +295,30 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
         <section className="flex flex-col gap-4 lg:sticky lg:top-6">
           <div>
             <h2 className="text-3xl">{t.app.stamps}</h2>
-            <Squiggle className="h-3 w-24 text-pink" />
+            <Squiggle className="h-3 w-24" />
           </div>
           <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-3">
             <li>
               <button
-                className="flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-3xl border-2 border-ink border-dashed bg-card/60 font-bold text-sm transition hover:-translate-y-1 hover:bg-violet-soft"
+                className="scribble scribble-dashed group flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-3xl font-bold text-sm leading-tight transition-transform duration-150 ease-out hover:-translate-y-0.5 hover:scribble-boil active:translate-y-px active:scale-[0.97]"
                 onClick={() => setDrawing(true)}
                 type="button"
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-ink bg-violet font-black text-white text-xl">
-                  +
+                <span className="scribble scribble-sm scribble-ink flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-200 group-hover:rotate-90">
+                  <Plus className="h-5 w-5" />
                 </span>
                 {t.app.newStamp}
               </button>
             </li>
             {myStamps.map((s) => (
               <li
-                className="animate-boop"
                 key={s.id}
                 style={{ transform: `rotate(${tilt(s.id)}deg)` }}
                 title={s.name || undefined}
               >
                 <button
                   aria-label={s.name || t.app.stamp.untitled}
-                  className="flex aspect-square w-full items-center justify-center rounded-3xl border-2 border-ink bg-card p-1 shadow-sticker-sm transition hover:animate-wiggle"
+                  className="scribble scribble-bare scribble-clear flex aspect-square w-full items-center justify-center rounded-3xl p-1 hover:animate-wiggle hover:scribble-soft"
                   onClick={() => setOpened(s.id)}
                   type="button"
                 >

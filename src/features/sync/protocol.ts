@@ -9,17 +9,28 @@ import type {
  *
  * 1. The device sends what changed on it since its last sync (`changes`,
  *    oldest first) – made offline or just now.
- * 2. The server applies each one the account may make, unless the server's
- *    copy was changed later (the later change wins, by `changedAt`), and
+ * 2. The server applies each one the account may make (new calendars
+ *    first – the rest may refer to them), unless the server's copy was
+ *    changed later (the later change wins, by `changedAt`), and
  *    answers with everything that changed for this account since `since`,
  *    plus the current copy of every document the device sent.
  * 3. The device takes that over and remembers `now` for next time.
  *
  * Calendars the device doesn't know yet (`known`) come complete, whatever
  * `since` says – a calendar shared with someone brings its whole past.
- * Stamps placed by others but missing on the device are asked for by id
- * (`need`). Whatever is gone from `calendarIds` (deleted, or no longer a
- * member) the device drops, with all that is in it.
+ * Whatever is gone from `calendarIds` (deleted, or no longer a member) the
+ * device drops, with all that is in it.
+ *
+ * Stamps are their owners': an account gets its own, and those shared with
+ * a calendar it is in (`sharedWith`) – to stamp with in every calendar of
+ * its own. One it had and that is gone from `shared` is no longer shared
+ * with it. Stamps others merely placed in a calendar come too, so their
+ * prints show: with the calendar, or asked for by id (`need`) – those are
+ * not to stamp with.
+ *
+ * An app from before (it stays cached on a phone for a while) still sends a
+ * stamp's `calendar` (one, or null) instead of `sharedWith` – taken as
+ * that; see apply.ts.
  */
 
 export const SYNC_TYPES = ["calendar", "stamp", "placement"] as const;
@@ -57,6 +68,8 @@ export type SyncResponse = {
   people: Person[];
   calendars: CalendarDoc[];
   stamps: StampDoc[];
+  /** All stamps of others shared with the account – by id. */
+  shared: string[];
   placements: PlacementDoc[];
   /** Changes the server refused – the device takes the server's copy. */
   rejected: { type: SyncType; id: string; reason: string }[];

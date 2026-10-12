@@ -6,14 +6,15 @@ import {
   logout as logoutRequest,
   type Me,
 } from "@/features/accounts/client";
-import type {
-  CalendarDoc,
-  ColorName,
-  DayKey,
-  Drawing,
-  PlacementDoc,
-  StampDoc,
-  StampShape,
+import {
+  type CalendarDoc,
+  type ColorName,
+  type DayKey,
+  type Drawing,
+  type PlacementDoc,
+  type StampDoc,
+  type StampShape,
+  stampDoc,
 } from "@/features/calendar/model";
 import type {
   Change,
@@ -122,7 +123,8 @@ export const start = async () => {
   set({
     online,
     calendars: byId(calendars),
-    stamps: byId(stamps),
+    // Kept by an app from before, a stamp still names its one `calendar`.
+    stamps: byId(stamps.map(stampDoc)),
     placements: byId(placements),
     people: people ?? {},
     me: me ?? null,
@@ -322,7 +324,8 @@ export const createStamp = async (stamp: {
   color: ColorName;
   shape: StampShape;
   drawing: Drawing;
-  calendar: string | null;
+  /** Calendars whose members may stamp with it too – none: just me. */
+  sharedWith: string[];
 }) => {
   const doc: StampDoc = {
     id: newId(),
@@ -339,6 +342,18 @@ export const createStamp = async (stamp: {
     data: { ...stamp },
   });
   return doc.id;
+};
+
+/**
+ * Who else may stamp with a stamp: the members of these calendars (none:
+ * nobody). Its owner's call – the stamp stays theirs either way.
+ */
+export const shareStamp = async (id: string, sharedWith: string[]) => {
+  const doc = boop.stamps[id];
+  if (!doc || doc.owner !== boop.me?.id) return;
+  const changedAt = now();
+  await keep("stamp", { ...plain(doc), sharedWith, changedAt });
+  await enqueue({ type: "stamp", id, changedAt, data: { sharedWith } });
 };
 
 export const deleteStamp = async (id: string) => {
@@ -455,9 +470,12 @@ export const removePlacement = async (id: string) => {
   await enqueue({ type: "placement", id, changedAt, deleted: true });
 };
 
-/** A calendar off this device – with its placements and shared stamps. */
+/**
+ * A calendar off this device – with its placements. The stamps follow
+ * (`tidyStamps`): mine all stay.
+ */
 const dropCalendar = async (id: string) => {
-  const { calendars, placements, stamps } = boop;
+  const { calendars, placements } = boop;
   delete calendars[id];
   const ops: Op[] = [{ store: "calendars", delete: id }];
   for (const p of Object.values(placements)) {
@@ -466,13 +484,37 @@ const dropCalendar = async (id: string) => {
       ops.push({ store: "placements", delete: p.id });
     }
   }
-  for (const s of Object.values(stamps)) {
-    if (s.calendar === id) {
-      delete stamps[s.id];
-      ops.push({ store: "stamps", delete: s.id });
+  await write([...ops, ...tidyStamps()]);
+};
+
+/**
+ * Brings the stamps in line with the calendars on this device: none stays
+ * shared with a calendar that is gone – and someone else's stamp that is no
+ * longer shared with the account (`shared`: all that are, as the server just
+ * said) is off the tray. My own always stay. Someone else's goes for good
+ * once nothing here needs it – shared with no calendar of mine, and no
+ * print of it left: their doodle has no business on this device any more.
+ * Should it be needed again, the next sync brings it back.
+ */
+const tidyStamps = (shared?: Set<string>): Op[] => {
+  const { calendars, placements, stamps } = boop;
+  const printed = new Set(Object.values(placements).map((p) => p.stamp));
+  const ops: Op[] = [];
+  for (const stamp of Object.values(stamps)) {
+    const own = stamp.owner === boop.me?.id;
+    const still =
+      !own && shared && !shared.has(stamp.id)
+        ? []
+        : stamp.sharedWith.filter((id) => calendars[id]);
+    if (!(own || still.length || printed.has(stamp.id))) {
+      delete stamps[stamp.id];
+      ops.push({ store: "stamps", delete: stamp.id });
+    } else if (still.length !== stamp.sharedWith.length) {
+      stamp.sharedWith = still;
+      ops.push({ store: "stamps", put: plain(stamp) });
     }
   }
-  await write(ops);
+  return ops;
 };
 
 // ── Sync ────────────────────────────────────────────────────────────────────
@@ -590,7 +632,7 @@ const merge = async (result: SyncResponse) => {
     }
   };
   take("calendar", calendars, result.calendars);
-  take("stamp", stamps, result.stamps);
+  take("stamp", stamps, result.stamps.map(stampDoc));
   take("placement", placements, result.placements);
 
   // Refused and not sent back: it never made it to the server – it goes.
@@ -620,13 +662,9 @@ const merge = async (result: SyncResponse) => {
         ops.push({ store: "placements", delete: p.id });
       }
     }
-    for (const s of Object.values(stamps)) {
-      if (s.calendar === id) {
-        delete stamps[s.id];
-        ops.push({ store: "stamps", delete: s.id });
-      }
-    }
   }
+  // The stamps follow the calendars – and what others no longer share goes.
+  ops.push(...tidyStamps(result.shared && new Set(result.shared)));
 
   const people = Object.fromEntries(
     result.people.map((person) => [person.id, person.name])

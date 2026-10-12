@@ -1,6 +1,7 @@
 import type { Endpoint } from "payload";
 import { sessionAccount } from "@/features/accounts/session";
 import { calendarsOf } from "@/features/calendar/membership";
+import { sharedWithOf } from "@/features/calendar/model";
 import { isId } from "@/lib/id";
 import { rateLimit } from "@/lib/rate-limit";
 import { type ApplyContext, applyChange } from "./apply";
@@ -66,6 +67,7 @@ export const syncEndpoint: Endpoint = {
       req,
       me,
       mine: new Set((await calendarsOf(req, me)).map((c) => c.id)),
+      unshared: new Set(),
     };
     const touched: Record<SyncType, Set<string>> = {
       calendar: new Set(),
@@ -74,7 +76,19 @@ export const syncEndpoint: Endpoint = {
     };
     const rejected: SyncResponse["rejected"] = [];
 
-    for (const change of changes) {
+    // New calendars first, the rest as it came: a stamp can be shared with
+    // a calendar made after it – the device folds that into the stamp's
+    // waiting change, which then comes before the calendar's.
+    const isCalendar = (change: unknown) => {
+      const { type, deleted } = (change ?? {}) as Partial<Change>;
+      return type === "calendar" && !deleted;
+    };
+    const ordered = [
+      ...changes.filter(isCalendar),
+      ...changes.filter((change) => !isCalendar(change)),
+    ];
+
+    for (const change of ordered) {
       if (!isChange(change)) {
         const { type, id } = (change ?? {}) as Partial<Change>;
         if (SYNC_TYPES.includes(type as SyncType) && typeof id === "string") {
@@ -98,18 +112,15 @@ export const syncEndpoint: Endpoint = {
       }
     }
 
-    // Everyone in the calendars that changed gets a nudge (live.ts).
+    // Everyone in the calendars that changed gets a nudge (live.ts) – for a
+    // stamp those it is shared with, and those it was until just now.
     if (changes.length > rejected.length) {
       void (async () => {
-        const affected = new Set(touched.calendar);
-        for (const [collection, ids] of [
-          ["placements", touched.placement],
-          ["stamps", touched.stamp],
-        ] as const) {
-          if (!ids.size) continue;
+        const affected = new Set([...touched.calendar, ...ctx.unshared]);
+        if (touched.placement.size) {
           const { docs } = await req.payload.find({
-            collection,
-            where: { id: { in: [...ids] } },
+            collection: "placements",
+            where: { id: { in: [...touched.placement] } },
             select: { calendar: true },
             depth: 0,
             pagination: false,
@@ -118,6 +129,19 @@ export const syncEndpoint: Endpoint = {
           for (const doc of docs) {
             const calendar = (doc as { calendar?: unknown }).calendar;
             if (calendar) affected.add(String(calendar));
+          }
+        }
+        if (touched.stamp.size) {
+          const { docs } = await req.payload.find({
+            collection: "stamps",
+            where: { id: { in: [...touched.stamp] } },
+            select: { sharedWith: true, calendar: true },
+            depth: 0,
+            pagination: false,
+            overrideAccess: true,
+          });
+          for (const doc of docs) {
+            for (const calendar of sharedWithOf(doc)) affected.add(calendar);
           }
         }
         nudge([me]);

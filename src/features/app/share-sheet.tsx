@@ -2,6 +2,7 @@
 
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import type { Snapshot } from "valtio";
+import { Mail } from "@/components/doodles";
 import { Button, Field, Notice } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import type { CalendarDoc } from "@/features/calendar/model";
@@ -128,11 +129,11 @@ export const ShareSheet = ({
         <ul className="flex flex-col gap-2">
           {calendar.members.map((id) => (
             <li
-              className="flex items-center justify-between gap-2 rounded-2xl bg-soft px-3 py-2"
+              className="scribble scribble-bare scribble-soft flex items-center justify-between gap-2 rounded-2xl px-3 py-2"
               key={id}
             >
               <span className="flex items-center gap-2 font-bold">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-sky font-black text-white text-sm">
+                <span className="scribble scribble-sm scribble-thin flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black text-sm">
                   {(people[id] ?? "?").slice(0, 1).toUpperCase()}
                 </span>
                 {people[id] ?? "…"}
@@ -164,10 +165,13 @@ export const ShareSheet = ({
           <ul className="flex flex-col gap-2">
             {invites.map((pending) => (
               <li
-                className="flex items-center justify-between gap-2 rounded-2xl border-2 border-line border-dashed px-3 py-2"
+                className="scribble scribble-thin scribble-dashed flex items-center justify-between gap-2 rounded-2xl px-3 py-2"
                 key={pending.id}
               >
-                <span className="truncate font-medium">✉ {pending.email}</span>
+                <span className="flex min-w-0 items-center gap-2 font-medium">
+                  <Mail className="h-5 w-5 shrink-0" />
+                  <span className="truncate">{pending.email}</span>
+                </span>
                 <Button
                   disabled={busy || !online}
                   onClick={() => revoke(pending.id)}

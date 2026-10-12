@@ -1,5 +1,6 @@
 import type { Endpoint, PayloadRequest } from "payload";
 import { sessionAccount } from "@/features/accounts/session";
+import { unshare } from "@/features/sync/apply";
 import { nudge, nudgeCalendars } from "@/features/sync/live";
 import { rateLimit } from "@/lib/rate-limit";
 import { invite } from "../invites";
@@ -10,6 +11,9 @@ import { calendarById } from "../membership";
  * without an account, invites them by mail (invites.ts) – and removes
  * members again; a member can leave. The calendar's `changedAt`
  * moves on, so every member's devices learn of it at the next sync.
+ *
+ * Whoever goes takes their stamps along: none of them stays shared with the
+ * calendar (their prints on its days stay).
  *
  *   POST   /api/calendars/:id/members            { email }
  *   DELETE /api/calendars/:id/members/:accountId
@@ -114,6 +118,9 @@ export const removeMember: Endpoint = {
       return Response.json({ error: "Not allowed." }, { status: 403 });
     }
     if (calendar.members.includes(who)) {
+      // First their stamps – so none stays shared with a calendar its owner
+      // isn't in.
+      await unshare(req, calendar.id, who);
       await touch(
         req,
         calendar.id,

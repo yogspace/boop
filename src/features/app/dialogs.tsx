@@ -53,15 +53,16 @@ export const CalendarSheet = ({
           required
           value={name}
         />
-        <fieldset className="flex flex-wrap items-center gap-2.5">
-          <legend className="mb-2 font-bold text-sm">{t.app.draw.color}</legend>
+        {/* Ink blots to pick from – the picked one gets a scribbled ring. */}
+        <fieldset className="flex flex-wrap items-center gap-3.5">
+          <legend className="mb-3 font-bold text-sm">{t.app.draw.color}</legend>
           {COLOR_NAMES.map((c) => (
             <button
               aria-label={t.colors[c]}
               aria-pressed={color === c}
               className={cn(
-                "h-9 w-9 rounded-full border-2 border-ink transition-transform duration-200",
-                color === c ? "scale-125 shadow-sticker-sm" : "hover:scale-110"
+                "scribble scribble-sm scribble-clear h-9 w-9 rounded-full transition-transform duration-150 [--scribble-inset:-5px] [--scribble-ring:-9px] [filter:var(--scribble-c)]",
+                color === c ? "scale-110" : "scribble-bare hover:scale-110"
               )}
               key={c}
               onClick={() => setColor(c)}
@@ -112,7 +113,7 @@ export const ConfirmSheet = ({
             onConfirm();
             onClose();
           }}
-          variant="pink"
+          variant="danger"
         >
           {confirm}
         </Button>

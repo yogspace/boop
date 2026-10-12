@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Underline } from "@/components/doodles";
 import { getLegal } from "@/features/legal/get-legal";
 import { LegalContent } from "@/features/legal/legal-content";
 import {
@@ -54,9 +55,12 @@ const LegalPage = async ({ params }: Props) => {
 
   return (
     <article className="mx-auto w-full max-w-2xl px-4 py-12 sm:px-6 sm:py-16">
-      <h1 className="mb-10 text-balance font-bold text-3xl leading-tight tracking-tight sm:text-4xl">
-        {LEGAL_TITLE[locale]}
-      </h1>
+      <div className="mb-10 w-fit">
+        <h1 className="text-balance text-3xl leading-tight sm:text-4xl">
+          {LEGAL_TITLE[locale]}
+        </h1>
+        <Underline className="mt-1 h-3.5 w-full" />
+      </div>
       <div className={PROSE}>
         <LegalContent
           data={legal.content[locale]}

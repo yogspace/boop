@@ -44,7 +44,7 @@ type Print = Snapshot<PlacementDoc>;
 /** How far a finger moves before a tap becomes a drag. */
 const DRAG = 8;
 
-/** The ink pad last used on this device. */
+/** The ink last used on this device. */
 const INK_KEY = "boop-ink";
 
 /**
@@ -119,13 +119,13 @@ const squash = (blot: HTMLElement) => {
 };
 
 /**
- * A day of a calendar: its page with the prints on it, the ink pads and the
- * tray of stamps. Tap a stamp – it's in your hand (stamp-hand.tsx) and
- * follows the pointer, a faint preview on the page showing the print it will
+ * A day of a calendar: its page with the prints on it, the inks and the tray
+ * of stamps. Tap a stamp – it's in your hand (stamp-hand.tsx): small, at the
+ * pointer's side, while a faint preview on the page shows the print it will
  * leave; the wheel (or the two buttons, or ← →) turns it. Tap the page – it
- * comes down right there; tap an ink pad – it takes that ink. With no stamp
- * in hand the prints can be moved, picked and removed. Every step can be
- * taken back.
+ * comes down right there, as previewed; tap an ink – it is pressed onto the
+ * blot and takes that ink. With no stamp in hand the prints can be moved,
+ * picked and removed. Every step can be taken back.
  */
 export const DaySheet = ({
   calendar,
@@ -174,7 +174,7 @@ export const DaySheet = ({
   // What was on the page when it opened; anything newer appears like ink.
   const [old] = useState(() => new Set(Object.keys(boop.placements)));
 
-  // One unit on the page in px – the stamp in hand is exactly that wide.
+  // One unit on the page in px – pressed, the stamp is exactly that wide.
   const [unit, setUnit] = useState(0);
   useEffect(() => {
     const box = page.current;
@@ -186,7 +186,7 @@ export const DaySheet = ({
     return () => observer.disconnect();
   }, []);
 
-  // The ink pad in use – and a dip of the tray's stamps when it changes.
+  // The ink in use – and a dip of the tray's stamps when it changes.
   const [ink, setInk] = useState<ColorName>("ink");
   const [dip, setDip] = useState(0);
   useEffect(() => {
@@ -374,10 +374,10 @@ export const DaySheet = ({
     trackEvent("stamp-placed");
   };
 
-  // Over the page and the ink pads the stamp in hand follows the pointer,
-  // and on the page the preview goes along. A finger doesn't hover: there
-  // the stamp goes where it is tapped, and the preview only shows once it
-  // is turned (where it was last tapped).
+  // Over the page and the inks the stamp in hand keeps to the pointer's
+  // side, and on the page the preview goes along under it. A finger doesn't
+  // hover: there the stamp goes where it is tapped, and the preview only
+  // shows once it is turned (where it was last tapped).
   const carry = (event: PointerEvent<HTMLElement>) => {
     if (!inHand || event.pointerType === "touch") return;
     const at = onPage(event.clientX, event.clientY);
@@ -412,9 +412,11 @@ export const DaySheet = ({
     const touch = () => {
       print(stamp, spot, rotation, inked);
       // The print took its preview's place – it's back when the stamp
-      // moves on.
-      aim.current.on = false;
-      preview();
+      // moves on (and stays if it already has).
+      if (aim.current.x === spot.x && aim.current.y === spot.y) {
+        aim.current.on = false;
+        preview();
+      }
     };
     if (hand.current) hand.current.press(event.clientX, event.clientY, touch);
     else touch();

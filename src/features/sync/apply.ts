@@ -1,10 +1,11 @@
-import type { PayloadRequest } from "payload";
+import type { PayloadRequest, Where } from "payload";
 import { idOf } from "@/features/calendar/membership";
 import {
   cleanDrawing,
   isColorName,
   isDayKey,
   isShape,
+  sharedWithOf,
   unit,
 } from "@/features/calendar/model";
 import type { Change, SyncType } from "./protocol";
@@ -15,11 +16,12 @@ import type { Change, SyncType } from "./protocol";
  *
  * - calendar: anyone makes their own; only the owner renames or deletes it
  *   (never the personal one). Members change through members.ts.
- * - stamp: anyone makes their own – personal, or shared with a calendar
- *   they belong to; only its owner changes or deletes it.
+ * - stamp: anyone makes their own; only its owner changes, shares or
+ *   deletes it. Shared it is with calendars the owner belongs to – any other
+ *   is left out.
  * - placement: every member of its calendar places, moves and removes – with
- *   a stamp they can see (their own, or one shared with a calendar of
- *   theirs).
+ *   a stamp they have: their own (in any calendar of theirs), or one shared
+ *   with a calendar of theirs (in any of them, too).
  *
  * A change older than the server's copy is no error: the later one wins,
  * and the device gets the server's copy back.
@@ -36,6 +38,8 @@ export type ApplyContext = {
   me: string;
   /** The (not deleted) calendars the account is a member of. */
   mine: Set<string>;
+  /** Calendars a stamp was shared with before a change – they hear of it. */
+  unshared: Set<string>;
 };
 
 type Outcome = { ok: true } | { ok: false; reason: string };
@@ -175,18 +179,24 @@ const applyStamp = async (
   data: Doc,
   write: Write
 ): Promise<Outcome> => {
-  // Shared with a calendar of theirs – or personal (null).
-  let calendar: string | null | undefined;
-  if ("calendar" in data) {
-    calendar = data.calendar == null ? null : String(data.calendar);
-    if (calendar && !ctx.mine.has(calendar)) return no("not a member");
+  // Shared with calendars of theirs – any other is left out, the rest of the
+  // change still counts. An app from before says `calendar`: that one, or
+  // none.
+  let shared: unknown[] | undefined;
+  if ("sharedWith" in data) {
+    shared = Array.isArray(data.sharedWith) ? data.sharedWith : [];
+  } else if ("calendar" in data) {
+    shared = data.calendar == null ? [] : [data.calendar];
   }
+  const sharedWith = shared && [
+    ...new Set(shared.map(String).filter((id) => ctx.mine.has(id))),
+  ];
   const fields = {
     name: text(data.name, 40),
     color: isColorName(data.color) ? data.color : undefined,
     shape: isShape(data.shape) ? data.shape : undefined,
     drawing: "drawing" in data ? cleanDrawing(data.drawing) : undefined,
-    calendar,
+    sharedWith,
   };
   if (!existing) {
     await write({
@@ -218,7 +228,11 @@ const applyStamp = async (
     });
     return OK;
   }
-  await write(defined(fields));
+  // Its sharing is kept in `sharedWith` alone from here on.
+  if (sharedWith) {
+    for (const id of sharedWithOf(existing)) ctx.unshared.add(id);
+  }
+  await write({ ...defined(fields), ...(sharedWith && { calendar: null }) });
   return OK;
 };
 
@@ -266,7 +280,7 @@ const applyPlacement = async (
   return OK;
 };
 
-/** A stamp the account can see: its own, or one shared with its calendars. */
+/** A stamp the account has: its own, or one shared with its calendars. */
 const canUseStamp = async (ctx: ApplyContext, id: string) => {
   const stamp = (await ctx.req.payload.findByID({
     collection: "stamps",
@@ -277,23 +291,73 @@ const canUseStamp = async (ctx: ApplyContext, id: string) => {
     req: ctx.req,
   })) as Doc | null;
   if (!stamp || stamp.deleted) return false;
-  const shared = idOf(stamp.calendar);
   return (
-    idOf(stamp.owner) === ctx.me || Boolean(shared && ctx.mine.has(shared))
+    idOf(stamp.owner) === ctx.me ||
+    sharedWithOf(stamp).some((id) => ctx.mine.has(id))
   );
 };
 
 /**
- * A deleted calendar keeps only its marker: its placements and the stamps
- * shared with it go for good.
+ * Stamps shared with any of these calendars – by `sharedWith`, or by the
+ * one `calendar` of before (collections/stamps.ts).
  */
-export const purgeCalendar = async (req: PayloadRequest, id: string) => {
-  for (const collection of ["placements", "stamps"] as const) {
-    await req.payload.delete({
-      collection,
-      where: { calendar: { equals: id } },
+export const sharedWithAny = (calendars: string[]): Where => ({
+  or: [{ sharedWith: { in: calendars } }, { calendar: { in: calendars } }],
+});
+
+/**
+ * Stamps stop being shared with a calendar: all of them (it is gone) or one
+ * account's (it left). The stamps stay their owners' – also their prints in
+ * other calendars. It counts as a change made now, so the devices take it
+ * over.
+ */
+export const unshare = async (
+  req: PayloadRequest,
+  calendar: string,
+  owner?: string
+) => {
+  const { docs } = await req.payload.find({
+    collection: "stamps",
+    where: {
+      and: [
+        sharedWithAny([calendar]),
+        ...(owner ? [{ owner: { equals: owner } }] : []),
+      ],
+    },
+    select: { sharedWith: true, calendar: true },
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    req,
+  });
+  const changedAt = new Date().toISOString();
+  for (const stamp of docs) {
+    await req.payload.update({
+      collection: "stamps",
+      id: stamp.id,
+      data: {
+        sharedWith: sharedWithOf(stamp).filter((id) => id !== calendar),
+        calendar: null,
+        changedAt,
+      },
+      context: { sync: true },
+      depth: 0,
       overrideAccess: true,
       req,
     });
   }
+};
+
+/**
+ * A deleted calendar keeps only its marker: its placements go for good, and
+ * no stamp is shared with it any more.
+ */
+export const purgeCalendar = async (req: PayloadRequest, id: string) => {
+  await req.payload.delete({
+    collection: "placements",
+    where: { calendar: { equals: id } },
+    overrideAccess: true,
+    req,
+  });
+  await unshare(req, id);
 };

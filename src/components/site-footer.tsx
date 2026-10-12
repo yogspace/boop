@@ -6,8 +6,8 @@ import { cn } from "@/lib/cn";
 
 /**
  * The foot of every page: the owner's website on one side; imprint and
- * privacy, the copyright and the languages on the other – on a light line,
- * no box.
+ * privacy, the copyright and the languages on the other – under a ruled
+ * marker line, no box. The language in use is underlined.
  */
 export const SiteFooter = ({
   locale,
@@ -27,12 +27,13 @@ export const SiteFooter = ({
   return (
     <footer
       className={cn(
-        "mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-8 gap-y-3 border-line border-t-2 px-4 pt-4 pb-6 font-medium text-muted text-sm sm:px-6",
+        "mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-8 gap-y-3 px-4 pb-6 font-medium text-muted text-sm sm:px-6",
         className
       )}
     >
+      <span aria-hidden="true" className="scribble-rule w-full text-ink" />
       <a
-        className="inline-flex items-center gap-1 font-bold text-ink underline-offset-4 hover:underline"
+        className="inline-flex items-center gap-1 font-bold text-ink decoration-2 underline-offset-4 hover:underline"
         href={website}
         rel="noopener"
         target="_blank"
@@ -42,7 +43,7 @@ export const SiteFooter = ({
       </a>
       <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Link
-          className="underline-offset-4 hover:underline"
+          className="decoration-2 underline-offset-4 hover:text-ink hover:underline"
           href={legalPath(locale)}
         >
           {t.nav.legal}
@@ -56,7 +57,7 @@ export const SiteFooter = ({
           {LOCALES.map((other) => (
             <Link
               aria-current={other === locale ? "page" : undefined}
-              className="font-black uppercase aria-[current=page]:text-ink"
+              className="font-black uppercase hover:text-ink aria-[current=page]:scribble-underline aria-[current=page]:text-ink aria-[current=page]:[--scribble-width:2.5px]"
               href={`/${other}`}
               hrefLang={other}
               key={other}

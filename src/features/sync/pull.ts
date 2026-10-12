@@ -1,12 +1,14 @@
 import type { PayloadRequest, Where } from "payload";
 import { idOf } from "@/features/calendar/membership";
-import type {
-  CalendarDoc,
-  ColorName,
-  PlacementDoc,
-  StampDoc,
-  StampShape,
+import {
+  type CalendarDoc,
+  type ColorName,
+  type PlacementDoc,
+  type StampDoc,
+  type StampShape,
+  sharedWithOf,
 } from "@/features/calendar/model";
+import { sharedWithAny } from "./apply";
 import type { Person, SyncResponse, SyncType } from "./protocol";
 
 /**
@@ -42,7 +44,7 @@ const toStamp = (doc: Doc): StampDoc => ({
   shape: (doc.shape as StampShape) ?? "circle",
   drawing: (doc.drawing as StampDoc["drawing"]) ?? null,
   owner: idOf(doc.owner) ?? "",
-  calendar: idOf(doc.calendar),
+  sharedWith: sharedWithOf(doc),
   changedAt: iso(doc.changedAt),
   deleted: Boolean(doc.deleted),
 });
@@ -126,15 +128,14 @@ export const pull = async (
     for (const doc of docs) map.set(doc.id, doc);
   };
 
-  // What changed in the calendars the device has – and the own stamps.
+  // What changed in the calendars the device has – and the own stamps,
+  // and those shared with these calendars.
   add(
     stamps,
     (
       await find("stamps", {
         and: [
-          {
-            or: [{ owner: { equals: me } }, { calendar: { in: knownIds } }],
-          },
+          { or: [{ owner: { equals: me } }, sharedWithAny(knownIds)] },
           after ? changed : alive,
         ],
       })
@@ -154,7 +155,7 @@ export const pull = async (
   if (fresh.length) {
     add(
       stamps,
-      (await find("stamps", { and: [{ calendar: { in: fresh } }, alive] })).map(
+      (await find("stamps", { and: [sharedWithAny(fresh), alive] })).map(
         toStamp
       )
     );
@@ -177,8 +178,7 @@ export const pull = async (
         .map(toStamp)
         .filter(
           (stamp) =>
-            stamp.owner === me ||
-            Boolean(stamp.calendar && mine.has(stamp.calendar))
+            stamp.owner === me || stamp.sharedWith.some((id) => mine.has(id))
         )
     );
   }
@@ -213,6 +213,28 @@ export const pull = async (
       add(stamps, (await find("stamps", { id: { in: visible } })).map(toStamp));
     }
   }
+
+  // All that others share with the account – a stamp no longer among them
+  // has changed, but no device of the account would hear of it above.
+  const shared = calendarIds.length
+    ? (
+        await req.payload.find({
+          collection: "stamps",
+          where: {
+            and: [
+              sharedWithAny(calendarIds),
+              { owner: { not_equals: me } },
+              alive,
+            ],
+          },
+          select: { owner: true },
+          depth: 0,
+          pagination: false,
+          overrideAccess: true,
+          req,
+        })
+      ).docs.map((doc) => String(doc.id))
+    : [];
 
   // The people in those calendars, by name – nothing else about them.
   const memberIds = [...new Set(live.flatMap((calendar) => calendar.members))];
@@ -253,7 +275,16 @@ export const pull = async (
     calendarIds,
     people,
     calendars,
-    stamps: [...stamps.values()],
+    // Someone else's stamp names only the calendars this account is in.
+    stamps: [...stamps.values()].map((stamp) =>
+      stamp.owner === me
+        ? stamp
+        : {
+            ...stamp,
+            sharedWith: stamp.sharedWith.filter((id) => mine.has(id)),
+          }
+    ),
+    shared,
     placements: [...placements.values()],
   };
 };

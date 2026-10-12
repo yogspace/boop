@@ -1,7 +1,14 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { Button, Card, FIELD_INPUT, Field, Notice } from "@/components/ui";
+import {
+  Button,
+  Card,
+  FIELD_BOX,
+  FIELD_INPUT,
+  Field,
+  Notice,
+} from "@/components/ui";
 import type { Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
 
@@ -116,16 +123,18 @@ export const ContactForm = ({ locale }: { locale: Locale }) => {
         </div>
         <label className="flex flex-col gap-1.5">
           <span className="font-bold text-sm">{t.message}</span>
-          <textarea
-            className={cn(
-              FIELD_INPUT,
-              "field-sizing-content min-h-36 resize-none leading-relaxed"
-            )}
-            maxLength={5000}
-            name="message"
-            required
-            rows={5}
-          />
+          <span className={FIELD_BOX}>
+            <textarea
+              className={cn(
+                FIELD_INPUT,
+                "field-sizing-content min-h-36 resize-none leading-relaxed"
+              )}
+              maxLength={5000}
+              name="message"
+              required
+              rows={5}
+            />
+          </span>
         </label>
         {/* Honeypot – out of sight and reach, but not display:none (bots skip
             that); bots fill it in. */}

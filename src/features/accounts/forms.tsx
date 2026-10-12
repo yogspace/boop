@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Sparkle } from "@/components/doodles";
+import { Star, Ticks } from "@/components/doodles";
 import { Button, Field, LinkButton, Notice } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import { legalPath } from "@/features/legal/links";
@@ -78,15 +78,17 @@ const Frame = ({
   sticker?: string;
   children: ReactNode;
 }) => (
-  <div className="mx-auto w-full max-w-md px-4 pt-10 pb-16">
-    <div className="relative rounded-[32px] border-2 border-ink bg-card p-6 shadow-sticker-lg sm:p-8">
+  <div className="mx-auto w-full max-w-md px-4 pt-12 pb-16">
+    {/* A scribbled sheet; the sticker on its corner is the only color. */}
+    <div className="scribble rounded-[32px] p-6 sm:p-8">
       <div
         className="absolute -top-10 -right-4 w-24 animate-float"
         style={{ "--tilt": "10deg" } as React.CSSProperties}
       >
         <Sticker stamp={demoStamp(sticker)} />
       </div>
-      <Sparkle className="absolute -top-3 left-8 h-6 w-6 text-sun" />
+      <Ticks className="absolute -top-8 right-[5.5rem] h-5 w-8 -rotate-[38deg]" />
+      <Star className="absolute -top-3.5 left-8 h-7 w-7 -rotate-12" />
       <h1 className="mb-6 pr-16 text-4xl">{title}</h1>
       <div className="flex flex-col gap-5">{children}</div>
     </div>
@@ -120,7 +122,7 @@ const useSubmit = (locale: Locale) => {
 
 const TextLink = (props: React.ComponentProps<typeof Link>) => (
   <Link
-    className="font-bold text-violet underline decoration-2 underline-offset-4"
+    className="font-bold text-ink underline decoration-2 underline-offset-4 hover:decoration-[3px]"
     {...props}
   />
 );

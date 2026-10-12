@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Arrow, Sparkle } from "@/components/doodles";
+import { Arrow, Star, Ticks } from "@/components/doodles";
 import { StampSvg } from "@/features/calendar/stamp-svg";
 import { DEMO_STAMPS, demoStamp } from "@/features/stickers/demo";
 import { Sticker } from "@/features/stickers/sticker";
@@ -197,7 +197,10 @@ const useFollow = (scene: React.RefObject<HTMLDivElement | null>) => {
 
 /**
  * The front page's picture: a month in a tilted 3D card, prints on its days,
- * glossy stamps floating around it – turning to the pointer.
+ * glossy stamps floating around it – turning to the pointer. The card is
+ * drawn with the marker (a scribbled sheet, a ruled table, the weekend
+ * hatched, today's number in an ink blob); the stamps and their prints are
+ * the color.
  */
 export const HeroScene = ({ locale }: { locale: Locale }) => {
   const t = dictionaryOf(locale);
@@ -209,7 +212,7 @@ export const HeroScene = ({ locale }: { locale: Locale }) => {
       ref={scene}
     >
       <div
-        className="relative rounded-[32px] border-2 border-ink bg-card p-5 shadow-sticker-lg"
+        className="scribble rounded-[32px] p-5"
         data-card
         style={{ transform: cardTurn() }}
       >
@@ -217,7 +220,7 @@ export const HeroScene = ({ locale }: { locale: Locale }) => {
           <p className="font-black text-2xl">{t.app.months[9]}</p>
           <p className="font-bold text-muted text-sm">2026</p>
         </div>
-        <div className="grid grid-cols-7 gap-1.5">
+        <div className="grid grid-cols-7 pb-1">
           {t.app.weekdays.map((day) => (
             <p
               className="text-center font-black text-[10px] text-muted uppercase"
@@ -226,26 +229,23 @@ export const HeroScene = ({ locale }: { locale: Locale }) => {
               {day}
             </p>
           ))}
+        </div>
+        <div className="scribble-grid grid grid-cols-7 rounded-xl [--rows:5] [--scribble-width:2.5px] [--shade:2]">
           {Array.from({ length: 3 }, (_, i) => (
             <span key={`gap-${i}`} />
           ))}
           {Array.from({ length: 31 }, (_, i) => {
             const day = i + 1;
             const prints = PRINTS[day] ?? [];
-            const weekend = (3 + i) % 7 >= 5;
             return (
-              <div
-                className={cn(
-                  "flex aspect-square flex-col rounded-xl p-0.5",
-                  day === 12
-                    ? "border-2 border-violet bg-violet-soft"
-                    : weekend
-                      ? "bg-pink-soft/70"
-                      : "bg-soft"
-                )}
-                key={day}
-              >
-                <span className="pl-0.5 font-black text-[9px] leading-none">
+              <div className="flex aspect-square flex-col p-1" key={day}>
+                <span
+                  className={cn(
+                    "self-start font-black text-[9px] leading-none",
+                    day === 12 &&
+                      "scribble scribble-sm scribble-ink -m-0.5 flex h-[1.8em] w-[1.8em] items-center justify-center rounded-full"
+                  )}
+                >
                   {day}
                 </span>
                 <span className="grid flex-1 grid-cols-2 place-items-center">
@@ -290,11 +290,11 @@ export const HeroScene = ({ locale }: { locale: Locale }) => {
       ))}
 
       <div className="pointer-events-none absolute top-1/2 -left-2 hidden -translate-x-full flex-col items-end gap-1 lg:flex">
-        <span className="-rotate-6 font-black text-2xl text-pink">boop!</span>
-        <Arrow className="h-12 w-16 rotate-12 text-ink" />
+        <span className="-rotate-6 font-black text-2xl">boop!</span>
+        <Arrow className="h-12 w-16 rotate-12" />
       </div>
-      <Sparkle className="absolute top-2 left-1/3 h-6 w-6 animate-wiggle text-sun" />
-      <Sparkle className="absolute right-1/4 bottom-0 h-4 w-4 animate-wiggle text-sky" />
+      <Star className="pointer-events-none absolute top-1 left-1/3 h-6 w-6 -rotate-12" />
+      <Ticks className="pointer-events-none absolute right-[22%] bottom-1 h-5 w-8 rotate-[150deg]" />
     </div>
   );
 };
