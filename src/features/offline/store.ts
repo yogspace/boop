@@ -130,13 +130,16 @@ export const start = async () => {
 
   window.addEventListener("online", () => {
     set({ online: true });
+    live();
     void sync();
   });
   window.addEventListener("offline", () => set({ online: false }));
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void sync();
   });
-  // Others' changes come in now and then while the app is open.
+  window.addEventListener("focus", () => void sync());
+  // Live nudges bring others' changes at once (live()); this is the net
+  // below them.
   setInterval(() => {
     if (document.visibilityState === "visible") void sync();
   }, 30_000);
@@ -144,6 +147,7 @@ export const start = async () => {
   if (me) {
     // Known on this device: show at once, sync behind.
     set({ status: "ready" });
+    live();
     void sync();
     return;
   }
@@ -174,7 +178,28 @@ export const signedIn = async (account: Me) => {
   }
   await write([{ store: "meta", put: account, key: "me" }]);
   set({ me: account, status: "ready" });
+  live();
   void sync();
+};
+
+let source: EventSource | null = null;
+
+/**
+ * The live line to the server (features/sync/live.ts): a nudge whenever
+ * something changes in one of the account's calendars – then sync at once.
+ * The browser reconnects by itself after a drop.
+ */
+const live = () => {
+  if (source || typeof EventSource === "undefined") return;
+  source = new EventSource("/api/sync/live", { withCredentials: true });
+  source.addEventListener("change", () => scheduleSync(120));
+  source.onerror = () => {
+    // Logged out – no point in knocking again.
+    if (boop.status === "signedOut") {
+      source?.close();
+      source = null;
+    }
+  };
 };
 
 // ── Changes ─────────────────────────────────────────────────────────────────
@@ -306,7 +331,16 @@ export const deleteStamp = async (id: string) => {
   const doc = boop.stamps[id];
   if (!doc) return;
   const changedAt = now();
-  await keep("stamp", { ...doc, deleted: true, changedAt });
+  await keep("stamp", { ...plain(doc), deleted: true, changedAt });
+  // Its prints go along – the server removes them for everyone else.
+  const ops: Op[] = [];
+  for (const p of Object.values(boop.placements)) {
+    if (p.stamp === id) {
+      delete boop.placements[p.id];
+      ops.push({ store: "placements", delete: p.id });
+    }
+  }
+  await write(ops);
   await enqueue({ type: "stamp", id, changedAt, deleted: true });
 };
 
@@ -317,6 +351,7 @@ export const placeStamp = async (placement: {
   x: number;
   y: number;
   rotation: number;
+  ink: ColorName;
 }) => {
   const z =
     Math.max(
@@ -386,9 +421,9 @@ const dropCalendar = async (id: string) => {
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 /** Soon after a change – several quick changes go together. */
-const scheduleSync = () => {
+const scheduleSync = (delay = 700) => {
   clearTimeout(timer);
-  timer = setTimeout(() => void sync(), 700);
+  timer = setTimeout(() => void sync(), delay);
 };
 
 let running: Promise<void> | null = null;
@@ -469,6 +504,13 @@ const waiting = (type: SyncType, id: string) =>
 
 /** Takes over what the server sent – unless this device changed it since. */
 const merge = async (result: SyncResponse) => {
+  // Another account answered than the one on this device (logged in
+  // elsewhere in this browser): start over with its data.
+  if (boop.me && result.me.id !== boop.me.id) {
+    await clearAll();
+    window.location.reload();
+    return;
+  }
   const ops: Op[] = [];
   const { calendars, stamps, placements } = boop;
 
@@ -548,6 +590,8 @@ const merge = async (result: SyncResponse) => {
 export const logout = async () => {
   const ok = await logoutRequest();
   if (!ok) return false;
+  source?.close();
+  source = null;
   await clearAll();
   outbox = [];
   since = null;

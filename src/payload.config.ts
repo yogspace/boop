@@ -22,6 +22,7 @@ import { Invites } from "@/features/calendar/invites";
 import { Legal } from "@/features/legal/global";
 import { Site } from "@/features/site/global";
 import { syncEndpoint } from "@/features/sync/endpoint";
+import { liveEndpoint } from "@/features/sync/live";
 import { LOCALES } from "@/i18n/config";
 import { devMailAdapter } from "@/lib/dev-mail";
 import { mailSender } from "@/lib/mail";
@@ -88,7 +89,7 @@ export default buildConfig({
     Actions,
   ],
   globals: [Site, Legal, Analytics],
-  endpoints: [syncEndpoint, seedEndpoint],
+  endpoints: [syncEndpoint, liveEndpoint, seedEndpoint],
   // The admin's login cookie, `boop-token` – the app has its own
   // (features/accounts/session.ts). Only sent along from our own pages.
   cookiePrefix: "boop",

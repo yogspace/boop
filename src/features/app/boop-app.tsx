@@ -23,6 +23,7 @@ import { DaySheet } from "./day-sheet";
 import { MonthGrid } from "./month-grid";
 import { ShareSheet } from "./share-sheet";
 import { StampDrawer } from "./stamp-drawer";
+import { StampSheet } from "./stamp-sheet";
 import { SyncBadge } from "./sync-badge";
 
 /** A stable little tilt per stamp – the shelf looks hand-placed. */
@@ -46,6 +47,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   const [drawing, setDrawing] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [opened, setOpened] = useState<string | null>(null);
 
   useEffect(() => {
     void start();
@@ -285,9 +287,14 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
               style={{ transform: `rotate(${tilt(s.id)}deg)` }}
               title={s.name || undefined}
             >
-              <div className="flex aspect-square items-center justify-center rounded-3xl border-2 border-ink bg-card p-1 shadow-sticker-sm transition hover:animate-wiggle">
-                <Sticker label={s.name || undefined} stamp={s} />
-              </div>
+              <button
+                aria-label={s.name || t.app.stamp.untitled}
+                className="flex aspect-square w-full items-center justify-center rounded-3xl border-2 border-ink bg-card p-1 shadow-sticker-sm transition hover:animate-wiggle"
+                onClick={() => setOpened(s.id)}
+                type="button"
+              >
+                <Sticker stamp={s} />
+              </button>
             </li>
           ))}
         </ul>
@@ -316,6 +323,14 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
           calendar={calendar && !calendar.personal ? calendar.id : null}
           locale={locale}
           onClose={() => setDrawing(false)}
+        />
+      )}
+      {opened && boop.stamps[opened] && (
+        <StampSheet
+          locale={locale}
+          mine={boop.stamps[opened].owner === me}
+          onClose={() => setOpened(null)}
+          stamp={boop.stamps[opened]}
         />
       )}
       {calendar && sharing && (

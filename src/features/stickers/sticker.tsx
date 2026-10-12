@@ -4,10 +4,13 @@ import { useEffect, useState } from "react";
 import { StampSvg } from "@/features/calendar/stamp-svg";
 import { cn } from "@/lib/cn";
 import type { StickerInput } from "./build";
-import { stickerImage } from "./render";
+import { type Pose, stickerImage } from "./render";
 
-/** The sticker's picture once it is rendered – null until then (or without WebGL). */
-export const useStickerImage = (input: StickerInput | null) => {
+/** The stamp's picture once rendered – null until then (or without WebGL). */
+export const useStickerImage = (
+  input: StickerInput | null,
+  kind: Pose = "face"
+) => {
   const [url, setUrl] = useState<string | null>(null);
   const shape = input?.shape;
   const color = input?.color;
@@ -15,30 +18,32 @@ export const useStickerImage = (input: StickerInput | null) => {
   useEffect(() => {
     if (!(shape && color)) return;
     let live = true;
-    stickerImage({ shape, color, drawing: drawing ?? null })
+    stickerImage({ shape, color, drawing: drawing ?? null }, kind)
       .then((next) => live && setUrl(next))
       .catch(() => live && setUrl(null));
     return () => {
       live = false;
     };
-  }, [shape, color, drawing]);
+  }, [shape, color, drawing, kind]);
   return url;
 };
 
 /**
- * A stamp as its 3D sticker – the flat drawing stands in while the picture
+ * A stamp as its 3D picture – the flat drawing stands in while the picture
  * renders (and stays where WebGL is missing).
  */
 export const Sticker = ({
   stamp,
   className,
   label,
+  pose = "face",
 }: {
   stamp: StickerInput;
   className?: string;
   label?: string;
+  pose?: Pose;
 }) => {
-  const url = useStickerImage(stamp);
+  const url = useStickerImage(stamp, pose);
   return (
     <span
       className={cn("relative block aspect-square", className)}
@@ -53,7 +58,7 @@ export const Sticker = ({
         />
       ) : (
         <StampSvg
-          className="h-full w-full p-[12%]"
+          className="h-full w-full p-[14%]"
           color={stamp.color}
           drawing={stamp.drawing}
           shape={stamp.shape}

@@ -4,6 +4,7 @@ import { calendarsOf } from "@/features/calendar/membership";
 import { isId } from "@/lib/id";
 import { rateLimit } from "@/lib/rate-limit";
 import { type ApplyContext, applyChange } from "./apply";
+import { nudge, nudgeCalendars } from "./live";
 import {
   type Change,
   MAX_CHANGES,
@@ -95,6 +96,33 @@ export const syncEndpoint: Endpoint = {
         req.payload.logger.warn({ err: error, msg: "[sync] change failed" });
         rejected.push({ type: change.type, id: change.id, reason: "invalid" });
       }
+    }
+
+    // Everyone in the calendars that changed gets a nudge (live.ts).
+    if (changes.length > rejected.length) {
+      void (async () => {
+        const affected = new Set(touched.calendar);
+        for (const [collection, ids] of [
+          ["placements", touched.placement],
+          ["stamps", touched.stamp],
+        ] as const) {
+          if (!ids.size) continue;
+          const { docs } = await req.payload.find({
+            collection,
+            where: { id: { in: [...ids] } },
+            select: { calendar: true },
+            depth: 0,
+            pagination: false,
+            overrideAccess: true,
+          });
+          for (const doc of docs) {
+            const calendar = (doc as { calendar?: unknown }).calendar;
+            if (calendar) affected.add(String(calendar));
+          }
+        }
+        nudge([me]);
+        await nudgeCalendars(req, affected);
+      })().catch(() => undefined);
     }
 
     const result = await pull(req, me, {

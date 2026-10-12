@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import {
   buildSticker,
   disposeSticker,
+  pose,
   type StickerInput,
   stage,
 } from "./build";
@@ -79,10 +80,11 @@ export const StickerView = ({
         const t = Math.min(1, (now - start) / 1100);
         const e = ease(t);
         const time = (now - start) / 1000;
+        // Flat and face-on like the drawing at first – then the rubber, the
+        // block and the knob grow out of it and it turns to show them.
         sticker.scale.set(1, 1, Math.max(0.02, e));
-        sticker.rotation.x = -0.42 * e;
-        sticker.rotation.y = e * (0.25 + Math.sin(time * 0.9) * 0.4) + turn;
-        sticker.rotation.z = -0.05 * e;
+        pose(sticker, "face", e);
+        sticker.rotation.y += Math.sin(time * 0.9) * 0.35 * e + turn;
         if (from === null) turn *= 0.94;
         renderer.render(scene, camera);
         frame = requestAnimationFrame(tick);

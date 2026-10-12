@@ -1,7 +1,7 @@
 import type { CollectionConfig } from "payload";
 import { adminOnly } from "@/access";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
-import { isDayKey } from "../model";
+import { COLOR_NAMES, isDayKey } from "../model";
 
 /**
  * Stamps put on a day of a calendar. A day's canvas is all placements with
@@ -58,6 +58,12 @@ export const Placements: CollectionConfig = {
         { name: "scale", type: "number", defaultValue: 1, min: 0.2, max: 4 },
         { name: "z", type: "number", defaultValue: 0 },
       ],
+    },
+    {
+      // The ink pad it was stamped with.
+      name: "ink",
+      type: "select",
+      options: COLOR_NAMES,
     },
     {
       name: "placedBy",

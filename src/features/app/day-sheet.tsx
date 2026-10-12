@@ -1,11 +1,15 @@
 "use client";
 
-import { type PointerEvent, useMemo, useRef, useState } from "react";
+import { type PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { Snapshot } from "valtio";
 import { Button } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import {
+  COLOR_NAMES,
+  COLORS,
+  type ColorName,
   type DayKey,
+  isColorName,
   type StampDoc,
   todayKey,
 } from "@/features/calendar/model";
@@ -26,6 +30,13 @@ type Stamp = Snapshot<StampDoc>;
 
 /** How far a finger moves before a tap becomes a drag. */
 const DRAG = 8;
+
+/** The ink pad last used on this device. */
+const INK_KEY = "boop-ink";
+
+/** A print's own imperfections, from its id. */
+export const seedOf = (id: string) =>
+  (Number.parseInt(id.slice(0, 6), 16) || 7) % 997;
 
 /**
  * A day of a calendar: its page with the prints on it, and the tray of 3D
@@ -68,6 +79,26 @@ export const DaySheet = ({
     y: number;
     moved: boolean;
   } | null>(null);
+  // The ink pad in use – and a dip of the stamps when it changes.
+  const [ink, setInk] = useState<ColorName>("ink");
+  const [dip, setDip] = useState(0);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(INK_KEY);
+      if (isColorName(saved)) setInk(saved);
+    } catch {
+      // No storage – the default ink.
+    }
+  }, []);
+  const chooseInk = (next: ColorName) => {
+    setInk(next);
+    setDip((n) => n + 1);
+    try {
+      localStorage.setItem(INK_KEY, next);
+    } catch {
+      // Remembered for this visit only.
+    }
+  };
   // Stamps coming down right now (the press animation).
   const [presses, setPresses] = useState<
     { key: number; stamp: Stamp; x: number; y: number }[]
@@ -109,6 +140,7 @@ export const DaySheet = ({
         x,
         y,
         rotation: Math.round(Math.random() * 24 - 12),
+        ink,
       });
     }, 270);
     trackEvent("stamp-placed");
@@ -223,9 +255,10 @@ export const DaySheet = ({
               >
                 <StampSvg
                   className="pointer-events-none h-auto w-full"
-                  color={stamp?.color ?? "ink"}
+                  color={p.ink ?? stamp?.color ?? "ink"}
                   drawing={stamp?.drawing ?? null}
                   print
+                  seed={seedOf(p.id)}
                   shape={stamp?.shape}
                 />
               </button>
@@ -245,10 +278,40 @@ export const DaySheet = ({
               zIndex: 2000,
             }}
           >
-            <Sticker stamp={press.stamp} />
+            <Sticker pose="press" stamp={press.stamp} />
           </div>
         ))}
       </div>
+
+      <fieldset className="flex items-center gap-2 overflow-x-auto pb-1">
+        <legend className="mb-2 font-bold text-muted text-sm">
+          {t.app.day.ink}
+        </legend>
+        {COLOR_NAMES.map((c) => (
+          <button
+            aria-label={t.colors[c]}
+            aria-pressed={ink === c}
+            className={cn(
+              "relative h-11 w-14 shrink-0 rounded-2xl border-2 border-ink transition-transform",
+              ink === c
+                ? "-translate-y-1 shadow-sticker-sm"
+                : "hover:-translate-y-0.5"
+            )}
+            key={c}
+            onClick={() => chooseInk(c)}
+            style={{
+              background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${COLORS[c]} 55%, white) 0 18%, ${COLORS[c]} 45%, color-mix(in srgb, ${COLORS[c]} 70%, black))`,
+            }}
+            type="button"
+          >
+            {ink === c && (
+              <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border-2 border-ink bg-card font-black text-[10px]">
+                ✓
+              </span>
+            )}
+          </button>
+        ))}
+      </fieldset>
 
       <div className="flex min-h-10 items-center justify-between gap-2">
         <p className="font-bold text-muted text-sm">{t.app.day.tray}</p>
@@ -284,7 +347,9 @@ export const DaySheet = ({
               onPointerUp={trayUp(s)}
               type="button"
             >
-              <Sticker className="pointer-events-none" stamp={s} />
+              <span className="block animate-press-dip" key={dip}>
+                <Sticker className="pointer-events-none" stamp={s} />
+              </span>
             </button>
           ))}
         </div>
@@ -295,7 +360,7 @@ export const DaySheet = ({
           className="pointer-events-none fixed z-[100] w-24 -translate-x-1/2 -translate-y-1/2 rotate-[-8deg] scale-110"
           style={{ left: ghost.x, top: ghost.y }}
         >
-          <Sticker stamp={ghost.stamp} />
+          <Sticker pose="press" stamp={ghost.stamp} />
         </div>
       )}
     </Sheet>

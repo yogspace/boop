@@ -105,6 +105,8 @@ export type PlacementDoc = Synced & {
   scale: number;
   /** Stacking order – higher lies on top. */
   z: number;
+  /** The ink it was stamped with – null on old prints: the stamp's color. */
+  ink: ColorName | null;
   placedBy: string;
 };
 

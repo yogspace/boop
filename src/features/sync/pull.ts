@@ -57,6 +57,7 @@ const toPlacement = (doc: Doc): PlacementDoc => ({
   rotation: Number(doc.rotation ?? 0),
   scale: Number(doc.scale ?? 1),
   z: Number(doc.z ?? 0),
+  ink: (doc.ink as ColorName | null) ?? null,
   placedBy: idOf(doc.placedBy) ?? "",
   changedAt: iso(doc.changedAt),
   deleted: Boolean(doc.deleted),

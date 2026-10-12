@@ -70,6 +70,7 @@ export const StampSvg = ({
   className,
   title,
   print = false,
+  seed = 7,
   filled = false,
 }: {
   drawing: ReadonlyDrawing | null;
@@ -77,8 +78,10 @@ export const StampSvg = ({
   shape?: StampShape;
   className?: string;
   title?: string;
-  /** Speckled like ink from a rubber stamp. */
+  /** Inked like a rubber stamp's print – a little imperfect. */
   print?: boolean;
+  /** Makes each print's imperfections its own. */
+  seed?: number;
   /** The body tinted in its color – the drawing surface. */
   filled?: boolean;
 }) => {
@@ -100,27 +103,66 @@ export const StampSvg = ({
           <ShapeOutline shape={shape} />
         </clipPath>
         {print && (
-          <filter height="120%" id={`${id}-ink`} width="120%" x="-10%" y="-10%">
+          // Like a real rubber stamp: blotchy coverage, fine grain, frayed
+          // edges – and never twice the same (seed).
+          <filter
+            colorInterpolationFilters="sRGB"
+            height="130%"
+            id={`${id}-ink`}
+            width="130%"
+            x="-15%"
+            y="-15%"
+          >
             <feTurbulence
-              baseFrequency="38"
+              baseFrequency="2.6"
               numOctaves="2"
-              result="noise"
-              seed="7"
+              result="blot"
+              seed={seed}
               type="fractalNoise"
             />
-            <feColorMatrix
-              in="noise"
-              result="speckle"
-              type="matrix"
-              values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.7"
+            <feTurbulence
+              baseFrequency="42"
+              numOctaves="2"
+              result="grain"
+              seed={seed + 11}
+              type="fractalNoise"
             />
-            <feComposite in="SourceGraphic" in2="speckle" operator="in" />
+            <feComposite
+              in="blot"
+              in2="grain"
+              k2="0.6"
+              k3="0.55"
+              operator="arithmetic"
+              result="mix"
+            />
+            <feColorMatrix
+              in="mix"
+              result="mask"
+              type="matrix"
+              values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -4.2 4.15"
+            />
+            <feTurbulence
+              baseFrequency="11"
+              numOctaves="1"
+              result="warp"
+              seed={seed + 23}
+              type="fractalNoise"
+            />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="warp"
+              result="rough"
+              scale="0.03"
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+            <feComposite in="rough" in2="mask" operator="in" />
           </filter>
         )}
       </defs>
       <g
         filter={print ? `url(#${id}-ink)` : undefined}
-        opacity={print ? 0.92 : 1}
+        opacity={print ? 0.9 : 1}
       >
         <ShapeOutline
           fill={filled ? `color-mix(in srgb, ${ink} 14%, white)` : "none"}

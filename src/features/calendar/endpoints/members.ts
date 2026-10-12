@@ -1,5 +1,6 @@
 import type { Endpoint, PayloadRequest } from "payload";
 import { sessionAccount } from "@/features/accounts/session";
+import { nudge, nudgeCalendars } from "@/features/sync/live";
 import { rateLimit } from "@/lib/rate-limit";
 import { invite } from "../invites";
 import { calendarById } from "../membership";
@@ -86,6 +87,7 @@ export const addMember: Endpoint = {
     const id = String(person.id);
     if (!calendar.members.includes(id)) {
       await touch(req, calendar.id, [...calendar.members, id]);
+      await nudgeCalendars(req, [calendar.id]);
     }
     return Response.json({
       added: true,
@@ -117,6 +119,8 @@ export const removeMember: Endpoint = {
         calendar.id,
         calendar.members.filter((m) => m !== who)
       );
+      nudge([who]);
+      await nudgeCalendars(req, [calendar.id]);
     }
     return Response.json({ removed: true });
   },

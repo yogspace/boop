@@ -2,18 +2,21 @@ import type * as Three from "three";
 import {
   buildSticker,
   disposeSticker,
+  pose,
   type StickerInput,
   stage,
 } from "./build";
 
 /**
- * Stickers as pictures: one hidden WebGL canvas renders each stamp once – a
- * little tilted, so it reads as 3D – into an image URL. Lists, trays and
- * pages show those pictures; only the stamp being made spins live
- * (sticker-view.tsx). Kept per stamp version, rendered one after another.
+ * Stamps as pictures: one hidden WebGL canvas renders each stamp once per
+ * pose into an image URL. Lists, trays and pages show those pictures; only
+ * the stamp being made or looked at turns live (sticker-view.tsx). Kept per
+ * stamp version, rendered one after another.
  */
 
 const SIZE = 320;
+
+export type Pose = "face" | "press";
 
 type Studio = {
   THREE: typeof Three;
@@ -47,26 +50,28 @@ const open = () => {
 const cache = new Map<string, Promise<string>>();
 let queue: Promise<unknown> = Promise.resolve();
 
-/** A short fingerprint of what the sticker looks like. */
-export const stickerKey = (input: StickerInput) => {
+/** A short fingerprint of what the stamp looks like. */
+export const stickerKey = (input: StickerInput, kind: Pose = "face") => {
   let hash = 0;
-  const text = `${input.shape}|${input.color}|${JSON.stringify(input.drawing?.strokes ?? [])}`;
+  const text = `${kind}|${input.shape}|${input.color}|${JSON.stringify(input.drawing?.strokes ?? [])}`;
   for (let i = 0; i < text.length; i++) {
     hash = (hash * 31 + text.charCodeAt(i)) | 0;
   }
-  return `${input.shape}-${input.color}-${text.length}-${hash}`;
+  return `${kind}-${input.shape}-${input.color}-${text.length}-${hash}`;
 };
 
-/** The sticker's picture (an object URL) – rendered once, then kept. */
-export const stickerImage = (input: StickerInput): Promise<string> => {
-  const key = stickerKey(input);
+/** The stamp's picture (an object URL) – rendered once, then kept. */
+export const stickerImage = (
+  input: StickerInput,
+  kind: Pose = "face"
+): Promise<string> => {
+  const key = stickerKey(input, kind);
   const hit = cache.get(key);
   if (hit) return hit;
   const job = queue.then(async () => {
     const { THREE, renderer, scene, camera } = await open();
     const sticker = buildSticker(THREE, input);
-    // Tilted back and turned a little – the angle all pictures share.
-    sticker.rotation.set(-0.42, 0.28, -0.06);
+    pose(sticker, kind);
     scene.add(sticker);
     renderer.render(scene, camera);
     scene.remove(sticker);

@@ -201,8 +201,21 @@ const applyStamp = async (
   }
   if (idOf(existing.owner) !== ctx.me) return no("not the owner");
   if (change.deleted) {
-    // The marker keeps nothing of the doodle.
+    // The marker keeps nothing of the doodle – and its prints go too.
     await write({ deleted: true, name: "", drawing: null });
+    await ctx.req.payload.update({
+      collection: "placements",
+      where: {
+        and: [
+          { stamp: { equals: change.id } },
+          { deleted: { not_equals: true } },
+        ],
+      },
+      data: { deleted: true, changedAt: new Date().toISOString() },
+      context: { sync: true },
+      overrideAccess: true,
+      req: ctx.req,
+    });
     return OK;
   }
   await write(defined(fields));
@@ -223,6 +236,7 @@ const applyPlacement = async (
     rotation: number(data.rotation, -3600, 3600),
     scale: number(data.scale, 0.2, 4),
     z: number(data.z, 0, 1_000_000),
+    ink: isColorName(data.ink) ? data.ink : undefined,
   };
   if (!existing) {
     const calendar = String(data.calendar ?? "");

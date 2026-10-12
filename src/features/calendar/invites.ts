@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { CollectionConfig, Endpoint, PayloadRequest } from "payload";
 import { adminOnly } from "@/access";
 import { sessionAccount } from "@/features/accounts/session";
+import { nudgeCalendars } from "@/features/sync/live";
 import { isLocale, type Locale } from "@/i18n/config";
 import { mailLayout } from "@/lib/mail-layout";
 import { serverUrl } from "@/lib/server-url";
@@ -175,6 +176,7 @@ const join = async (
       context: { sync: true },
       overrideAccess: true,
     });
+    await nudgeCalendars(req, [calendar.id]);
   }
   return true;
 };

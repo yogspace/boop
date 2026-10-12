@@ -7,6 +7,7 @@ import { useBoop } from "@/features/offline/store";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
+import { seedOf } from "./day-sheet";
 
 type Month = { year: number; month: number };
 
@@ -140,10 +141,11 @@ export const MonthGrid = ({
                   return (
                     <StampSvg
                       className="h-[90%] w-[90%] mix-blend-multiply"
-                      color={stamp?.color ?? "ink"}
+                      color={p.ink ?? stamp?.color ?? "ink"}
                       drawing={stamp?.drawing ?? null}
                       key={p.id}
                       print
+                      seed={seedOf(p.id)}
                       shape={stamp?.shape}
                       title={
                         n === 3 && day.length > 4

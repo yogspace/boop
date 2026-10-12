@@ -235,6 +235,7 @@ export interface Placement {
   rotation?: number | null;
   scale?: number | null;
   z?: number | null;
+  ink?: ('ink' | 'coral' | 'sun' | 'mint' | 'sky' | 'grape' | 'pink') | null;
   placedBy?: (string | null) | Account;
   changedAt: string;
   deleted?: boolean | null;
@@ -502,6 +503,7 @@ export interface PlacementsSelect<T extends boolean = true> {
   rotation?: T;
   scale?: T;
   z?: T;
+  ink?: T;
   placedBy?: T;
   changedAt?: T;
   deleted?: T;

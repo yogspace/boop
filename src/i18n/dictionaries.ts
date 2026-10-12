@@ -191,6 +191,7 @@ const de = {
       remove: "Abdruck entfernen",
       close: "Fertig",
       print: "Abdruck",
+      ink: "Stempelkissen",
     },
     share: {
       title: "Teilen",
@@ -207,6 +208,15 @@ const de = {
       owner: "Besitzer:in",
       remove: "Entfernen",
       leave: "Kalender verlassen",
+    },
+    stamp: {
+      untitled: "Stempel",
+      print3d: "Für den 3D-Drucker (STL)",
+      hint: (mm: number) =>
+        `${mm} mm breit, mit „boop“ auf dem Rücken. Die Stempelfläche ist gespiegelt – so kommt dein Abdruck richtig herum raus.`,
+      delete: "Stempel löschen",
+      deleteConfirm:
+        "Diesen Stempel löschen? Auch seine Abdrücke verschwinden.",
     },
     account: "Konto",
     logout: "Abmelden",
@@ -419,6 +429,7 @@ const en: Shape<Dictionary> = {
       remove: "Remove print",
       close: "Done",
       print: "Print",
+      ink: "Ink pad",
     },
     share: {
       title: "Share",
@@ -435,6 +446,14 @@ const en: Shape<Dictionary> = {
       owner: "Owner",
       remove: "Remove",
       leave: "Leave calendar",
+    },
+    stamp: {
+      untitled: "Stamp",
+      print3d: "For the 3D printer (STL)",
+      hint: (mm: number) =>
+        `${mm} mm wide, with “boop” on its back. The stamp face is mirrored – so your print comes out the right way round.`,
+      delete: "Delete stamp",
+      deleteConfirm: "Delete this stamp? Its prints go too.",
     },
     account: "Account",
     logout: "Log out",
