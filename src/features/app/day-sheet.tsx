@@ -34,6 +34,7 @@ import { Sticker } from "@/features/stickers/sticker";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
+import { newId } from "@/lib/id";
 import { Sheet } from "./sheet";
 
 type Stamp = Snapshot<StampDoc>;
@@ -52,6 +53,12 @@ const INK_KEY = "boop-ink";
 const PRINT = 0.26;
 const VIEW_BOX = 1.04;
 
+/** How much of the next print's preview shows. */
+const GHOST = 0.4;
+
+/** Turning the stamp in hand: degrees per tap on a button or key. */
+const STEP = 15;
+
 /** A print's own imperfections, from its id. */
 export const seedOf = (id: string) =>
   (Number.parseInt(id.slice(0, 6), 16) || 7) % 997;
@@ -66,6 +73,25 @@ type Step =
   | { kind: "remove"; id: string; print: Print };
 
 const within = (value: number) => Math.min(Math.max(value, 0), 1);
+
+/** An angle as a print keeps it: whole degrees, −180…180. */
+const tidy = (degrees: number) => {
+  const turned = Math.round(degrees) % 360;
+  if (turned > 180) return turned - 360;
+  return turned < -180 ? turned + 360 : turned;
+};
+
+/**
+ * How far a wheel event turns the stamp, in degrees: a notch (about 100 px)
+ * is 6°. Small steps count a little more than their share – a trackpad turns
+ * it smoothly, a slow wheel still visibly – and none is more than 12°.
+ */
+const wheelTurn = (event: WheelEvent) => {
+  const delta = event.deltaY || event.deltaX;
+  // Lines (Firefox) are about 33 px each.
+  const px = Math.abs(delta) * (event.deltaMode === 1 ? 33 : 1);
+  return Math.sign(delta) * Math.min(12, 0.38 * px ** 0.6);
+};
 
 /** An ink pad giving way under the stamp. */
 const squash = (pad: HTMLElement) => {
@@ -83,9 +109,11 @@ const squash = (pad: HTMLElement) => {
 /**
  * A day of a calendar: its page with the prints on it, the ink pads and the
  * tray of stamps. Tap a stamp – it's in your hand (stamp-hand.tsx) and
- * follows the pointer; tap the page – it comes down right there; tap an ink
- * pad – it takes that ink. With no stamp in hand the prints can be moved,
- * picked and removed. Every step can be taken back.
+ * follows the pointer, a faint preview on the page showing the print it will
+ * leave; the wheel (or the two buttons, or ← →) turns it. Tap the page – it
+ * comes down right there; tap an ink pad – it takes that ink. With no stamp
+ * in hand the prints can be moved, picked and removed. Every step can be
+ * taken back.
  */
 export const DaySheet = ({
   calendar,
@@ -107,6 +135,17 @@ export const DaySheet = ({
   // The stamp in hand – with none, the prints can be moved and picked.
   const [held, setHeld] = useState<string | null>(null);
   const inHand = stamps.find((s) => s.id === held) ?? null;
+  const holding = Boolean(inHand);
+  // The next print: where the stamp is aimed (the page, 0–1), whether its
+  // preview shows, and how it is turned – degrees, running on past ±180 so
+  // nothing ever spins back the long way. Kept beside React: they change
+  // with every move of the pointer.
+  const aim = useRef({ x: 0.5, y: 0.5, on: false });
+  const turn = useRef(0);
+  const ghost = useRef<HTMLDivElement>(null);
+  // Its id is made ahead – so the preview is that very print, blot for blot.
+  const [next, setNext] = useState(newId);
+  const nextId = useRef(next);
   const [picked, setPicked] = useState<string | null>(null);
   // A print being moved – written once it is let go. It keeps where it was
   // taken hold of (`grab`, from its middle).
@@ -161,13 +200,11 @@ export const DaySheet = ({
   const steps = useRef<Step[]>([]);
   const line = useRef<Promise<void>>(Promise.resolve());
   const [undoable, setUndoable] = useState(false);
-  const note = (step: Step | Promise<Step>) => {
-    line.current = line.current
-      .then(async () => {
-        steps.current.push(await step);
-        setUndoable(true);
-      })
-      .catch(() => undefined);
+  const note = (step: Step) => {
+    line.current = line.current.then(() => {
+      steps.current.push(step);
+      setUndoable(true);
+    });
   };
   const undo = useCallback(() => {
     line.current = line.current
@@ -192,24 +229,88 @@ export const DaySheet = ({
       .catch(() => undefined);
   }, []);
 
+  /** Puts the preview where the stamp is aimed, turned like it – no render. */
+  const preview = useCallback(() => {
+    const box = ghost.current;
+    const inked = box?.firstElementChild;
+    if (!(box && inked instanceof HTMLElement)) return;
+    const { x, y, on } = aim.current;
+    // In its own widths – the page is 1 / PRINT of them; its middle there.
+    const to = (at: number) => `${((at / PRINT) * 100 - 50).toFixed(2)}%`;
+    box.style.transform = `translate(${to(x)}, ${to(y)})`;
+    inked.style.rotate = `${Math.round(turn.current)}deg`;
+    inked.style.opacity = on ? `${GHOST}` : "0";
+  }, []);
+  useEffect(() => {
+    if (holding) preview();
+  }, [holding, preview]);
+
+  /** Turns the stamp in hand – its preview turns, the 3D stamp spins along. */
+  const turnBy = useCallback(
+    (degrees: number) => {
+      turn.current += degrees;
+      // Turned by button or key, it shows where the stamp was last aimed.
+      aim.current.on = true;
+      preview();
+      hand.current?.turn(Math.round(turn.current));
+    },
+    [preview]
+  );
+
+  /** Takes a stamp into the hand (or puts it down) – straight again. */
+  const take = useCallback(
+    (id: string | null) => {
+      setHeld(id);
+      setPicked(null);
+      turn.current = 0;
+      aim.current.on = false;
+      preview();
+      hand.current?.turn(0);
+    },
+    [preview]
+  );
+
+  // The wheel turns the stamp in hand, and the sheet doesn't scroll
+  // meanwhile – which React's own (passive) wheel listener couldn't stop.
+  useEffect(() => {
+    const box = page.current;
+    if (!(box && holding)) return;
+    const onWheel = (event: WheelEvent) => {
+      // A pinch (ctrl + wheel) stays the browser's.
+      if (event.ctrlKey) return;
+      event.preventDefault();
+      turnBy(wheelTurn(event));
+    };
+    box.addEventListener("wheel", onWheel, { passive: false });
+    return () => box.removeEventListener("wheel", onWheel);
+  }, [holding, turnBy]);
+
   // Escape puts the stamp down first – only then it closes the sheet (which
-  // listens on the window too, so this one goes ahead of it). ⌘Z / Ctrl+Z.
+  // listens on the window too, so this one goes ahead of it). ⌘Z / Ctrl+Z
+  // takes a step back; ← → and [ ] turn the stamp in hand.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && held) {
-        event.stopImmediatePropagation();
-        setHeld(null);
-        return;
-      }
       const mod = event.metaKey || event.ctrlKey;
       if (mod && !event.shiftKey && !event.altKey && event.key === "z") {
         event.preventDefault();
         undo();
+        return;
+      }
+      if (!holding || mod) return;
+      if (event.key === "Escape") {
+        event.stopImmediatePropagation();
+        take(null);
+      } else if (event.key === "ArrowLeft" || event.key === "[") {
+        event.preventDefault();
+        turnBy(-STEP);
+      } else if (event.key === "ArrowRight" || event.key === "]") {
+        event.preventDefault();
+        turnBy(STEP);
       }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [held, undo]);
+  }, [holding, take, turnBy, undo]);
 
   const placements = useMemo(
     () =>
@@ -235,32 +336,52 @@ export const DaySheet = ({
     };
   };
 
-  /** A print of this stamp on the page – noted, so it can be taken back. */
-  const print = (stamp: Stamp, x: number, y: number, inked: ColorName) => {
-    note(
-      placeStamp({
-        calendar,
-        date,
-        stamp: stamp.id,
-        x,
-        y,
-        rotation: Math.round(Math.random() * 16 - 8),
-        ink: inked,
-      }).then((id): Step => ({ kind: "place", id }))
-    );
+  /**
+   * A print of this stamp on the page, as its preview showed it – noted, so
+   * it can be taken back. The next print gets a new id (and look).
+   */
+  const print = (
+    stamp: Stamp,
+    at: { x: number; y: number },
+    rotation: number,
+    inked: ColorName
+  ) => {
+    const id = nextId.current;
+    nextId.current = newId();
+    setNext(nextId.current);
+    note({ kind: "place", id });
+    void placeStamp({
+      id,
+      calendar,
+      date,
+      stamp: stamp.id,
+      ...at,
+      rotation,
+      ink: inked,
+    });
     trackEvent("stamp-placed");
   };
 
   // Over the page and the ink pads the stamp in hand follows the pointer –
-  // held higher below the page, so the pad under it stays in view. A finger
-  // doesn't hover: there it goes where it is tapped.
+  // held higher below the page, so the pad under it stays in view – and on
+  // the page the preview goes along. A finger doesn't hover: there the
+  // stamp goes where it is tapped, and the preview only shows once it is
+  // turned (where it was last tapped).
   const carry = (event: PointerEvent<HTMLElement>) => {
     if (!inHand || event.pointerType === "touch") return;
-    const below = page.current?.getBoundingClientRect().bottom ?? 0;
-    hand.current?.point(event.clientX, event.clientY, event.clientY > below);
+    const at = onPage(event.clientX, event.clientY);
+    if (!at) return;
+    const inside = at.x >= 0 && at.x <= 1 && at.y >= 0 && at.y <= 1;
+    if (inside) aim.current = { ...at, on: true };
+    else aim.current.on = false;
+    preview();
+    hand.current?.point(event.clientX, event.clientY, at.y > 1);
   };
   const letGo = (event: PointerEvent<HTMLElement>) => {
-    if (event.pointerType !== "touch") hand.current?.hide();
+    if (event.pointerType === "touch") return;
+    aim.current.on = false;
+    preview();
+    hand.current?.hide();
   };
 
   /** Down comes the stamp – the print appears as it touches. */
@@ -275,9 +396,20 @@ export const DaySheet = ({
     if (!at) return;
     const stamp = inHand;
     const inked = ink;
-    const touch = () => print(stamp, within(at.x), within(at.y), inked);
+    const spot = { x: within(at.x), y: within(at.y) };
+    const rotation = tidy(turn.current);
+    const touch = () => {
+      print(stamp, spot, rotation, inked);
+      // The print took its preview's place – it's back when the stamp
+      // moves on.
+      aim.current.on = false;
+      preview();
+    };
     if (hand.current) hand.current.press(event.clientX, event.clientY, touch);
     else touch();
+    aim.current.x = spot.x;
+    aim.current.y = spot.y;
+    preview();
   };
 
   /** With a stamp in hand: down into the pad – it comes up in that ink. */
@@ -412,6 +544,27 @@ export const DaySheet = ({
               </div>
             );
           })}
+          {inHand && (
+            // The next print, faintly: where and how the stamp will leave
+            // it. Moved by preview(), so no style of React's is in its way.
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute top-0 left-0 aspect-square mix-blend-multiply will-change-transform"
+              ref={ghost}
+              style={{ width: `${PRINT * 100}%`, zIndex: 2000 }}
+            >
+              <div className="opacity-0 transition-[rotate,opacity] duration-150 ease-out">
+                <StampSvg
+                  className="h-auto w-full"
+                  color={ink}
+                  drawing={inHand.drawing}
+                  print
+                  seed={seedOf(next)}
+                  shape={inHand.shape}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <fieldset className="min-w-0">
@@ -463,8 +616,53 @@ export const DaySheet = ({
       <div className="flex min-h-10 items-center justify-between gap-2">
         <p className="font-bold text-muted text-sm">
           {inHand ? t.app.day.held : t.app.day.tray}
+          {inHand && (
+            // Only where there is likely a wheel.
+            <span className="hidden [@media(hover:hover)]:inline">
+              {" "}
+              {t.app.day.wheel}
+            </span>
+          )}
         </p>
         <div className="flex shrink-0 items-center gap-2">
+          {inHand && (
+            // Turning without a wheel – a pair, apart from undo's arrow.
+            <div className="flex rounded-full border-2 border-ink bg-violet-soft">
+              {(
+                [
+                  [-STEP, t.app.day.turnLeft, "rounded-l-full", ""],
+                  // The same arrow, the other way round.
+                  [STEP, t.app.day.turnRight, "rounded-r-full", "-scale-x-100"],
+                ] as const
+              ).map(([degrees, label, end, flip]) => (
+                <button
+                  aria-label={label}
+                  className={cn(
+                    "flex h-8 w-9 items-center justify-center transition hover:bg-violet/20 active:bg-violet/35",
+                    end
+                  )}
+                  key={degrees}
+                  onClick={() => turnBy(degrees)}
+                  title={label}
+                  type="button"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className={cn("h-4.5 w-4.5", flip)}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2.6"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          )}
           {picked && (
             <Button
               onClick={() => {
@@ -526,11 +724,10 @@ export const DaySheet = ({
                 // comes down somewhere on it.
                 if (event.detail === 0) {
                   const spot = () => 0.25 + Math.random() * 0.5;
-                  print(s, spot(), spot(), ink);
+                  print(s, { x: spot(), y: spot() }, tidy(turn.current), ink);
                   return;
                 }
-                setHeld(held === s.id ? null : s.id);
-                setPicked(null);
+                take(held === s.id ? null : s.id);
               }}
               type="button"
             >

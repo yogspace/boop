@@ -17,11 +17,13 @@ import {
  * touch behind it, swinging as you carry it – and comes down where you tap:
  * it straightens, touches, squashes a little and lifts off again. Its soft
  * shadow on the paper shows where it will land; pressed, the middle of its
- * face is exactly at the pointer.
+ * face is exactly at the pointer. Turned (`turn()`), it spins about its own
+ * axis – its face lies just as the print will.
  *
  * One small canvas that travels along – fixed, on the body itself, so no
  * sheet clips it – moved and drawn without React, through the ref:
- * `point()`, `hide()`, `press()`. It only draws while something moves.
+ * `point()`, `hide()`, `press()`, `turn()`. It only draws while something
+ * moves.
  */
 
 export type StampHandle = {
@@ -39,11 +41,21 @@ export type StampHandle = {
    * next one comes lands right away – every press touches.
    */
   press: (x: number, y: number, contact: () => void, high?: boolean) => void;
+  /**
+   * Turned like a print with this `rotation` (degrees, clockwise) – it spins
+   * there the shortest way round.
+   */
+  turn: (degrees: number) => void;
 };
 
-/** Held upright: knob up, seen from a little above, a corner towards you. */
+/** Held upright: knob up, seen from a little above. */
 const TIP = Math.PI / 2 + 0.42;
-const TURN = 0.5;
+/**
+ * Turned about its axis so the top of its doodle points up the page, like
+ * its print's. (From above, the rubber is the print mirrored left to right –
+ * as on any stamp.)
+ */
+const FACING = Math.PI;
 /**
  * How high it hovers over the paper, along its axis – in print widths. And
  * held high: clear of what the pointer is on.
@@ -75,6 +87,10 @@ const MAX_LEAN = 0.42;
 const FOLLOW = 34;
 /** Swinging back upright: looser – it sways past a little. */
 const SWING = { pull: 16 * 16, damping: 2 * 0.38 * 16 };
+/** Spinning to a new angle: the same feel, a bit firmer. */
+const SPIN = { pull: 22 * 22, damping: 2 * 0.5 * 22 };
+/** Carried, it also turns about itself – this much of its lean. */
+const TWIST = 0.35;
 /** Fading in and out (s), and how long it waits before it goes (ms). */
 const FADE_IN = 0.12;
 const FADE_OUT = 0.09;
@@ -94,13 +110,19 @@ const follow = (at: number, speed: number, to: number, dt: number) => {
   ] as const;
 };
 
-/** The loose spring of the swing, in small steps. */
-const sway = (at: number, speed: number, to: number, dt: number) => {
+/** A loose spring – the swing, the spin – in small steps. */
+const sway = (
+  at: number,
+  speed: number,
+  to: number,
+  dt: number,
+  spring = SWING
+) => {
   let a = at;
   let v = speed;
   for (let left = dt; left > 1e-5; left -= 1 / 240) {
     const step = Math.min(left, 1 / 240);
-    v += (SWING.pull * (to - a) - SWING.damping * v) * step;
+    v += (spring.pull * (to - a) - spring.damping * v) * step;
     a += v * step;
   }
   return [a, v] as const;
@@ -183,6 +205,10 @@ const createHand = () => {
   let leanSpeed = 0;
   let nod = 0;
   let nodSpeed = 0;
+  // Spun about its axis (radians) – and where that is heading.
+  let spin = 0;
+  let spinSpeed = 0;
+  let spinTo = 0;
   // How high it is held, where that is heading, and how high it is now.
   let hover = HOVER;
   let hoverTo = HOVER;
@@ -298,7 +324,7 @@ const createHand = () => {
     contact();
   };
 
-  /** Right at the pointer, upright – no gliding in from where it was. */
+  /** Right at the pointer, upright, turned – no gliding in from before. */
   const jump = () => {
     x = px;
     y = py;
@@ -308,6 +334,8 @@ const createHand = () => {
     leanSpeed = 0;
     nod = 0;
     nodSpeed = 0;
+    spin = spinTo;
+    spinSpeed = 0;
   };
 
   const draw = (
@@ -327,8 +355,8 @@ const createHand = () => {
     grip.position.z = -(pose.lift + GRIP);
     grip.rotation.set(pose.nod, pose.lean, 0);
     seat.scale.set(1 + pose.squash / 2, 1 + pose.squash / 2, 1 - pose.squash);
-    // Carried, it also turns a little about itself.
-    sticker.rotation.z = TURN + pose.lean * 0.5;
+    // Turned as its print will lie – and, carried, a little with the lean.
+    sticker.rotation.z = FACING + spin + pose.lean * TWIST;
     // The shadow tightens and darkens as the stamp comes down.
     const height = clamp(pose.lift / HIGH, 0, 1.2);
     shadow.scale.setScalar(0.78 + 0.42 * height);
@@ -401,11 +429,14 @@ const createHand = () => {
     const nodTo = calm ? 0 : clamp((vy / unit) * NOD, -MAX_LEAN, MAX_LEAN) / 2;
     [lean, leanSpeed] = sway(lean, leanSpeed, leanTo, dt);
     [nod, nodSpeed] = sway(nod, nodSpeed, nodTo, dt);
+    [spin, spinSpeed] = sway(spin, spinSpeed, spinTo, dt, SPIN);
     if (calm) {
       lean = 0;
       leanSpeed = 0;
       nod = 0;
       nodSpeed = 0;
+      spin = spinTo;
+      spinSpeed = 0;
     }
 
     const moving =
@@ -416,7 +447,9 @@ const createHand = () => {
       Math.abs(x - px) + Math.abs(y - py) > 0.3 ||
       Math.abs(vx) + Math.abs(vy) > 2 ||
       Math.abs(lean) + Math.abs(nod) > 0.001 ||
-      Math.abs(leanSpeed) + Math.abs(nodSpeed) > 0.01;
+      Math.abs(leanSpeed) + Math.abs(nodSpeed) > 0.01 ||
+      Math.abs(spin - spinTo) > 0.001 ||
+      Math.abs(spinSpeed) > 0.01;
     if (!moving) jump();
 
     draw(
@@ -490,6 +523,17 @@ const createHand = () => {
         from: hidden ? hover + DROP : Math.max(lift, 0.02),
         contact,
       };
+      wake();
+    },
+
+    turn: (degrees: number) => {
+      const to = (degrees * Math.PI) / 180;
+      // The shortest way round from where it is heading.
+      spinTo += Math.atan2(Math.sin(to - spinTo), Math.cos(to - spinTo));
+      if (presence < 0.05) {
+        spin = spinTo;
+        spinSpeed = 0;
+      }
       wake();
     },
 
@@ -572,7 +616,12 @@ export const StampHand = ({
   const [hand] = useState(createHand);
   useImperativeHandle(
     ref,
-    () => ({ point: hand.point, hide: hand.hide, press: hand.press }),
+    () => ({
+      point: hand.point,
+      hide: hand.hide,
+      press: hand.press,
+      turn: hand.turn,
+    }),
     [hand]
   );
 

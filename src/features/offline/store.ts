@@ -359,10 +359,13 @@ export const deleteStamp = async (id: string) => {
 };
 
 export const placeStamp = async ({
+  id = newId(),
   scale = 1,
   z,
   ...placement
 }: {
+  /** Made ahead by whoever previews the print (its look comes from its id). */
+  id?: string;
   calendar: string;
   date: DayKey;
   stamp: string;
@@ -384,7 +387,7 @@ export const placeStamp = async ({
         .map((p) => p.z)
     ) + 1;
   const doc: PlacementDoc = {
-    id: newId(),
+    id,
     ...placement,
     scale,
     z: z ?? top,
@@ -393,8 +396,12 @@ export const placeStamp = async ({
     deleted: false,
   };
   await keep("placement", doc);
-  const { id, placedBy, changedAt, deleted, ...data } = doc;
-  await enqueue({ type: "placement", id, changedAt, data });
+  await enqueue({
+    type: "placement",
+    id,
+    changedAt: doc.changedAt,
+    data: { ...placement, scale, z: doc.z },
+  });
   return id;
 };
 

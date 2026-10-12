@@ -81,7 +81,7 @@ export const StickerView = ({
   useEffect(() => {
     let gone = false;
     let cleanup = () => {};
-    void (async () => {
+    (async () => {
       const THREE = await import("three");
       const box = host.current;
       if (gone || !box) return;
@@ -102,27 +102,28 @@ export const StickerView = ({
       const sticker = buildSticker(THREE, stamp);
       scene.add(sticker);
       const ball = ballOf(THREE, sticker);
-      console.log("DEBUG ball", JSON.stringify(ball));
 
+      // Laid over its box, never stretching it – so the box can shrink.
       const canvas = renderer.domElement;
-      canvas.style.display = "block";
+      canvas.style.position = "absolute";
+      canvas.style.inset = "0";
       canvas.style.touchAction = "none";
       canvas.style.cursor = "grab";
       box.appendChild(canvas);
 
-      // Sizes: face-on, one unit is as wide as in the drawing; shown, the
-      // whole stamp – knob and all – fits at any angle.
+      // Sizes – as laid out, not as a sheet still rising may scale them:
+      // face-on, one unit is as wide as in the drawing; shown, the whole
+      // stamp – knob and all – fits at any angle.
       let width = 1;
       let height = 1;
-      const resize = () => {
-        const rect = box.getBoundingClientRect();
-        width = Math.max(1, rect.width);
-        height = Math.max(1, rect.height || rect.width);
+      const resize = (w: number, h: number) => {
+        width = Math.max(1, w);
+        height = Math.max(1, h || w);
         renderer.setSize(width, height);
         camera.aspect = width / height;
         camera.updateProjectionMatrix();
       };
-      resize();
+      resize(box.clientWidth, box.clientHeight);
       const flat = () => (VIEW * (width - 2 * padding())) / VIEW_BOX / height;
       const fitted = () => {
         const narrow = Math.min(1, width / height);
@@ -248,7 +249,9 @@ export const StickerView = ({
       canvas.addEventListener("pointerup", up);
       canvas.addEventListener("pointercancel", up);
       canvas.addEventListener("lostpointercapture", up);
-      const observer = new ResizeObserver(resize);
+      const observer = new ResizeObserver(([{ contentRect }]) =>
+        resize(contentRect.width, contentRect.height)
+      );
       observer.observe(box);
 
       let frame = 0;
@@ -312,7 +315,9 @@ export const StickerView = ({
         renderer.forceContextLoss();
         canvas.remove();
       };
-    })();
+      // No WebGL, or three.js out of reach: no 3D – what lies under the view
+      // (the drawing) simply stays.
+    })().catch(() => undefined);
     return () => {
       gone = true;
       cleanup();
@@ -321,7 +326,7 @@ export const StickerView = ({
 
   return (
     <div
-      className={cn("aspect-square w-full touch-none", className)}
+      className={cn("relative aspect-square w-full touch-none", className)}
       ref={host}
     />
   );

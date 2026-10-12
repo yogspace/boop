@@ -67,10 +67,28 @@ const readSite = unstable_cache(
   { tags: [TAGS.site] }
 );
 
+/** How soon a page that had to take the code's own is rendered again. */
+const RETRY_SECONDS = 60;
+
+/**
+ * Marks the page being rendered as one to render again soon. A page built
+ * ahead is otherwise kept as it is until the global is saved – and the build
+ * has no database: without this, every deploy would bring the code's colors
+ * back until someone saves “Site” again. (Nothing is read here – only its
+ * `revalidate` counts, which a page takes over from what it calls.)
+ */
+const retrySoon = unstable_cache(async () => null, ["site-retry"], {
+  revalidate: RETRY_SECONDS,
+});
+
 /**
  * Address, links and stamp colors – cached until the global is saved, the
  * code's own without a database (down, or the build). A failure is not
- * cached.
+ * cached, and the page showing it is rendered again within a minute.
  */
 export const getSite = (): Promise<SiteContent> =>
-  readSite().catch(() => SITE_DEFAULTS);
+  readSite().catch(async () => {
+    // Outside of a page (a script) there is nothing to mark.
+    await retrySoon().catch(() => null);
+    return SITE_DEFAULTS;
+  });

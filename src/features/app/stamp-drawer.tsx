@@ -57,6 +57,8 @@ const Sign = ({ d, className }: { d: string; className?: string }) => (
     <path d={d} />
   </svg>
 );
+/** An arrow turning back – taking the last line away. */
+const UNDO = "M8.5 5.5 4 10l4.5 4.5M4 10h10.5a5 5 0 0 1 0 10H11";
 /** A little bin – clearing the drawing. */
 const BIN =
   "M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5l1 13.5h9l1-13.5M10.5 10.5v6M13.5 10.5v6";
@@ -64,13 +66,14 @@ const BIN =
 const UPLOAD = "M12 15.5V4M7.5 8.5 12 4l4.5 4.5M4.5 15v4.5h15V15";
 
 /**
- * Two sets of controls in one place, one of them showing: they cross-fade,
- * and the taller one sets the height – so nothing around them moves.
+ * Two sets of controls in one place, one of them showing: one fades away,
+ * then the other comes, and the taller one sets the height – so nothing
+ * around them moves.
  */
 const layer = (on: boolean) =>
   cn(
-    "col-start-1 row-start-1 transition-[opacity,visibility] duration-300",
-    !on && "invisible opacity-0"
+    "col-start-1 row-start-1 min-w-0 transition-[opacity,visibility] duration-200",
+    on ? "delay-150" : "invisible opacity-0"
   );
 
 /**
@@ -244,14 +247,14 @@ export const StampDrawer = ({
             "flex h-11 items-center justify-between gap-2"
           )}
         >
-          <fieldset className="flex gap-1.5">
+          <fieldset className="flex min-w-0 gap-1.5">
             <legend className="sr-only">{t.app.draw.shape}</legend>
             {SHAPES.map((s) => (
               <button
                 aria-label={t.app.draw.shapes[s]}
                 aria-pressed={shape === s}
                 className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink p-1.5 transition",
+                  "flex aspect-square w-10 min-w-0 shrink items-center justify-center rounded-xl border-2 border-ink p-1.5 transition",
                   shape === s ? "bg-ink text-white" : "bg-card hover:bg-soft"
                 )}
                 key={s}
@@ -259,7 +262,11 @@ export const StampDrawer = ({
                 title={t.app.draw.shapes[s]}
                 type="button"
               >
-                <svg aria-hidden="true" viewBox="-0.05 -0.05 1.1 1.1">
+                <svg
+                  aria-hidden="true"
+                  className="h-full w-full"
+                  viewBox="-0.05 -0.05 1.1 1.1"
+                >
                   <ShapeOutline
                     fill="none"
                     shape={s}
@@ -271,7 +278,7 @@ export const StampDrawer = ({
             ))}
           </fieldset>
           {/* On a phone just the signs – the five shapes need the room. */}
-          <div className="flex gap-0.5">
+          <div className="flex shrink-0 gap-0.5">
             <Button
               aria-label={t.app.draw.undo}
               className="px-2.5"
@@ -281,7 +288,8 @@ export const StampDrawer = ({
               title={t.app.draw.undo}
               variant="ghost"
             >
-              ↶<span className="max-sm:hidden">{t.app.draw.undo}</span>
+              <Sign className="h-5 w-5" d={UNDO} />
+              <span className="max-sm:hidden">{t.app.draw.undo}</span>
             </Button>
             <Button
               aria-label={t.app.draw.clear}
@@ -292,7 +300,7 @@ export const StampDrawer = ({
               title={t.app.draw.clear}
               variant="ghost"
             >
-              <Sign className="h-4 w-4" d={BIN} />
+              <Sign className="h-5 w-5" d={BIN} />
               <span className="max-sm:hidden">{t.app.draw.clear}</span>
             </Button>
           </div>
@@ -303,10 +311,17 @@ export const StampDrawer = ({
             "flex h-11 items-center justify-between gap-2"
           )}
         >
-          <Button onClick={toDrawing} size="sm" variant="plain">
+          <Button
+            className="shrink-0"
+            onClick={toDrawing}
+            size="sm"
+            variant="plain"
+          >
             ← {t.app.draw.back}
           </Button>
-          <p className="font-medium text-muted text-sm">{t.app.draw.turn}</p>
+          <p className="min-w-0 text-right font-medium text-muted text-sm leading-tight">
+            {t.app.draw.turn}
+          </p>
         </div>
       </div>
 
@@ -336,6 +351,12 @@ export const StampDrawer = ({
           <p className="pointer-events-none absolute inset-0 flex animate-fade items-center justify-center font-bold text-muted">
             {t.app.draw.hint}
           </p>
+        )}
+        {draws && refused && (
+          // On the stage, where the picture would have come – nothing moves.
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 text-center">
+            <Notice tone="error">{t.app.draw.uploadFailed}</Notice>
+          </div>
         )}
         {view > 0 && (
           // Right over the drawing – its first frame looks just like it.
@@ -397,7 +418,6 @@ export const StampDrawer = ({
               type="file"
             />
           </div>
-          {refused && <Notice tone="error">{t.app.draw.uploadFailed}</Notice>}
           <Button
             className="w-full"
             disabled={empty}
