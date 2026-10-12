@@ -180,15 +180,16 @@ export const sharedWithOf = (stamp: {
 };
 
 /**
- * A stamp in today's shape. A device may have kept it – and an app from
- * before sends it – with the one `calendar` instead of `sharedWith`.
+ * A stamp as a device may have kept it: in today's shape, or – by an app
+ * from before – with the one `calendar` instead of `sharedWith`.
  */
-export const stampDoc = (
-  doc: Omit<StampDoc, "sharedWith"> & {
-    sharedWith?: string[];
-    calendar?: string | null;
-  }
-): StampDoc => {
+export type KeptStampDoc = Omit<StampDoc, "sharedWith"> & {
+  sharedWith?: string[];
+  calendar?: string | null;
+};
+
+/** A stamp in today's shape, whichever it was kept in. */
+export const stampDoc = (doc: KeptStampDoc): StampDoc => {
   const { calendar: _, ...stamp } = doc;
   return { ...stamp, sharedWith: sharedWithOf(doc) };
 };

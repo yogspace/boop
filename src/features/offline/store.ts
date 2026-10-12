@@ -11,6 +11,7 @@ import {
   type ColorName,
   type DayKey,
   type Drawing,
+  type KeptStampDoc,
   type PlacementDoc,
   type StampDoc,
   type StampShape,
@@ -108,7 +109,7 @@ export const start = async () => {
     savedKnown,
   ] = await Promise.all([
     getAll<CalendarDoc>("calendars"),
-    getAll<StampDoc>("stamps"),
+    getAll<KeptStampDoc>("stamps"),
     getAll<PlacementDoc>("placements"),
     getAll<OutboxEntry>("outbox"),
     getMeta<Me>("me"),
@@ -121,9 +122,12 @@ export const start = async () => {
   known = savedKnown ?? [];
   const online = navigator.onLine;
   // Kept by an app from before, a stamp still names its one `calendar` –
-  // from here on it has `sharedWith`, on the device too.
+  // from here on it has `sharedWith`, on the device too. (Should that not
+  // get written, no harm: it is read the same way next time.)
   const old = stamps.filter((stamp) => "calendar" in stamp);
-  await write(old.map((stamp) => ({ store: "stamps", put: stampDoc(stamp) })));
+  await write(
+    old.map((stamp) => ({ store: "stamps", put: stampDoc(stamp) }))
+  ).catch(() => undefined);
   set({
     online,
     calendars: byId(calendars),

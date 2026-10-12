@@ -9,16 +9,25 @@
  *
  * - `scribble-1…3`: frames – buttons, fields, cards, sheets. Little room
  *   around the box (the filter works on every pixel of it).
- * - `scribble-s1…3`: small things and lines – under ~60px the frames' room
- *   is too tight and their wobble too strong.
+ * - `scribble-s1…3`: small things – under ~60px the frames' room is too
+ *   tight and their wobble too strong.
+ * - `scribble-h1…3`: lines lying flat – rules, underlines: wide and only a
+ *   few pixels high.
  */
+
+const OCTAVES = 2;
 
 const SEEDS = [3, 11, 23];
 
-/** How far the noise pushes at most (px, either way) – and the room for it. */
+/**
+ * How far the noise pushes at most (px, either way) and the room for it,
+ * as parts of the box. The room is costly – the filter works on every pixel
+ * of it – so each kind has only as much as its boxes need.
+ */
 const KINDS = [
   { id: "scribble-", scale: 7, x: "-6%", y: "-14%", w: "112%", h: "128%" },
   { id: "scribble-s", scale: 5, x: "-40%", y: "-40%", w: "180%", h: "180%" },
+  { id: "scribble-h", scale: 6, x: "-3%", y: "-80%", w: "106%", h: "260%" },
 ];
 
 export const ScribbleDefs = () => (
@@ -33,7 +42,8 @@ export const ScribbleDefs = () => (
       {KINDS.flatMap((kind) =>
         SEEDS.map((seed, i) => (
           <filter
-            // sRGB: the noise as it is – in linear light it would lean one way.
+            // sRGB: the noise as it is – in linear light it would lean one
+            // way, and converting costs time.
             colorInterpolationFilters="sRGB"
             height={kind.h}
             id={`${kind.id}${i + 1}`}
@@ -42,18 +52,14 @@ export const ScribbleDefs = () => (
             x={kind.x}
             y={kind.y}
           >
+            {/* Just these two steps: every further one is a pass over all
+                the pixels again (measured in Safari). */}
             <feTurbulence
               baseFrequency="0.022"
-              numOctaves="2"
+              numOctaves={OCTAVES}
+              result="noise"
               seed={seed}
               type="fractalNoise"
-            />
-            {/* The noise's own alpha is noise too – opaque, so every pixel
-                is pushed by its color alone. */}
-            <feColorMatrix
-              result="noise"
-              type="matrix"
-              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0 1"
             />
             <feDisplacementMap
               in="SourceGraphic"
