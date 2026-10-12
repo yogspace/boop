@@ -37,6 +37,7 @@ import { DaySheet } from "./day-sheet";
 import { CalendarSheet, ConfirmSheet } from "./dialogs";
 import { MonthGrid } from "./month-grid";
 import { ShareSheet } from "./share-sheet";
+import { SheetSlot } from "./sheet";
 import { StampDrawer } from "./stamp-drawer";
 import { StampSheet } from "./stamp-sheet";
 import { SyncBadge } from "./sync-badge";
@@ -74,7 +75,8 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   const [day, setDay] = useState<DayKey | null>(null);
   const [drawing, setDrawing] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const [menu, setMenu] = useState(false);
+  // The account menu – "going" while it steps back, before it is gone.
+  const [menu, setMenu] = useState<"open" | "going" | null>(null);
   const [opened, setOpened] = useState<string | null>(null);
   const [dialog, setDialog] = useState<
     "new" | "rename" | "delete" | "logout" | null
@@ -169,16 +171,27 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
           <LocaleSwitch className="mr-1 max-sm:hidden" locale={locale} />
           <SyncBadge locale={locale} />
           <button
-            aria-expanded={menu}
+            aria-expanded={menu === "open"}
             aria-label={t.app.account}
             className={cn(ROUND_BUTTON, "aria-expanded:scribble-ink")}
-            onClick={() => setMenu(!menu)}
+            onClick={() => setMenu(menu === "open" ? "going" : "open")}
             type="button"
           >
             {firstName.slice(0, 1).toUpperCase() || "?"}
           </button>
           {menu && (
-            <div className="scribble absolute top-13 right-0 z-40 flex w-60 animate-rise flex-col gap-3 rounded-3xl p-4">
+            <div
+              className={cn(
+                "scribble absolute top-13 right-0 z-40 flex w-60 flex-col gap-3 rounded-3xl p-4",
+                menu === "going" ? "animate-recede" : "animate-rise"
+              )}
+              inert={menu === "going"}
+              onAnimationEnd={(event) => {
+                if (menu === "going" && event.target === event.currentTarget) {
+                  setMenu(null);
+                }
+              }}
+            >
               <div>
                 <p className="font-black">{boop.me?.name}</p>
                 <p className="truncate text-muted text-sm">{boop.me?.email}</p>
@@ -378,88 +391,105 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
         website={SITE_DEFAULTS.links.website}
       />
 
-      {calendar && day && (
-        <DaySheet
-          calendar={calendar.id}
-          date={day}
-          locale={locale}
-          onClose={() => setDay(null)}
-          stamps={myStamps}
-        />
-      )}
-      {drawing && (
-        <StampDrawer
-          calendar={
-            calendar && calendar.members.length > 1 ? calendar.id : null
-          }
-          locale={locale}
-          onClose={() => setDrawing(false)}
-        />
-      )}
-      {dialog === "new" && (
-        <CalendarSheet
-          // New calendars take turns with the stamp colors (palette.ts).
-          color={nextKey(calendars.map((c) => c.color))}
-          locale={locale}
-          onClose={() => setDialog(null)}
-          onSave={(name, color) => void onNewCalendar(name, color)}
-          submit={t.app.create}
-          title={t.app.newCalendar}
-        />
-      )}
-      {dialog === "rename" && calendar && (
-        <CalendarSheet
-          color={calendar.color}
-          locale={locale}
-          name={calendar.name}
-          onClose={() => setDialog(null)}
-          onSave={(name, color) =>
-            void renameCalendar(calendar.id, name, color)
-          }
-          submit={t.app.draw.save}
-          title={t.app.rename}
-        />
-      )}
-      {dialog === "delete" && calendar && (
-        <ConfirmSheet
-          confirm={t.app.deleteCalendar}
-          locale={locale}
-          onClose={() => setDialog(null)}
-          onConfirm={() => {
-            void deleteCalendar(calendar.id);
-            setCalendarId(null);
-          }}
-          title={t.app.deleteCalendar}
-        >
-          {t.app.deleteCalendarConfirm(calendar.name)}
-        </ConfirmSheet>
-      )}
-      {dialog === "logout" && (
-        <ConfirmSheet
-          confirm={t.app.logout}
-          locale={locale}
-          onClose={() => setDialog(null)}
-          onConfirm={() => void doLogout()}
-          title={t.app.logout}
-        >
-          {t.app.logoutPending(boop.pending)}
-        </ConfirmSheet>
-      )}
-      {opened && boop.stamps[opened] && (
-        <StampSheet
-          locale={locale}
-          mine={boop.stamps[opened].owner === me}
-          onClose={() => setOpened(null)}
-          stamp={boop.stamps[opened]}
-        />
-      )}
-      {calendar && sharing && (
-        <ShareSheet
-          calendar={calendar}
-          locale={locale}
-          onClose={() => setSharing(false)}
-        />
-      )}
+      {/* Each sheet in its slot – there it can go the way it came. */}
+      <SheetSlot>
+        {calendar && day && (
+          <DaySheet
+            calendar={calendar.id}
+            date={day}
+            locale={locale}
+            onClose={() => setDay(null)}
+            stamps={myStamps}
+          />
+        )}
+      </SheetSlot>
+      <SheetSlot>
+        {drawing && (
+          <StampDrawer
+            calendar={
+              calendar && calendar.members.length > 1 ? calendar.id : null
+            }
+            locale={locale}
+            onClose={() => setDrawing(false)}
+          />
+        )}
+      </SheetSlot>
+      <SheetSlot>
+        {dialog === "new" && (
+          <CalendarSheet
+            // New calendars take turns with the stamp colors (palette.ts).
+            color={nextKey(calendars.map((c) => c.color))}
+            locale={locale}
+            onClose={() => setDialog(null)}
+            onSave={(name, color) => void onNewCalendar(name, color)}
+            submit={t.app.create}
+            title={t.app.newCalendar}
+          />
+        )}
+      </SheetSlot>
+      <SheetSlot>
+        {dialog === "rename" && calendar && (
+          <CalendarSheet
+            color={calendar.color}
+            locale={locale}
+            name={calendar.name}
+            onClose={() => setDialog(null)}
+            onSave={(name, color) =>
+              void renameCalendar(calendar.id, name, color)
+            }
+            submit={t.app.draw.save}
+            title={t.app.rename}
+          />
+        )}
+      </SheetSlot>
+      <SheetSlot>
+        {dialog === "delete" && calendar && (
+          <ConfirmSheet
+            confirm={t.app.deleteCalendar}
+            locale={locale}
+            onClose={() => setDialog(null)}
+            onConfirm={() => {
+              void deleteCalendar(calendar.id);
+              setCalendarId(null);
+            }}
+            title={t.app.deleteCalendar}
+          >
+            {t.app.deleteCalendarConfirm(calendar.name)}
+          </ConfirmSheet>
+        )}
+      </SheetSlot>
+      <SheetSlot>
+        {dialog === "logout" && (
+          <ConfirmSheet
+            confirm={t.app.logout}
+            locale={locale}
+            onClose={() => setDialog(null)}
+            onConfirm={() => void doLogout()}
+            title={t.app.logout}
+          >
+            {t.app.logoutPending(boop.pending)}
+          </ConfirmSheet>
+        )}
+      </SheetSlot>
+      <SheetSlot>
+        {opened && boop.stamps[opened] && (
+          <StampSheet
+            locale={locale}
+            mine={boop.stamps[opened].owner === me}
+            onClose={() => setOpened(null)}
+            stamp={boop.stamps[opened]}
+          />
+        )}
+      </SheetSlot>
+      <SheetSlot>
+        {calendar && sharing && (
+          <ShareSheet
+            calendar={calendar}
+            locale={locale}
+            onClose={() => setSharing(false)}
+          />
+        )}
+      </SheetSlot>
     </div>
   );
 };

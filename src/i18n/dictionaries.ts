@@ -136,6 +136,15 @@ const de = {
     pending: (n: number) =>
       n === 1 ? "1 Änderung wartet" : `${n} Änderungen warten`,
     synced: "Alles abgeglichen",
+    sync: {
+      synced:
+        "Alles liegt sicher auf dem Server – auch für deine anderen Geräte.",
+      syncing: "Deine Änderungen sind gerade unterwegs.",
+      pending: "Sie liegen sicher auf deinem Gerät und gehen gleich raus.",
+      offline: "Boop geht trotzdem weiter – nichts geht verloren.",
+      how: "Boop speichert alles zuerst auf deinem Gerät und schickt es los, sobald Netz da ist: gleich nach jeder Änderung, wenn du wieder online bist, beim Öffnen und alle 30 Sekunden.",
+      now: "Jetzt abgleichen",
+    },
     offlineNoAccount:
       "Du bist offline. Melde dich einmal mit Verbindung an – danach klappt Boop auch ohne Netz.",
     calendars: "Kalender",
@@ -183,7 +192,10 @@ const de = {
         diamond: "Raute",
       },
       undo: "Zurück",
+      redo: "Wiederholen",
       clear: "Leeren",
+      width: "Strichstärke",
+      widths: { thin: "Fein", medium: "Mittel", thick: "Dick" },
       upload: "SVG hochladen",
       inverted: "Invertiert (ausgeschnitten)",
       special: "Special – größer & glitzert",
@@ -399,6 +411,15 @@ const en: Shape<Dictionary> = {
     pending: (n: number) =>
       n === 1 ? "1 change waiting" : `${n} changes waiting`,
     synced: "All synced",
+    sync: {
+      synced:
+        "Everything's safe on the server – ready for your other devices too.",
+      syncing: "Your changes are on their way.",
+      pending: "They're safe on this device and go out in a moment.",
+      offline: "Boop keeps going anyway – nothing gets lost.",
+      how: "Boop keeps everything on your device first and sends it off once there's a connection: right after each change, when you're back online, when you open the app and every 30 seconds.",
+      now: "Sync now",
+    },
     offlineNoAccount:
       "You're offline. Log in once with a connection – after that Boop works offline too.",
     calendars: "Calendars",
@@ -446,7 +467,10 @@ const en: Shape<Dictionary> = {
         diamond: "Diamond",
       },
       undo: "Undo",
+      redo: "Redo",
       clear: "Clear",
+      width: "Line width",
+      widths: { thin: "Thin", medium: "Medium", thick: "Thick" },
       upload: "Upload SVG",
       inverted: "Inverted (cut out)",
       special: "Special – bigger & sparkly",

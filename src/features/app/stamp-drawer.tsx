@@ -33,8 +33,11 @@ import { cn } from "@/lib/cn";
 import { InkBlot } from "./ink-blot";
 import { Sheet } from "./sheet";
 
-/** Line width of a drawn stroke, relative to the stamp. */
-const WIDTH = 0.05;
+/** The line widths to draw with, relative to the stamp. */
+const WIDTHS = { thin: 0.03, medium: 0.05, thick: 0.085 } as const;
+type Width = keyof typeof WIDTHS;
+/** How many steps undo reaches back. */
+const STEPS_BACK = 100;
 /** Points closer than this to the last one are left out. */
 const MIN_STEP = 0.006;
 /** The drawing's distance from the stage's edge (px) – `inset-3` below. */
@@ -61,8 +64,10 @@ const Sign = ({ d, className }: { d: string; className?: string }) => (
     <path d={d} />
   </svg>
 );
-/** An arrow turning back – taking the last line away. */
+/** An arrow turning back – a step back. */
 const UNDO = "M8.5 5.5 4 10l4.5 4.5M4 10h10.5a5 5 0 0 1 0 10H11";
+/** The same arrow the other way – a step forward again. */
+const REDO = "M15.5 5.5 20 10l-4.5 4.5M20 10H9.5a5 5 0 0 0 0 10H13";
 /** A little bin – clearing the drawing. */
 const BIN =
   "M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5l1 13.5h9l1-13.5M10.5 10.5v6M13.5 10.5v6";
@@ -75,6 +80,37 @@ const UPLOAD = "M12 15.5V4M7.5 8.5 12 4l4.5 4.5M4.5 15v4.5h15V15";
  */
 const TILE =
   "scribble scribble-sm flex aspect-square w-full items-center justify-center rounded-xl transition-transform duration-150 ease-out hover:-rotate-6 active:scale-90 aria-pressed:scribble-ink aria-pressed:hover:rotate-0";
+
+/** What is drawn: the lines – and an uploaded picture's filled areas. */
+type Art = { strokes: Stroke[]; fills: Fill[] };
+const BLANK: Art = { strokes: [], fills: [] };
+
+/**
+ * Every step of the drawing (a line, a picture, clearing) can be taken back
+ * and done again: the ones before `now` and the ones taken back after it.
+ */
+type History = { past: Art[]; now: Art; future: Art[] };
+
+/** A new step – what was taken back is gone then. */
+const step = (history: History, next: (now: Art) => Art): History => ({
+  past: [...history.past, history.now].slice(-STEPS_BACK),
+  now: next(history.now),
+  future: [],
+});
+
+const back = ({ past, now, future }: History): History => {
+  const before = past.at(-1);
+  return before
+    ? { past: past.slice(0, -1), now: before, future: [now, ...future] }
+    : { past, now, future };
+};
+
+const forward = ({ past, now, future }: History): History => {
+  const [next, ...rest] = future;
+  return next
+    ? { past: [...past, now], now: next, future: rest }
+    : { past, now, future };
+};
 
 /**
  * Two sets of controls in one place, one of them showing: one fades away,
@@ -110,12 +146,14 @@ export const StampDrawer = ({
   const t = dictionaryOf(locale);
   const area = useRef<HTMLDivElement>(null);
   const file = useRef<HTMLInputElement>(null);
-  const [step, setStep] = useState<"draw" | "3d">("draw");
-  const [strokes, setStrokes] = useState<Stroke[]>([]);
-  // An uploaded picture: its filled areas – and how many of the strokes (the
-  // first ones) are its lines; what is drawn comes on top.
-  const [fills, setFills] = useState<Fill[]>([]);
-  const [uploaded, setUploaded] = useState(0);
+  const [stage, setStage] = useState<"draw" | "3d">("draw");
+  const [history, setHistory] = useState<History>({
+    past: [],
+    now: BLANK,
+    future: [],
+  });
+  const { strokes, fills } = history.now;
+  const [width, setWidth] = useState<Width>("medium");
   const [refused, setRefused] = useState(false);
   // Prints the other way round: the face in ink, the doodle cut out.
   const [inverted, setInverted] = useState(false);
@@ -137,7 +175,7 @@ export const StampDrawer = ({
   // Its first frame is on screen: the drawing can fade away under it.
   const [shown, setShown] = useState(false);
   const leave = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const draws = step === "draw";
+  const draws = stage === "draw";
   const empty = !(strokes.length || fills.length);
 
   // three.js loads while drawing – the stamp is quick to appear.
@@ -146,6 +184,25 @@ export const StampDrawer = ({
     void import("three/examples/jsm/environments/RoomEnvironment.js");
     return () => clearTimeout(leave.current);
   }, []);
+
+  // ⌘Z / Ctrl+Z a step back, with Shift (or Ctrl+Y) forward again – while
+  // drawing, and not in a text field.
+  useEffect(() => {
+    if (!draws) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+      if ((event.target as HTMLElement | null)?.closest("input, textarea")) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === "z") setHistory(event.shiftKey ? forward : back);
+      else if (key === "y") setHistory(forward);
+      else return;
+      event.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [draws]);
 
   const doodle = useMemo(
     () => ({ strokes, fills, inverted, rim, special }),
@@ -180,20 +237,33 @@ export const StampDrawer = ({
     event.currentTarget.setPointerCapture(event.pointerId);
     drawing.current = true;
     setRefused(false);
-    setStrokes((all) => [...all, { w: WIDTH, p: [...p] }]);
+    setHistory((history) =>
+      step(history, (now) => ({
+        ...now,
+        strokes: [...now.strokes, { w: WIDTHS[width], p: [...p] }],
+      }))
+    );
   };
 
   const onMove = (event: PointerEvent<HTMLDivElement>) => {
     if (!drawing.current) return;
     const p = point(event);
     if (!p) return;
-    setStrokes((all) => {
+    // The line being drawn grows – still the same step.
+    setHistory((history) => {
+      const all = history.now.strokes;
       const last = all.at(-1);
-      if (!last) return all;
+      if (!last) return history;
       const lx = last.p[last.p.length - 2];
       const ly = last.p[last.p.length - 1];
-      if (Math.hypot(p[0] - lx, p[1] - ly) < MIN_STEP) return all;
-      return [...all.slice(0, -1), { ...last, p: [...last.p, ...p] }];
+      if (Math.hypot(p[0] - lx, p[1] - ly) < MIN_STEP) return history;
+      return {
+        ...history,
+        now: {
+          ...history.now,
+          strokes: [...all.slice(0, -1), { ...last, p: [...last.p, ...p] }],
+        },
+      };
     });
   };
 
@@ -201,17 +271,8 @@ export const StampDrawer = ({
     drawing.current = false;
   };
 
-  const clear = () => {
-    setStrokes([]);
-    setFills([]);
-    setUploaded(0);
-  };
-
-  // The last line drawn goes – and once none is left, the uploaded picture.
-  const undo = () => {
-    if (strokes.length > uploaded) setStrokes((all) => all.slice(0, -1));
-    else clear();
-  };
+  // A step of its own – it can be taken back, too.
+  const clear = () => setHistory((history) => step(history, () => BLANK));
 
   // A picture takes the place of what was there – then it is drawn on.
   const onUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -224,9 +285,12 @@ export const StampDrawer = ({
       if (picked.size > MAX_UPLOAD) throw new Error("too big");
       const picture = await importSvg(await picked.text());
       if (!picture) throw new Error("nothing in it");
-      setStrokes(picture.strokes);
-      setFills(picture.fills);
-      setUploaded(picture.strokes.length);
+      setHistory((history) =>
+        step(history, () => ({
+          strokes: picture.strokes,
+          fills: picture.fills,
+        }))
+      );
     } catch {
       setRefused(true);
     }
@@ -238,11 +302,11 @@ export const StampDrawer = ({
     setRefused(false);
     setShown(false);
     setView((n) => n + 1);
-    setStep("3d");
+    setStage("3d");
   };
 
   const toDrawing = () => {
-    setStep("draw");
+    setStage("draw");
     setShown(false);
     leave.current = setTimeout(() => setView(0), SWAP);
   };
@@ -308,33 +372,6 @@ export const StampDrawer = ({
               </button>
             ))}
           </fieldset>
-          {/* On a phone just the signs – the five shapes need the room. */}
-          <div className="flex shrink-0 gap-0.5">
-            <Button
-              aria-label={t.app.draw.undo}
-              className="px-2.5"
-              disabled={empty}
-              onClick={undo}
-              size="sm"
-              title={t.app.draw.undo}
-              variant="ghost"
-            >
-              <Sign className="h-5 w-5" d={UNDO} />
-              <span className="max-sm:hidden">{t.app.draw.undo}</span>
-            </Button>
-            <Button
-              aria-label={t.app.draw.clear}
-              className="px-2.5"
-              disabled={empty}
-              onClick={clear}
-              size="sm"
-              title={t.app.draw.clear}
-              variant="ghost"
-            >
-              <Sign className="h-5 w-5" d={BIN} />
-              <span className="max-sm:hidden">{t.app.draw.clear}</span>
-            </Button>
-          </div>
         </div>
         <div
           className={cn(
@@ -431,6 +468,64 @@ export const StampDrawer = ({
         <div
           className={cn(layer(draws), "flex flex-col justify-between gap-3")}
         >
+          {/* Right under the drawing: how thick the pen is, and the steps
+              back and forth. */}
+          <div className="flex items-center justify-between gap-2">
+            <fieldset className="flex gap-1.5">
+              <legend className="sr-only">{t.app.draw.width}</legend>
+              {(Object.keys(WIDTHS) as Width[]).map((w) => (
+                <button
+                  aria-label={t.app.draw.widths[w]}
+                  aria-pressed={width === w}
+                  className={cn(TILE, "w-10")}
+                  key={w}
+                  onClick={() => setWidth(w)}
+                  title={t.app.draw.widths[w]}
+                  type="button"
+                >
+                  {/* The pen's tip, as big as it draws on a 160px stamp. */}
+                  <svg aria-hidden="true" className="w-full" viewBox="0 0 1 1">
+                    <circle
+                      cx="0.5"
+                      cy="0.5"
+                      fill="currentColor"
+                      r={WIDTHS[w] * 2.4}
+                    />
+                  </svg>
+                </button>
+              ))}
+            </fieldset>
+            <div className="flex shrink-0 gap-0.5">
+              {[
+                {
+                  label: t.app.draw.undo,
+                  sign: UNDO,
+                  off: !history.past.length,
+                  go: () => setHistory(back),
+                },
+                {
+                  label: t.app.draw.redo,
+                  sign: REDO,
+                  off: !history.future.length,
+                  go: () => setHistory(forward),
+                },
+                { label: t.app.draw.clear, sign: BIN, off: empty, go: clear },
+              ].map(({ label, sign, off, go }) => (
+                <Button
+                  aria-label={label}
+                  className="px-2.5"
+                  disabled={off}
+                  key={label}
+                  onClick={go}
+                  size="sm"
+                  title={label}
+                  variant="ghost"
+                >
+                  <Sign className="h-5 w-5" d={sign} />
+                </Button>
+              ))}
+            </div>
+          </div>
           {/* Blots of the stamp colors, the one picked ringed – like the
               day's stamp pads. */}
           <fieldset className="flex flex-wrap items-center justify-center gap-1">
