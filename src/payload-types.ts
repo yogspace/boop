@@ -1642,7 +1642,7 @@ export interface Translation {
     };
     day?: {
       /**
-       * DE: Noch nichts los – wähl unten einen Stempel und tipp auf den Tag.  ·  EN: Nothing here yet – pick a stamp below and tap the day.
+       * DE: Noch nichts los – wähl einen Stempel und tipp auf den Tag.  ·  EN: Nothing here yet – pick a stamp and tap the day.
        */
       empty?: string | null;
       /**
