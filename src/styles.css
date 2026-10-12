@@ -35,31 +35,10 @@
   --color-soft: #f2f2ef;
 
   /*
-   * Stamp inks – content, never chrome: what a stamp, a print or a
-   * calendar's dot wears (features/calendar/palette.ts).
+   * No stamp colors here: they are content, never chrome – what a stamp, a
+   * print or a calendar's dot wears comes from the palette (the CMS's, via
+   * features/calendar/palette.ts), as an inline color.
    */
-  --color-violet: #7c5cff;
-  --color-pink: #ff5fae;
-  --color-sky: #3fa9ff;
-  --color-mint: #22c993;
-  --color-sun: #ffc928;
-  --color-coral: #ff8159;
-  --color-grape: #7c5cff;
-
-  /*
-   * From the candy look, kept only until the last places using them are
-   * redrawn (day-sheet, stamp-drawer, stamp-sheet): the tints are paper
-   * grey, the hard shadows are none. Don't use in new code.
-   */
-  --color-violet-soft: #f2f2ef;
-  --color-pink-soft: #f2f2ef;
-  --color-sky-soft: #f2f2ef;
-  --color-mint-soft: #f2f2ef;
-  --color-sun-soft: #f2f2ef;
-  --color-coral-soft: #f2f2ef;
-  --shadow-sticker: 0 0 #0000;
-  --shadow-sticker-sm: 0 0 #0000;
-  --shadow-sticker-lg: 0 0 #0000;
 
   --font-sans: "Satoshi", ui-rounded, system-ui, sans-serif;
 
