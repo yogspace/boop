@@ -106,6 +106,9 @@ const german = () =>
     p(
       "Bei jedem Aufruf verarbeitet der Server technisch notwendige Daten – IP-Adresse, Datum und Uhrzeit, aufgerufene Adresse, Browsertyp und Betriebssystem – in Server-Logfiles, um die Website auszuliefern und vor Angriffen zu schützen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO; mein berechtigtes Interesse ist ein sicherer, funktionierender Betrieb."
     ),
+    p(
+      "Solange die App geöffnet ist, hält sie eine Verbindung zum Server offen, über die sie erfährt, wenn sich in deinen Kalendern etwas geändert hat – so ist sie gleich auf dem neuesten Stand. Dafür werden keine zusätzlichen Daten gespeichert."
+    ),
 
     h3("Dein Konto"),
     p(
@@ -126,6 +129,9 @@ const german = () =>
       "Einen Kalender kannst du mit anderen Boop-Konten teilen. Wer Mitglied eines Kalenders ist, sieht seinen Inhalt – die Tage und die Stempel darauf – und wer sonst noch dabei ist. Teile einen Kalender also nur mit Menschen, die das sehen sollen. Einen Kalender, den du nicht teilst, siehst nur du."
     ),
     p(
+      "Du kannst auch jemanden einladen, der noch kein Boop-Konto hat. Dann speichere ich die E-Mail-Adresse, die du angibst, zusammen mit dem Kalender und mit der Angabe, wer eingeladen hat, und schicke an diese Adresse eine einzige Einladungsmail (über Resend, siehe unten). Wer eingeladen wird, kann die Mail einfach ignorieren – ohne Konto passiert sonst nichts. Die Einladung wird gelöscht, sobald sie eingelöst ist, spätestens aber nach 30 Tagen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO; das berechtigte Interesse ist, dass du deinen Kalender mit Menschen teilen kannst, die du selbst auswählst."
+    ),
+    p(
       "Suchmaschinen finden nur die öffentlichen Seiten von Boop, etwa die Startseite und diese Seite. Deine Kalender und Stempel sind nicht öffentlich und tauchen dort nicht auf."
     ),
     p(
@@ -134,7 +140,7 @@ const german = () =>
 
     h3("E-Mails über Resend"),
     p(
-      "Die E-Mails zur Bestätigung deiner Adresse und zum Zurücksetzen deines Passworts – und die Nachrichten aus dem Kontaktformular – verschicke ich über den Versanddienst Resend (Resend, Inc., USA), der sie in meinem Auftrag zustellt (Auftragsverarbeitung). Resend erhält dafür deine E-Mail-Adresse und den Inhalt der jeweiligen Mail. Dabei können Daten in die USA übermittelt werden; abgesichert ist das durch die Standardvertragsklauseln der EU-Kommission (Art. 46 Abs. 2 lit. c DSGVO). Rechtsgrundlage für den Versand ist Art. 6 Abs. 1 lit. b DSGVO."
+      "Die E-Mails zur Bestätigung deiner Adresse, zum Zurücksetzen deines Passworts und mit Einladungen zu Kalendern sowie die Nachrichten aus dem Kontaktformular verschicke ich über den Versanddienst Resend (Resend, Inc., USA), der sie in meinem Auftrag zustellt (Auftragsverarbeitung). Resend erhält dafür die beteiligten E-Mail-Adressen und den Inhalt der jeweiligen Mail. Dabei können Daten in die USA übermittelt werden; abgesichert ist das durch die Standardvertragsklauseln der EU-Kommission (Art. 46 Abs. 2 lit. c DSGVO). Rechtsgrundlage für den Versand ist Art. 6 Abs. 1 lit. b DSGVO, bei Einladungen lit. f (siehe oben)."
     ),
 
     h3("Cookies und Speicher auf deinem Gerät"),
@@ -219,6 +225,9 @@ const english = () =>
     p(
       "With every request the server processes technically necessary data – IP address, date and time, requested address, browser type and operating system – in server logs, to deliver the site and protect it from attacks. Legal basis: Art. 6 (1) (f) GDPR; my legitimate interest is a secure, working service."
     ),
+    p(
+      "While the app is open, it keeps a connection to the server open, through which it learns when something has changed in your calendars – so it is up to date right away. No extra data is stored for this."
+    ),
 
     h3("Your account"),
     p(
@@ -239,6 +248,9 @@ const english = () =>
       "You can share a calendar with other Boop accounts. Whoever is a member of a calendar sees its content – the days and the stamps on them – and who else is in it. So only share a calendar with people who should see it. A calendar you don't share is seen only by you."
     ),
     p(
+      "You can also invite someone who doesn't have a Boop account yet. Then I store the email address you enter, together with the calendar and who sent the invitation, and send that address a single invitation email (via Resend, see below). Whoever is invited can simply ignore the mail – without an account, nothing else happens. The invitation is deleted once it is used, or after 30 days at the latest. Legal basis: Art. 6 (1) (f) GDPR; the legitimate interest is that you can share your calendar with people you choose yourself."
+    ),
+    p(
       "Search engines only find Boop's public pages, such as the home page and this page. Your calendars and stamps are not public and don't show up there."
     ),
     p(
@@ -247,7 +259,7 @@ const english = () =>
 
     h3("Emails via Resend"),
     p(
-      "I send the emails to confirm your address and to reset your password – and the messages from the contact form – through the mail service Resend (Resend, Inc., USA), which delivers them on my behalf (data processing). For this, Resend receives your email address and the content of the mail. Data may be transferred to the USA in the process; this is safeguarded by the European Commission's standard contractual clauses (Art. 46 (2) (c) GDPR). Legal basis for sending: Art. 6 (1) (b) GDPR."
+      "I send the emails to confirm your address, to reset your password and to invite people to calendars, as well as the messages from the contact form, through the mail service Resend (Resend, Inc., USA), which delivers them on my behalf (data processing). For this, Resend receives the email addresses involved and the content of the mail. Data may be transferred to the USA in the process; this is safeguarded by the European Commission's standard contractual clauses (Art. 46 (2) (c) GDPR). Legal basis for sending: Art. 6 (1) (b) GDPR, for invitations Art. 6 (1) (f) GDPR (see above)."
     ),
 
     h3("Cookies and storage on your device"),

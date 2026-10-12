@@ -76,7 +76,10 @@ export const ContactForm = ({ locale }: { locale: Locale }) => {
           400: t.invalid,
           429: t.tooMany,
         };
-        setNotice({ tone: "error", text: problems[response.status] ?? t.failed });
+        setNotice({
+          tone: "error",
+          text: problems[response.status] ?? t.failed,
+        });
       }
     } catch {
       setNotice({ tone: "error", text: t.failed });
