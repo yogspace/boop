@@ -449,6 +449,8 @@ export const StampDrawer = ({
           <fieldset className="mx-auto grid w-full max-w-72 grid-cols-7 gap-1.5">
             <legend className="sr-only">{t.app.draw.rim}</legend>
             {[undefined, ...RIMS].map((r) => {
+              // The pattern bigger, so it shows on a button – its line a
+              // little finer than that.
               const line = rimLine(shape, r, { scale: 3.5 });
               return (
                 <button
@@ -474,7 +476,7 @@ export const StampDrawer = ({
                       stroke="currentColor"
                       strokeLinecap={line.cap}
                       strokeLinejoin="round"
-                      strokeWidth={line.width}
+                      strokeWidth={line.width * 0.85}
                     />
                   </svg>
                 </button>

@@ -7,6 +7,8 @@ import {
   type StickerInput,
   stage,
 } from "./build";
+import { addGlitter } from "./glitter";
+import { createInk, type Ink } from "./ink";
 
 /**
  * Stamps as pictures: one hidden WebGL canvas renders each stamp once per
@@ -16,6 +18,8 @@ import {
  */
 
 const SIZE = 320;
+/** Drawn this many times finer and averaged down – smooth lines. */
+const FINER = 2;
 
 /**
  * The pictures' angle – gentler than `pose()`'s: turned just enough to show
@@ -30,6 +34,9 @@ type Studio = {
   renderer: Three.WebGLRenderer;
   scene: Three.Scene;
   camera: Three.PerspectiveCamera;
+  ink: Ink;
+  /** Picture px per stamp unit, at the stamp. */
+  unit: number;
 };
 
 let studio: Promise<Studio> | null = null;
@@ -41,15 +48,15 @@ const open = () => {
     const renderer = new THREE.WebGLRenderer({
       canvas,
       alpha: true,
-      antialias: true,
+      antialias: false,
       preserveDrawingBuffer: true,
     });
     renderer.setPixelRatio(1);
     renderer.setSize(SIZE, SIZE, false);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.NeutralToneMapping;
-    const { scene, camera } = await stage(THREE, renderer);
-    return { THREE, renderer, scene, camera };
+    const { scene, camera } = stage(THREE);
+    const ink = createInk(THREE, renderer, { supersample: FINER });
+    const view = 2 * camera.position.z * Math.tan((camera.fov * Math.PI) / 360);
+    return { THREE, renderer, scene, camera, ink, unit: SIZE / view };
   })();
   return studio;
 };
@@ -82,12 +89,13 @@ export const stickerImage = (
   const hit = cache.get(key);
   if (hit) return hit;
   const job = queue.then(async () => {
-    const { THREE, renderer, scene, camera } = await open();
+    const { THREE, renderer, scene, camera, ink, unit } = await open();
     const sticker = buildSticker(THREE, input);
+    addGlitter(THREE, sticker, input);
     if (kind === "face") sticker.rotation.set(...FACE_TURN);
     else pose(sticker, kind);
     scene.add(sticker);
-    renderer.render(scene, camera);
+    ink.render(scene, camera, { unit });
     scene.remove(sticker);
     disposeSticker(sticker);
     const blob = await new Promise<Blob | null>((resolve) =>
