@@ -1,13 +1,22 @@
 "use client";
 
-import { type PointerEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type PointerEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Sparkle } from "@/components/doodles";
 import { Button, Field, Notice } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
+import { importSvg } from "@/features/calendar/import-svg";
 import {
   COLOR_NAMES,
   COLORS,
   type ColorName,
+  type Fill,
   SHAPES,
   type StampShape,
   type Stroke,
@@ -24,13 +33,17 @@ import { Sheet } from "./sheet";
 const WIDTH = 0.05;
 /** Points closer than this to the last one are left out. */
 const MIN_STEP = 0.006;
+/** The drawing's distance from the stage's edge (px) – `inset-3` below. */
+const INSET = 12;
 /** How long the drawing and the 3D stamp take to swap (ms). */
 const SWAP = 300;
+/** An uploaded picture may be this big (bytes) – drawings are small. */
+const MAX_UPLOAD = 1_000_000;
 
 const round = (n: number) => Math.round(n * 1000) / 1000;
 
-/** A little bin – clearing the drawing. */
-const Bin = ({ className }: { className?: string }) => (
+/** A small line drawing on a button – `d` is what it shows. */
+const Sign = ({ d, className }: { d: string; className?: string }) => (
   <svg
     aria-hidden="true"
     className={className}
@@ -41,9 +54,14 @@ const Bin = ({ className }: { className?: string }) => (
     strokeWidth="2.2"
     viewBox="0 0 24 24"
   >
-    <path d="M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5l1 13.5h9l1-13.5M10.5 10.5v6M13.5 10.5v6" />
+    <path d={d} />
   </svg>
 );
+/** A little bin – clearing the drawing. */
+const BIN =
+  "M4 6.5h16M9.5 6.5V4h5v2.5M6.5 6.5l1 13.5h9l1-13.5M10.5 10.5v6M13.5 10.5v6";
+/** An arrow up out of a tray – uploading a picture. */
+const UPLOAD = "M12 15.5V4M7.5 8.5 12 4l4.5 4.5M4.5 15v4.5h15V15";
 
 /**
  * Two sets of controls in one place, one of them showing: they cross-fade,
@@ -56,11 +74,11 @@ const layer = (on: boolean) =>
   );
 
 /**
- * Making a stamp: pick its body – circle or square (it morphs) – and a color
- * (it fades), doodle onto it, and when done the drawing turns into the stamp
- * right where it is – a 3D rubber stamp to look at from every side, then to
- * stamp with, as often as you like. Saved on the device at once, synced
- * later.
+ * Making a stamp: pick its body (it morphs from shape to shape) and a color
+ * (it fades), doodle onto it – or upload a picture (SVG) and draw on – and
+ * when done the drawing turns into the stamp right where it is: a 3D rubber
+ * stamp to look at from every side, then to stamp with, as often as you
+ * like. Saved on the device at once, synced later.
  */
 export const StampDrawer = ({
   calendar,
@@ -74,8 +92,14 @@ export const StampDrawer = ({
 }) => {
   const t = dictionaryOf(locale);
   const area = useRef<HTMLDivElement>(null);
+  const file = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<"draw" | "3d">("draw");
   const [strokes, setStrokes] = useState<Stroke[]>([]);
+  // An uploaded picture: its filled areas – and how many of the strokes (the
+  // first ones) are its lines; what is drawn comes on top.
+  const [fills, setFills] = useState<Fill[]>([]);
+  const [uploaded, setUploaded] = useState(0);
+  const [refused, setRefused] = useState(false);
   const [shape, setShape] = useState<StampShape>("circle");
   const [color, setColor] = useState<ColorName>("grape");
   const [name, setName] = useState("");
@@ -88,6 +112,7 @@ export const StampDrawer = ({
   const [shown, setShown] = useState(false);
   const leave = useRef<ReturnType<typeof setTimeout>>(undefined);
   const draws = step === "draw";
+  const empty = !(strokes.length || fills.length);
 
   // three.js loads while drawing – the stamp is quick to appear.
   useEffect(() => {
@@ -96,17 +121,24 @@ export const StampDrawer = ({
     return () => clearTimeout(leave.current);
   }, []);
 
+  const doodle = useMemo(() => ({ strokes, fills }), [strokes, fills]);
   const sticker = useMemo(
-    () => ({ shape, color, drawing: { strokes } }),
-    [shape, color, strokes]
+    () => ({ shape, color, drawing: doodle }),
+    [shape, color, doodle]
   );
 
-  // The stamp's view box reaches a little beyond the unit square (its rim).
+  // The drawing sits a little inside the stage, and its view box reaches a
+  // little beyond the unit square (its rim).
   const point = (event: PointerEvent) => {
     const box = area.current?.getBoundingClientRect();
     if (!box) return null;
     const at = (offset: number, size: number) =>
-      round(Math.min(Math.max(-0.02 + (1.04 * offset) / size, 0), 1));
+      round(
+        Math.min(
+          Math.max(-0.02 + (1.04 * (offset - INSET)) / (size - 2 * INSET), 0),
+          1
+        )
+      );
     return [
       at(event.clientX - box.left, box.width),
       at(event.clientY - box.top, box.height),
@@ -118,6 +150,7 @@ export const StampDrawer = ({
     if (!p) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     drawing.current = true;
+    setRefused(false);
     setStrokes((all) => [...all, { w: WIDTH, p: [...p] }]);
   };
 
@@ -139,9 +172,41 @@ export const StampDrawer = ({
     drawing.current = false;
   };
 
+  const clear = () => {
+    setStrokes([]);
+    setFills([]);
+    setUploaded(0);
+  };
+
+  // The last line drawn goes – and once none is left, the uploaded picture.
+  const undo = () => {
+    if (strokes.length > uploaded) setStrokes((all) => all.slice(0, -1));
+    else clear();
+  };
+
+  // A picture takes the place of what was there – then it is drawn on.
+  const onUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const picked = event.target.files?.[0];
+    // The same file can be picked again.
+    event.target.value = "";
+    if (!picked) return;
+    setRefused(false);
+    try {
+      if (picked.size > MAX_UPLOAD) throw new Error("too big");
+      const picture = await importSvg(await picked.text());
+      if (!picture) throw new Error("nothing in it");
+      setStrokes(picture.strokes);
+      setFills(picture.fills);
+      setUploaded(picture.strokes.length);
+    } catch {
+      setRefused(true);
+    }
+  };
+
   const toStamp = () => {
     stop();
     clearTimeout(leave.current);
+    setRefused(false);
     setShown(false);
     setView((n) => n + 1);
     setStep("3d");
@@ -160,7 +225,7 @@ export const StampDrawer = ({
         name: name.trim().slice(0, 40),
         color,
         shape,
-        drawing: { v: 1, strokes },
+        drawing: fills.length ? { v: 1, strokes, fills } : { v: 1, strokes },
         calendar: shared ? calendar : null,
       });
       trackEvent("stamp-created");
@@ -210,8 +275,8 @@ export const StampDrawer = ({
             <Button
               aria-label={t.app.draw.undo}
               className="px-2.5"
-              disabled={!strokes.length}
-              onClick={() => setStrokes((all) => all.slice(0, -1))}
+              disabled={empty}
+              onClick={undo}
               size="sm"
               title={t.app.draw.undo}
               variant="ghost"
@@ -221,13 +286,13 @@ export const StampDrawer = ({
             <Button
               aria-label={t.app.draw.clear}
               className="px-2.5"
-              disabled={!strokes.length}
-              onClick={() => setStrokes([])}
+              disabled={empty}
+              onClick={clear}
               size="sm"
               title={t.app.draw.clear}
               variant="ghost"
             >
-              <Bin className="h-4 w-4" />
+              <Sign className="h-4 w-4" d={BIN} />
               <span className="max-sm:hidden">{t.app.draw.clear}</span>
             </Button>
           </div>
@@ -245,9 +310,10 @@ export const StampDrawer = ({
         </div>
       </div>
 
+      {/* The stage stays where it is: the drawing, then the stamp over it. */}
       <div
         aria-label={draws ? t.app.draw.hint : t.app.draw.turn}
-        className={cn(STAGE, "touch-none p-3", draws && "cursor-crosshair")}
+        className={cn(STAGE, "touch-none", draws && "cursor-crosshair")}
         onPointerCancel={draws ? stop : undefined}
         onPointerDown={draws ? onDown : undefined}
         onPointerLeave={draws ? stop : undefined}
@@ -258,15 +324,15 @@ export const StampDrawer = ({
       >
         <StampSvg
           className={cn(
-            "pointer-events-none h-full w-full transition-opacity duration-300",
+            "pointer-events-none absolute inset-3 h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] transition-opacity duration-300",
             !draws && shown && "opacity-0"
           )}
           color={color}
-          drawing={strokes.length ? { strokes } : null}
+          drawing={doodle}
           filled
           shape={shape}
         />
-        {draws && !strokes.length && (
+        {draws && empty && (
           <p className="pointer-events-none absolute inset-0 flex animate-fade items-center justify-center font-bold text-muted">
             {t.app.draw.hint}
           </p>
@@ -278,7 +344,7 @@ export const StampDrawer = ({
               "absolute inset-0 transition-opacity duration-300",
               draws && "pointer-events-none opacity-0"
             )}
-            inset={12}
+            inset={INSET}
             key={view}
             onShown={() => setShown(true)}
             stamp={sticker}
@@ -294,7 +360,7 @@ export const StampDrawer = ({
 
       <div className="grid">
         <div
-          className={cn(layer(draws), "flex flex-col justify-between gap-4")}
+          className={cn(layer(draws), "flex flex-col justify-between gap-3")}
         >
           <fieldset className="flex flex-wrap items-center justify-center gap-2.5">
             <legend className="sr-only">{t.app.draw.color}</legend>
@@ -315,9 +381,26 @@ export const StampDrawer = ({
               />
             ))}
           </fieldset>
+          <div className="flex justify-center">
+            <Button
+              onClick={() => file.current?.click()}
+              size="sm"
+              variant="ghost"
+            >
+              <Sign className="h-4 w-4" d={UPLOAD} /> {t.app.draw.upload}
+            </Button>
+            <input
+              accept=".svg,image/svg+xml"
+              hidden
+              onChange={onUpload}
+              ref={file}
+              type="file"
+            />
+          </div>
+          {refused && <Notice tone="error">{t.app.draw.uploadFailed}</Notice>}
           <Button
             className="w-full"
-            disabled={!strokes.length}
+            disabled={empty}
             onClick={toStamp}
             size="lg"
           >

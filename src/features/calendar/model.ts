@@ -82,7 +82,11 @@ export type Drawing = { v: 1; strokes: Stroke[]; fills?: Fill[] };
  * Limits that keep one stamp small (a few dozen KB at most) – the points of
  * strokes and fills counted together.
  */
-export const DRAWING_LIMITS = { strokes: 200, fills: 100, points: 4000 } as const;
+export const DRAWING_LIMITS = {
+  strokes: 200,
+  fills: 100,
+  points: 4000,
+} as const;
 
 /** A calendar day, as the date it shows: "2026-10-11" – no time, no zone. */
 export type DayKey = string;
