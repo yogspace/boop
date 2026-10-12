@@ -35,27 +35,17 @@ Stand: 12.10.2026
 
 ## Offen aus der laufenden Runde
 
-- **CMS-Farben: im Code komplett umgestellt, aber noch nicht im Browser
-  getestet.** Zuerst prüfen: Registrieren (legt den persönlichen Kalender
-  an) und einen neuen Kalender/Stempel anlegen – die Standardfarbe kommt
-  jetzt aus einem Feld-Default, der das Site-Global liest
-  (`calendar/color-field.ts`); greift der nicht, schlägt das Anlegen fehl.
-  Danach: im Admin eine Farbe neu anlegen, eine ändern, eine löschen und
-  schauen, ob Farbwähler, Stempelkissen, Abdrücke und 3D-Stempel folgen.
-  Bekannt: schon gerenderte Stickerbilder wechseln die Farbe erst nach
-  einem Reload.
 - **Scribble-Redesign ausrollen** auf Tagesansicht (`day-sheet.tsx`),
   Stempel-Editor (`stamp-drawer.tsx`), Stempel-Detail (`stamp-sheet.tsx`)
   und die 3D-Bühne (`sticker-view.tsx`) – die nutzen noch die alten
   Farbklassen. Bausteine dafür: die `scribble…`-Klassen in `styles.css` und
   `ROUND_BUTTON`, `PILL`, `BADGE`, `FIELD_BOX` aus `components/ui.tsx`.
   Danach die Übergangs-Aliasse (`*-soft`, `shadow-sticker*`) löschen.
-- **Altes Lila außerhalb der Seite**: `themeColor`, Web-Manifest, OG-Bild,
-  `icon.svg`.
+- **Altes Lila in den Mails**: `lib/mail-layout.ts` (Papier, Tinte,
+  Button noch lila) – auf Papierweiß/Tinte wie die Seite.
 
 ## Noch selbst prüfen
 
-- Admin, eingeloggt: Site → Stamp colors (Farbwähler und Vorschau).
 - Echtes Safari / iPhone – bisher nur WebKit ohne Fenster getestet.
 - Touch: Stempeln, Drehen und der Editor mit dem Finger.
 
