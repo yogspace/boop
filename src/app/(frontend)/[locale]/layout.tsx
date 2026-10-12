@@ -9,8 +9,11 @@ import { dictionaryOf } from "@/i18n/dictionaries";
 import { serverUrl } from "@/lib/server-url";
 import "@/styles.css";
 
+// No `dynamicParams = false` here: Next applies it to every page below, and
+// the app's calendar addresses (/de/app/{id}) render on demand. The public
+// pages set it ((site)/layout.tsx); the proxy sends anything without a
+// language to one anyway.
 export const generateStaticParams = () => LOCALES.map((locale) => ({ locale }));
-export const dynamicParams = false;
 
 type Props = { params: Promise<{ locale: string }> };
 

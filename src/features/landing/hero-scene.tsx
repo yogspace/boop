@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Arrow, Sparkle } from "@/components/doodles";
 import { StampSvg } from "@/features/calendar/stamp-svg";
 import { DEMO_STAMPS, demoStamp } from "@/features/stickers/demo";
@@ -22,45 +23,195 @@ const PRINTS: Record<number, string[]> = {
   28: ["sun"],
 };
 
-/** Where the floating stickers hang around the card. */
+/**
+ * Where the floating stickers hang around the card – `depth`: how near they
+ * are, so how much they follow the pointer.
+ */
 const FLOATING = [
   {
     key: "heart",
     className: "-top-6 -left-4 w-24 sm:w-28",
-    tilt: -12,
+    tilt: -8,
     delay: 0,
+    depth: 1,
   },
   {
     key: "star",
     className: "-top-10 right-6 w-20 sm:w-24",
-    tilt: 10,
+    tilt: 7,
     delay: 0.8,
+    depth: 0.6,
   },
   {
     key: "flower",
     className: "-bottom-8 -left-6 w-20 sm:w-24",
-    tilt: 8,
+    tilt: 5,
     delay: 1.6,
+    depth: 0.75,
   },
   {
     key: "smile",
     className: "right-[-1.5rem] bottom-10 w-24 sm:w-28",
-    tilt: -6,
+    tilt: -5,
     delay: 0.4,
+    depth: 0.9,
   },
 ];
 
+/** How far off the pointer still turns a sticker all the way (px). */
+const REACH = 420;
+/** The most a sticker leans (deg) and drifts (px) – times its depth. */
+const LEAN = 16;
+const DRIFT = 12;
+
+/** The card's turn – a touch towards the pointer (x, y: −1…1). */
+const cardTurn = (x = 0, y = 0) =>
+  `rotateX(${14 - y * 4}deg) rotateY(${-16 + x * 5}deg) rotateZ(2deg)`;
+
+/** A sticker leaning towards the pointer and drifting to it a little. */
+const lean = (x: number, y: number, depth: number) =>
+  `translate3d(${x * DRIFT * depth}px, ${y * DRIFT * depth}px, 0) perspective(500px) rotateX(${-y * LEAN * depth}deg) rotateY(${x * LEAN * depth}deg)`;
+
+/**
+ * The scene follows the pointer: the stickers (`data-depth`) lean towards it
+ * and drift a little, the card (`data-card`) turns a touch. Each on a soft
+ * spring, the nearer ones quicker. Written straight to the elements – no
+ * renders; off for touch and reduced motion.
+ */
+const useFollow = (scene: React.RefObject<HTMLDivElement | null>) => {
+  useEffect(() => {
+    const root = scene.current;
+    if (
+      !root ||
+      !matchMedia("(hover: hover) and (pointer: fine)").matches ||
+      matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    const followers = [
+      ...root.querySelectorAll<HTMLElement>("[data-card], [data-depth]"),
+    ].map((el) => {
+      const depth = Number(el.dataset.depth ?? 0.6);
+      const stiffness = 50 + 50 * depth;
+      return {
+        el,
+        turn: el.dataset.card
+          ? cardTurn
+          : (x: number, y: number) => lean(x, y, depth),
+        stiffness,
+        // A little under critical – it settles with a soft bounce.
+        damping: 2 * Math.sqrt(stiffness) * 0.62,
+        // Its middle in the scene, unturned.
+        mx: 0,
+        my: 0,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+      };
+    });
+    const measure = () => {
+      for (const f of followers) {
+        f.mx = f.el.offsetLeft + f.el.offsetWidth / 2;
+        f.my = f.el.offsetTop + f.el.offsetHeight / 2;
+      }
+    };
+    measure();
+
+    let pointer: { x: number; y: number } | null = null;
+    let seen = false;
+    let frame = 0;
+    let last = 0;
+    const tick = (now: number) => {
+      const dt = Math.min(1 / 30, (now - last) / 1000);
+      last = now;
+      const box = root.getBoundingClientRect();
+      let moving = false;
+      for (const f of followers) {
+        // Where the pointer is, seen from it: −1…1, easing off far away.
+        let tx = 0;
+        let ty = 0;
+        if (pointer) {
+          const dx = (pointer.x - box.left - f.mx) / REACH;
+          const dy = (pointer.y - box.top - f.my) / REACH;
+          const ease = 1 / Math.hypot(1, dx, dy);
+          tx = dx * ease;
+          ty = dy * ease;
+        }
+        f.vx += (f.stiffness * (tx - f.x) - f.damping * f.vx) * dt;
+        f.vy += (f.stiffness * (ty - f.y) - f.damping * f.vy) * dt;
+        f.x += f.vx * dt;
+        f.y += f.vy * dt;
+        const still =
+          Math.abs(tx - f.x) + Math.abs(ty - f.y) < 1e-3 &&
+          Math.abs(f.vx) + Math.abs(f.vy) < 1e-3;
+        if (still) {
+          f.x = tx;
+          f.y = ty;
+          f.vx = 0;
+          f.vy = 0;
+        } else {
+          moving = true;
+        }
+        f.el.style.transform = f.turn(f.x, f.y);
+      }
+      frame = moving ? requestAnimationFrame(tick) : 0;
+    };
+    const wake = () => {
+      if (frame || !seen) return;
+      last = performance.now();
+      frame = requestAnimationFrame(tick);
+    };
+
+    const move = (event: PointerEvent) => {
+      if (event.pointerType === "touch") return;
+      pointer = { x: event.clientX, y: event.clientY };
+      wake();
+    };
+    // Off the page: back to rest.
+    const out = (event: PointerEvent) => {
+      if (event.relatedTarget) return;
+      pointer = null;
+      wake();
+    };
+    const visible = new IntersectionObserver(([entry]) => {
+      seen = entry.isIntersecting;
+      wake();
+    });
+    visible.observe(root);
+    const resized = new ResizeObserver(measure);
+    resized.observe(root);
+    window.addEventListener("pointermove", move, { passive: true });
+    window.addEventListener("pointerout", out);
+    window.addEventListener("scroll", wake, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      visible.disconnect();
+      resized.disconnect();
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerout", out);
+      window.removeEventListener("scroll", wake);
+    };
+  }, [scene]);
+};
+
 /**
  * The front page's picture: a month in a tilted 3D card, prints on its days,
- * glossy stamps floating around it.
+ * glossy stamps floating around it – turning to the pointer.
  */
 export const HeroScene = ({ locale }: { locale: Locale }) => {
   const t = dictionaryOf(locale);
+  const scene = useRef<HTMLDivElement>(null);
+  useFollow(scene);
   return (
-    <div className="relative mx-auto w-full max-w-md py-10 [perspective:1400px]">
+    <div
+      className="relative mx-auto w-full max-w-md py-10 [perspective:1400px]"
+      ref={scene}
+    >
       <div
         className="relative rounded-[32px] border-2 border-ink bg-card p-5 shadow-sticker-lg"
-        style={{ transform: "rotateX(14deg) rotateY(-16deg) rotateZ(2deg)" }}
+        data-card
+        style={{ transform: cardTurn() }}
       >
         <div className="mb-3 flex items-baseline justify-between">
           <p className="font-black text-2xl">{t.app.months[9]}</p>
@@ -120,19 +271,21 @@ export const HeroScene = ({ locale }: { locale: Locale }) => {
 
       {FLOATING.map((item) => (
         <div
-          className={cn(
-            "pointer-events-none absolute animate-float",
-            item.className
-          )}
+          className={cn("pointer-events-none absolute", item.className)}
+          data-depth={item.depth}
           key={item.key}
-          style={
-            {
-              "--tilt": `${item.tilt}deg`,
-              animationDelay: `${item.delay}s`,
-            } as React.CSSProperties
-          }
         >
-          <Sticker stamp={demoStamp(item.key)} />
+          <div
+            className="animate-float"
+            style={
+              {
+                "--tilt": `${item.tilt}deg`,
+                animationDelay: `${item.delay}s`,
+              } as React.CSSProperties
+            }
+          >
+            <Sticker stamp={demoStamp(item.key)} />
+          </div>
         </div>
       ))}
 

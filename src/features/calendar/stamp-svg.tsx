@@ -1,11 +1,15 @@
 import { useId } from "react";
-import { COLORS, type ColorName, type StampShape } from "./model";
+import { COLORS, type ColorName, FACE, type StampShape } from "./model";
+import { outlinePath } from "./outline";
 
 /**
  * A stamp flat, as SVG – the drawing while it is being made (its rim and the
- * lines, in its color) and the print it leaves on a day: an engraved stamp
- * prints negative – the shape in ink, the doodle as gaps – blotchy and a
- * little frayed, like real ink.
+ * lines, in its color) and the print it leaves on a day: what stands raised
+ * on the rubber – the rim and the doodle – in ink, blotchy and a little
+ * frayed, like real ink.
+ *
+ * The face lives in the unit square (FACE) but is drawn 100× up: Safari
+ * can't run the ink filter in a space one unit wide – the prints vanished.
  */
 
 /** The SVG path of one stroke – quadratic curves through the midpoints. */
@@ -29,29 +33,29 @@ export const strokePath = (p: readonly number[]) => {
 };
 
 /**
- * The body's outline in the unit square: one rounded rectangle whose corner
- * radius makes it a circle or a square – so changing the shape morphs
- * (CSS transition on `rx`).
+ * The face's outline in the unit square (outline.ts): one path, with the same
+ * points for every shape – so changing the shape morphs (CSS transition on
+ * `d`; Safari ignores it and simply switches).
  */
-const MORPH =
-  "rx 460ms cubic-bezier(.3,1.4,.5,1), ry 460ms cubic-bezier(.3,1.4,.5,1), fill 400ms, stroke 400ms";
+const MORPH = "d 460ms cubic-bezier(.3,1.4,.5,1), fill 400ms, stroke 400ms";
 
 export const ShapeOutline = ({
   shape,
   style,
   ...props
-}: { shape: StampShape } & React.SVGProps<SVGRectElement>) => {
-  const r = shape === "circle" ? 0.48 : 0.13;
+}: { shape: StampShape } & React.SVGProps<SVGPathElement>) => {
+  const d = outlinePath(shape);
   return (
-    <rect
-      height="0.96"
-      rx={r}
+    <path
+      d={d}
       style={
-        { rx: r, ry: r, transition: MORPH, ...style } as React.CSSProperties
+        // `d` as CSS is what transitions – React's types don't know it.
+        {
+          d: `path("${d}")`,
+          transition: MORPH,
+          ...style,
+        } as React.CSSProperties
       }
-      width="0.96"
-      x="0.02"
-      y="0.02"
       {...props}
     />
   );
@@ -89,6 +93,23 @@ export const StampSvg = ({
   const id = useId();
   const ink = COLORS[color];
   const fade = { transition: "stroke 400ms, fill 400ms" };
+  // The doodle, kept inside the outline.
+  const lines = drawing && (
+    <g clipPath={`url(#${id}-clip)`}>
+      {drawing.strokes.map((stroke, i) => (
+        <path
+          d={strokePath(stroke.p)}
+          fill="none"
+          key={i}
+          stroke={ink}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={stroke.w}
+          style={fade}
+        />
+      ))}
+    </g>
+  );
   return (
     // Named when given a title (role img), otherwise hidden – decoration.
     // biome-ignore lint/a11y/noSvgWithoutTitle: the title is conditional
@@ -96,7 +117,7 @@ export const StampSvg = ({
       aria-hidden={title ? undefined : true}
       className={className}
       role={title ? "img" : undefined}
-      viewBox="-0.02 -0.02 1.04 1.04"
+      viewBox="-2 -2 104 104"
     >
       {title && <title>{title}</title>}
       <defs>
@@ -105,24 +126,25 @@ export const StampSvg = ({
         </clipPath>
         {print && (
           // Like a real rubber stamp: blotchy coverage, fine grain, frayed
-          // edges – and never twice the same (seed).
+          // edges – and never twice the same (seed). In the 100× space.
           <filter
             colorInterpolationFilters="sRGB"
-            height="130%"
+            filterUnits="userSpaceOnUse"
+            height="116"
             id={`${id}-ink`}
-            width="130%"
-            x="-15%"
-            y="-15%"
+            width="116"
+            x="-8"
+            y="-8"
           >
             <feTurbulence
-              baseFrequency="2.6"
+              baseFrequency="0.026"
               numOctaves="2"
               result="blot"
               seed={seed}
               type="fractalNoise"
             />
             <feTurbulence
-              baseFrequency="42"
+              baseFrequency="0.42"
               numOctaves="2"
               result="grain"
               seed={seed + 11}
@@ -140,10 +162,10 @@ export const StampSvg = ({
               in="mix"
               result="mask"
               type="matrix"
-              values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -4.2 4.15"
+              values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -3.6 3.45"
             />
             <feTurbulence
-              baseFrequency="11"
+              baseFrequency="0.11"
               numOctaves="1"
               result="warp"
               seed={seed + 23}
@@ -153,7 +175,7 @@ export const StampSvg = ({
               in="SourceGraphic"
               in2="warp"
               result="rough"
-              scale="0.03"
+              scale="3.5"
               xChannelSelector="R"
               yChannelSelector="G"
             />
@@ -162,66 +184,30 @@ export const StampSvg = ({
         )}
       </defs>
       {print ? (
-        // The print of an engraved stamp: the shape in ink, the doodle as
-        // gaps where the rubber was cut away.
-        <>
-          <defs>
-            <mask
-              height="1.2"
-              id={`${id}-cut`}
-              maskUnits="userSpaceOnUse"
-              width="1.2"
-              x="-0.1"
-              y="-0.1"
-            >
-              <ShapeOutline fill="white" shape={shape} />
-              {drawing?.strokes.map((stroke, i) => (
-                <path
-                  d={strokePath(stroke.p)}
-                  fill="none"
-                  key={i}
-                  stroke="black"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={stroke.w}
-                />
-              ))}
-            </mask>
-          </defs>
-          <g filter={`url(#${id}-ink)`} opacity={0.88}>
+        // The print: what stands raised on the rubber – the rim and the
+        // doodle – in ink, nothing filled.
+        <g filter={`url(#${id}-ink)`} opacity={0.9}>
+          <g transform="scale(100)">
             <ShapeOutline
-              fill={ink}
-              mask={`url(#${id}-cut)`}
+              fill="none"
               shape={shape}
+              stroke={ink}
               strokeDasharray={drawing ? undefined : "0.06 0.06"}
+              strokeWidth={FACE.rim}
             />
+            {lines}
           </g>
-        </>
+        </g>
       ) : (
-        <g>
+        <g transform="scale(100)">
           <ShapeOutline
             fill={filled ? `color-mix(in srgb, ${ink} 14%, white)` : "none"}
             shape={shape}
             stroke={ink}
             strokeDasharray={drawing || filled ? undefined : "0.06 0.06"}
-            strokeWidth="0.035"
+            strokeWidth={FACE.rim}
           />
-          {drawing && (
-            <g clipPath={`url(#${id}-clip)`}>
-              {drawing.strokes.map((stroke, i) => (
-                <path
-                  d={strokePath(stroke.p)}
-                  fill="none"
-                  key={i}
-                  stroke={ink}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={stroke.w}
-                  style={fade}
-                />
-              ))}
-            </g>
-          )}
+          {lines}
         </g>
       )}
     </svg>

@@ -49,6 +49,7 @@
   --shadow-sticker-lg: 6px 6px 0 0 var(--color-ink);
 
   --animate-boop: boop 460ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-pop-in: pop-in 480ms cubic-bezier(0.25, 0.8, 0.35, 1) both;
   --animate-wiggle: wiggle 500ms ease-in-out;
   --animate-float: float 5s ease-in-out infinite;
   --animate-press: press 520ms cubic-bezier(0.3, 0.7, 0.4, 1) both;
@@ -68,6 +69,24 @@
     }
     100% {
       transform: scale(1);
+    }
+  }
+
+  /* A sticker's picture arriving: it grows in, a touch too far, settles. */
+  @keyframes pop-in {
+    0% {
+      transform: scale(0.6);
+      opacity: 0;
+    }
+    40% {
+      opacity: 1;
+    }
+    65% {
+      transform: scale(1.04);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
     }
   }
 

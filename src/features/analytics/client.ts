@@ -58,14 +58,21 @@ const send = (url: string, body: Record<string, unknown>) => {
 };
 
 /**
+ * The page a path counts as. The app is one page, whichever calendar it
+ * shows: /de/app/{id} counts as /de/app – no calendar id is ever sent.
+ */
+export const pageOf = (pathname: string) =>
+  pathname.replace(/^(\/[^/]+\/app)\/.*$/, "$1");
+
+/**
  * A page view. `ref` is where the visitor came from – the real referrer on
  * the first page, the site itself after navigating within it.
  */
 export const trackView = (
   path: string = window.location.pathname,
   ref: string = document.referrer
-) => send("/next/track", { path, ref });
+) => send("/next/track", { path: pageOf(path), ref });
 
 /** An action – the name must be one of actions.ts, others are ignored. */
 export const trackEvent = (name: ActionName) =>
-  send("/next/action", { name, path: window.location.pathname });
+  send("/next/action", { name, path: pageOf(window.location.pathname) });

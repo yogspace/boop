@@ -33,14 +33,33 @@ export const isColorName = (value: unknown): value is ColorName =>
   typeof value === "string" && value in COLORS;
 
 /**
- * The stamp's body: a round or a square stamp. The doodle is drawn onto it
+ * The stamp's body – its outline (outline.ts). The doodle is drawn onto it
  * and stands out of it – embossed – when the stamp is shown in 3D.
  */
-export const SHAPES = ["circle", "square"] as const;
+export const SHAPES = [
+  "circle",
+  "square",
+  "octagon",
+  "triangle",
+  "diamond",
+] as const;
 export type StampShape = (typeof SHAPES)[number];
 
 export const isShape = (value: unknown): value is StampShape =>
   typeof value === "string" && (SHAPES as readonly string[]).includes(value);
+
+/**
+ * The stamp's face in the unit square – the same in the drawing, in its print
+ * and on the 3D rubber: an outline (outline.ts), a rim along it, and the
+ * doodle inside. Rim and doodle are what prints – raised on the rubber, in
+ * ink on the day.
+ */
+export const FACE = {
+  /** The outline's distance from the unit square's edge. */
+  inset: 0.02,
+  /** The rim's width, centered on the outline. */
+  rim: 0.04,
+} as const;
 
 /**
  * A doodle: strokes of points in a unit square (0–1 both ways), so it draws

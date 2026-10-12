@@ -4,7 +4,13 @@ import { BoopApp } from "@/features/app/boop-app";
 import { isLocale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 
-type Props = { params: Promise<{ locale: string }> };
+type Props = { params: Promise<{ locale: string; calendar?: string[] }> };
+
+/**
+ * Built ahead: the bare /de/app. A calendar's address (/de/app/{id}) is the
+ * same page – it renders on its first visit.
+ */
+export const generateStaticParams = () => [{ calendar: [] }];
 
 export const generateMetadata = async ({
   params,
@@ -18,9 +24,10 @@ export const generateMetadata = async ({
 };
 
 /**
- * The app – one static page per language, the same for everyone: the data
- * comes from the device (offline/store.ts), so the service worker can keep
- * this page and open it without a connection.
+ * The app – one static page per language, the same for everyone and every
+ * calendar: the data comes from the device (offline/store.ts), so the
+ * service worker can keep this page and open it without a connection. The
+ * calendar in the address is read in the browser (BoopApp), never here.
  */
 const AppPage = async ({ params }: Props) => {
   const { locale } = await params;

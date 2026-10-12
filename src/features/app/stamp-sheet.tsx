@@ -6,7 +6,7 @@ import { Button } from "@/components/ui";
 import type { StampDoc } from "@/features/calendar/model";
 import { deleteStamp } from "@/features/offline/store";
 import { PRINT_MM, stampStl, stlName } from "@/features/stickers/export-stl";
-import { StickerView } from "@/features/stickers/sticker-view";
+import { STAGE, StickerView } from "@/features/stickers/sticker-view";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { Sheet } from "./sheet";
@@ -51,8 +51,8 @@ export const StampSheet = ({
 
   return (
     <Sheet onClose={onClose} title={stamp.name || t.app.stamp.untitled}>
-      <div className="mx-auto w-full max-w-80">
-        <StickerView stamp={input} />
+      <div className={STAGE}>
+        <StickerView className="absolute inset-0" stamp={input} />
       </div>
       <p className="-mt-2 text-center text-muted text-sm">{t.app.draw.turn}</p>
       <Button disabled={busy} onClick={download} size="lg">

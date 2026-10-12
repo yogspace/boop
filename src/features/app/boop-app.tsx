@@ -42,6 +42,16 @@ const NEW_COLORS: ColorName[] = [
 const tilt = (id: string) => ((id.charCodeAt(0) + id.charCodeAt(5)) % 9) - 4;
 
 /**
+ * The calendar in the address – /de/app/{id} – or null. Only the browser
+ * knows it: the server's page is the same for every calendar.
+ */
+const calendarInAddress = () => {
+  if (typeof window === "undefined") return null;
+  const [, , app, id] = window.location.pathname.split("/");
+  return (app === "app" && id) || null;
+};
+
+/**
  * The app: the account's calendars, a month of the chosen one, a day to
  * stamp on, the 3D stamps. Everything reads the device's copy
  * (offline/store.ts) – it works the same without a connection.
@@ -50,7 +60,10 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   const t = dictionaryOf(locale);
   const boop = useBoop();
   const router = useTransitionRouter();
-  const [calendarId, setCalendarId] = useState<string | null>(null);
+  // The chosen calendar lives in the address, so a reload stays on it. The
+  // server renders none (null) – no matter: until the device's copy is open
+  // (status "loading", always so while hydrating) no calendar shows.
+  const [calendarId, setCalendarId] = useState(calendarInAddress);
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
@@ -93,6 +106,20 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
       ),
     [boop.stamps, me, calendar]
   );
+
+  // Whichever calendar shows goes into the address – chosen, new, or the
+  // first when the address names none (or one that is gone). By id: names
+  // repeat and change. Next keeps its own history state and learns the new
+  // path (usePathname) – hence null, not the current state.
+  const shown = calendar?.id;
+  useEffect(() => {
+    if (!shown) return;
+    const path = `/${locale}/app/${shown}`;
+    const { pathname, search, hash } = window.location;
+    if (pathname !== path) {
+      window.history.replaceState(null, "", `${path}${search}${hash}`);
+    }
+  }, [locale, shown]);
 
   if (boop.status === "loading" || boop.status === "signedOut") {
     return (
@@ -178,9 +205,12 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
 
       <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex min-w-0 flex-col gap-4">
+          {/* On phones a row to swipe, edge to edge – a scroller cuts off
+              all round, so it pads (and margins back) room for the pills'
+              shadow, lift and focus ring. Wider, they wrap: nothing cut. */}
           <nav
             aria-label={t.app.calendars}
-            className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
+            className="-mx-4 -my-2 flex gap-2 overflow-x-auto px-4 py-2 sm:m-0 sm:flex-wrap sm:overflow-visible sm:p-0"
           >
             {calendars.map((c) => {
               const active = c.id === calendar?.id;

@@ -6,6 +6,13 @@ import { Link } from "@/features/transitions/link";
 import { isLocale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 
+/**
+ * Only the languages built ahead ([locale]/layout.tsx) – any other is a 404,
+ * never rendered. Set here, not on the language's frame: there it would also
+ * close the app's calendar addresses, which render on demand.
+ */
+export const dynamicParams = false;
+
 /** The public pages' frame: logo and the ways in on top, the footer below. */
 const SiteLayout = async ({
   children,

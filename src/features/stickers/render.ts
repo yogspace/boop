@@ -16,6 +16,12 @@ import {
 
 const SIZE = 320;
 
+/**
+ * The pictures' angle – gentler than `pose()`'s: turned just enough to show
+ * the block's side, the face (the drawing) still easy to read.
+ */
+const FACE_TURN = [0.38, 0.3, -0.06] as const;
+
 export type Pose = "face" | "press";
 
 type Studio = {
@@ -48,6 +54,8 @@ const open = () => {
 };
 
 const cache = new Map<string, Promise<string>>();
+/** The pictures already there – to show them right away. */
+const done = new Map<string, string>();
 let queue: Promise<unknown> = Promise.resolve();
 
 /** A short fingerprint of what the stamp looks like. */
@@ -71,7 +79,8 @@ export const stickerImage = (
   const job = queue.then(async () => {
     const { THREE, renderer, scene, camera } = await open();
     const sticker = buildSticker(THREE, input);
-    pose(sticker, kind);
+    if (kind === "face") sticker.rotation.set(...FACE_TURN);
+    else pose(sticker, kind);
     scene.add(sticker);
     renderer.render(scene, camera);
     scene.remove(sticker);
@@ -80,10 +89,22 @@ export const stickerImage = (
       renderer.domElement.toBlob(resolve, "image/png")
     );
     if (!blob) throw new Error("No picture");
-    return URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    // Decoded up front – on the page it shows the moment it's put there.
+    const image = new Image();
+    image.src = url;
+    await image.decode().catch(() => undefined);
+    done.set(key, url);
+    return url;
   });
   queue = job.catch(() => undefined);
   cache.set(key, job);
   job.catch(() => cache.delete(key));
   return job;
 };
+
+/** The stamp's picture if it's rendered already – null if not (yet). */
+export const renderedStickerImage = (
+  input: StickerInput,
+  kind: Pose = "face"
+) => done.get(stickerKey(input, kind)) ?? null;

@@ -2,19 +2,23 @@ import type * as Three from "three";
 import {
   COLORS,
   type ColorName,
+  FACE,
   type StampShape,
 } from "@/features/calendar/model";
+import { outlinePoints } from "@/features/calendar/outline";
 
 /**
  * A stamp in 3D – a real rubber stamp: a block in the stamp's shape (a soft
  * tint of its color), a knob to hold it by (the full color), and underneath
- * the rubber with the doodle pressed into it – engraved, not stuck on. A
- * small plate on top carries “boop”, engraved the same way. One unit wide.
+ * the rubber with the rim and the doodle standing out of it – inked, so the
+ * face looks just like the drawing (FACE: the same outline, rim and lines).
+ * A small plate on top carries “boop”, engraved. One unit wide.
  *
- * Built lying on its back: the rubber face looks along +Z, the knob points
- * to −Z. `pose()` turns it for a picture. Every part is a closed solid, so
- * the same model goes to a 3D printer (export-stl.ts). `three` is passed in –
- * it loads only when a stamp is shown.
+ * Built lying on its back: the rubber face looks along +Z, its raised parts
+ * at z = 0, the knob points to −Z. `pose()` turns it for a picture, `pivot()`
+ * sets what it turns around, `paintSticker()` dips it into another ink.
+ * Every part is a closed solid, so the same model goes to a 3D printer
+ * (export-stl.ts). `three` is passed in – it loads only when a stamp is shown.
  */
 
 export type StickerInput = {
@@ -28,84 +32,87 @@ export type StickerInput = {
   } | null;
 };
 
-const RUBBER = { size: 0.94, thickness: 0.07, groove: 0.04, color: "#c9c2e3" };
-const BLOCK = { depth: 0.16, bevel: 0.04, scale: 1.04 };
+/** The rubber: out to the rim's outer edge, its relief this high. */
+const RUBBER = { grow: FACE.rim / 2, thickness: 0.08, relief: 0.035 };
+/** The block is flush with the rubber – face-on, only the face shows. */
+const BLOCK = { depth: 0.16, bevel: 0.04 };
 const KNOB = { neck: 0.11, height: 0.24, ball: 0.2 };
 const PLATE = { size: 0.78, thickness: 0.02, groove: 0.012 };
-/** The doodle keeps a little distance from the rubber's edge. */
-const INSET = 0.86;
-/** Resolution of the engraved surfaces: rings × steps around. */
-const RINGS = 110;
-const STEPS = 240;
-/** Resolution of the height maps the engravings are read from. */
-const MAP = 384;
+/** Resolution of the shaped surfaces: rings × steps around. */
+const RINGS = 150;
+const STEPS = 420;
+/** Points of the outlines in 3D. */
+const OUTLINE = 360;
+/** Resolution of the height maps the surfaces are read from. */
+const MAP = 512;
 
-const outline = (THREE: typeof Three, shape: StampShape, size: number) => {
-  const s = new THREE.Shape();
-  const h = size / 2;
-  if (shape === "circle") {
-    s.absarc(0, 0, h, 0, Math.PI * 2, false);
-    return s;
+type Point = [number, number];
+
+/**
+ * The shape's outline (outline.ts) in the model's units: centered, y up,
+ * `scale`d about the middle.
+ */
+const localOutline = (shape: StampShape, grow: number, scale = 1) =>
+  outlinePoints(shape, grow, OUTLINE).map(
+    ([x, y]): Point => [(x - 0.5) * scale, (0.5 - y) * scale]
+  );
+
+const outline = (THREE: typeof Three, points: Point[]) =>
+  new THREE.Shape(points.map(([x, y]) => new THREE.Vector2(x, y)));
+
+/** How far a convex outline reaches from the middle, towards `angle`. */
+const reach = (points: Point[], angle: number) => {
+  const dx = Math.cos(angle);
+  const dy = Math.sin(angle);
+  let best = 0;
+  for (let i = 0; i < points.length; i++) {
+    const [px, py] = points[i];
+    const [qx, qy] = points[(i + 1) % points.length];
+    const ex = qx - px;
+    const ey = qy - py;
+    const det = dx * -ey + dy * ex;
+    if (Math.abs(det) < 1e-12) continue;
+    // middle + t·d = p + s·e
+    const t = (px * -ey + py * ex) / det;
+    const s = (dx * py - dy * px) / det;
+    if (t > 0 && s >= -1e-9 && s <= 1 + 1e-9) best = Math.max(best, t);
   }
-  const r = size * 0.14;
-  s.moveTo(-h + r, -h);
-  s.lineTo(h - r, -h);
-  s.quadraticCurveTo(h, -h, h, -h + r);
-  s.lineTo(h, h - r);
-  s.quadraticCurveTo(h, h, h - r, h);
-  s.lineTo(-h + r, h);
-  s.quadraticCurveTo(-h, h, -h, h - r);
-  s.lineTo(-h, -h + r);
-  s.quadraticCurveTo(-h, -h, -h + r, -h);
-  return s;
+  return best;
 };
 
-/** How far the outline reaches in a direction – circle or rounded square. */
-const reach = (shape: StampShape, size: number, angle: number) => {
-  const h = size / 2;
-  if (shape === "circle") return h;
-  const c = Math.abs(Math.cos(angle));
-  const s = Math.abs(Math.sin(angle));
-  const rc = size * 0.14;
-  let t = h / Math.max(c, s);
-  // In a corner: on the rounding's circle instead.
-  if (t * c > h - rc && t * s > h - rc) {
-    const k = h - rc;
-    const b = c * k + s * k;
-    t = b + Math.sqrt(Math.max(0, b * b - (2 * k * k - rc * rc)));
-  }
-  return t;
-};
-
-/** The color mixed with white – the block's soft tint. */
+/** The color mixed with white – a soft tint. */
 const tint = (THREE: typeof Three, hex: string, amount: number) =>
   new THREE.Color(hex).lerp(new THREE.Color("#ffffff"), amount);
 
-/** A drawn point (0–1, y down) on the rubber (centered, y up, kept inside). */
-const place = (shape: StampShape, x: number, y: number): [number, number] => {
-  let px = (x - 0.5) * INSET;
-  let py = (0.5 - y) * INSET;
-  const limit = 0.5 * INSET;
-  if (shape === "circle") {
-    const d = Math.hypot(px, py);
-    if (d > limit) {
-      px *= limit / d;
-      py *= limit / d;
+/** Softens a height map a little – the walls slope like cut rubber. */
+const soften = (data: Float32Array, passes = 2) => {
+  const out = new Float32Array(data.length);
+  for (let n = 0; n < passes; n++) {
+    for (let y = 0; y < MAP; y++) {
+      const row = y * MAP;
+      for (let x = 0; x < MAP; x++) {
+        const l = data[row + Math.max(0, x - 1)];
+        const r = data[row + Math.min(MAP - 1, x + 1)];
+        out[row + x] = (l + data[row + x] + r) / 3;
+      }
     }
-  } else {
-    px = Math.max(-limit, Math.min(limit, px));
-    py = Math.max(-limit, Math.min(limit, py));
+    for (let y = 0; y < MAP; y++) {
+      const up = Math.max(0, y - 1) * MAP;
+      const down = Math.min(MAP - 1, y + 1) * MAP;
+      for (let x = 0; x < MAP; x++) {
+        data[y * MAP + x] =
+          (out[up + x] + out[y * MAP + x] + out[down + x]) / 3;
+      }
+    }
   }
-  return [px, py];
+  return data;
 };
 
-type Line = { width: number; points: [number, number][] };
-
 /**
- * Lines (in local units, −0.5…0.5) drawn into a height map: 1 where the
- * engraving is deepest, soft at its edges. Read back with `depthAt`.
+ * A height map drawn on a canvas in the unit square (0–1, y down, like the
+ * drawing): white is 1. Read back in local units (−0.5…0.5, y up).
  */
-const heightMap = (lines: Line[]) => {
+const heightMap = (draw: (ctx: CanvasRenderingContext2D) => void) => {
   const canvas = document.createElement("canvas");
   canvas.width = MAP;
   canvas.height = MAP;
@@ -113,35 +120,22 @@ const heightMap = (lines: Line[]) => {
   if (!ctx) return () => 0;
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, MAP, MAP);
-  ctx.filter = `blur(${MAP / 260}px)`;
-  ctx.strokeStyle = "#fff";
+  ctx.scale(MAP, MAP);
   ctx.fillStyle = "#fff";
+  ctx.strokeStyle = "#fff";
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  const px = ([x, y]: [number, number]) =>
-    [(x + 0.5) * MAP, (0.5 - y) * MAP] as const;
-  for (const line of lines) {
-    ctx.lineWidth = line.width * MAP;
-    const [first, ...rest] = line.points.map(px);
-    if (!first) continue;
-    ctx.beginPath();
-    if (!rest.length) {
-      ctx.arc(first[0], first[1], ctx.lineWidth / 2, 0, Math.PI * 2);
-      ctx.fill();
-      continue;
-    }
-    ctx.moveTo(first[0], first[1]);
-    for (const p of rest) ctx.lineTo(p[0], p[1]);
-    ctx.stroke();
-  }
-  const data = ctx.getImageData(0, 0, MAP, MAP).data;
+  draw(ctx);
+  const pixels = ctx.getImageData(0, 0, MAP, MAP).data;
+  const data = new Float32Array(MAP * MAP);
+  for (let i = 0; i < data.length; i++) data[i] = pixels[i * 4] / 255;
+  soften(data);
   const at = (x: number, y: number) =>
     data[
-      (Math.min(MAP - 1, Math.max(0, y)) * MAP +
-        Math.min(MAP - 1, Math.max(0, x))) *
-        4
-    ] / 255;
-  // Bilinear, so the grooves' walls run smooth.
+      Math.min(MAP - 1, Math.max(0, y)) * MAP +
+        Math.min(MAP - 1, Math.max(0, x))
+    ];
+  // Bilinear, so the walls run smooth.
   return (x: number, y: number) => {
     const fx = (x + 0.5) * MAP - 0.5;
     const fy = (0.5 - y) * MAP - 0.5;
@@ -155,45 +149,115 @@ const heightMap = (lines: Line[]) => {
   };
 };
 
+/** The shape's outline as a canvas path, in the unit square. */
+const tracePath = (
+  ctx: CanvasRenderingContext2D,
+  shape: StampShape,
+  grow: number
+) => {
+  ctx.beginPath();
+  outlinePoints(shape, grow, OUTLINE).forEach(([x, y], i) => {
+    if (i) ctx.lineTo(x, y);
+    else ctx.moveTo(x, y);
+  });
+  ctx.closePath();
+};
+
 /**
- * A closed slab in the stamp's shape whose top (z = 0, facing +Z) is
- * engraved where `depthAt` says, with a softly rounded rim; flat below at
- * z = −thickness. Rings around the middle, so the outline stays exact.
+ * The face's relief, exactly as the drawing shows it (stamp-svg.tsx): the
+ * rim along the outline and the strokes – the same smoothing – clipped to
+ * it. Mirrored for printing: a real stamp's face reads the other way round.
  */
-const engravedSlab = (
+const faceMap = (input: StickerInput, mirror: boolean) =>
+  heightMap((ctx) => {
+    if (mirror) {
+      ctx.translate(1, 0);
+      ctx.scale(-1, 1);
+    }
+    // The rim: everything outside its inner edge.
+    ctx.fillRect(0, 0, 1, 1);
+    ctx.fillStyle = "#000";
+    tracePath(ctx, input.shape, -FACE.rim / 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    tracePath(ctx, input.shape, 0);
+    ctx.clip();
+    for (const stroke of input.drawing?.strokes ?? []) {
+      const p = stroke.p;
+      if (p.length < 2) continue;
+      ctx.lineWidth = stroke.w;
+      const x1 = p[p.length - 2];
+      const y1 = p[p.length - 1];
+      if (p.length < 6) {
+        // A dot or a short line.
+        if (x1 === p[0] && y1 === p[1]) {
+          ctx.beginPath();
+          ctx.arc(x1, y1, stroke.w / 2, 0, Math.PI * 2);
+          ctx.fill();
+          continue;
+        }
+        ctx.beginPath();
+        ctx.moveTo(p[0], p[1]);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+        continue;
+      }
+      ctx.beginPath();
+      ctx.moveTo(p[0], p[1]);
+      for (let i = 2; i < p.length - 2; i += 2) {
+        ctx.quadraticCurveTo(
+          p[i],
+          p[i + 1],
+          (p[i] + p[i + 2]) / 2,
+          (p[i + 1] + p[i + 3]) / 2
+        );
+      }
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
+  });
+
+/**
+ * A closed slab in a convex `outline` whose top (facing +Z) lies at
+ * `surface(x, y)` (≤ 0), with a softly rounded edge; flat below at
+ * z = −thickness. Rings around the middle, so the outline stays exact. Each
+ * vertex keeps its `relief` (0–1) – what gets inked.
+ */
+const shapedSlab = (
   THREE: typeof Three,
   {
-    shape,
-    size,
+    outline,
     thickness,
-    groove,
-    depthAt,
+    surface,
   }: {
-    shape: StampShape;
-    size: number;
+    outline: Point[];
     thickness: number;
-    groove: number;
-    depthAt: (x: number, y: number) => number;
+    /** Height of the top at a point – and how raised it is there (0–1). */
+    surface: (x: number, y: number) => { z: number; relief: number };
   }
 ) => {
   const positions: number[] = [];
+  const relief: number[] = [];
   const index: number[] = [];
-  const edge = Math.min(0.012, thickness * 0.3);
+  const edge = Math.min(0.008, thickness * 0.3);
   const top = (x: number, y: number, f: number) => {
-    // The rim rounds off over the outer few percent.
-    const t = Math.max(0, (f - 0.94) / 0.06);
-    return -groove * depthAt(x, y) - edge * t * t;
+    // The edge rounds off over the outer few percent.
+    const t = Math.max(0, (f - 0.97) / 0.03);
+    const at = surface(x, y);
+    positions.push(x, y, at.z - edge * t * t);
+    relief.push(at.relief);
   };
   // Top: the middle, then rings outwards.
-  positions.push(0, 0, top(0, 0, 0));
+  const reaches = Array.from({ length: STEPS }, (_, j) =>
+    reach(outline, (j / STEPS) * Math.PI * 2)
+  );
+  top(0, 0, 0);
   for (let i = 1; i <= RINGS; i++) {
     const f = i / RINGS;
     for (let j = 0; j < STEPS; j++) {
       const a = (j / STEPS) * Math.PI * 2;
-      const r = f * reach(shape, size, a);
-      const x = Math.cos(a) * r;
-      const y = Math.sin(a) * r;
-      positions.push(x, y, top(x, y, f));
+      const r = f * reaches[j];
+      top(Math.cos(a) * r, Math.sin(a) * r, f);
     }
   }
   const ringStart = (i: number) => 1 + (i - 1) * STEPS;
@@ -208,12 +272,13 @@ const engravedSlab = (
       index.push(a + j, b + j, b + k, a + j, b + k, a + k);
     }
   }
-  // Side: the outer ring down to the bottom.
+  // Side: the outer ring down to the bottom – inked as far as the rim is.
   const rim = ringStart(RINGS);
   const low = positions.length / 3;
   for (let j = 0; j < STEPS; j++) {
     const v = (rim + j) * 3;
     positions.push(positions[v], positions[v + 1], -thickness);
+    relief.push(relief[rim + j]);
   }
   for (let j = 0; j < STEPS; j++) {
     const k = (j + 1) % STEPS;
@@ -222,6 +287,7 @@ const engravedSlab = (
   // Bottom: a flat fan, facing down.
   const center = positions.length / 3;
   positions.push(0, 0, -thickness);
+  relief.push(0);
   for (let j = 0; j < STEPS; j++) {
     index.push(center, low + ((j + 1) % STEPS), low + j);
   }
@@ -229,6 +295,11 @@ const engravedSlab = (
   geometry.setAttribute(
     "position",
     new THREE.Float32BufferAttribute(positions, 3)
+  );
+  geometry.setAttribute("relief", new THREE.Float32BufferAttribute(relief, 1));
+  geometry.setAttribute(
+    "color",
+    new THREE.Float32BufferAttribute(new Float32Array(relief.length * 3), 3)
   );
   geometry.setIndex(index);
   geometry.computeVertexNormals();
@@ -266,24 +337,30 @@ const LETTERS: [number, number][][][] = [
 const ADVANCE = 0.72;
 
 /**
- * The watermark's lines on the plate. The plate is turned to face −Z (the
- * stamp's back), so the lettering is laid out turned round: read from
- * outside, its baseline lies towards the stamp's +Y edge and it rises
- * towards the knob.
+ * The watermark on the plate, drawn into its height map (unit square, y
+ * down). The plate is turned to face −Z (the stamp's back), so the lettering
+ * is laid out turned round: read from outside, its baseline lies towards the
+ * stamp's +Y edge and it rises towards the knob.
  */
-const watermark = (): Line[] => {
-  const size = 0.12;
-  const width = (LETTERS.length - 1) * ADVANCE + 0.54;
-  return LETTERS.flatMap((letter, n) =>
-    letter.map((points) => ({
-      width: 0.032,
-      points: points.map(([gx, gy]): [number, number] => [
-        -(n * ADVANCE + gx - width / 2) * size,
-        0.31 - gy * size,
-      ]),
-    }))
-  );
-};
+const watermarkMap = () =>
+  heightMap((ctx) => {
+    const size = 0.12;
+    const width = (LETTERS.length - 1) * ADVANCE + 0.54;
+    ctx.lineWidth = 0.032;
+    LETTERS.forEach((letter, n) => {
+      for (const points of letter) {
+        ctx.beginPath();
+        points.forEach(([gx, gy], i) => {
+          const x = -(n * ADVANCE + gx - width / 2) * size;
+          const y = 0.31 - gy * size;
+          // Local (y up) to the map's unit square (y down).
+          if (i) ctx.lineTo(x + 0.5, 0.5 - y);
+          else ctx.moveTo(x + 0.5, 0.5 - y);
+        });
+        ctx.stroke();
+      }
+    });
+  });
 
 export const buildSticker = (
   THREE: typeof Three,
@@ -306,48 +383,39 @@ export const buildSticker = (
     clearcoatRoughness: 0.15,
   });
   const rubberMaterial = new THREE.MeshStandardMaterial({
-    color: RUBBER.color,
-    roughness: 0.85,
+    vertexColors: true,
+    roughness: 0.7,
   });
 
-  // The rubber: its face at z = 0, the doodle pressed in. A real stamp's
-  // engraving is mirrored – its print reads the right way (for printing).
-  const lines: Line[] = (input.drawing?.strokes ?? []).map((stroke) => {
-    const points: [number, number][] = [];
-    for (let i = 0; i + 1 < stroke.p.length; i += 2) {
-      points.push(
-        place(
-          input.shape,
-          mirror ? 1 - stroke.p[i] : stroke.p[i],
-          stroke.p[i + 1]
-        )
-      );
-    }
-    return { width: stroke.w * INSET, points };
-  });
+  // The rubber: rim and doodle raised to z = 0, the ground below.
+  const face = faceMap(input, mirror);
   const rubber = new THREE.Mesh(
-    engravedSlab(THREE, {
-      shape: input.shape,
-      size: RUBBER.size,
+    shapedSlab(THREE, {
+      outline: localOutline(input.shape, RUBBER.grow),
       thickness: RUBBER.thickness,
-      groove: RUBBER.groove,
-      depthAt: heightMap(lines),
+      surface: (x, y) => {
+        const relief = face(x, y);
+        return { z: RUBBER.relief * (relief - 1), relief };
+      },
     }),
     rubberMaterial
   );
+  rubber.name = "rubber";
   stamp.add(rubber);
 
-  // The block behind it.
+  // The block behind it – its bevel grows to the rubber's outline.
   const blockFront = -RUBBER.thickness + 0.005;
   const block = new THREE.Mesh(
-    new THREE.ExtrudeGeometry(outline(THREE, input.shape, BLOCK.scale), {
-      depth: BLOCK.depth,
-      bevelEnabled: true,
-      bevelThickness: BLOCK.bevel,
-      bevelSize: BLOCK.bevel,
-      bevelSegments: 5,
-      curveSegments: 72,
-    }),
+    new THREE.ExtrudeGeometry(
+      outline(THREE, localOutline(input.shape, RUBBER.grow - BLOCK.bevel)),
+      {
+        depth: BLOCK.depth,
+        bevelEnabled: true,
+        bevelThickness: BLOCK.bevel,
+        bevelSize: BLOCK.bevel,
+        bevelSegments: 5,
+      }
+    ),
     blockMaterial
   );
   block.position.z = blockFront - BLOCK.depth - BLOCK.bevel;
@@ -355,13 +423,12 @@ export const buildSticker = (
   const back = blockFront - BLOCK.depth - 2 * BLOCK.bevel;
 
   // The plate on the back with “boop” pressed in – turned to face −Z.
+  const watermark = watermarkMap();
   const plate = new THREE.Mesh(
-    engravedSlab(THREE, {
-      shape: input.shape,
-      size: PLATE.size,
+    shapedSlab(THREE, {
+      outline: localOutline(input.shape, RUBBER.grow, PLATE.size),
       thickness: PLATE.thickness + 0.01,
-      groove: PLATE.groove,
-      depthAt: heightMap(watermark()),
+      surface: (x, y) => ({ z: -PLATE.groove * watermark(x, y), relief: 0 }),
     }),
     blockMaterial
   );
@@ -386,12 +453,49 @@ export const buildSticker = (
   ball.position.z = top - KNOB.height - KNOB.ball * 0.6;
   stamp.add(ball);
 
-  // Turning around the middle of the whole stamp.
-  const middle = (top - KNOB.height - KNOB.ball * 1.4) / 2;
-  stamp.position.z = -middle;
   const holder = new THREE.Group();
   holder.add(stamp);
+  // From the face to the middle of the whole stamp.
+  holder.userData.half = -(top - KNOB.height - KNOB.ball * 1.4) / 2;
+  pivot(holder, 1);
+  paintSticker(THREE, holder, input.color);
   return holder;
+};
+
+/**
+ * What the stamp turns around: 1 – the middle of the whole stamp (the
+ * default), 0 – the middle of its face (z = 0 of the holder is then the
+ * face's raised surface), or anything between.
+ */
+export const pivot = (sticker: Three.Object3D, amount: number) => {
+  const stamp = sticker.children[0];
+  if (stamp) stamp.position.z = (sticker.userData.half ?? 0) * amount;
+};
+
+/**
+ * Inks the rubber: rim and doodle in the ink, the ground a pale tint of it –
+ * like the drawing (stamp-svg.tsx). Quick – only the colors change.
+ */
+export const paintSticker = (
+  THREE: typeof Three,
+  sticker: Three.Object3D,
+  ink: ColorName
+) => {
+  const rubber = sticker.getObjectByName("rubber") as Three.Mesh | undefined;
+  if (!rubber) return;
+  const relief = rubber.geometry.getAttribute("relief");
+  const color = rubber.geometry.getAttribute("color") as Three.BufferAttribute;
+  const full = new THREE.Color(COLORS[ink]);
+  const ground = tint(THREE, COLORS[ink], 0.84);
+  const mixed = new THREE.Color();
+  for (let i = 0; i < relief.count; i++) {
+    const r = relief.getX(i);
+    // Sharp, like ink on the raised parts only.
+    const t = Math.min(1, Math.max(0, (r - 0.3) / 0.4));
+    mixed.copy(ground).lerp(full, t * t * (3 - 2 * t));
+    color.setXYZ(i, mixed.r, mixed.g, mixed.b);
+  }
+  color.needsUpdate = true;
 };
 
 /**
