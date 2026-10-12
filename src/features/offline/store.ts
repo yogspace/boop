@@ -206,21 +206,31 @@ const enqueue = async (change: Change) => {
     entry = { seq: nextSeq++, change };
     outbox.push(entry);
   }
-  await write([{ store: "outbox", put: entry }]);
+  await write([{ store: "outbox", put: plain(entry) }]);
   scheduleSync();
 };
 
 /** Puts a document into the device's copy and the boop. */
+/**
+ * A plain copy for IndexedDB. Objects put into the store become valtio
+ * proxies (also nested ones, like a stamp's drawing) – and IndexedDB can't
+ * store a proxy. The data is plain JSON, so a JSON copy is exact.
+ */
+const plain = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
 const keep = async <T extends { id: string; deleted: boolean }>(
   type: SyncType,
   doc: T
 ) => {
   const kind = KIND[type];
+  const record = plain(doc);
   const docs = boop[kind] as unknown as Docs<T>;
   if (doc.deleted) delete docs[doc.id];
   else docs[doc.id] = doc;
   await write([
-    doc.deleted ? { store: kind, delete: doc.id } : { store: kind, put: doc },
+    doc.deleted
+      ? { store: kind, delete: doc.id }
+      : { store: kind, put: record },
   ]);
 };
 
@@ -474,7 +484,7 @@ const merge = async (result: SyncResponse) => {
         ops.push({ store: KIND[type], delete: doc.id });
       } else {
         docs[doc.id] = doc;
-        ops.push({ store: KIND[type], put: doc });
+        ops.push({ store: KIND[type], put: plain(doc) });
       }
     }
   };

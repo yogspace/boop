@@ -70,9 +70,10 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          # Public, so a repository variable – baked into the pages.
+          # Public, so repository variables – baked into the pages.
           build-args: |
             NEXT_PUBLIC_SERVER_URL=${{ vars.NEXT_PUBLIC_SERVER_URL }}
+            GOOGLE_SITE_VERIFICATION=${{ vars.GOOGLE_SITE_VERIFICATION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -103,7 +104,6 @@ jobs:
             chmod 600 .env.new
             cat > .env.new <<'ENV'
             NEXT_PUBLIC_SERVER_URL=${{ vars.NEXT_PUBLIC_SERVER_URL }}
-            GOOGLE_SITE_VERIFICATION=${{ vars.GOOGLE_SITE_VERIFICATION }}
             PAYLOAD_SECRET=${{ secrets.PAYLOAD_SECRET }}
             PAYLOAD_ADMIN_EMAIL=${{ secrets.PAYLOAD_ADMIN_EMAIL }}
             PAYLOAD_ADMIN_PASSWORD=${{ secrets.PAYLOAD_ADMIN_PASSWORD }}

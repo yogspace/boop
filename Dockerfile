@@ -20,6 +20,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # share pictures and the app manifest name it (repository variable).
 ARG NEXT_PUBLIC_SERVER_URL
 ENV NEXT_PUBLIC_SERVER_URL=${NEXT_PUBLIC_SERVER_URL}
+# Google Search Console's check, in the pages' head (optional variable).
+ARG GOOGLE_SITE_VERIFICATION
+ENV GOOGLE_SITE_VERIFICATION=${GOOGLE_SITE_VERIFICATION}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build
