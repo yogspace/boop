@@ -265,7 +265,8 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
           </nav>
 
           {calendar && (
-            <div className="scribble rounded-[32px] p-4 sm:p-6">
+            // No box around the month: its ruled table is the drawing.
+            <div>
               <MonthGrid
                 calendar={calendar.id}
                 locale={locale}
@@ -315,7 +316,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
           <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-3">
             <li>
               <button
-                className="scribble scribble-dashed group flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-3xl font-bold text-sm leading-tight transition-transform duration-150 ease-out hover:-translate-y-0.5 hover:scribble-boil active:translate-y-px active:scale-[0.97]"
+                className="scribble scribble-dashed group flex aspect-square w-full flex-col items-center justify-center gap-1.5 text-balance rounded-3xl px-2 text-center font-bold text-[13px] leading-tight transition-transform duration-150 ease-out hover:-translate-y-0.5 hover:scribble-boil active:translate-y-px active:scale-[0.97]"
                 onClick={() => setDrawing(true)}
                 type="button"
               >

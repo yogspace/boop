@@ -22,7 +22,7 @@ const key = (year: number, month: number, day: number): DayKey =>
  * inside its lines.
  */
 const DAY =
-  "scribble scribble-bare scribble-clear scribble-sm flex aspect-square flex-col rounded-xl p-1.5 text-left [--scribble-inset:4px] [--scribble-ring:5px] hover:scribble-soft active:scribble-soft sm:p-2";
+  "scribble scribble-bare scribble-clear scribble-sm flex aspect-square min-h-0 flex-col rounded-xl p-1 text-left [--scribble-inset:4px] [--scribble-ring:5px] hover:scribble-soft active:scribble-soft sm:p-2";
 
 /**
  * A month of a calendar, Monday first; each day shows its prints. Drawn as a
@@ -141,14 +141,23 @@ export const MonthGrid = ({
             >
               <span
                 className={cn(
-                  "font-black text-xs leading-none sm:text-sm",
+                  "font-black text-[11px] leading-none sm:text-sm",
+                  // The blob reaches over the number's line – the prints
+                  // below keep their room.
                   isToday &&
-                    "scribble scribble-sm scribble-ink -m-1 flex h-[1.9em] w-[1.9em] items-center justify-center self-start rounded-full"
+                    "scribble scribble-sm scribble-ink -my-[0.4em] -ml-[0.3em] flex h-[2.1em] w-[2.1em] shrink-0 items-center justify-center self-start rounded-full"
                 )}
               >
                 {i + 1}
               </span>
-              <span className="grid flex-1 grid-cols-2 place-items-center">
+              {/* One print has the day to itself; more share it. The rows
+                  take what room there is – a day stays square. */}
+              <span
+                className={cn(
+                  "grid min-h-0 flex-1 auto-rows-fr place-items-center",
+                  day.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                )}
+              >
                 {day.slice(0, 4).map((p, n) => {
                   const stamp = stamps[p.stamp];
                   return (

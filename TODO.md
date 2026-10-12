@@ -17,6 +17,13 @@ Stand: 12.10.2026
   auswählen; gilt für Zeichnung, Abdruck und den erhabenen Rand am
   3D-Gummi. Am Stempel speichern wie „invertiert“ (in der Zeichnung).
 
+- **Special-Stempel** für einmalige Erlebnisse. Entschieden:
+  - Es glitzert beides: der Abdruck auf dem Tag und der 3D-Stempel.
+  - Mehrmals setzbar – „besonders“, nicht auf einen Abdruck begrenzt.
+  - Etwa 30 % größer als ein normaler Abdruck: spürbar, nicht riesig.
+  - Noch offen: wie er in der Monatsansicht auffällt (Annahme: dort ebenfalls
+    etwas größer und mit Glitzer, solange es in die Tageszelle passt).
+
 ## Offen aus der laufenden Runde
 
 - **App ganz auf die CMS-Farben umstellen**: Farbwähler im Editor,

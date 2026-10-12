@@ -238,7 +238,10 @@ export const HeroScene = ({ locale }: { locale: Locale }) => {
             const day = i + 1;
             const prints = PRINTS[day] ?? [];
             return (
-              <div className="flex aspect-square flex-col p-1" key={day}>
+              <div
+                className="flex aspect-square min-h-0 flex-col p-1"
+                key={day}
+              >
                 <span
                   className={cn(
                     "self-start font-black text-[9px] leading-none",
@@ -248,7 +251,12 @@ export const HeroScene = ({ locale }: { locale: Locale }) => {
                 >
                   {day}
                 </span>
-                <span className="grid flex-1 grid-cols-2 place-items-center">
+                <span
+                  className={cn(
+                    "grid min-h-0 flex-1 auto-rows-fr place-items-center",
+                    prints.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                  )}
+                >
                   {prints.slice(0, 4).map((key) => {
                     const stamp = demoStamp(key);
                     return (

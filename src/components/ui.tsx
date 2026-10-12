@@ -124,7 +124,7 @@ export const Field = ({
   label: string;
   hint?: string;
 }) => (
-  <label className={cn("flex flex-col gap-1.5", className)}>
+  <label className={cn("flex flex-col gap-2", className)}>
     <span className="font-bold text-sm">{label}</span>
     <span className={FIELD_BOX}>
       <input className={FIELD_INPUT} {...props} />

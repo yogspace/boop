@@ -121,7 +121,7 @@ export const ContactForm = ({ locale }: { locale: Locale }) => {
             type="email"
           />
         </div>
-        <label className="flex flex-col gap-1.5">
+        <label className="flex flex-col gap-2">
           <span className="font-bold text-sm">{t.message}</span>
           <span className={FIELD_BOX}>
             <textarea

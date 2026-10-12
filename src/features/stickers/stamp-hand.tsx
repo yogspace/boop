@@ -52,22 +52,6 @@ export type StampHandle = {
 const HELD = Math.PI / 2 + 0.42;
 /** Pressed: face down on the page, seen from straight above. */
 const FLAT = Math.PI;
-/**
- * How a stamp is turned about its axis to go down as its print lies. Its
- * back carries “boop”, written to be read with the doodle's top towards
- * you – so that is how it is held wherever the outline is the same upside
- * down. A shape that isn't (a triangle) is held the other way round: its
- * outline over the print's comes first.
- */
-const facingOf = (shape: StampShape) => {
-  // The points face evenly round, so each has its mirror image in the list.
-  const points = outlinePoints(shape, 0, 48);
-  const same = points.every(([px, py], i) => {
-    const [qx, qy] = points[points.length - 1 - i];
-    return Math.abs(px - qx) < 0.001 && Math.abs(py + qy - 1) < 0.001;
-  });
-  return same ? 0 : Math.PI;
-};
 /** Flat already when it is this far down (0–1) – the rest is the push. */
 const FLAT_BY = 0.85;
 /** Carried, it is this much of its real size … */
@@ -152,6 +136,23 @@ const drive = (t: number) => t * t * (2.2 - 1.2 * t);
 const ease = (t: number) => t * t * (3 - 2 * t);
 /** Back: quick at first, a touch past the end, settled. */
 const settle = (t: number) => 1 + 2 * (t - 1) ** 3 + (t - 1) ** 2;
+
+/**
+ * How a stamp is turned about its axis to go down as its print lies. Its
+ * back carries “boop”, written to be read with the doodle's top towards
+ * you – so that is how it is held wherever the outline is the same upside
+ * down. A shape that isn't (a triangle) is held the other way round: its
+ * outline over the print's comes first.
+ */
+const facingOf = (shape: StampShape) => {
+  // The points face evenly round, so each has its mirror image in the list.
+  const points = outlinePoints(shape, 0, 48);
+  const same = points.every(([px, py], i) => {
+    const [qx, qy] = points[points.length - 1 - i];
+    return Math.abs(px - qx) < 0.001 && Math.abs(py + qy - 1) < 0.001;
+  });
+  return same ? 0 : Math.PI;
+};
 
 type View = {
   THREE: typeof Three;
