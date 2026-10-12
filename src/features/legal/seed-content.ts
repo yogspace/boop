@@ -144,7 +144,7 @@ const german = () =>
       "Suchmaschinen finden nur die öffentlichen Seiten von Boop, etwa die Startseite und diese Seite. Deine Kalender und Stempel sind nicht öffentlich und tauchen dort nicht auf."
     ),
     p(
-      "Als Betreiber kann ich technisch auf die gespeicherten Daten zugreifen. Ich schaue sie mir nur an, wenn es für den Betrieb, die Sicherheit oder eine Anfrage von dir nötig ist. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO."
+      "Zum Verwalten von Boop sehe ich als Betreiber von deinem Konto deine E-Mail-Adresse, deinen Anzeigenamen, deine Sprache, ob die Adresse bestätigt ist, und technische Zeitpunkte (angelegt, zuletzt benutzt, ggf. die Erinnerung vor der Löschung). Ändern kann ich dort nichts davon, auch nicht dein Passwort – ich kann ein Konto nur löschen oder eine Anmeldesperre aufheben. Deine Kalender, Stempel, Abdrücke, Notizen, Einladungen und Benachrichtigungseinstellungen sind im Verwaltungsbereich nicht einsehbar. Nur im Einzelfall – um einen Fehler zu beheben oder auf deine Anfrage hin – schalte ich auf dem Server eine Leseansicht dafür frei und danach wieder ab. Unabhängig davon kann, wer den Server betreibt, technisch auf die Datenbank zugreifen; das tue ich nur, wenn Betrieb oder Sicherheit es erfordern. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO."
     ),
 
     h3("E-Mails über Resend"),
@@ -287,7 +287,7 @@ const english = () =>
       "Search engines only find Boop's public pages, such as the home page and this page. Your calendars and stamps are not public and don't show up there."
     ),
     p(
-      "As the operator I can technically access the stored data. I only look at it when running the service, keeping it secure or a request from you makes it necessary. Legal basis: Art. 6 (1) (b) GDPR."
+      "To run Boop, I as the operator see your account's email address, display name, language, whether the address is confirmed, and technical dates (created, last used, the reminder before deletion if any). I can't change any of it there, nor your password – I can only delete an account or lift a login lock. Your calendars, stamps, prints, notes, invitations and notification settings can't be viewed in the admin area. Only in a single case – to fix a bug or at your request – do I switch on a read-only view of them on the server, and off again afterwards. Regardless of this, whoever runs the server can technically access the database; I only do so when running the service or keeping it secure requires it. Legal basis: Art. 6 (1) (b) GDPR."
     ),
 
     h3("Emails via Resend"),

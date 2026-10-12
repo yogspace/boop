@@ -63,6 +63,11 @@ Stand: 12.10.2026
 - Tagesansicht: Stempel kommt in seiner eigenen Farbe; Namensschild beim
   Hover in der Stempelauswahl.
 - Kontomenü und Sync-Notiz schließen bei Klick daneben.
+- Admin nach dem Dichtmachen durchklicken: Konten-Liste und -Seite (nur
+  lesen, löschen, „Unlock login“), Statistik „Accounts“, Seeds-Seite; lokal
+  mit `ADMIN_SUPPORT=1` das Warnband und die Leseansicht der Inhalte.
+  Nebenwirkung: Wer im selben Browser im Admin eingeloggt ist, kann sich auf
+  der Website nicht registrieren.
 - iPhone: Kalender-Reiter und Stempel-Ablage scrollen nur waagrecht, ohne
   Scrollleiste, mit Fade; über dem Blatt scrollt Wischen die Seite, solange
   kein Stempel in der Hand ist; einen Abdruck erst antippen, dann ziehen;
@@ -111,4 +116,3 @@ Stand: 12.10.2026
 
 ## Ideen am Rand
 
-- gefährlich, was ich alles im cms sehen und verändern kann an persönlichen daten. wie machen wir das am besten?
