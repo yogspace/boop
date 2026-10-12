@@ -37,14 +37,18 @@ export const StampSheet = ({
     [stamp.shape, stamp.color, stamp.drawing]
   );
 
-  // Where it can be shared: my calendars but the personal one – nobody else
-  // is ever in that.
+  // Where it can be shared: my calendars with someone else in them – and
+  // those it already is shared with, to take it back.
   const targets = useMemo(
     () =>
       Object.values(calendars)
-        .filter((calendar) => !calendar.personal)
+        .filter(
+          (calendar) =>
+            calendar.members.length > 1 ||
+            stamp.sharedWith.includes(calendar.id)
+        )
         .sort((a, b) => a.name.localeCompare(b.name)),
-    [calendars]
+    [calendars, stamp.sharedWith]
   );
   const firstName = (id: string) => people[id]?.split(" ")[0] || "…";
   const share = (calendar: string, on: boolean) => {

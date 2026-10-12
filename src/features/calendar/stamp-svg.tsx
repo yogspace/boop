@@ -1,6 +1,11 @@
 import { useId } from "react";
-import { type ColorName, FACE, type StampShape } from "./model";
-import { outlinePath } from "./outline";
+import {
+  type ColorName,
+  FACE,
+  type RimPattern,
+  type StampShape,
+} from "./model";
+import { outlinePath, outlinePoints, type RimLine, rimLine } from "./outline";
 import { hexOf } from "./palette";
 
 /**
@@ -8,7 +13,8 @@ import { hexOf } from "./palette";
  * doodle – lines and filled areas – in its color) and the print it leaves on
  * a day: what stands raised on the rubber – the rim and the doodle – in ink,
  * blotchy and a little frayed, like real ink. An inverted stamp is the other
- * way round: its whole face in ink, the doodle cut out of it.
+ * way round: its whole face in ink, the doodle cut out of it – and a
+ * patterned rim cut in along its edge, which stays solid.
  *
  * The face lives in the unit square (FACE) but is drawn 100× up: Safari
  * can't run the ink filter in a space one unit wide – the prints vanished.
@@ -89,7 +95,24 @@ type ReadonlyDrawing = {
   }[];
   readonly fills?: readonly ReadonlyFill[];
   readonly inverted?: boolean;
+  readonly rim?: RimPattern;
+  readonly special?: boolean;
 };
+
+/** The rim's pattern as SVG – one source with the 3D rubber (rimLine). */
+const RimPath = ({
+  line,
+  ...props
+}: { line: RimLine } & React.SVGProps<SVGPathElement>) => (
+  <path
+    d={line.d}
+    fill="none"
+    strokeLinecap={line.cap}
+    strokeLinejoin="round"
+    strokeWidth={line.width}
+    {...props}
+  />
+);
 
 export const StampSvg = ({
   drawing,
@@ -122,6 +145,10 @@ export const StampSvg = ({
       ? drawing
       : null;
   const inverted = Boolean(drawing?.inverted);
+  // A patterned rim – cut into an inverted face. None: the plain outline.
+  const rim = drawing?.rim
+    ? rimLine(shape, drawing.rim, { cut: inverted })
+    : null;
   const pale = `color-mix(in srgb, ${ink} 14%, white)`;
   // The doodle – filled areas below, the lines on top – kept inside the
   // outline. In ink – or, cut out of an inverted face, as the mask's black.
@@ -177,7 +204,10 @@ export const StampSvg = ({
             y="-8"
           >
             <rect fill="white" height="116" width="116" x="-8" y="-8" />
-            <g transform="scale(100)">{doodle}</g>
+            <g transform="scale(100)">
+              {doodle}
+              {rim && <RimPath line={rim} stroke="black" />}
+            </g>
           </mask>
         )}
         {print && (

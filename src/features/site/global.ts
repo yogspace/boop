@@ -89,6 +89,8 @@ export const Site: GlobalConfig = {
       type: "array",
       label: "Stamp colors",
       labels: { singular: "Color", plural: "Colors" },
+      // At least one – `minRows` alone lets an empty list through.
+      required: true,
       minRows: 1,
       // The code's colors until the global is saved – a name in the language
       // asked for, or (locale "all") in every one, as a localized field comes.

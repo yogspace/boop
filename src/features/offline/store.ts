@@ -12,6 +12,7 @@ import {
   type DayKey,
   type Drawing,
   type KeptStampDoc,
+  mayLetGo,
   type PlacementDoc,
   type StampDoc,
   type StampShape,
@@ -320,7 +321,8 @@ export const renameCalendar = async (
 
 export const deleteCalendar = async (id: string) => {
   const doc = boop.calendars[id];
-  if (!doc || doc.personal) return;
+  // Never the last one (model.ts) – the server refuses that, too.
+  if (!doc || !mayLetGo(id, Object.keys(boop.calendars))) return;
   const changedAt = now();
   await dropCalendar(id);
   await enqueue({ type: "calendar", id, changedAt, deleted: true });

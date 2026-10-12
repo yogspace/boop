@@ -90,7 +90,7 @@ export const StampDrawer = ({
 }: {
   /**
    * The calendar it is drawn in, if its members may get to stamp with it too
-   * – null in the personal one. The stamp is its maker's either way.
+   * – null when nobody else is in it. The stamp is its maker's either way.
    */
   calendar: string | null;
   locale: Locale;

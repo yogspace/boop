@@ -4,6 +4,7 @@ import {
   cleanDrawing,
   isDayKey,
   isShape,
+  mayLetGo,
   sharedWithOf,
   unit,
 } from "@/features/calendar/model";
@@ -15,7 +16,8 @@ import type { Change, SyncType } from "./protocol";
  * do what:
  *
  * - calendar: anyone makes their own; only the owner renames or deletes it
- *   (never the personal one). Members change through members.ts.
+ *   – not while it is the last they are in (`mayLetGo`). Members change
+ *   through members.ts.
  * - stamp: anyone makes their own; only its owner changes, shares or
  *   deletes it. Shared it is with calendars the owner belongs to – any other
  *   is left out.
@@ -160,7 +162,6 @@ const applyCalendar = async (
       name: fields.name || "Boop",
       owner: ctx.me,
       members: [ctx.me],
-      personal: false,
       deleted: false,
     });
     ctx.mine.add(change.id);
@@ -168,7 +169,7 @@ const applyCalendar = async (
   }
   if (idOf(existing.owner) !== ctx.me) return no("not the owner");
   if (change.deleted) {
-    if (existing.personal) return no("personal calendar");
+    if (!mayLetGo(change.id, ctx.mine)) return no("last calendar");
     await write({ deleted: true });
     await purgeCalendar(ctx.req, change.id);
     ctx.mine.delete(change.id);

@@ -7,7 +7,8 @@ import { inviteEndpoints } from "../invites";
 
 /**
  * Calendars. Each belongs to its owner; the members (the owner among them)
- * see it and stamp on it. Every account gets a personal one at sign-up.
+ * see it and stamp on it. Every account gets a first one at sign-up and is
+ * always in one at least (calendar/model.ts `mayLetGo`).
  *
  * Read and written by the app only through the sync (features/sync) and the
  * member endpoints – plain REST access is for the admin.
@@ -24,7 +25,7 @@ export const Calendars: CollectionConfig = {
   admin: {
     group: "Calendars",
     useAsTitle: "name",
-    defaultColumns: ["name", "owner", "members", "personal", "changedAt"],
+    defaultColumns: ["name", "color", "owner", "members", "changedAt"],
     description:
       "People's calendars. Members see and stamp a calendar; the owner names it, shares it and deletes it.",
   },
@@ -53,7 +54,8 @@ export const Calendars: CollectionConfig = {
       defaultValue: false,
       admin: {
         readOnly: true,
-        description: "Made at sign-up – can't be deleted.",
+        description:
+          "Made at sign-up, from when that one couldn't be deleted. No longer used.",
       },
     },
     ...syncFields,

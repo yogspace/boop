@@ -20,7 +20,7 @@ export const Placements: CollectionConfig = {
   admin: {
     group: "Calendars",
     useAsTitle: "date",
-    defaultColumns: ["date", "calendar", "stamp", "placedBy", "changedAt"],
+    defaultColumns: ["date", "calendar", "stamp", "ink", "placedBy", "changedAt"],
     description: "Stamps placed on a calendar's days.",
   },
   // The two ways they're asked for: a calendar's day, and what changed.

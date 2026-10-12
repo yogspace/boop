@@ -3,6 +3,7 @@
  * the app in the browser (offline store). No server imports here.
  *
  * - A **calendar** belongs to its owner; members see and stamp it too.
+ *   Every account is in one at least (`mayLetGo`).
  * - A **stamp** is a doodle someone drew, in ONE color. It is its owner's,
  *   always: they have it in every calendar they are in. Shared with
  *   calendars (`sharedWith`), those calendars' members have it too – in
@@ -69,16 +70,40 @@ export type Stroke = { w: number; p: number[] };
 export type Fill = { p: number[][]; rule?: "evenodd" };
 
 /**
+ * The patterns a stamp's rim can have, like a border on a cake – none of
+ * them: a plain line. Drawn by outline.ts (`rimLine`).
+ */
+export const RIMS = [
+  "dashed",
+  "dotted",
+  "wave",
+  "zigzag",
+  "scallop",
+  "double",
+] as const;
+export type RimPattern = (typeof RIMS)[number];
+
+export const isRim = (value: unknown): value is RimPattern =>
+  typeof value === "string" && (RIMS as readonly string[]).includes(value);
+
+/**
  * Drawings made before pictures could be uploaded have no `fills`. With
  * `inverted` the stamp prints the other way round: its whole face in ink,
- * the doodle cut out of it.
+ * the doodle cut out of it. `rim` is its rim's pattern (none: plain). A
+ * `special` stamp is for the big days: its prints come out bigger and
+ * glitter.
  */
 export type Drawing = {
   v: 1;
   strokes: Stroke[];
   fills?: Fill[];
   inverted?: true;
+  rim?: RimPattern;
+  special?: true;
 };
+
+/** How much bigger a special stamp's print is than a normal one's. */
+export const SPECIAL_SIZE = 1.3;
 
 /**
  * Limits that keep one stamp small (a few dozen KB at most) – the points of
@@ -116,8 +141,20 @@ export type CalendarDoc = Synced & {
   color: ColorName;
   owner: string;
   members: string[];
-  /** The one every account gets at sign-up – it can't be deleted. */
+  /**
+   * Made at sign-up – from when that one couldn't be deleted. Kept, but
+   * nothing goes by it any more: it is a calendar like any other.
+   */
   personal: boolean;
+};
+
+/**
+ * Whether an account may let go of a calendar – delete it or leave it: only
+ * while it is in another one, too. Nobody is without a calendar.
+ */
+export const mayLetGo = (id: string, mine: Iterable<string>) => {
+  for (const other of mine) if (other !== id) return true;
+  return false;
 };
 
 export type StampDoc = Synced & {
@@ -247,13 +284,18 @@ export const cleanDrawing = (value: unknown): Drawing | null => {
     clean.push({ w: Math.min(Math.max(w, 0.005), 0.2), p: coords });
   }
   if (!(clean.length || areas.length)) return null;
+  const { inverted, rim, special } = value as {
+    inverted?: unknown;
+    rim?: unknown;
+    special?: unknown;
+  };
   return {
     v: 1,
     strokes: clean,
     ...(areas.length && { fills: areas }),
-    ...((value as { inverted?: unknown }).inverted === true && {
-      inverted: true,
-    }),
+    ...(inverted === true && { inverted: true }),
+    ...(isRim(rim) && { rim }),
+    ...(special === true && { special: true }),
   };
 };
 

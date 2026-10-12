@@ -1,16 +1,17 @@
 "use client";
 
 import { Check, Cross, Dot } from "@/components/doodles";
-import { buttonClass } from "@/components/ui";
+import { ROUND_BUTTON } from "@/components/ui";
 import { sync, useBoop } from "@/features/offline/store";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
 /**
- * Online or not, and whether changes still wait – tap to sync now. The sign
- * says it without color: a tick (all in sync), a pulsing dot (on its way),
- * a cross (offline).
+ * Online or not, and whether changes still wait – tap to sync now. Only a
+ * sign, round like the account's button: a tick (all in sync), a pulsing
+ * dot with the number still waiting (on its way), a cross (offline). The
+ * words are its label – read out, and shown when pointing at it.
  */
 export const SyncBadge = ({ locale }: { locale: Locale }) => {
   const t = dictionaryOf(locale);
@@ -24,23 +25,28 @@ export const SyncBadge = ({ locale }: { locale: Locale }) => {
         : t.app.synced;
   return (
     <button
-      aria-live="polite"
-      className={cn(
-        buttonClass({ variant: "plain", size: "sm" }),
-        "h-10 px-3 text-xs"
-      )}
+      aria-label={label}
+      className={cn(ROUND_BUTTON, "relative", !online && "text-muted")}
       onClick={() => void sync()}
       title={label}
       type="button"
     >
       {!online ? (
-        <Cross className="h-3.5 w-3.5 shrink-0 text-muted" />
+        <Cross className="h-4 w-4" />
       ) : pending || syncing ? (
-        <Dot className="h-3 w-3 shrink-0 animate-pulse-dot" />
+        <Dot className="h-3 w-3 animate-pulse-dot" />
       ) : (
-        <Check className="h-3.5 w-3.5 shrink-0" />
+        <Check className="h-4.5 w-4.5" />
       )}
-      <span className="max-w-28 truncate sm:max-w-none">{label}</span>
+      {online && pending > 0 && (
+        // How many still wait – small, on its edge.
+        <span className="absolute -top-1.5 -right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-ink px-1 font-black text-[10px] text-white leading-none">
+          {pending > 99 ? "99+" : pending}
+        </span>
+      )}
+      <span aria-live="polite" className="sr-only">
+        {label}
+      </span>
     </button>
   );
 };

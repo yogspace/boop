@@ -8,12 +8,11 @@ import {
   type CollectionConfig,
 } from "payload";
 import { accountOf, adminOnly, anyone, isAdmin } from "@/access";
+import { createFirstCalendar } from "@/features/calendar/membership";
 import { purgeCalendar } from "@/features/sync/apply";
 import { LOCALES } from "@/i18n/config";
-import { newId } from "@/lib/id";
 import { rateLimit } from "@/lib/rate-limit";
 import {
-  localeOf,
   RESET_HOURS,
   resetHtml,
   resetSubject,
@@ -25,7 +24,7 @@ import { sessionEndpoints } from "./session";
 /**
  * The people using Boop: email and password (Payload auth). Signing up sends
  * a mail to confirm the address – only confirmed accounts log in; a
- * forgotten password gets a mail with a link. Everyone gets a personal
+ * forgotten password gets a mail with a link. Everyone gets a first
  * calendar at sign-up. Deleting an account takes its calendars, stamps and
  * placements along (see `removeData`).
  *
@@ -76,29 +75,14 @@ const protectAccount: CollectionBeforeChangeHook = ({
   return next;
 };
 
-/**
- * Every account starts with a calendar of its own – in the calendars'
- * default color (calendar/color-field.ts).
- */
-const createPersonalCalendar: CollectionAfterChangeHook = async ({
+/** Every account starts with a calendar (calendar/membership.ts). */
+const addFirstCalendar: CollectionAfterChangeHook = async ({
   doc,
   operation,
   req,
 }) => {
   if (operation !== "create") return doc;
-  await req.payload.create({
-    collection: "calendars",
-    data: {
-      id: newId(),
-      name: localeOf(doc) === "de" ? "Mein Kalender" : "My calendar",
-      owner: doc.id,
-      members: [doc.id],
-      personal: true,
-      deleted: false,
-    } as never,
-    overrideAccess: true,
-    req,
-  });
+  await createFirstCalendar(req, doc);
   return doc;
 };
 
@@ -228,7 +212,7 @@ export const Accounts: CollectionConfig = {
   hooks: {
     beforeOperation: [limitSignups],
     beforeChange: [protectAccount],
-    afterChange: [createPersonalCalendar],
+    afterChange: [addFirstCalendar],
     beforeDelete: [removeData],
   },
   timestamps: true,

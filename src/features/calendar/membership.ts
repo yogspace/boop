@@ -1,4 +1,6 @@
 import type { PayloadRequest } from "payload";
+import { localeOf } from "@/features/accounts/emails";
+import { newId } from "@/lib/id";
 
 /**
  * Which calendars an account belongs to – the base of every check in the
@@ -10,7 +12,6 @@ type CalendarRow = {
   id: string;
   owner: string;
   members: string[];
-  personal: boolean;
   deleted: boolean;
 };
 
@@ -29,7 +30,6 @@ const toRow = (doc: Record<string, unknown>): CalendarRow => ({
   members: Array.isArray(doc.members)
     ? doc.members.map(idOf).filter((id): id is string => Boolean(id))
     : [],
-  personal: Boolean(doc.personal),
   deleted: Boolean(doc.deleted),
 });
 
@@ -46,7 +46,7 @@ export const calendarsOf = async (
         { deleted: { not_equals: true } },
       ],
     },
-    select: { owner: true, members: true, personal: true, deleted: true },
+    select: { owner: true, members: true, deleted: true },
     depth: 0,
     pagination: false,
     overrideAccess: true,
@@ -71,4 +71,28 @@ export const calendarById = async (
   if (!doc) return null;
   const row = toRow(doc as unknown as Record<string, unknown>);
   return row.deleted ? null : row;
+};
+
+/**
+ * A first calendar for an account – at sign-up, and at a sync that finds it
+ * in none any more (its last one deleted, or taken out of it by its owner):
+ * nobody is without one. In the calendars' default color (color-field.ts).
+ */
+export const createFirstCalendar = async (
+  req: PayloadRequest,
+  account: { id: string | number; locale?: unknown }
+) => {
+  const id = String(account.id);
+  await req.payload.create({
+    collection: "calendars",
+    data: {
+      id: newId(),
+      name: localeOf(account) === "de" ? "Mein Kalender" : "My calendar",
+      owner: id,
+      members: [id],
+      deleted: false,
+    } as never,
+    overrideAccess: true,
+    req,
+  });
 };

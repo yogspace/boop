@@ -149,6 +149,8 @@ const de = {
     deleteCalendar: "Kalender löschen",
     deleteCalendarConfirm: (name: string) =>
       `„${name}“ mit allen Stempeln darauf löschen? Das lässt sich nicht rückgängig machen.`,
+    lastCalendar:
+      "Einen Kalender brauchst du mindestens – leg erst einen neuen an.",
     stamps: "Deine Stempel",
     noStamps: "Noch keine Stempel – mal deinen ersten!",
     newStamp: "Stempel malen",
@@ -403,6 +405,7 @@ const en: Shape<Dictionary> = {
     deleteCalendar: "Delete calendar",
     deleteCalendarConfirm: (name: string) =>
       `Delete “${name}” with all its stamps? This can't be undone.`,
+    lastCalendar: "You need at least one calendar – make another one first.",
     stamps: "Your stamps",
     noStamps: "No stamps yet – draw your first one!",
     newStamp: "Draw a stamp",

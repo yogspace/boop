@@ -16,6 +16,7 @@ import { trackEvent } from "@/features/analytics/client";
 import {
   type ColorName,
   type DayKey,
+  mayLetGo,
   stampsOf,
 } from "@/features/calendar/model";
 import { hexOf, nextKey } from "@/features/calendar/palette";
@@ -91,9 +92,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   const calendars = useMemo(
     () =>
       Object.values(boop.calendars).sort(
-        (a, b) =>
-          Number(b.personal) - Number(a.personal) ||
-          a.name.localeCompare(b.name)
+        (a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)
       ),
     [boop.calendars]
   );
@@ -156,6 +155,13 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   };
 
   const owner = calendar && calendar.owner === me;
+  // The last one stays (model.ts) – it can be renamed and shared, though.
+  const last =
+    !!calendar &&
+    !mayLetGo(
+      calendar.id,
+      calendars.map((c) => c.id)
+    );
   const firstName = boop.me?.name.split(" ")[0] ?? "";
 
   return (
@@ -279,7 +285,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
                 >
                   {t.app.share.title}
                 </Button>
-                {owner && !calendar.personal && (
+                {owner && (
                   <>
                     <Button
                       onClick={() => setDialog("rename")}
@@ -289,12 +295,18 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
                       {t.app.rename}
                     </Button>
                     <Button
+                      disabled={last}
                       onClick={() => setDialog("delete")}
                       size="sm"
                       variant="ghost"
                     >
                       {t.app.deleteCalendar}
                     </Button>
+                    {last && (
+                      <p className="basis-full font-medium text-muted text-xs">
+                        {t.app.lastCalendar}
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -377,7 +389,9 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
       )}
       {drawing && (
         <StampDrawer
-          calendar={calendar && !calendar.personal ? calendar.id : null}
+          calendar={
+            calendar && calendar.members.length > 1 ? calendar.id : null
+          }
           locale={locale}
           onClose={() => setDrawing(false)}
         />
