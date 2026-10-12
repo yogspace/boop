@@ -2,7 +2,9 @@ import type { Locale } from "./config";
 
 /**
  * Every text of the site and the app, per language. German is the shape;
- * English must have the same keys (checked by the type below).
+ * English must have the same keys (checked by the type below). Not here:
+ * the stamp colors' names – they come with the colors, from the CMS
+ * (features/calendar/palette.ts).
  */
 
 const de = {

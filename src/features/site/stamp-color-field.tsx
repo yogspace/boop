@@ -3,7 +3,6 @@
 import { TextField, useField, useRowLabel } from "@payloadcms/ui";
 import type { TextFieldClientComponent } from "payload";
 import { type RefObject, useEffect, useRef, useState } from "react";
-import type { ColorName } from "@/features/calendar/model";
 import { DEFAULT_PALETTE, isHex } from "@/features/calendar/palette";
 import { StampSvg } from "@/features/calendar/stamp-svg";
 import { demoStamp } from "@/features/stickers/demo";
@@ -20,12 +19,6 @@ const HEART = demoStamp("heart");
 
 /** The picker's and the preview's color while the field holds none (yet). */
 const FALLBACK = DEFAULT_PALETTE[0].hex;
-
-/**
- * The app's parts take a color's key – and, through `hexOf` (palette.ts), a
- * literal hex as it is: so the preview draws any color, saved or not.
- */
-const literal = (hex: string) => hex as ColorName;
 
 /**
  * A blot of ink (40 × 40) – flat, a little uneven, like the inks to dip a
@@ -63,7 +56,8 @@ const useRested = <T,>(value: T, ms = 250) => {
 /**
  * A stamp in the color, the ways the app shows one: being drawn, printed on
  * a day, as the ink to dip into, and in 3D – lying in the tray and coming
- * down.
+ * down. The app's parts take a color's key – and, through `hexOf`
+ * (palette.ts), a literal hex as it is: so they draw any color, saved or not.
  */
 const StampColorPreview = ({ color }: { color: string }) => {
   const box = useRef<HTMLDivElement>(null);
@@ -71,7 +65,7 @@ const StampColorPreview = ({ color }: { color: string }) => {
   // The 3D pictures render in the browser only (WebGL), and take a moment:
   // not for a closed row, nor for every step of dragging the picker.
   const rested = useRested(color);
-  const ink = seen && rested ? literal(rested) : null;
+  const ink = seen && rested ? rested : null;
   const { drawing, shape } = HEART;
   return (
     <div aria-hidden className="stamp-color-preview" ref={box}>
@@ -79,7 +73,7 @@ const StampColorPreview = ({ color }: { color: string }) => {
         <span className="scp-box scp-drawing">
           <StampSvg
             className="scp-svg"
-            color={literal(color)}
+            color={color}
             drawing={drawing}
             filled
             shape={shape}
@@ -91,7 +85,7 @@ const StampColorPreview = ({ color }: { color: string }) => {
         <span className="scp-box scp-paper">
           <StampSvg
             className="scp-svg scp-print"
-            color={literal(color)}
+            color={color}
             drawing={drawing}
             print
             shape={shape}

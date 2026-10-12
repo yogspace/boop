@@ -3,6 +3,7 @@
 import { type Ref, useEffect, useImperativeHandle, useState } from "react";
 import type * as Three from "three";
 import type { ColorName, StampShape } from "@/features/calendar/model";
+import { colorKeys } from "@/features/calendar/palette";
 import { outlinePoints } from "@/features/calendar/outline";
 import {
   buildSticker,
@@ -212,7 +213,8 @@ const createHand = () => {
   /** Counts the stamps taken – a slow build must not land in a later hand. */
   let taken = 0;
   let unit = 100;
-  let ink: ColorName = "ink";
+  // Until it is dipped (`paint`): the default ink.
+  let ink: ColorName = colorKeys()[0];
   let frame = 0;
   let last = 0;
   const still =
