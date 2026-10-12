@@ -5,8 +5,12 @@ import { COLOR_NAMES, SHAPES } from "../model";
 
 /**
  * The stamps people drew – one color each, a doodle as strokes (model.ts).
- * A stamp is its owner's own, or – with `calendar` set – shared with that
- * calendar's members.
+ * A stamp is its owner's, always; `sharedWith` names the calendars whose
+ * members may stamp with it too.
+ *
+ * `calendar` is how sharing was kept before (one calendar only): wherever
+ * stamps are read it counts as one more of `sharedWith` (`sharedWithOf`,
+ * model.ts), and the sync empties it whenever it writes a stamp's sharing.
  */
 export const Stamps: CollectionConfig = {
   slug: "stamps",
@@ -20,9 +24,9 @@ export const Stamps: CollectionConfig = {
   admin: {
     group: "Calendars",
     useAsTitle: "name",
-    defaultColumns: ["name", "color", "owner", "calendar", "changedAt"],
+    defaultColumns: ["name", "color", "owner", "sharedWith", "changedAt"],
     description:
-      "Stamps people drew. Their own – or shared with a calendar's members.",
+      "Stamps people drew. Always their owner's – and, if shared, for the members of those calendars too.",
   },
   fields: [
     idField,
@@ -55,11 +59,25 @@ export const Stamps: CollectionConfig = {
       index: true,
     },
     {
+      name: "sharedWith",
+      type: "relationship",
+      relationTo: "calendars",
+      hasMany: true,
+      index: true,
+      admin: {
+        description:
+          "These calendars' members may stamp with it too – empty: only its owner.",
+      },
+    },
+    {
       name: "calendar",
       type: "relationship",
       relationTo: "calendars",
       index: true,
-      admin: { description: "Shared with this calendar – empty: personal." },
+      admin: {
+        description:
+          "Legacy – from before a stamp could be shared with several calendars. Counts as one more of “Shared with”.",
+      },
     },
     ...syncFields,
   ],

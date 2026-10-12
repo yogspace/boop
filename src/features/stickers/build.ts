@@ -1,11 +1,11 @@
 import type * as Three from "three";
 import {
-  COLORS,
   type ColorName,
   FACE,
   type StampShape,
 } from "@/features/calendar/model";
 import { outlinePoints } from "@/features/calendar/outline";
+import { hexOf } from "@/features/calendar/palette";
 
 /**
  * A stamp in 3D – a real rubber stamp: a block in the stamp's shape (a soft
@@ -407,10 +407,12 @@ export const buildSticker = (
   { mirror = false } = {}
 ) => {
   const stamp = new THREE.Group();
-  const hex = COLORS[input.color];
+  const hex = hexOf(input.color);
 
+  // A dark color takes more white, or its block turns out gloomy.
+  const dark = new THREE.Color(hex).getHSL({ h: 0, s: 0, l: 0 }).l < 0.25;
   const blockMaterial = new THREE.MeshPhysicalMaterial({
-    color: tint(THREE, hex, input.color === "ink" ? 0.55 : 0.45),
+    color: tint(THREE, hex, dark ? 0.55 : 0.45),
     roughness: 0.45,
     clearcoat: 0.8,
     clearcoatRoughness: 0.3,
@@ -524,8 +526,8 @@ export const paintSticker = (
   if (!rubber) return;
   const relief = rubber.geometry.getAttribute("relief");
   const color = rubber.geometry.getAttribute("color") as Three.BufferAttribute;
-  const full = new THREE.Color(COLORS[ink]);
-  const ground = tint(THREE, COLORS[ink], 0.84);
+  const full = new THREE.Color(hexOf(ink));
+  const ground = tint(THREE, hexOf(ink), 0.84);
   const mixed = new THREE.Color();
   for (let i = 0; i < relief.count; i++) {
     const r = relief.getX(i);

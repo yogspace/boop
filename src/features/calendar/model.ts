@@ -3,8 +3,10 @@
  * the app in the browser (offline store). No server imports here.
  *
  * - A **calendar** belongs to its owner; members see and stamp it too.
- * - A **stamp** is a doodle someone drew, in ONE color. It belongs to its
- *   owner – or, with `calendar` set, to that calendar, for all its members.
+ * - A **stamp** is a doodle someone drew, in ONE color. It is its owner's,
+ *   always: they have it in every calendar they are in. Shared with
+ *   calendars (`sharedWith`), those calendars' members have it too – in
+ *   every calendar of theirs.
  * - A **placement** is a stamp put on a day of a calendar: where, turned and
  *   scaled how, stacked in which order. The day itself is no document – it is
  *   the placements with its date.
@@ -133,8 +135,11 @@ export type StampDoc = Synced & {
   shape: StampShape;
   drawing: Drawing | null;
   owner: string;
-  /** Shared with this calendar's members – or null: the owner's own. */
-  calendar: string | null;
+  /**
+   * The calendars whose members may stamp with it too – none: only its
+   * owner. Anyone but the owner learns only of the calendars they are in.
+   */
+  sharedWith: string[];
 };
 
 export type PlacementDoc = Synced & {
@@ -152,6 +157,62 @@ export type PlacementDoc = Synced & {
   /** The ink it was stamped with – null on old prints: the stamp's color. */
   ink: ColorName | null;
   placedBy: string;
+};
+
+/**
+ * The calendars a stamp is shared with, whatever shape it is in: its
+ * `sharedWith` and – from before a stamp could be shared with several – the
+ * one `calendar`. Ids or the documents themselves; none twice.
+ */
+export const sharedWithOf = (stamp: {
+  sharedWith?: unknown;
+  calendar?: unknown;
+}): string[] => {
+  const refs = [
+    ...(Array.isArray(stamp.sharedWith) ? stamp.sharedWith : []),
+    stamp.calendar,
+  ];
+  const ids = refs.map((ref) => {
+    if (typeof ref === "string") return ref;
+    return ref && typeof ref === "object" && "id" in ref ? String(ref.id) : "";
+  });
+  return [...new Set(ids.filter(Boolean))];
+};
+
+/**
+ * A stamp in today's shape. A device may have kept it – and an app from
+ * before sends it – with the one `calendar` instead of `sharedWith`.
+ */
+export const stampDoc = (
+  doc: Omit<StampDoc, "sharedWith"> & {
+    sharedWith?: string[];
+    calendar?: string | null;
+  }
+): StampDoc => {
+  const { calendar: _, ...stamp } = doc;
+  return { ...stamp, sharedWith: sharedWithOf(doc) };
+};
+
+/**
+ * The stamps an account stamps with – the same in every calendar: its own
+ * first, then those shared with a calendar it is in. A stamp someone only
+ * placed there (it is on the device so its prints show) is none of them.
+ */
+export const stampsOf = <
+  T extends { owner: string; sharedWith: readonly string[] },
+>(
+  stamps: readonly T[],
+  me: string | undefined,
+  calendars: Iterable<string>
+): T[] => {
+  const mine = new Set(calendars);
+  return [
+    ...stamps.filter((stamp) => stamp.owner === me),
+    ...stamps.filter(
+      (stamp) =>
+        stamp.owner !== me && stamp.sharedWith.some((id) => mine.has(id))
+    ),
+  ];
 };
 
 /** A drawing as it came from a device – checked and trimmed, or null. */

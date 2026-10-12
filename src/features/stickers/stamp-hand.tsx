@@ -394,9 +394,9 @@ const createHand = () => {
     // little with the lean too.
     sticker.rotation.z =
       facing + mix(spin, spinTo, down) + lean * (1 - down) * TWIST;
-    // The shadow tightens and darkens as the stamp comes down.
-    view.shadow.scale.setScalar(0.9 - 0.12 * down);
-    view.shadow.material.opacity = 0.3 + 0.22 * down;
+    // The shadow tightens under the stamp as it comes down.
+    view.shadow.scale.setScalar(0.9 - 0.18 * down);
+    view.shadow.material.opacity = 0.3 + 0.06 * down;
     renderer.render(scene, camera);
   };
 

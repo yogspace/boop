@@ -1,4 +1,5 @@
 import type * as Three from "three";
+import { hexOf } from "@/features/calendar/palette";
 import {
   buildSticker,
   disposeSticker,
@@ -64,7 +65,8 @@ let queue: Promise<unknown> = Promise.resolve();
  */
 export const stickerKey = (input: StickerInput, kind: Pose = "face") => {
   let hash = 0;
-  const text = `${kind}|${input.shape}|${input.color}|${JSON.stringify(input.drawing)}`;
+  // By the color it shows in, not its name – the CMS may change it.
+  const text = `${kind}|${input.shape}|${hexOf(input.color)}|${JSON.stringify(input.drawing)}`;
   for (let i = 0; i < text.length; i++) {
     hash = (hash * 31 + text.charCodeAt(i)) | 0;
   }

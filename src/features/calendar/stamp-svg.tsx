@@ -1,6 +1,7 @@
 import { useId } from "react";
-import { COLORS, type ColorName, FACE, type StampShape } from "./model";
+import { type ColorName, FACE, type StampShape } from "./model";
 import { outlinePath } from "./outline";
+import { hexOf } from "./palette";
 
 /**
  * A stamp flat, as SVG – the drawing while it is being made (its rim and the
@@ -113,7 +114,7 @@ export const StampSvg = ({
   filled?: boolean;
 }) => {
   const id = useId();
-  const ink = COLORS[color];
+  const ink = hexOf(color);
   const fade = { transition: "stroke 400ms, fill 400ms" };
   // Something drawn? Lines or filled areas – an empty drawing is none.
   const drawn =
