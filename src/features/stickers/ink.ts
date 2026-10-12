@@ -6,9 +6,10 @@ import type * as Three from "three";
  * relief of its face. The lines are found in the picture, not on the model:
  * the stamp is drawn once into two images at the same time – its colors, and
  * what each spot shows (which part, raised or not, a little hand-drawn
- * unevenness that sticks to the stamp as it turns). Where two neighbours show
- * different things there is a line, as wide as the stamp is big on screen;
- * one pass lays them over the colors, smooth at the edges.
+ * unevenness that sticks to the stamp as it turns; on the knob, how far away
+ * it is). Where two neighbours show different things there is a line, as
+ * wide as the stamp is big on screen; one pass lays them over the colors,
+ * smooth at the edges.
  *
  * Shared by the pictures (render.ts), the stamp being made (sticker-view.tsx)
  * and the one in hand (stamp-hand.tsx). `three` is passed in, like build.ts.
@@ -23,6 +24,14 @@ export const OVER = 2;
 export const LINE = 0.016;
 /** … but never thinner than this (CSS px) – a small stamp still reads. */
 const THINNEST = 1.4;
+/**
+ * The knob is one smooth piece – no edge between its neck and its ball. A
+ * line is drawn only where one lies in front of the other: where two
+ * neighbours are this far apart in depth (stamp units) – a fold. `DEEP`
+ * fits the depths a knob spans into what an image holds.
+ */
+const FOLD = 0.05;
+const DEEP = 0.9;
 /** The ink's color, as sRGB. */
 const INK: Rgb = [0.067, 0.063, 0.078];
 /** Shade: the colors turned from the light, deeper and a touch violet. */
@@ -60,7 +69,7 @@ const vec = (THREE: typeof Three, color: Rgb) =>
   new THREE.Vector3(color[0], color[1], color[2]);
 
 /** Parts of a stamp, as the lines tell them apart. */
-export type Part = "rubber" | "block" | "plate" | "neck" | "ball";
+export type Part = "rubber" | "block" | "plate" | "knob";
 
 /**
  * What a spot shows – a different number, a line between. Each part has
@@ -71,14 +80,16 @@ const CODE: Record<Part, number> = {
   rubber: 1,
   block: 5,
   plate: 8,
-  neck: 10,
-  ball: 12,
+  knob: 10,
 };
 
 const VERTEX = /* glsl */ `
 #ifdef RUBBER
 attribute float relief;
 varying float vRelief;
+#endif
+#ifdef KNOB
+varying float vDeep;
 #endif
 varying vec3 vLocal;
 varying vec3 vNormal;
@@ -90,7 +101,12 @@ void main() {
   vLocal = position;
   vFacing = normal;
   vNormal = normalize(normalMatrix * normal);
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  vec4 seen = modelViewMatrix * vec4(position, 1.0);
+#ifdef KNOB
+  // How far behind the knob's foot, in the stamp's own units.
+  vDeep = (modelViewMatrix[3].z - seen.z) / length(modelViewMatrix[0].xyz);
+#endif
+  gl_Position = projectionMatrix * seen;
 }
 `;
 
@@ -107,6 +123,9 @@ uniform vec3 inkShade;
 uniform vec3 ground;
 uniform vec3 groundShade;
 varying float vRelief;
+#endif
+#ifdef KNOB
+varying float vDeep;
 #endif
 varying vec3 vLocal;
 varying vec3 vNormal;
@@ -151,8 +170,12 @@ void main() {
     shadow = shade * 0.9;
   }
 #endif
+  float deep = 0.0;
+#ifdef KNOB
+  deep = 0.5 + vDeep * DEEP;
+#endif
   outColor = vec4(mix(fill, shadow, dark), 1.0);
-  outData = vec4(part / 16.0, wobble(vLocal), 0.0, 1.0);
+  outData = vec4(part / 16.0, wobble(vLocal), deep, 1.0);
 }
 `;
 
@@ -178,6 +201,7 @@ export const toonMaterial = (
       ...(part === "rubber" && { RUBBER: "" }),
       ...(part === "block" && { BLOCK: "" }),
       ...(part === "plate" && { PLATE: "" }),
+      ...(part === "knob" && { KNOB: "", DEEP: DEEP.toFixed(5) }),
     },
     uniforms: {
       color: { value: vec(THREE, color) },
@@ -218,8 +242,10 @@ vec4 at(ivec2 p) {
   return texelFetch(data, clamp(p, ivec2(0), size - 1), 0);
 }
 
-bool differs(float a, float b) {
-  return abs(a - b) > 0.03;
+// Two spots show different things: another part – or, on the knob, one
+// well behind the other.
+bool differs(vec4 a, vec4 b) {
+  return abs(a.r - b.r) > 0.03 || abs(a.b - b.b) > FOLD;
 }
 
 // How much ink covers this spot: a line along every edge between two
@@ -228,14 +254,14 @@ float inkAt(ivec2 p) {
   vec4 here = at(p);
   float reach = width * 1.3 + 0.5;
   // A quick look around first – most spots are far from any line.
-  bool near = differs(at(p + ivec2(1, 0)).r, here.r)
-    || differs(at(p + ivec2(-1, 0)).r, here.r)
-    || differs(at(p + ivec2(0, 1)).r, here.r)
-    || differs(at(p + ivec2(0, -1)).r, here.r);
+  bool near = differs(at(p + ivec2(1, 0)), here)
+    || differs(at(p + ivec2(-1, 0)), here)
+    || differs(at(p + ivec2(0, 1)), here)
+    || differs(at(p + ivec2(0, -1)), here);
   for (int i = 0; i < 12 && !near; i++) {
     vec2 d = vec2(cos(float(i) * 0.5236), sin(float(i) * 0.5236));
-    near = differs(at(p + ivec2(round(d * reach))).r, here.r)
-      || differs(at(p + ivec2(round(d * reach * 0.55))).r, here.r);
+    near = differs(at(p + ivec2(round(d * reach))), here)
+      || differs(at(p + ivec2(round(d * reach * 0.55))), here);
   }
   if (!near) return 0.0;
   int r = int(ceil(reach));
@@ -245,7 +271,7 @@ float inkAt(ivec2 p) {
       float d = length(vec2(x, y));
       if (d > reach) continue;
       vec4 there = at(p + ivec2(x, y));
-      if (!differs(there.r, here.r)) continue;
+      if (!differs(there, here)) continue;
       // The edge lies half a step short of the spot that differs.
       float w = width * (0.7 + 0.6 * (here.r > 0.01 ? here.g : there.g));
       best = max(best, clamp(w - d + 1.0, 0.0, 1.0));
@@ -309,6 +335,7 @@ export const createInk = (
     glslVersion: THREE.GLSL3,
     vertexShader: "void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }",
     fragmentShader: COMPOSITE,
+    defines: { FOLD: (FOLD * DEEP).toFixed(5) },
     uniforms: {
       colors: { value: target.textures[0] },
       data: { value: target.textures[1] },

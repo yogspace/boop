@@ -1,12 +1,13 @@
 "use client";
 
 import { AnimatePresence, m, type Variants } from "motion/react";
-import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight } from "@/components/doodles";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, Sparkle } from "@/components/doodles";
 import { SPRING } from "@/components/motion";
 import { Ruling } from "@/components/ruling";
 import { buttonClass, ROUND_BUTTON } from "@/components/ui";
 import { type DayKey, todayKey } from "@/features/calendar/model";
+import { hexOf } from "@/features/calendar/palette";
 import { Glitter, StampSvg } from "@/features/calendar/stamp-svg";
 import { useBoop } from "@/features/offline/store";
 import type { Locale } from "@/i18n/config";
@@ -21,21 +22,163 @@ const key = (year: number, month: number, day: number): DayKey =>
 
 /**
  * A day in the ruled month: no frame of its own (the table's lines are the
- * month's, `Ruling`) – a soft blob under the pointer, the focus ring inside
- * its lines.
+ * month's, `Ruling`) – the focus ring inside its lines. The soft blob under
+ * the pointer is the table's, one for all its days (`Pointed`).
  */
 const DAY =
-  "scribble scribble-bare scribble-clear scribble-sm relative flex aspect-square min-h-0 flex-col rounded-xl p-1 text-left [--scribble-inset:4px] [--scribble-ring:5px] hover:scribble-soft active:scribble-soft sm:p-2";
+  "scribble scribble-bare scribble-clear scribble-sm relative flex aspect-square min-h-0 flex-col rounded-xl p-1 text-left [--scribble-ring:5px] sm:p-2";
+
+/** The table's columns – a week, Monday first. */
+const WEEK = 7;
 
 /**
- * On the weekend's wash the blob is that grey itself – there it is a shade
- * darker, between paper grey and pencil.
+ * The soft blob under the pointer – one for the whole table, lying under its
+ * days: it comes up where the pointer comes in, glides along from day to day
+ * and fades once the pointer is gone; pressed, it gives a little. A finger
+ * doesn't hover: there it shows only while a day is pressed.
+ *
+ * A thin wash of the pencil's tone rather than paper grey itself: on the
+ * paper it comes out as that grey, and on the weekend's wash – nearly that
+ * grey already – a shade darker. On a calendar's own paper (`PAPER`,
+ * calendar/tint.ts) the pencil is in its color, and so is the blob.
+ *
+ * It keeps the pointer's place to itself, so a month's days and prints
+ * aren't drawn again as the pointer wanders, and listens on the table it
+ * lies in. Days are told by where the pointer is, not by which one it
+ * entered: the blob stays put while a month turns in under it.
  */
-const WEEKEND =
-  "hover:[--scribble-fill:color-mix(in_oklab,var(--color-soft),var(--color-line))]! active:[--scribble-fill:color-mix(in_oklab,var(--color-soft),var(--color-line))]!";
+const Pointed = ({
+  rows,
+  table,
+}: {
+  rows: number;
+  table: RefObject<HTMLElement | null>;
+}) => {
+  const [cell, setCell] = useState<number | null>(null);
+  const [pressed, setPressed] = useState(false);
 
-/** Saturday and Sunday – the last two columns, Monday first. */
-const weekend = (cell: number) => cell % 7 >= 5;
+  useEffect(() => {
+    const box = table.current;
+    if (!box) return;
+    /** The cell under the pointer – they are all the same size. */
+    const cellAt = (event: PointerEvent) => {
+      const { left, top, width, height } = box.getBoundingClientRect();
+      const col = Math.floor(((event.clientX - left) / width) * WEEK);
+      const row = Math.floor(((event.clientY - top) / height) * rows);
+      const inside = col >= 0 && col < WEEK && row >= 0 && row < rows;
+      return inside ? row * WEEK + col : null;
+    };
+    const move = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") setCell(cellAt(event));
+    };
+    const down = (event: PointerEvent) => {
+      setCell(cellAt(event));
+      setPressed(true);
+    };
+    const up = (event: PointerEvent) => {
+      setPressed(false);
+      if (event.pointerType === "touch") setCell(null);
+    };
+    const leave = () => {
+      setPressed(false);
+      setCell(null);
+    };
+    box.addEventListener("pointermove", move);
+    box.addEventListener("pointerdown", down);
+    box.addEventListener("pointerup", up);
+    box.addEventListener("pointercancel", leave);
+    box.addEventListener("pointerleave", leave);
+    return () => {
+      box.removeEventListener("pointermove", move);
+      box.removeEventListener("pointerdown", down);
+      box.removeEventListener("pointerup", up);
+      box.removeEventListener("pointercancel", leave);
+      box.removeEventListener("pointerleave", leave);
+    };
+  }, [rows, table]);
+
+  // A shorter month may have turned in – its table ends sooner.
+  const at = cell !== null && cell < rows * WEEK ? cell : null;
+  // In its own widths: a day is one wide, one high.
+  const place = at !== null && {
+    x: `${(at % WEEK) * 100}%`,
+    y: `${Math.floor(at / WEEK) * 100}%`,
+  };
+
+  return (
+    <AnimatePresence>
+      {place && (
+        <m.span
+          animate={{ ...place, opacity: 1, scale: pressed ? 0.9 : 1 }}
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 left-0 flex aspect-square w-1/7 will-change-transform"
+          exit={{
+            opacity: 0,
+            scale: 0.8,
+            transition: { duration: 0.16, ease: "easeIn" },
+          }}
+          // Where the pointer came in – it doesn't glide there from afar.
+          initial={{ ...place, opacity: 0, scale: 0.8 }}
+          key="blob"
+          transition={{ ...SPRING.soft, opacity: { duration: 0.14 } }}
+        >
+          <span className="scribble scribble-bare scribble-sm flex-1 rounded-xl [--scribble-fill:color-mix(in_oklab,var(--color-line)_40%,transparent)] [--scribble-inset:4px]" />
+        </m.span>
+      )}
+    </AnimatePresence>
+  );
+};
+
+/**
+ * Once round a day by hand, in a box of 100 – the marker sets off and ends
+ * in the corner the day's number sits in.
+ */
+const FRAME =
+  "M17 3C38 1.2 62 4.2 83 2.6C92 2 97.8 7.5 97.4 17C99 39 96 61 97.6 83C98 92.5 92.5 97.8 83 97.5C61 99 39 96 17 97.6C7.5 98 2.2 92.5 2.6 83C1 61 4.2 39 2.4 17C2 7.5 7.5 2.4 17 3Z";
+
+/**
+ * All of a day's frame but the number's corner – in the number's own size
+ * (em), so the gap fits it in the smallest day and the largest.
+ */
+const OPEN =
+  "polygon(1.8em -50%, 150% -50%, 150% 150%, -50% 150%, -50% 1.6em, 1.8em 1.6em)";
+
+/**
+ * A day a special stamp was pressed on gets a frame of its own: the marker
+ * went round it once more, inside the table's lines and in that print's ink
+ * – open where the number is, a sparkle on the corner across and a small
+ * one down left (where the number and, on a phone, the count aren't). It
+ * lies under the day's prints: they are stamped over it, none is covered.
+ * The keyboard's dashed ring runs along it, black on its line – further in
+ * it would go through the number.
+ */
+const Special = ({ hex, wave }: { hex: string; wave: Turn }) => (
+  <m.span
+    aria-hidden="true"
+    // The number's size, for the gap.
+    className="pointer-events-none absolute inset-[3px] -z-10 text-[11px] sm:inset-1 sm:text-sm"
+    custom={wave}
+    style={{ color: hex }}
+    variants={FRAME_TURN}
+  >
+    <span className="absolute inset-0" style={{ clipPath: OPEN }}>
+      <svg
+        aria-hidden="true"
+        className="h-full w-full overflow-visible stroke-2 sm:stroke-[2.5]"
+        fill="none"
+        preserveAspectRatio="none"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        viewBox="0 0 100 100"
+      >
+        <path d={FRAME} vectorEffect="non-scaling-stroke" />
+      </svg>
+    </span>
+    {/* On the line, a little inside its corners – clear of the table's. */}
+    <Sparkle className="absolute top-[10%] right-[10%] h-2.5 w-2.5 translate-x-1/2 -translate-y-1/2 rotate-12 sm:top-[9%] sm:right-[9%] sm:h-5 sm:w-5" />
+    <Sparkle className="absolute bottom-[7%] left-[7%] h-2 w-2 -translate-x-1/2 translate-y-1/2 -rotate-12 sm:h-3 sm:w-3" />
+  </m.span>
+);
 
 /**
  * A day of the month before or after, in the cells around this one: only
@@ -62,7 +205,7 @@ const Beside = ({
   return (
     <m.button
       aria-label={label}
-      className={cn(DAY, "group", weekend(cell) && WEEKEND)}
+      className={cn(DAY, "group")}
       custom={{ dir, order: orderOf(cell, dir) }}
       onClick={onClick}
       title={label}
@@ -126,6 +269,15 @@ const PRINT_TURN: Variants = {
   }),
 };
 
+/** A special day's frame shows once its print has landed. */
+const FRAME_TURN: Variants = {
+  hidden: { opacity: 0 },
+  shown: ({ order }: Turn) => ({
+    opacity: 1,
+    transition: { duration: 0.3, delay: order * 0.022 + 0.3 },
+  }),
+};
+
 const MONTH_TURN: Variants = {
   hidden: {},
   shown: {},
@@ -138,8 +290,9 @@ const MONTH_TURN: Variants = {
 
 /**
  * A month of a calendar, Monday first; each day shows its prints. Drawn as a
- * table ruled with a marker: today's number sits in an ink blob, the weekend
- * is hatched – the prints are the only color.
+ * table ruled with a marker: today's number is circled and marked with the
+ * calendar's highlighter, the weekend is hatched. The prints bring the color
+ * – and with a special one the frame its day gets, in that print's ink.
  */
 export const MonthGrid = ({
   calendar,
@@ -193,6 +346,7 @@ export const MonthGrid = ({
   }
   const dir = turn.index === index ? turn.dir : Math.sign(index - turn.index);
   const labelOf = ({ year, month }: Month) => `${t.app.months[month]} ${year}`;
+  const table = useRef<HTMLDivElement>(null);
 
   return (
     <div>
@@ -252,7 +406,7 @@ export const MonthGrid = ({
       </div>
       {/* The ruled table stays as it is from month to month – only the days
           in it are swapped (and fade in). */}
-      <div className="relative isolate">
+      <div className="relative isolate" ref={table}>
         {/* On a phone the cells are small: a finer marker, so the lines don't
             outweigh the prints. */}
         <Ruling
@@ -260,6 +414,7 @@ export const MonthGrid = ({
           rows={rows}
           shade={2}
         />
+        <Pointed rows={rows} table={table} />
         <AnimatePresence custom={dir} mode="popLayout">
           <m.div
             animate="shown"
@@ -285,23 +440,37 @@ export const MonthGrid = ({
               const date = key(month.year, month.month, i + 1);
               const day = byDay.get(date) ?? [];
               const isToday = date === today;
+              // Its place in the wave the days come in with.
+              const wave = { dir, order: orderOf(offset + i, dir) };
+              // A special stamp's print makes the day special – the top one
+              // lends the frame its ink.
+              const big = day.find((p) => stamps[p.stamp]?.drawing?.special);
               return (
                 <m.button
                   aria-current={isToday ? "date" : undefined}
-                  className={cn(DAY, weekend(offset + i) && WEEKEND)}
-                  custom={{ dir, order: orderOf(offset + i, dir) }}
+                  className={DAY}
+                  custom={wave}
                   key={date}
                   onClick={() => onDay(date)}
                   type="button"
                   variants={DAY_TURN}
                 >
+                  {big && (
+                    <Special
+                      hex={hexOf(big.ink ?? stamps[big.stamp]?.color ?? "red")}
+                      wave={wave}
+                    />
+                  )}
                   <span
                     className={cn(
                       "font-black text-[11px] leading-none sm:text-sm",
-                      // The blob reaches over the number's line – the prints
-                      // below keep their room.
+                      // Today: circled, and marked with the highlighter in
+                      // the calendar's color (`--cal-mark`, calendar/tint.ts)
+                      // – paper grey where none is set. The circle reaches
+                      // over the number's line – the prints below keep
+                      // their room.
                       isToday &&
-                        "scribble scribble-sm scribble-ink -my-[0.4em] -ml-[0.3em] flex h-[2.1em] w-[2.1em] shrink-0 items-center justify-center self-start rounded-full"
+                        "scribble scribble-sm scribble-thin -my-[0.4em] -ml-[0.3em] flex h-[2.1em] w-[2.1em] shrink-0 items-center justify-center self-start rounded-full [--scribble-fill:var(--cal-mark,var(--color-soft))]"
                     )}
                   >
                     {i + 1}
@@ -313,9 +482,11 @@ export const MonthGrid = ({
                   <m.span
                     className={cn(
                       "grid min-h-0 flex-1 auto-rows-fr place-items-center max-sm:grid-cols-1 max-sm:[&>*:nth-child(n+2)]:hidden",
-                      day.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                      day.length === 1 ? "grid-cols-1" : "grid-cols-2",
+                      // Clear of the frame's line – a big print reaches it.
+                      big && "mx-0.5 mb-0.5"
                     )}
-                    custom={{ dir, order: orderOf(offset + i, dir) }}
+                    custom={wave}
                     variants={PRINT_TURN}
                   >
                     {day.slice(0, 4).map((p, n) => {

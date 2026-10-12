@@ -3,6 +3,9 @@
 # - the statistics report (/next/cron/stats-digest): the route itself decides
 #   from the interval set in the admin whether a report is due, and prunes
 #   old rows.
+# - the cleanup (/next/cron/cleanup): expired invitations, sign-ups never
+#   confirmed, accounts long unused – warned by mail first, deleted a month
+#   later (src/features/accounts/retention.ts). Counts go to the log.
 #
 # Runs ON THE HETZNER SERVER (not locally) – by the deploy pipeline after
 # every deploy, or by hand:
@@ -41,6 +44,7 @@ cron_cmd() {
   printf 'cd %s && docker compose exec -T boop node -e '\''const u=process.argv[1];require("http").get(u,r=>{let d="";r.on("data",c=>d+=c);r.on("end",()=>{console.log(r.statusCode,d.slice(0,200));process.exit(r.statusCode>=200&&r.statusCode<300?0:1)})}).on("error",e=>{console.error(e.message);process.exit(1)})'\'' %q 2>&1 | logger -t boop-cron' "$APP_DIR" "$url"
 }
 STATS_CMD="$(cron_cmd /next/cron/stats-digest)"
+CLEANUP_CMD="$(cron_cmd /next/cron/cleanup)"
 
 # The current crontab WITHOUT our old block.
 CURRENT="$(crontab -l 2>/dev/null | sed "/${MARKER}/,/${MARKER_END}/d" || true)"
@@ -50,6 +54,8 @@ CURRENT="$(crontab -l 2>/dev/null | sed "/${MARKER}/,/${MARKER_END}/d" || true)"
   printf '%s\n' "$MARKER"
   # Daily at 06:45 UTC.
   printf '45 6 * * * %s\n' "$STATS_CMD"
+  # Daily at 07:15 UTC – its warning mails arrive in the morning.
+  printf '15 7 * * * %s\n' "$CLEANUP_CMD"
   printf '%s\n' "$MARKER_END"
 } | crontab -
 

@@ -137,7 +137,7 @@ export interface User {
   collection: 'users';
 }
 /**
- * People using Boop. Deleting an account removes its calendars, its stamps and what it placed elsewhere.
+ * People using Boop. Deleting an account removes its calendars, its stamps and what it placed elsewhere. Sign-ups never confirmed go after 30 days; accounts unused for 24 months after a warning mail.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "accounts".
@@ -146,6 +146,14 @@ export interface Account {
   id: string;
   name: string;
   locale: 'de' | 'en';
+  /**
+   * Last login or sync – once a day at most. Unused for 24 months, the account is deleted, after a mail 30 days ahead.
+   */
+  lastSeenAt?: string | null;
+  /**
+   * When the mail “your account goes in 30 days” went out. Any login or sync takes it back.
+   */
+  deletionWarnedAt?: string | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -184,10 +192,13 @@ export interface Calendar {
   owner: string | Account;
   members?: (string | Account)[] | null;
   /**
-   * Made at sign-up – can't be deleted.
+   * Made at sign-up, from when that one couldn't be deleted. No longer used.
    */
   personal?: boolean | null;
   changedAt: string;
+  /**
+   * Deletes the calendar with all its prints – it stays only as a marker, so devices drop it too. Can't be undone.
+   */
   deleted?: boolean | null;
   updatedAt: string;
   createdAt: string;
@@ -256,7 +267,7 @@ export interface Placement {
   createdAt: string;
 }
 /**
- * Invitations to calendars for addresses without an account. Gone once used or after 30 days.
+ * Invitations to calendars for addresses without an account. Gone once used or after 14 days.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "invites".
@@ -449,6 +460,8 @@ export interface UsersSelect<T extends boolean = true> {
 export interface AccountsSelect<T extends boolean = true> {
   name?: T;
   locale?: T;
+  lastSeenAt?: T;
+  deletionWarnedAt?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -621,23 +634,21 @@ export interface Site {
   /**
    * The inks to pick from – for a stamp, a calendar and the ink pads, in this order. The first one is the default – and the color of anything whose own is gone.
    */
-  stampColors?:
-    | {
-        /**
-         * The color's identity – stamps, calendars and prints refer to it, e.g. “mint”. Never change or delete a key once it is in use: whatever wears it would turn into the first color. To change a color, change its hex and name and keep the key – everything in it follows.
-         */
-        key: string;
-        /**
-         * As #rrggbb, e.g. #22c993 – or pick it. Below: a stamp in it, as the app shows it.
-         */
-        color: string;
-        /**
-         * Shown when pointing at it, read out aloud – one per language (switch at the top).
-         */
-        name: string;
-        id?: string | null;
-      }[]
-    | null;
+  stampColors: {
+    /**
+     * The color's identity – stamps, calendars and prints refer to it, e.g. “mint”. Never change or delete a key once it is in use: whatever wears it would turn into the first color. To change a color, change its hex and name and keep the key – everything in it follows.
+     */
+    key: string;
+    /**
+     * As #rrggbb, e.g. #22c993 – or pick it. Below: a stamp in it, as the app shows it.
+     */
+    color: string;
+    /**
+     * Shown when pointing at it, read out aloud – one per language (switch at the top).
+     */
+    name: string;
+    id?: string | null;
+  }[];
   links: {
     /**
      * The legal text's “Site link”. Keep the utm part – it shows where visits came from.

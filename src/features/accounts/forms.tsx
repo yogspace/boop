@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { Star, Ticks } from "@/components/doodles";
-import { Button, Field, LinkButton, Notice } from "@/components/ui";
+import { Button, Checkbox, Field, LinkButton, Notice } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import { legalPath } from "@/features/legal/links";
 import { signedIn } from "@/features/offline/store";
@@ -132,6 +132,9 @@ export const LoginForm = ({ locale }: { locale: Locale }) => {
   const router = useTransitionRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // Ticked to begin with: Boop is opened daily, and installed as an app
+  // there is no browser to close. Unticked, the login ends with the browser.
+  const [remember, setRemember] = useState(true);
   const { busy, error, run } = useSubmit(locale);
   const reasons: Record<string, string> = {
     wrong: t.auth.login.wrong,
@@ -143,7 +146,7 @@ export const LoginForm = ({ locale }: { locale: Locale }) => {
       <form
         className="flex flex-col gap-4"
         onSubmit={run(async () => {
-          const result = await login(email, password);
+          const result = await login(email, password, remember);
           if (!result.ok) return reasons[result.reason] ?? t.auth.failed;
           await afterLogin();
           await signedIn(result.value);
@@ -168,6 +171,19 @@ export const LoginForm = ({ locale }: { locale: Locale }) => {
           type="password"
           value={password}
         />
+        <div className="flex flex-col gap-1.5">
+          <Checkbox
+            checked={remember}
+            onChange={(event) => setRemember(event.target.checked)}
+          >
+            {t.auth.login.remember}
+          </Checkbox>
+          {!remember && (
+            <p className="animate-fade text-muted text-xs">
+              {t.auth.login.rememberOff}
+            </p>
+          )}
+        </div>
         {error && <Notice tone="error">{error}</Notice>}
         <Button disabled={busy} size="lg" type="submit">
           {busy ? t.auth.working : t.auth.login.submit}
@@ -385,31 +401,77 @@ export const VerifyPanel = ({ locale }: { locale: Locale }) => {
   );
 };
 
+/** What the server says to an invitation's link (calendar/invites.ts). */
+type Invitation =
+  | { state: "open"; calendar: string; from: string; until: string | null }
+  /** Too late – `from` is whom to ask for a new one. */
+  | { state: "expired"; from: string }
+  /** Used, taken back, or never there. */
+  | { state: "missing" };
+
+const readInvite = async (token: string): Promise<Invitation> => {
+  const response = await fetch(`/api/invites/${encodeURIComponent(token)}`);
+  const body = (await response.json().catch(() => null)) as {
+    calendar?: string;
+    from?: string;
+    expiresAt?: string | null;
+  } | null;
+  if (response.status === 410) {
+    return { state: "expired", from: body?.from ?? "" };
+  }
+  if (!(response.ok && body)) return { state: "missing" };
+  return {
+    state: "open",
+    calendar: body.calendar ?? "",
+    from: body.from ?? "",
+    until: body.expiresAt ?? null,
+  };
+};
+
+/**
+ * “26. Oktober um 09:00” – until when an invitation can be taken up, to the
+ * minute: a day alone would promise its evening too.
+ */
+const momentOf = (iso: string, locale: Locale) =>
+  new Date(iso).toLocaleString(locale === "de" ? "de-DE" : "en-GB", {
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
 export const InvitePanel = ({ locale }: { locale: Locale }) => {
   const t = dictionaryOf(locale);
   const router = useTransitionRouter();
   const token = useSearchParams().get("token") ?? "";
-  const [invite, setInvite] = useState<
-    { calendar: string; from: string } | null | "missing"
-  >(null);
+  const [invite, setInvite] = useState<Invitation | null>(null);
   const [account, setAccount] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!token) {
-      setInvite("missing");
+      setInvite({ state: "missing" });
       return;
     }
-    fetch(`/api/invites/${encodeURIComponent(token)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((body) => setInvite(body ?? "missing"))
-      .catch(() => setInvite("missing"));
+    readInvite(token)
+      .then(setInvite)
+      .catch(() => setInvite({ state: "missing" }));
     fetchMe()
       .then((me) => setAccount(Boolean(me)))
       .catch(() => setAccount(false));
   }, [token]);
 
-  if (invite === "missing") {
+  // Too late: no alarm – it says how long invitations last and what to do.
+  if (invite?.state === "expired") {
+    return (
+      <Frame sticker="cloud" title={t.auth.invite.expiredTitle}>
+        <p className="font-medium text-lg">
+          {t.auth.invite.expired(invite.from)}
+        </p>
+      </Frame>
+    );
+  }
+  if (invite?.state === "missing") {
     return (
       <Frame sticker="cloud" title={t.auth.invite.title}>
         <Notice tone="error">{t.auth.invite.invalid}</Notice>
@@ -425,7 +487,12 @@ export const InvitePanel = ({ locale }: { locale: Locale }) => {
     const ok = await acceptInvite(token);
     setBusy(false);
     if (ok) router.replace(`/${locale}/app`);
-    else setInvite("missing");
+    // Gone meanwhile – the page says why, fresh from the server.
+    else {
+      setInvite(
+        await readInvite(token).catch((): Invitation => ({ state: "missing" }))
+      );
+    }
   };
 
   return (
@@ -433,6 +500,11 @@ export const InvitePanel = ({ locale }: { locale: Locale }) => {
       <p className="font-medium text-lg">
         {t.auth.invite.text(invite.from, invite.calendar)}
       </p>
+      {invite.until && (
+        <p className="-mt-3 font-medium text-muted text-sm">
+          {t.auth.invite.until(momentOf(invite.until, locale))}
+        </p>
+      )}
       {account ? (
         <Button disabled={busy} onClick={accept} size="lg">
           {t.auth.invite.accept}

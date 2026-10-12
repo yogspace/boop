@@ -1,5 +1,6 @@
 "use client";
 
+import { usePresence } from "motion/react";
 import { useEffect, useEffectEvent, useRef } from "react";
 import type * as Three from "three";
 import { cn } from "@/lib/cn";
@@ -12,6 +13,7 @@ import {
 } from "./build";
 import { addGlitter } from "./glitter";
 import { createInk } from "./ink";
+import { createSwing, spring } from "./swing";
 
 /**
  * The stamp being made, live in 3D. It starts exactly as the drawing –
@@ -20,6 +22,10 @@ import { createInk } from "./ink";
  * block, the knob. Drag to turn it (flicked, it spins on); let go and it
  * swings back, and sways gently while it waits. Drawn flat at first, like
  * the drawing; its ink lines come as it grows (ink.ts).
+ *
+ * Asked to (`flyBack`), it leaves the way it came: taken off the page – out
+ * of an AnimatePresence – it turns face-on again and grows back onto the
+ * drawing, its lines going, and fades as it lands. Only then is it gone.
  */
 
 /**
@@ -45,11 +51,6 @@ const REST = 1.6;
 /** Turning by hand: radians per pixel dragged. */
 const DRAG = 0.01;
 
-/** A spring's pull and damping, from its frequency (rad/s) and damping ratio. */
-const spring = (frequency: number, ratio: number) => ({
-  pull: frequency * frequency,
-  damping: 2 * ratio * frequency,
-});
 /** Turning to show itself – it overshoots a little. */
 const REVEAL = spring(8, 0.55);
 /**
@@ -61,6 +62,15 @@ const GROW = spring(10, 0.7);
 const BACK = spring(6, 0.65);
 /** … and without swinging past, where less motion is asked for. */
 const STILL = spring(6, 1);
+/**
+ * Flying back onto the drawing: quicker than it came, and never past it –
+ * it lands flat.
+ */
+const LAND = spring(13, 1);
+/** It fades over the last of the way: from this far out of the drawing. */
+const FADE_FROM = 0.4;
+/** Fading never takes less than this (s) – where nothing flies, just this. */
+const FADE = 0.16;
 /** Slowing down while spinning freely (per second). */
 const FRICTION = 1.8;
 /** Below this speed (rad/s) the spring takes hold again … */
@@ -74,6 +84,7 @@ export const StickerView = ({
   stamp,
   inset = 12,
   onShown,
+  flyBack = false,
   className,
 }: {
   stamp: StickerInput;
@@ -84,19 +95,44 @@ export const StickerView = ({
   inset?: number;
   /** Once the first frame is on screen – face-on, just like the drawing. */
   onShown?: () => void;
+  /**
+   * Removed from an AnimatePresence, it flies back onto the drawing and
+   * fades before it goes.
+   */
+  flyBack?: boolean;
   className?: string;
 }) => {
   const host = useRef<HTMLDivElement>(null);
   const shown = useEffectEvent(() => onShown?.());
   const padding = useEffectEvent(() => inset);
+  // Whoever doesn't fly back keeps out of the presence it is in – a sheet
+  // closing never waits for it.
+  const [present, safeToRemove] = usePresence(flyBack);
+  const leaving = flyBack && !present;
+  const gone = useEffectEvent(() => safeToRemove?.());
+  // Sends the live stamp back – none yet (or no 3D at all): nothing to wait
+  // for.
+  const land = useRef<(() => void) | null>(null);
+  const left = useRef(false);
+  useEffect(() => {
+    if (!leaving) return;
+    left.current = true;
+    if (land.current) land.current();
+    else gone();
+  }, [leaving]);
 
   useEffect(() => {
-    let gone = false;
+    // A new stamp while this one is leaving: there is nothing to fly back.
+    if (left.current) {
+      gone();
+      return;
+    }
+    let off = false;
     let cleanup = () => {};
     (async () => {
       const THREE = await import("three");
       const box = host.current;
-      if (gone || !box) return;
+      if (off || left.current || !box) return;
       // Antialiased: the first frames, flat like the drawing, go straight
       // onto it.
       const renderer = new THREE.WebGLRenderer({
@@ -168,6 +204,9 @@ export const StickerView = ({
         turn.copy(showcase);
         grow = 1;
       }
+      // On its way back onto the drawing – and how much of it still shows.
+      let landing = false;
+      let fade = 1;
 
       // Turned by hand – the pointer, and how far it turned it and when (for
       // the flick).
@@ -182,40 +221,35 @@ export const StickerView = ({
 
       const target = new THREE.Quaternion();
       const sway = new THREE.Quaternion();
-      const error = new THREE.Quaternion();
       const step = new THREE.Quaternion();
       const nod = new THREE.Quaternion();
       const axis = new THREE.Vector3();
       const X = new THREE.Vector3(1, 0, 0);
       const Y = new THREE.Vector3(0, 1, 0);
+      const swing = createSwing(THREE);
+      // The spring as firmly as it holds right now.
+      const held = { pull: 0, damping: 0 };
 
       /** One small step of the springs, `h` seconds. */
       const simulate = (h: number) => {
-        growing += (GROW.pull * (1 - grow) - GROW.damping * growing) * h;
+        // Out of the drawing – or back into it.
+        const size = landing ? LAND : GROW;
+        const to = landing ? 0 : 1;
+        growing += (size.pull * (to - grow) - size.damping * growing) * h;
         grow += growing * h;
         if (drag) return;
-        // The shortest way to the target – never unwinding whole turns.
-        error.copy(turn).invert().premultiply(target);
-        if (error.w < 0) error.set(-error.x, -error.y, -error.z, -error.w);
-        const sin = Math.hypot(error.x, error.y, error.z);
-        const angle = 2 * Math.atan2(sin, error.w);
-        const force = sin > 1e-6 ? (pull.pull * grip * angle) / sin : 0;
-        const damping = FRICTION + (pull.damping - FRICTION) * grip;
-        spin.x += (error.x * force - damping * spin.x) * h;
-        spin.y += (error.y * force - damping * spin.y) * h;
-        spin.z += (error.z * force - damping * spin.z) * h;
-        const speed = spin.length();
-        if (speed > 1e-6) {
-          step.setFromAxisAngle(axis.copy(spin).divideScalar(speed), speed * h);
-          turn.premultiply(step).normalize();
-        }
+        held.pull = pull.pull * grip;
+        held.damping = FRICTION + (pull.damping - FRICTION) * grip;
+        swing(turn, spin, target, held, h);
         // Slowed down, the spring catches it again.
-        if (grip < 1 && speed < CATCH) grip = Math.min(1, grip + h / CATCH_IN);
+        if (grip < 1 && spin.length() < CATCH) {
+          grip = Math.min(1, grip + h / CATCH_IN);
+        }
       };
 
       // Turning by hand – like a trackball, both ways; it follows the finger.
       const down = (event: PointerEvent) => {
-        if (drag || !event.isPrimary) return;
+        if (drag || landing || !event.isPrimary) return;
         canvas.setPointerCapture(event.pointerId);
         canvas.style.cursor = "grabbing";
         drag = {
@@ -284,20 +318,39 @@ export const StickerView = ({
           last < 0 ? 0 : Math.min(0.05, Math.max(0, now - last) / 1000);
         last = now;
         const time = (now - first) / 1000;
-        if (now - first >= HOLD) {
+        // Where less motion is asked for, nothing flies back: it just fades.
+        const flying = landing && !reduced;
+        if (flying || (now - first >= HOLD && !landing)) {
           // The sway: the target drifts a little, the spring follows.
-          const resting = !reduced && !drag && grip === 1 && time > REST;
+          const resting =
+            !reduced && !drag && !landing && grip === 1 && time > REST;
           calm +=
             ((resting ? 1 : 0) - calm) *
-            (1 - Math.exp(-dt * (resting ? 0.9 : 4)));
+            (1 - Math.exp(-dt * (resting ? 0.9 : landing ? 16 : 4)));
           sway
             .setFromAxisAngle(Y, calm * 0.08 * Math.sin(time * 0.8))
             .multiply(
               nod.setFromAxisAngle(X, calm * 0.04 * Math.sin(time * 1.1 + 1))
             );
-          target.copy(showcase).premultiply(sway);
+          // Face-on again, as the drawing lies – or showing itself.
+          if (landing) target.identity();
+          else target.copy(showcase).premultiply(sway);
           const n = Math.ceil(dt * 240);
           for (let i = 0; i < n; i++) simulate(dt / n);
+        }
+        if (landing) {
+          // Still all there for most of the way; over the drawing it goes.
+          const near = Math.min(1, Math.max(0, grow / FADE_FROM));
+          const to = flying ? near * near * (3 - 2 * near) : 0;
+          fade = Math.max(to, fade - dt / FADE);
+          canvas.style.opacity = fade.toFixed(3);
+          if (fade <= 0.004) {
+            // Landed: nothing left to draw.
+            cancelAnimationFrame(frame);
+            frame = 0;
+            gone();
+            return;
+          }
         }
         const s0 = flat();
         sticker.scale.setScalar(s0 + (fitted() - s0) * grow);
@@ -323,7 +376,22 @@ export const StickerView = ({
       document.addEventListener("visibilitychange", wake);
       wake();
 
+      land.current = () => {
+        if (landing) return;
+        landing = true;
+        // Out of the hand, and held firmly all the way back.
+        if (drag && canvas.hasPointerCapture(drag.id)) {
+          canvas.releasePointerCapture(drag.id);
+        }
+        drag = null;
+        grip = 1;
+        pull = LAND;
+        // What lies under it – the drawing – takes the pointer again.
+        box.style.pointerEvents = "none";
+      };
+
       cleanup = () => {
+        land.current = null;
         cancelAnimationFrame(frame);
         document.removeEventListener("visibilitychange", wake);
         observer.disconnect();
@@ -342,7 +410,7 @@ export const StickerView = ({
       // (the drawing) simply stays.
     })().catch(() => undefined);
     return () => {
-      gone = true;
+      off = true;
       cleanup();
     };
   }, [stamp]);

@@ -19,10 +19,11 @@ import { createInk, type Ink, UNDER } from "./ink";
 /**
  * The stamp in your hand, live in 3D. Carried, it is a small companion of
  * the pointer – upright, parked up-left of it, swinging a little as it goes;
- * the spot the pointer is on stays free. Pressed, it flies to that spot,
- * grows to its real size and tips over onto the page – seen from above now,
- * its back to you, its outline right where the print will be – touches,
- * squashes a little, and goes back to the pointer's side, small again.
+ * the spot the pointer is on stays free. Pressed, it is lifted over that
+ * spot – towards you, so bigger than its print, tipping over flat – and
+ * comes down on the page with a blow: seen from above now, its back to you,
+ * its outline exactly the print's as it touches. It squashes a little, comes
+ * off again (bigger once more) and goes back to the pointer's side, small.
  * Turned (`turn()`), it spins about its own axis: pressed, it lies exactly
  * as the print does.
  *
@@ -40,10 +41,10 @@ export type StampHandle = {
   /**
    * Onto this spot and back – `contact` runs as it touches (at once without
    * WebGL or with reduced motion). It stays beside the spot until it is
-   * pointed elsewhere. A press still on its way down when the next one
-   * comes lands right away – every press touches.
+   * pointed elsewhere. One press at a time: while it is still at it, the
+   * next one is refused (`false`) and nothing touches.
    */
-  press: (x: number, y: number, contact: () => void) => void;
+  press: (x: number, y: number, contact: () => void) => boolean;
   /**
    * Turned like a print with this `rotation` (degrees, clockwise) – it spins
    * there the shortest way round.
@@ -75,10 +76,18 @@ const SPAN = 2.5;
  * print's, not the wider one of whatever is nearest.
  */
 const DISTANCE = 8;
-/** A press (ms): to the page, on it, back to the pointer's side. */
-const DOWN = 190;
-const TOUCH = 70;
-const UP = 270;
+/**
+ * A press (ms), beat by beat: up over the spot (the wind-up), down onto the
+ * page (the blow), on it, off it again, back to the pointer's side.
+ */
+const BEAT = { rise: 200, slam: 90, touch: 80, off: 150, back: 260 };
+/**
+ * Lifted for the blow it is nearer to you: this much bigger than its print.
+ * On the page it is exactly the print's size – that is what makes the blow.
+ */
+const RAISE = 0.25;
+/** Coming off the page again it rises this much of that. */
+const HOP = 0.5;
 /** How much flatter – and wider – it gets while it touches. */
 const SQUASH = 0.1;
 /** Leaning into the way it is carried: radians per print width a second. */
@@ -133,8 +142,12 @@ const sway = (
   return [a, v] as const;
 };
 
-/** Down: it picks up speed and is still moving as it arrives. */
-const drive = (t: number) => t * t * (2.2 - 1.2 * t);
+/** Up for the blow: quick at first, hanging at the top. */
+const rise = (t: number) => 1 - (1 - t) ** 3;
+/** The blow: still hanging, then all at once. */
+const slam = (t: number) => t ** 3;
+/** Off the page: quick at first, slowing. */
+const hop = (t: number) => 1 - (1 - t) ** 2;
 /** Tipping over: slow, fast, slow. */
 const ease = (t: number) => t * t * (3 - 2 * t);
 /** Back: quick at first, a touch past the end, settled. */
@@ -244,9 +257,11 @@ const createHand = () => {
   let spin = 0;
   let spinSpeed = 0;
   let spinTo = 0;
-  // Where its foot is right now, and how far pressed (0 carried – 1 down).
+  // Where its foot is right now, how far pressed (0 carried – 1 flat over
+  // the page), and how high over the page (0 on it – 1 lifted for the blow).
   let at = { x: 0, y: 0 };
   let pressed = 0;
+  let high = 0;
   // Wanted on screen, how much of it is there (0–1), when it is to go.
   let shown = false;
   let presence = 0;
@@ -372,6 +387,7 @@ const createHand = () => {
     spinSpeed = 0;
     at = beside(x, y);
     pressed = 0;
+    high = 0;
   };
 
   const draw = (squash: number) => {
@@ -387,7 +403,8 @@ const createHand = () => {
     // How far down, for what must be exact as it touches (a springy way
     // back may run a touch past carried).
     const down = clamp(pressed, 0, 1);
-    view.body.scale.setScalar(mix(SMALL, 1, pressed));
+    // Lifted it is nearer – bigger; on the page exactly its print's size.
+    view.body.scale.setScalar(mix(SMALL, 1, pressed) * (1 + RAISE * high));
     // It tips over a little ahead of the rest – it comes down flat.
     view.tilt.rotation.x = mix(
       HELD,
@@ -402,9 +419,10 @@ const createHand = () => {
     // little with the lean too.
     sticker.rotation.z =
       facing + mix(spin, spinTo, down) + lean * (1 - down) * TWIST;
-    // The shadow tightens under the stamp as it comes down.
-    view.shadow.scale.setScalar(0.9 - 0.18 * down);
-    view.shadow.material.opacity = 0.3 + 0.06 * down;
+    // The shadow tightens under the stamp as it comes down – and spreads,
+    // paler, while it is lifted for the blow.
+    view.shadow.scale.setScalar((0.9 - 0.18 * down) * (1 + 0.5 * high));
+    view.shadow.material.opacity = (0.3 + 0.06 * down) * (1 - 0.5 * high);
     // Lines as wide as on a picture of a stamp this big; glitter twinkles
     // while it moves.
     ink.render(scene, camera, {
@@ -441,32 +459,47 @@ const createHand = () => {
     }
     const parked = beside(x, y);
 
-    // A press: to the spot (growing, tipping over), on the page (squashed),
-    // back beside the pointer – wherever that is by now.
+    // A press, beat by beat: lifted over the spot (bigger, tipping flat),
+    // the blow (down to the print's size), on the page (squashed), off it
+    // (bigger again), back beside the pointer – wherever that is by now.
     let squash = 0;
     if (press) {
-      const t = Math.max(0, now - press.start);
       const { from } = press;
-      const down = DOWN * clamp(1 - from.pressed, 0.35, 1);
-      if (t < down) {
-        const e = drive(t / down);
+      const spot = { x: press.x, y: press.y };
+      let t = Math.max(0, now - press.start);
+      if (t < BEAT.rise) {
+        const e = rise(t / BEAT.rise);
         pressed = mix(from.pressed, 1, e);
-        at = { x: mix(from.x, press.x, e), y: mix(from.y, press.y, e) };
+        high = e;
+        at = { x: mix(from.x, spot.x, e), y: mix(from.y, spot.y, e) };
+      } else if (t < BEAT.rise + BEAT.slam) {
+        pressed = 1;
+        high = 1 - slam((t - BEAT.rise) / BEAT.slam);
+        at = spot;
       } else {
         land();
-        if (t < down + TOUCH) {
+        t -= BEAT.rise + BEAT.slam;
+        if (t < BEAT.touch) {
           pressed = 1;
-          squash = SQUASH * Math.sin((Math.PI * (t - down)) / TOUCH);
-          at = { x: press.x, y: press.y };
-        } else if (t < down + TOUCH + UP) {
-          const e = settle((t - down - TOUCH) / UP);
+          high = 0;
+          squash = SQUASH * Math.sin((Math.PI * t) / BEAT.touch);
+          at = spot;
+        } else if (t < BEAT.touch + BEAT.off) {
+          pressed = 1;
+          high = HOP * hop((t - BEAT.touch) / BEAT.off);
+          at = spot;
+        } else if (t < BEAT.touch + BEAT.off + BEAT.back) {
+          const u = (t - BEAT.touch - BEAT.off) / BEAT.back;
+          const e = settle(u);
           pressed = 1 - e;
-          at = { x: mix(press.x, parked.x, e), y: mix(press.y, parked.y, e) };
+          high = HOP * (1 - u) ** 2;
+          at = { x: mix(spot.x, parked.x, e), y: mix(spot.y, parked.y, e) };
         } else press = null;
       }
     }
     if (!press) {
       pressed = 0;
+      high = 0;
       at = parked;
     }
 
@@ -517,9 +550,10 @@ const createHand = () => {
     press: (toX: number, toY: number, contact: () => void) => {
       if (!view?.sticker) {
         contact();
-        return;
+        return true;
       }
-      land();
+      // Still at the last one – this one doesn't happen.
+      if (press) return false;
       // Afterwards it is beside this spot – a finger doesn't point first,
       // and then the stamp is simply there as it taps.
       px = toX;
@@ -541,6 +575,7 @@ const createHand = () => {
         };
       }
       wake();
+      return true;
     },
 
     turn: (degrees: number) => {

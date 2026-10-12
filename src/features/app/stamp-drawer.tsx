@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence } from "motion/react";
 import {
   type ChangeEvent,
   type PointerEvent,
@@ -26,6 +27,7 @@ import { knownKey } from "@/features/calendar/palette";
 import { usePalette } from "@/features/calendar/palette-provider";
 import { Glitter, ShapeOutline, StampSvg } from "@/features/calendar/stamp-svg";
 import { createStamp } from "@/features/offline/store";
+import type { StickerInput } from "@/features/stickers/build";
 import { STAGE, StickerView } from "@/features/stickers/sticker-view";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
@@ -42,8 +44,6 @@ const STEPS_BACK = 100;
 const MIN_STEP = 0.006;
 /** The drawing's distance from the stage's edge (px) – `inset-3` below. */
 const INSET = 12;
-/** How long the drawing and the 3D stamp take to swap (ms). */
-const SWAP = 300;
 /** An uploaded picture may be this big (bytes) – drawings are small. */
 const MAX_UPLOAD = 1_000_000;
 
@@ -128,7 +128,8 @@ const layer = (on: boolean) =>
  * (it fades), doodle onto it – or upload a picture (SVG) and draw on – and
  * when done the drawing turns into the stamp right where it is: a 3D rubber
  * stamp to look at from every side, then to stamp with, as often as you
- * like. Saved on the device at once, synced later.
+ * like. Back to drawing, the stamp flies back onto its drawing the way it
+ * came. Saved on the device at once, synced later.
  */
 export const StampDrawer = ({
   calendar,
@@ -170,19 +171,18 @@ export const StampDrawer = ({
   const [shared, setShared] = useState(false);
   const [error, setError] = useState(false);
   const drawing = useRef(false);
-  // The 3D view – a new one each time (0: none), kept until it has faded.
+  // The 3D view – a new one each time, counted – and the stamp it shows: the
+  // drawing as it was made into one.
   const [view, setView] = useState(0);
+  const [made, setMade] = useState<StickerInput | null>(null);
   // Its first frame is on screen: the drawing can fade away under it.
   const [shown, setShown] = useState(false);
-  const leave = useRef<ReturnType<typeof setTimeout>>(undefined);
   const draws = stage === "draw";
   const empty = !(strokes.length || fills.length);
 
   // three.js loads while drawing – the stamp is quick to appear.
   useEffect(() => {
     void import("three");
-    void import("three/examples/jsm/environments/RoomEnvironment.js");
-    return () => clearTimeout(leave.current);
   }, []);
 
   // ⌘Z / Ctrl+Z a step back, with Shift (or Ctrl+Y) forward again – while
@@ -298,17 +298,18 @@ export const StampDrawer = ({
 
   const toStamp = () => {
     stop();
-    clearTimeout(leave.current);
     setRefused(false);
     setShown(false);
+    setMade(sticker);
     setView((n) => n + 1);
     setStage("3d");
   };
 
+  // The drawing comes back under the stamp, which flies onto it and fades
+  // (out of its presence, it stays until it has landed).
   const toDrawing = () => {
     setStage("draw");
     setShown(false);
-    leave.current = setTimeout(() => setView(0), SWAP);
   };
 
   const onSave = async () => {
@@ -443,19 +444,20 @@ export const StampDrawer = ({
             <Notice tone="error">{t.app.draw.uploadFailed}</Notice>
           </div>
         )}
-        {view > 0 && (
-          // Right over the drawing – its first frame looks just like it.
-          <StickerView
-            className={cn(
-              "absolute inset-0 transition-opacity duration-300",
-              draws && "pointer-events-none opacity-0"
-            )}
-            inset={INSET}
-            key={view}
-            onShown={() => setShown(true)}
-            stamp={sticker}
-          />
-        )}
+        <AnimatePresence>
+          {!draws && made && (
+            // Right over the drawing – its first frame looks just like it,
+            // and so does its last.
+            <StickerView
+              className="absolute inset-0"
+              flyBack
+              inset={INSET}
+              key={view}
+              onShown={() => setShown(true)}
+              stamp={made}
+            />
+          )}
+        </AnimatePresence>
         {!draws && (
           <>
             <Sparkle className="pointer-events-none absolute -top-3 -left-2 h-7 w-7 animate-boop text-ink [animation-delay:700ms]" />

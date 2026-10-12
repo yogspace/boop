@@ -1,6 +1,6 @@
 "use client";
 
-import { domAnimation, LazyMotion, MotionConfig } from "motion/react";
+import { domMax, LazyMotion, MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
 
 /**
@@ -8,12 +8,15 @@ import type { ReactNode } from "react";
  * turning in. Plain CSS stays for the small things (hover, the boiling
  * lines, a pulsing dot).
  *
- * Only `m.*` components, never `motion.*`: `LazyMotion` brings just the DOM
- * animation features, and `strict` makes a stray `motion.*` throw. Whoever
- * asked for less motion gets none of the transforms – opacity still fades.
+ * Only `m.*` components, never `motion.*`: `LazyMotion` brings the features
+ * once, and `strict` makes a stray `motion.*` throw. `domMax`, not the
+ * smaller `domAnimation`: that one has no layout animations (`layout`,
+ * `layoutId` – the languages' underline, components/locale-switch.tsx).
+ * Whoever asked for less motion gets none of the transforms – opacity still
+ * fades.
  */
 export const MotionProvider = ({ children }: { children: ReactNode }) => (
-  <LazyMotion features={domAnimation} strict>
+  <LazyMotion features={domMax} strict>
     <MotionConfig reducedMotion="user">{children}</MotionConfig>
   </LazyMotion>
 );

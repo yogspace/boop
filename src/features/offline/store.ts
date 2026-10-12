@@ -1,10 +1,11 @@
 "use client";
 
-import { proxy, useSnapshot } from "valtio";
+import { proxy, type Snapshot, useSnapshot } from "valtio";
 import {
   fetchMe,
   logout as logoutRequest,
   type Me,
+  sessionOver,
 } from "@/features/accounts/client";
 import {
   type CalendarDoc,
@@ -17,6 +18,7 @@ import {
   type StampShape,
   stampDoc,
 } from "@/features/calendar/model";
+import { shownColor } from "@/features/calendar/tint";
 import type {
   Change,
   SyncRequest,
@@ -41,6 +43,21 @@ type Docs<T> = Record<string, T>;
 
 type OutboxEntry = { seq: number; change: Change };
 
+/**
+ * What someone set for a calendar for themselves alone – how they see it,
+ * not what it is. Its color, the view it opens in; to come: its
+ * notifications. See “Own settings” below.
+ */
+export type CalendarPrefs = {
+  /** Their own color for it – none: the calendar's. */
+  color?: ColorName;
+  /** The view it opens in – none: today. */
+  view?: CalendarView;
+};
+
+/** How a calendar shows: today's page, or the month as an overview. */
+export type CalendarView = "today" | "month";
+
 export type BoopState = {
   status: "loading" | "ready" | "signedOut" | "offlineNoAccount";
   me: Me | null;
@@ -53,6 +70,11 @@ export type BoopState = {
   placements: Docs<PlacementDoc>;
   /** Names of the people in the account's calendars, by id. */
   people: Record<string, string>;
+  /**
+   * The account's own settings per calendar, by its id – read with `prefOf`
+   * and `colorOf`, never directly (“Own settings” below).
+   */
+  prefs: Docs<CalendarPrefs>;
 };
 
 const KIND = {
@@ -71,6 +93,7 @@ export const boop = proxy<BoopState>({
   stamps: {},
   placements: {},
   people: {},
+  prefs: {},
 });
 
 let outbox: OutboxEntry[] = [];
@@ -98,6 +121,12 @@ let started = false;
 export const start = async () => {
   if (started) return;
   started = true;
+  // The last login here was for one browser session, and that is over
+  // (accounts/client.ts): what it left on this device goes before any of it
+  // is read – calendars, stamps, prints, the outbox and all of `meta` (who,
+  // since when, the own settings). What follows finds a device without an
+  // account, and takes the usual way to the login.
+  if (sessionOver()) await clearAll();
   const [
     calendars,
     stamps,
@@ -107,6 +136,7 @@ export const start = async () => {
     people,
     savedSince,
     savedKnown,
+    prefs,
   ] = await Promise.all([
     getAll<CalendarDoc>("calendars"),
     getAll<KeptStampDoc>("stamps"),
@@ -116,6 +146,7 @@ export const start = async () => {
     getMeta<Record<string, string>>("people"),
     getMeta<string>("since"),
     getMeta<string[]>("known"),
+    getMeta<Docs<CalendarPrefs>>(PREFS),
   ]);
   outbox = entries.sort((a, b) => a.seq - b.seq);
   since = savedSince ?? null;
@@ -134,6 +165,7 @@ export const start = async () => {
     stamps: byId(stamps.map(stampDoc)),
     placements: byId(placements),
     people: people ?? {},
+    prefs: prefs ?? {},
     me: me ?? null,
   });
 
@@ -183,7 +215,7 @@ export const signedIn = async (account: Me) => {
     outbox = [];
     since = null;
     known = [];
-    set({ calendars: {}, stamps: {}, placements: {}, people: {} });
+    set({ calendars: {}, stamps: {}, placements: {}, people: {}, prefs: {} });
   }
   await write([{ store: "meta", put: account, key: "me" }]);
   set({ me: account, status: "ready" });
@@ -363,6 +395,15 @@ export const shareStamp = async (id: string, sharedWith: string[]) => {
   await enqueue({ type: "stamp", id, changedAt, data: { sharedWith } });
 };
 
+/** A stamp's name – or none (""). Its owner's call, like the sharing. */
+export const renameStamp = async (id: string, name: string) => {
+  const doc = boop.stamps[id];
+  if (!doc || doc.owner !== boop.me?.id) return;
+  const changedAt = now();
+  await keep("stamp", { ...plain(doc), name, changedAt });
+  await enqueue({ type: "stamp", id, changedAt, data: { name } });
+};
+
 export const deleteStamp = async (id: string) => {
   const doc = boop.stamps[id];
   if (!doc) return;
@@ -491,7 +532,7 @@ const dropCalendar = async (id: string) => {
       ops.push({ store: "placements", delete: p.id });
     }
   }
-  await write([...ops, ...tidyStamps()]);
+  await write([...ops, ...tidyStamps(), ...tidyPrefs()]);
 };
 
 /**
@@ -522,6 +563,74 @@ const tidyStamps = (shared?: Set<string>): Op[] => {
     }
   }
   return ops;
+};
+
+// ── Own settings ────────────────────────────────────────────────────────────
+
+/**
+ * What the account set for a calendar for itself alone (`CalendarPrefs`) is
+ * kept on this device only: in the store's `prefs` and in IndexedDB (`meta`,
+ * under `PREFS`) – loaded with the rest (`start`), gone with the device's
+ * copy (logout, another account logging in) and with a calendar that leaves
+ * the device (`tidyPrefs`). No server, no sync, no outbox: another device of
+ * the same account knows nothing of them.
+ *
+ * They are to move to the account – with the notifications, which the server
+ * has to know of. So nothing but the functions here touches `boop.prefs` or
+ * its `meta` entry: `prefOf` and `colorOf` read, `setCalendarPref` writes.
+ * Swap what is behind those three, and the app follows.
+ */
+const PREFS = "prefs";
+
+/** The store as a component has it (`useBoop()`) – or the store itself. */
+type WithPrefs = Snapshot<Pick<BoopState, "prefs">>;
+
+const NO_PREFS: Readonly<CalendarPrefs> = {};
+
+/**
+ * The account's own settings for a calendar – none yet: an empty one. Hand
+ * it the store from `useBoop()`, so the component draws anew when they
+ * change.
+ */
+export const prefOf = (
+  state: WithPrefs,
+  calendar: string
+): Readonly<CalendarPrefs> => state.prefs[calendar] ?? NO_PREFS;
+
+/**
+ * The color the account sees a calendar in – everywhere it shows: its own
+ * for it, else the calendar's (`shownColor`, calendar/tint.ts).
+ */
+export const colorOf = (
+  state: WithPrefs,
+  calendar: { id: string; color: ColorName }
+): ColorName => shownColor(calendar, prefOf(state, calendar.id).color);
+
+/**
+ * Sets some of the account's own settings for a calendar – `null` takes one
+ * back. At once, like every change here; nothing to send.
+ */
+export const setCalendarPref = async (
+  id: string,
+  patch: { [K in keyof CalendarPrefs]?: CalendarPrefs[K] | null }
+) => {
+  if (!boop.calendars[id]) return;
+  const next = Object.fromEntries(
+    Object.entries({ ...boop.prefs[id], ...patch }).filter(
+      ([, value]) => value != null
+    )
+  ) as CalendarPrefs;
+  if (Object.keys(next).length) boop.prefs[id] = next;
+  else delete boop.prefs[id];
+  await write([{ store: "meta", put: plain(boop.prefs), key: PREFS }]);
+};
+
+/** No settings stay for a calendar that is off this device. */
+const tidyPrefs = (): Op[] => {
+  const gone = Object.keys(boop.prefs).filter((id) => !boop.calendars[id]);
+  if (!gone.length) return [];
+  for (const id of gone) delete boop.prefs[id];
+  return [{ store: "meta", put: plain(boop.prefs), key: PREFS }];
 };
 
 // ── Sync ────────────────────────────────────────────────────────────────────
@@ -672,6 +781,8 @@ const merge = async (result: SyncResponse) => {
   }
   // The stamps follow the calendars – and what others no longer share goes.
   ops.push(...tidyStamps(result.shared && new Set(result.shared)));
+  // So do the account's own settings for them.
+  ops.push(...tidyPrefs());
 
   const people = Object.fromEntries(
     result.people.map((person) => [person.id, person.name])
@@ -707,6 +818,7 @@ export const logout = async () => {
     stamps: {},
     placements: {},
     people: {},
+    prefs: {},
   });
   return true;
 };

@@ -12,6 +12,7 @@ import { createFirstCalendar } from "@/features/calendar/membership";
 import { purgeCalendar } from "@/features/sync/apply";
 import { LOCALES } from "@/i18n/config";
 import { rateLimit } from "@/lib/rate-limit";
+import { REMEMBER_SECONDS } from "./cookie";
 import {
   RESET_HOURS,
   resetHtml,
@@ -19,6 +20,7 @@ import {
   verifyHtml,
   verifySubject,
 } from "./emails";
+import { INACTIVE_MONTHS, UNVERIFIED_DAYS, WARNING_DAYS } from "./retention";
 import { sessionEndpoints } from "./session";
 
 /**
@@ -26,7 +28,9 @@ import { sessionEndpoints } from "./session";
  * a mail to confirm the address – only confirmed accounts log in; a
  * forgotten password gets a mail with a link. Everyone gets a first
  * calendar at sign-up. Deleting an account takes its calendars, stamps and
- * placements along (see `removeData`).
+ * placements along (see `removeData`) – also when the daily cleanup deletes
+ * one: a sign-up never confirmed, or an account long unused (retention.ts,
+ * cleanup.ts).
  *
  * An account sees and changes only itself; the admin sees all.
  */
@@ -89,7 +93,8 @@ const addFirstCalendar: CollectionAfterChangeHook = async ({
 /**
  * Before an account goes: its calendars are deleted (the other members'
  * devices learn of it by the marker), it leaves the others' calendars, and
- * its stamps and the stamps it placed elsewhere are removed.
+ * its stamps and the stamps it placed elsewhere are removed – with its
+ * stamps' prints, whoever made them, and the invitations it sent.
  */
 const removeData: CollectionBeforeDeleteHook = async ({ id, req }) => {
   const account = String(id);
@@ -139,9 +144,27 @@ const removeData: CollectionBeforeDeleteHook = async ({ id, req }) => {
     });
   }
 
+  // What it stamped elsewhere – and every print of its stamps, also those
+  // others made with them: a deleted stamp takes its prints along, as in
+  // the app (sync/apply.ts).
+  const stamps = await payload.find({
+    collection: "stamps",
+    where: { owner: { equals: account } },
+    select: { owner: true },
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    req,
+  });
+  const stampIds = stamps.docs.map((stamp) => String(stamp.id));
   await payload.update({
     collection: "placements",
-    where: { placedBy: { equals: account } },
+    where: {
+      or: [
+        { placedBy: { equals: account } },
+        ...(stampIds.length ? [{ stamp: { in: stampIds } }] : []),
+      ],
+    },
     data: { deleted: true, changedAt: now },
     context: { sync: true },
     overrideAccess: true,
@@ -152,6 +175,14 @@ const removeData: CollectionBeforeDeleteHook = async ({ id, req }) => {
     where: { owner: { equals: account } },
     data: { deleted: true, name: "", drawing: null, changedAt: now },
     context: { sync: true },
+    overrideAccess: true,
+    req,
+  });
+
+  // The invitations it sent wait for nobody now – the addresses in them go.
+  await payload.delete({
+    collection: "invites",
+    where: { invitedBy: { equals: account } },
     overrideAccess: true,
     req,
   });
@@ -170,8 +201,9 @@ export const Accounts: CollectionConfig = {
       generateEmailSubject: (args) => resetSubject(args?.user),
       generateEmailHTML: (args) => resetHtml(args ?? {}),
     },
-    // Logged in for 30 days on a device – the app is used daily.
-    tokenExpiration: 60 * 60 * 24 * 30,
+    // Logged in for 30 days on a device – the app is used daily. Without
+    // “stay logged in” a login is cut short (session.ts).
+    tokenExpiration: REMEMBER_SECONDS,
     maxLoginAttempts: 8,
     lockTime: 15 * 60 * 1000,
     cookies: {
@@ -192,9 +224,8 @@ export const Accounts: CollectionConfig = {
   admin: {
     group: "People",
     useAsTitle: "email",
-    defaultColumns: ["name", "email", "_verified", "locale", "createdAt"],
-    description:
-      "People using Boop. Deleting an account removes its calendars, its stamps and what it placed elsewhere.",
+    defaultColumns: ["name", "email", "_verified", "lastSeenAt", "createdAt"],
+    description: `People using Boop. Deleting an account removes its calendars, its stamps and what it placed elsewhere. Sign-ups never confirmed go after ${UNVERIFIED_DAYS} days; accounts unused for ${INACTIVE_MONTHS} months after a warning mail.`,
   },
   fields: [
     { name: "name", type: "text", required: true, maxLength: 40 },
@@ -205,6 +236,33 @@ export const Accounts: CollectionConfig = {
       required: true,
       defaultValue: "de",
       options: [...LOCALES],
+    },
+    // When it was last there, and when it was warned it will go for not
+    // being there (retention.ts) – written by the server alone: at a login,
+    // a sync, the daily cleanup. No one sets them through the API.
+    {
+      name: "lastSeenAt",
+      type: "date",
+      index: true,
+      access: { create: () => false, update: () => false },
+      admin: {
+        readOnly: true,
+        position: "sidebar",
+        date: { pickerAppearance: "dayAndTime" },
+        description: `Last login or sync – once a day at most. Unused for ${INACTIVE_MONTHS} months, the account is deleted, after a mail ${WARNING_DAYS} days ahead.`,
+      },
+    },
+    {
+      name: "deletionWarnedAt",
+      type: "date",
+      index: true,
+      access: { create: () => false, update: () => false },
+      admin: {
+        readOnly: true,
+        position: "sidebar",
+        date: { pickerAppearance: "dayAndTime" },
+        description: `When the mail “your account goes in ${WARNING_DAYS} days” went out. Any login or sync takes it back.`,
+      },
     },
   ],
   // Login, logout, “me”, new password – into the app's own cookie.

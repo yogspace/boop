@@ -11,15 +11,24 @@ import { cn } from "@/lib/cn";
 /**
  * The languages, in the bar on top of every page. Changing one keeps the
  * page: only the language at the front of the address is swapped – the rest
- * (a calendar in the app, a link's token) stays – no page transition, the
- * page only changes its words. The one in use is underlined; the line slides
- * over to the one picked at once, before the new page is there.
+ * (a calendar in the app, a link's token) stays. The one in use is
+ * underlined; the line slides over to the one picked at once.
+ *
+ * A page whose words come from the server is loaded anew in the other
+ * language – without a page transition, but React builds everything below
+ * the language again. A page that can change its words itself (the app)
+ * passes `onPick`: then nothing is loaded or built anew – the address is
+ * only rewritten (Next keeps its router in step with `history`), the
+ * document's language set, and the page told.
  */
 export const LocaleSwitch = ({
   locale,
+  onPick,
   className,
 }: {
   locale: Locale;
+  /** Changes the words in place – instead of loading the page anew. */
+  onPick?: (locale: Locale) => void;
   className?: string;
 }) => {
   const pathname = usePathname() ?? `/${locale}`;
@@ -36,30 +45,50 @@ export const LocaleSwitch = ({
     <span
       className={cn("flex gap-2 font-medium text-muted text-sm", className)}
     >
-      {LOCALES.map((other) => (
-        <NextLink
-          aria-current={other === locale ? "page" : undefined}
-          className={cn(
-            "relative font-black uppercase transition-colors hover:text-ink",
-            other === picked && "text-ink"
-          )}
-          href={`/${other}${rest}${tail}`}
-          hrefLang={other}
-          key={other}
-          onClick={() => setPicked(other)}
-          scroll={false}
-        >
-          {other}
-          {other === picked && (
-            <m.span
-              aria-hidden="true"
-              className="scribble-underline pointer-events-none absolute! inset-0 [--scribble-width:2.5px]"
-              layoutId="locale-underline"
-              transition={SPRING.soft}
-            />
-          )}
-        </NextLink>
-      ))}
+      {LOCALES.map((other) => {
+        const href = `/${other}${rest}${tail}`;
+        return (
+          <NextLink
+            aria-current={other === locale ? "page" : undefined}
+            className={cn(
+              "relative font-black uppercase transition-colors hover:text-ink",
+              other === picked && "text-ink"
+            )}
+            href={href}
+            hrefLang={other}
+            key={other}
+            onClick={(event) => {
+              setPicked(other);
+              // A new tab or window still gets the address itself.
+              if (
+                !onPick ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.button !== 0
+              ) {
+                return;
+              }
+              event.preventDefault();
+              if (other === locale) return;
+              window.history.replaceState(null, "", href);
+              document.documentElement.lang = other;
+              onPick(other);
+            }}
+            scroll={false}
+          >
+            {other}
+            {other === picked && (
+              <m.span
+                aria-hidden="true"
+                className="scribble-underline pointer-events-none absolute! inset-0 [--scribble-width:2.5px]"
+                layoutId="locale-underline"
+                transition={SPRING.soft}
+              />
+            )}
+          </NextLink>
+        );
+      })}
     </span>
   );
 };

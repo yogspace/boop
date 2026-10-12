@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   ACTION_GROUPS,
   ACTION_NAMES,
@@ -162,6 +162,27 @@ describe("rate-limit", () => {
     expect(tooMany("5.6.7.8", 20)).toBe(false);
     // After the window, again.
     expect(tooMany("1.2.3.4", 1100)).toBe(false);
+  });
+
+  it("forgets a caller one window after its last request – by itself", () => {
+    vi.useFakeTimers();
+    try {
+      const tooMany = rateLimit({ limit: 2, windowMs: 1000 });
+      tooMany("1.2.3.4");
+      vi.advanceTimersByTime(600);
+      tooMany("1.2.3.4");
+      expect(tooMany.remembered()).toBe(1);
+      // A refused request doesn't keep it any longer.
+      vi.advanceTimersByTime(300);
+      expect(tooMany("1.2.3.4")).toBe(true);
+      // One window after the last counted request: gone, nobody asking.
+      vi.advanceTimersByTime(699);
+      expect(tooMany.remembered()).toBe(1);
+      vi.advanceTimersByTime(1);
+      expect(tooMany.remembered()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("reads the first forwarded address", () => {

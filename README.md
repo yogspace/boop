@@ -20,8 +20,8 @@ Each feature lives in `src/features/<name>/` and brings its own collections, glo
 | Feature | What it does |
 |---|---|
 | `admin` | CMS logins (`users`), first admin from the environment, Seeds page |
-| `accounts` | People using Boop (`accounts`): email + password, verification and reset mails (DE/EN), a first calendar at sign-up, cleanup on delete; the app's own login cookie (`session.ts`); account forms |
-| `calendar` | `calendars`, `stamps`, `placements`, `invites` and the shared model (`model.ts`); member endpoints (share by email, remove, leave); invitations by mail for addresses without an account (`invites.ts`); shapes and rim patterns (`outline.ts`), SVG import (`import-svg.ts`), the stamp colors from the CMS (`palette.ts`), the flat stamp/print renderer (`stamp-svg.tsx`) |
+| `accounts` | People using Boop (`accounts`): email + password, verification and reset mails (DE/EN), a first calendar at sign-up, cleanup on delete; the app's own login cookie (`session.ts`, `cookie.ts`) with the account's ways out – its data as a JSON file (`export.ts`), deleting itself with its password; account forms |
+| `calendar` | `calendars`, `stamps`, `placements`, `invites` and the shared model (`model.ts`); member endpoints (share by email, remove, leave); invitations by mail for addresses without an account, good for 14 days (`invites.ts`, `invite-expiry.ts`); shapes and rim patterns (`outline.ts`), SVG import (`import-svg.ts`), the stamp colors from the CMS (`palette.ts`), the flat stamp/print renderer (`stamp-svg.tsx`) |
 | `sync` | `POST /api/sync` – the app's only way to read and write calendar data – and `GET /api/sync/live`, the live nudges (see below) |
 | `stickers` | Stamps in 3D (three.js): the model with raised doodle and “boop” watermark (`build.ts`), the cartoon ink-line renderer (`ink.ts`) and the special stamps' sparkles (`glitter.ts`), pictures for lists (`render.ts`), the live view (`sticker-view.tsx`), the stamp in hand (`stamp-hand.tsx`), STL export for 3D printing (`export-stl.ts`) |
 | `transitions` | Page transitions with the View Transitions API |
@@ -58,6 +58,12 @@ A print (`placements`) records the ink pad it was made with (`ink`). It shows wh
 
 Two kinds of login: admins (`users`, Payload's cookie `boop-token`) and accounts. Payload keeps all auth collections in one cookie, so an app login would lock the admin out. Accounts therefore get their own cookie, `boop-session` (`features/accounts/session.ts`). It replaces Payload's login, logout, “me” and reset endpoints for `accounts` and checks the token with Payload's own strategies. App endpoints find their account with `sessionAccount(req)` and refuse cookie requests from other origins.
 
+A login lasts 30 days on a device. With “stay logged in” unticked (the login form's box, ticked by default) the cookie has no expiry – the browser drops it when it closes – and its token ends after a day.
+
+An account changes its name, downloads its data as a JSON file (`POST /api/accounts/me/export`) and deletes itself (`DELETE /api/accounts/me` with its password) from the app's account sheet; deleting takes its calendars, its stamps with their prints, what it stamped elsewhere and the invitations it sent along.
+
+Accounts don't stay forever (`features/accounts/retention.ts`, run by the daily cleanup): a sign-up never confirmed goes after 30 days; an account unused for 24 months gets a mail and goes 30 days later. “Used” is `lastSeenAt`, noted at a login and a sync (once a day at most); a login or sync after the mail takes it back. An account without `lastSeenAt` counts as seen today, and without a delivered mail (no Resend, or Resend refused) nobody is warned – and so nobody deleted. At most 50 accounts are warned and 50 deleted per run.
+
 Payload's default access ("any logged-in user") would let accounts in everywhere, so **every collection and global sets access explicitly** via `src/access` (`adminOnly`, `isAdmin`). The calendar collections are admin-only over REST; accounts go through the sync, member and invitation endpoints.
 
 ## Development
@@ -86,7 +92,7 @@ Boop uses **Satoshi** (Indian Type Foundry, ITF Free Font License) as a self-hos
 Repository **variables** (public, baked into the build): `NEXT_PUBLIC_SERVER_URL`, `MAIL_FROM`, optional `GOOGLE_SITE_VERIFICATION`.
 Repository **secrets**: `HETZNER_HOST`, `HETZNER_USER`, `HETZNER_SSH_KEY`, `PAYLOAD_SECRET`, `RESEND_API_KEY`, `CRON_SECRET`, `MAIL_STATS_RECIPIENT`, `MAIL_CONTACT_RECIPIENT`, optional `PAYLOAD_ADMIN_EMAIL`/`PAYLOAD_ADMIN_PASSWORD` (first admin).
 
-The server's `.env` is rewritten from them on every deploy. The daily statistics report runs by cron (`scripts/setup-cron.sh`, installed by the deploy; log: `journalctl -t boop-cron`).
+The server's `.env` is rewritten from them on every deploy. Two daily crons (`scripts/setup-cron.sh`, installed by the deploy; log: `journalctl -t boop-cron`): the statistics report (`/next/cron/stats-digest`) and the cleanup (`/next/cron/cleanup` – expired invitations, unconfirmed sign-ups, unused accounts; see Access). The cleanup answers with counts only; `?dry=1` shows what it would do without doing it.
 
 ## SEO
 

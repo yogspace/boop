@@ -5,18 +5,24 @@ import type { Snapshot } from "valtio";
 import { Bang } from "@/components/doodles";
 import { Button, Checkbox } from "@/components/ui";
 import type { StampDoc } from "@/features/calendar/model";
-import { deleteStamp, shareStamp, useBoop } from "@/features/offline/store";
+import {
+  deleteStamp,
+  renameStamp,
+  shareStamp,
+  useBoop,
+} from "@/features/offline/store";
 import { PRINT_MM, stampStl, stlName } from "@/features/stickers/export-stl";
 import { STAGE, StickerView } from "@/features/stickers/sticker-view";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
+import { NameForm } from "./dialogs";
 import { Sheet } from "./sheet";
 
 /**
  * One stamp up close: turning in 3D, as a file for a 3D printer – to build
- * it for real. Its owner also says who else may stamp with it – the members
- * of which calendars, none to begin with – and deletes it. Anyone else
- * reads whose it is.
+ * it for real. Its owner also names it anew, says who else may stamp with
+ * it – the members of which calendars, none to begin with – and deletes it.
+ * Anyone else reads whose it is.
  */
 export const StampSheet = ({
   stamp,
@@ -89,6 +95,16 @@ export const StampSheet = ({
       <p className="font-medium text-muted text-xs">
         {t.app.stamp.hint(PRINT_MM)}
       </p>
+      {mine && (
+        <NameForm
+          label={t.app.draw.name}
+          maxLength={40}
+          name={stamp.name}
+          onSave={(name) => void renameStamp(stamp.id, name)}
+          placeholder={t.app.draw.namePlaceholder}
+          save={t.app.save}
+        />
+      )}
       {mine && (
         <div className="flex flex-col gap-2">
           <h3 className="font-black text-lg">{t.app.stamp.share}</h3>

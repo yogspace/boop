@@ -12,10 +12,111 @@ import { Sheet } from "./sheet";
 
 /**
  * The app's own little dialogs – instead of the browser's prompt and
- * confirm boxes: naming a calendar, and making sure before something goes.
+ * confirm boxes: naming a calendar, and making sure before something goes –
+ * and the parts of them other sheets use too: the colors to pick from, a
+ * name to change where it stands.
  */
 
-/** A calendar's name (and color) – new or changed. */
+/**
+ * The stamp colors as ink blots to pick from – the picked one gets a
+ * scribbled ring. A color the palette no longer has shows as the first –
+ * and stays what it is until another is picked. `children`: a line about
+ * the pick, below the blots.
+ */
+export const ColorPicker = ({
+  locale,
+  value,
+  onChange,
+  children,
+}: {
+  locale: Locale;
+  value: ColorName;
+  onChange: (color: ColorName) => void;
+  children?: ReactNode;
+}) => {
+  const t = dictionaryOf(locale);
+  const palette = usePalette();
+  const shown = knownKey(value, palette);
+  return (
+    <fieldset className="flex flex-wrap items-center gap-3.5">
+      <legend className="mb-3 font-bold text-sm">{t.app.draw.color}</legend>
+      {palette.map(({ key: c, hex, name: names }) => (
+        <button
+          aria-label={names[locale]}
+          aria-pressed={shown === c}
+          className={cn(
+            "scribble scribble-sm scribble-clear h-9 w-9 rounded-full transition-transform duration-150 [--scribble-inset:-5px] [--scribble-ring:-9px] [filter:var(--scribble-c)]",
+            shown === c ? "scale-110" : "scribble-bare hover:scale-110"
+          )}
+          key={c}
+          onClick={() => onChange(c)}
+          style={{ background: hex }}
+          type="button"
+        />
+      ))}
+      {children && <div className="w-full">{children}</div>}
+    </fieldset>
+  );
+};
+
+/**
+ * A name to change where it stands: its field, and beside it the button
+ * that keeps it – awake only while the name differs from the one kept.
+ * Without `required` no name at all is fine, too.
+ */
+export const NameForm = ({
+  label,
+  name,
+  maxLength,
+  required = false,
+  placeholder,
+  save,
+  onSave,
+}: {
+  label: string;
+  /** The name as it is kept. */
+  name: string;
+  maxLength: number;
+  required?: boolean;
+  placeholder?: string;
+  /** What the button says. */
+  save: string;
+  onSave: (name: string) => void;
+}) => {
+  const [value, setValue] = useState(name);
+  // Renamed elsewhere meanwhile (another device): that is its name now.
+  const [kept, setKept] = useState(name);
+  if (kept !== name) {
+    setKept(name);
+    setValue(name);
+  }
+  const clean = value.trim().slice(0, maxLength);
+  const changed = clean !== name && !(required && !clean);
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!changed) return;
+    onSave(clean);
+    setValue(clean);
+  };
+  return (
+    <form className="flex items-end gap-2.5" onSubmit={submit}>
+      <Field
+        className="min-w-0 flex-1"
+        label={label}
+        maxLength={maxLength}
+        onChange={(event) => setValue(event.target.value)}
+        placeholder={placeholder}
+        required={required}
+        value={value}
+      />
+      <Button className="h-12" disabled={!changed} type="submit">
+        {save}
+      </Button>
+    </form>
+  );
+};
+
+/** A new calendar: its name and its color. */
 export const CalendarSheet = ({
   locale,
   title,
@@ -36,10 +137,6 @@ export const CalendarSheet = ({
   const t = dictionaryOf(locale);
   const [name, setName] = useState(initialName);
   const [color, setColor] = useState<ColorName>(initialColor);
-  // The stamp colors to pick from. A calendar whose color the palette no
-  // longer has shows in the first – and keeps its own until another is picked.
-  const palette = usePalette();
-  const shown = knownKey(color, palette);
   const save = (event: FormEvent) => {
     event.preventDefault();
     const clean = name.trim().slice(0, 60);
@@ -59,24 +156,7 @@ export const CalendarSheet = ({
           required
           value={name}
         />
-        {/* Ink blots to pick from – the picked one gets a scribbled ring. */}
-        <fieldset className="flex flex-wrap items-center gap-3.5">
-          <legend className="mb-3 font-bold text-sm">{t.app.draw.color}</legend>
-          {palette.map(({ key: c, hex, name: names }) => (
-            <button
-              aria-label={names[locale]}
-              aria-pressed={shown === c}
-              className={cn(
-                "scribble scribble-sm scribble-clear h-9 w-9 rounded-full transition-transform duration-150 [--scribble-inset:-5px] [--scribble-ring:-9px] [filter:var(--scribble-c)]",
-                shown === c ? "scale-110" : "scribble-bare hover:scale-110"
-              )}
-              key={c}
-              onClick={() => setColor(c)}
-              style={{ background: hex }}
-              type="button"
-            />
-          ))}
-        </fieldset>
+        <ColorPicker locale={locale} onChange={setColor} value={color} />
         <div className="flex justify-end gap-2">
           <Button onClick={onClose} variant="ghost">
             {t.app.draw.cancel}

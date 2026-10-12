@@ -1,8 +1,14 @@
 "use client";
 
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import {
+  type FormEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 import type { Snapshot } from "valtio";
-import { Mail } from "@/components/doodles";
+import { Bang, Mail } from "@/components/doodles";
 import { Button, Field, Notice } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import type { CalendarDoc } from "@/features/calendar/model";
@@ -12,9 +18,10 @@ import { dictionaryOf } from "@/i18n/dictionaries";
 import { Sheet } from "./sheet";
 
 /**
- * Who is in a calendar – the owner invites by email (an account joins at
- * once, an address without one gets an invitation by mail) and removes
- * people; a member can leave. Needs a connection: the server decides.
+ * Sharing a calendar – its owner's: inviting by email (an account joins at
+ * once, an address without one gets an invitation by mail) and taking an
+ * invitation back. Below, who is in it already (`Members`). Needs a
+ * connection: the server decides.
  */
 export const ShareSheet = ({
   calendar,
@@ -26,7 +33,7 @@ export const ShareSheet = ({
   onClose: () => void;
 }) => {
   const t = dictionaryOf(locale);
-  const { me, people, online } = useBoop();
+  const { me, online } = useBoop();
   const [email, setEmail] = useState("");
   const [notice, setNotice] = useState<{
     tone: "success" | "error";
@@ -83,17 +90,6 @@ export const ShareSheet = ({
     }
   };
 
-  const remove = async (account: string) => {
-    setBusy(true);
-    await fetch(`${base}/members/${account}`, {
-      method: "DELETE",
-      credentials: "include",
-    }).catch(() => null);
-    setBusy(false);
-    await sync();
-    if (account === me?.id) onClose();
-  };
-
   const revoke = async (id: string) => {
     setBusy(true);
     await fetch(`${base}/invites/${id}`, {
@@ -124,39 +120,7 @@ export const ShareSheet = ({
         </form>
       )}
       {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
-      <div>
-        <h3 className="mb-2 font-black text-lg">{t.app.share.members}</h3>
-        <ul className="flex flex-col gap-2">
-          {calendar.members.map((id) => (
-            <li
-              className="scribble scribble-bare scribble-soft flex items-center justify-between gap-2 rounded-2xl px-3 py-2"
-              key={id}
-            >
-              <span className="flex items-center gap-2 font-bold">
-                <span className="scribble scribble-sm scribble-thin flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black text-sm">
-                  {(people[id] ?? "?").slice(0, 1).toUpperCase()}
-                </span>
-                {people[id] ?? "…"}
-                {id === calendar.owner && (
-                  <span className="font-medium text-muted text-sm">
-                    · {t.app.share.owner}
-                  </span>
-                )}
-              </span>
-              {owner && id !== calendar.owner && (
-                <Button
-                  disabled={busy || !online}
-                  onClick={() => remove(id)}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {t.app.share.remove}
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
+      <Members calendar={calendar} locale={locale} />
       {owner && invites.length > 0 && (
         <div>
           <h3 className="mb-2 font-black text-lg">
@@ -185,15 +149,158 @@ export const ShareSheet = ({
           </ul>
         </div>
       )}
-      {!owner && me && (
+      <LeaveCalendar calendar={calendar} locale={locale} onLeft={onClose} />
+    </Sheet>
+  );
+};
+
+/**
+ * Takes an account out of a calendar – the owner someone else, a member
+ * themselves. The server's call; the next sync brings what came of it.
+ */
+const takeOut = (calendar: string, account: string) =>
+  fetch(`/api/calendars/${calendar}/members/${account}`, {
+    method: "DELETE",
+    credentials: "include",
+  }).catch(() => null);
+
+/**
+ * Who is in a calendar, the owner marked – in the share sheet and in the
+ * calendar's settings. The owner removes people; anyone else just reads
+ * (their own way out: `LeaveCalendar`). Needs a connection: the server
+ * decides.
+ */
+export const Members = ({
+  calendar,
+  locale,
+  quiet = false,
+  action,
+}: {
+  calendar: Snapshot<CalendarDoc>;
+  locale: Locale;
+  /** The heading as a label, like a field's – one of several in a form. */
+  quiet?: boolean;
+  /** Something to do beside the heading – the way to the invitations. */
+  action?: ReactNode;
+}) => {
+  const t = dictionaryOf(locale);
+  const { me, people, online } = useBoop();
+  const [busy, setBusy] = useState(false);
+  const owner = calendar.owner === me?.id;
+
+  const remove = async (account: string) => {
+    setBusy(true);
+    await takeOut(calendar.id, account);
+    setBusy(false);
+    await sync();
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className={quiet ? "font-bold text-sm" : "font-black text-lg"}>
+          {t.app.share.members}
+        </h3>
+        {action}
+      </div>
+      <ul className="flex flex-col gap-2">
+        {calendar.members.map((id) => (
+          <li
+            className="scribble scribble-bare scribble-soft flex items-center justify-between gap-2 rounded-2xl px-3 py-2"
+            key={id}
+          >
+            <span className="flex min-w-0 items-center gap-2 font-bold">
+              <span className="scribble scribble-sm scribble-thin flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-black text-sm">
+                {(people[id] ?? "?").slice(0, 1).toUpperCase()}
+              </span>
+              <span className="wrap-break-word min-w-0">
+                {people[id] ?? "…"}
+              </span>
+              {id === calendar.owner && (
+                <span className="shrink-0 font-medium text-muted text-sm">
+                  · {t.app.share.owner}
+                </span>
+              )}
+            </span>
+            {owner && id !== calendar.owner && (
+              <Button
+                disabled={busy || !online}
+                onClick={() => remove(id)}
+                size="sm"
+                variant="ghost"
+              >
+                {t.app.share.remove}
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+/**
+ * A member's way out of a calendar that isn't theirs (`onLeft`: gone from
+ * it – whatever showed the calendar closes). Needs a connection, too.
+ */
+export const LeaveCalendar = ({
+  calendar,
+  locale,
+  onLeft,
+}: {
+  calendar: Snapshot<CalendarDoc>;
+  locale: Locale;
+  onLeft: () => void;
+}) => {
+  const t = dictionaryOf(locale);
+  const { me, online, people } = useBoop();
+  const [busy, setBusy] = useState(false);
+  // Asked once – coming back takes the owner's invitation.
+  const [asked, setAsked] = useState(false);
+  if (!me || calendar.owner === me.id) return null;
+
+  const leave = async () => {
+    setBusy(true);
+    await takeOut(calendar.id, me.id);
+    setBusy(false);
+    await sync();
+    onLeft();
+  };
+
+  if (!asked) {
+    return (
+      <Button
+        className="self-start"
+        disabled={!online}
+        onClick={() => setAsked(true)}
+        size="sm"
+        variant="ghost"
+      >
+        {t.app.share.leave}
+      </Button>
+    );
+  }
+  return (
+    <div className="scribble scribble-bold flex animate-fade flex-col gap-3 rounded-2xl p-4">
+      <p className="flex items-start gap-2.5 font-bold">
+        <Bang className="h-6 w-6 shrink-0" />
+        <span className="wrap-break-word min-w-0">
+          {t.app.share.leaveAsk(people[calendar.owner] ?? "…")}
+        </span>
+      </p>
+      <div className="flex justify-end gap-2">
+        <Button onClick={() => setAsked(false)} size="sm" variant="ghost">
+          {t.app.draw.cancel}
+        </Button>
         <Button
           disabled={busy || !online}
-          onClick={() => remove(me.id)}
-          variant="plain"
+          onClick={leave}
+          size="sm"
+          variant="danger"
         >
-          {t.app.share.leave}
+          {t.app.share.leaveYes}
         </Button>
-      )}
-    </Sheet>
+      </div>
+    </div>
   );
 };

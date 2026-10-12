@@ -3,7 +3,6 @@ import { hexOf } from "@/features/calendar/palette";
 import {
   buildSticker,
   disposeSticker,
-  pose,
   type StickerInput,
   stage,
 } from "./build";
@@ -11,25 +10,47 @@ import { addGlitter } from "./glitter";
 import { createInk, type Ink } from "./ink";
 
 /**
- * Stamps as pictures: one hidden WebGL canvas renders each stamp once per
- * pose into an image URL. Lists, trays and pages show those pictures; only
- * the stamp being made or looked at turns live (sticker-view.tsx). Kept per
- * stamp version, rendered one after another.
+ * Stamps as pictures: one hidden WebGL canvas – the studio – renders each
+ * stamp once per pose into an image URL. Lists, trays and pages show those
+ * pictures; a stamp turning to the pointer is drawn in the same studio,
+ * frame by frame (look.ts), and only the one being made or looked at up
+ * close has a canvas of its own (sticker-view.tsx). Kept per stamp version,
+ * rendered one after another.
  */
 
-const SIZE = 320;
+/** The pictures' size (px) – square. */
+export const SIZE = 320;
 /** Drawn this many times finer and averaged down – smooth lines. */
 const FINER = 2;
+/**
+ * The pictures are taken from far off, with a long lens: the face – nearest
+ * to the camera – isn't blown up over what is behind it. The drawing keeps
+ * its proportions, and the knob shows behind the block at a gentler angle.
+ */
+const DISTANCE = 8;
 
 /**
- * The pictures' angle – gentler than `pose()`'s: turned just enough to show
- * the block's side, the face (the drawing) still easy to read.
+ * The pictures' angle. The face – the drawing – comes first: it looks at you,
+ * tipped forward only as far as it takes for the knob to look out over the
+ * block's top edge, on every shape. The round, the square and the eight-sided
+ * ones hide it longest: tipped by 0.64 or less it is gone there (a triangle
+ * and a diamond show it much sooner) – and tipped further the drawing only
+ * gets flatter. Hardly turned sideways: there the knob would go behind a
+ * square's corner.
  */
-const FACE_TURN = [0.38, 0.3, -0.06] as const;
+const FACE_TURN = [0.7, 0.1, -0.04] as const;
+/** Upright, knob up, seen from a little above – as it comes down on a day. */
+const PRESS_TURN = [Math.PI / 2 + 0.42, 0.5, 0] as const;
 
 export type Pose = "face" | "press";
 
-type Studio = {
+/** Turns a stamp as its picture shows it. */
+export const pose = (sticker: Three.Object3D, kind: Pose) => {
+  const [x, y, z] = kind === "face" ? FACE_TURN : PRESS_TURN;
+  sticker.rotation.set(x, y, z);
+};
+
+export type Studio = {
   THREE: typeof Three;
   renderer: Three.WebGLRenderer;
   scene: Three.Scene;
@@ -41,23 +62,51 @@ type Studio = {
 
 let studio: Promise<Studio> | null = null;
 
-const open = () => {
-  studio ??= (async () => {
-    const THREE = await import("three");
-    const canvas = document.createElement("canvas");
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      alpha: true,
-      antialias: false,
-      preserveDrawingBuffer: true,
-    });
-    renderer.setPixelRatio(1);
-    renderer.setSize(SIZE, SIZE, false);
-    const { scene, camera } = stage(THREE);
-    const ink = createInk(THREE, renderer, { supersample: FINER });
-    const view = 2 * camera.position.z * Math.tan((camera.fov * Math.PI) / 360);
-    return { THREE, renderer, scene, camera, ink, unit: SIZE / view };
-  })();
+const build = async (): Promise<Studio> => {
+  const THREE = await import("three");
+  const canvas = document.createElement("canvas");
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    alpha: true,
+    antialias: false,
+    preserveDrawingBuffer: true,
+  });
+  renderer.setPixelRatio(1);
+  renderer.setSize(SIZE, SIZE, false);
+  const { scene, camera } = stage(THREE);
+  const ink = createInk(THREE, renderer, { supersample: FINER });
+  // What the stage's camera sees of the stamp's plane – the same from
+  // further away.
+  const view = 2 * camera.position.z * Math.tan((camera.fov * Math.PI) / 360);
+  camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(view / 2 / DISTANCE));
+  camera.position.z = DISTANCE;
+  camera.updateProjectionMatrix();
+  return { THREE, renderer, scene, camera, ink, unit: SIZE / view };
+};
+
+/** The browser took the studio's WebGL context away – it draws nothing. */
+export const studioLost = ({ renderer }: Studio) =>
+  renderer.getContext().isContextLost();
+
+/**
+ * The studio – opened when the first picture is asked for. Whoever draws in
+ * it puts a stamp into its scene, draws and takes it out again, all in one
+ * go: nothing stays in there between two pictures.
+ *
+ * A page gets only so many WebGL contexts, and the oldest – this one, most
+ * likely – is the first to go when there are too many: then a new studio
+ * opens.
+ */
+export const openStudio = async (): Promise<Studio> => {
+  studio ??= build();
+  const mine = studio;
+  const open = await mine;
+  if (!studioLost(open)) return open;
+  if (studio === mine) {
+    open.ink.dispose();
+    open.renderer.dispose();
+    studio = build();
+  }
   return studio;
 };
 
@@ -70,7 +119,7 @@ let queue: Promise<unknown> = Promise.resolve();
  * A short fingerprint of what the stamp looks like – the whole drawing goes
  * in (strokes, filled areas, whatever it holds).
  */
-const stickerKey = (input: StickerInput, kind: Pose = "face") => {
+export const stickerKey = (input: StickerInput, kind: Pose = "face") => {
   let hash = 0;
   // By the color it shows in, not its name – the CMS may change it.
   const text = `${kind}|${input.shape}|${hexOf(input.color)}|${JSON.stringify(input.drawing)}`;
@@ -89,15 +138,25 @@ export const stickerImage = (
   const hit = cache.get(key);
   if (hit) return hit;
   const job = queue.then(async () => {
-    const { THREE, renderer, scene, camera, ink, unit } = await open();
-    const sticker = buildSticker(THREE, input);
-    addGlitter(THREE, sticker, input);
-    if (kind === "face") sticker.rotation.set(...FACE_TURN);
-    else pose(sticker, kind);
-    scene.add(sticker);
-    ink.render(scene, camera, { unit });
-    scene.remove(sticker);
+    let open = await openStudio();
+    const sticker = buildSticker(open.THREE, input);
+    addGlitter(open.THREE, sticker, input);
+    pose(sticker, kind);
+    const draw = ({ scene, camera, ink, unit }: Studio) => {
+      scene.add(sticker);
+      ink.render(scene, camera, { unit });
+      scene.remove(sticker);
+    };
+    draw(open);
+    if (studioLost(open)) {
+      // Drawn into nothing: once more, in a new studio.
+      open = await openStudio();
+      draw(open);
+    }
     disposeSticker(sticker);
+    // An empty picture is none – better the flat drawing than a gap.
+    if (studioLost(open)) throw new Error("No picture");
+    const { renderer } = open;
     const blob = await new Promise<Blob | null>((resolve) =>
       renderer.domElement.toBlob(resolve, "image/png")
     );

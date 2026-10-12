@@ -26,7 +26,7 @@ const PRINTS: Record<number, string[]> = {
 
 /**
  * Where the floating stickers hang around the card – `depth`: how near they
- * are, so how much they follow the pointer.
+ * are, so how far they drift after the pointer.
  */
 const FLOATING = [
   {
@@ -59,25 +59,25 @@ const FLOATING = [
   },
 ];
 
-/** How far off the pointer still turns a sticker all the way (px). */
+/** How far off the pointer still moves the scene all the way (px). */
 const REACH = 420;
-/** The most a sticker leans (deg) and drifts (px) – times its depth. */
-const LEAN = 16;
+/** The most a sticker drifts (px) – times its depth. */
 const DRIFT = 8;
 
 /** The card's turn – a touch towards the pointer (x, y: −1…1). */
 const cardTurn = (x = 0, y = 0) =>
   `rotateX(${14 - y * 2.5}deg) rotateY(${-16 + x * 3}deg) rotateZ(2deg)`;
 
-/** A sticker leaning towards the pointer and drifting to it a little. */
-const lean = (x: number, y: number, depth: number) =>
-  `translate3d(${x * DRIFT * depth}px, ${y * DRIFT * depth}px, 0) perspective(500px) rotateX(${-y * LEAN * depth}deg) rotateY(${x * LEAN * depth}deg)`;
+/** A sticker drifting to the pointer a little. */
+const drift = (x: number, y: number, depth: number) =>
+  `translate3d(${x * DRIFT * depth}px, ${y * DRIFT * depth}px, 0)`;
 
 /**
- * The scene follows the pointer: the stickers (`data-depth`) lean towards it
- * and drift a little, the card (`data-card`) turns a touch. Each on a soft
- * spring, the nearer ones quicker. Written straight to the elements – no
- * renders; off for touch and reduced motion.
+ * The scene follows the pointer: the stickers (`data-depth`) drift towards
+ * it a little, the card (`data-card`) turns a touch. Each on a soft spring,
+ * the nearer ones quicker. Written straight to the elements – no renders;
+ * off for touch and reduced motion. (The stickers turn to the pointer by
+ * themselves – really, in 3D: `look` below.)
  */
 const useFollow = (scene: React.RefObject<HTMLDivElement | null>) => {
   useEffect(() => {
@@ -98,7 +98,7 @@ const useFollow = (scene: React.RefObject<HTMLDivElement | null>) => {
         el,
         turn: el.dataset.card
           ? cardTurn
-          : (x: number, y: number) => lean(x, y, depth),
+          : (x: number, y: number) => drift(x, y, depth),
         stiffness,
         // A little under critical – it settles with a soft bounce.
         damping: 2 * Math.sqrt(stiffness) * 0.62,
@@ -198,10 +198,10 @@ const useFollow = (scene: React.RefObject<HTMLDivElement | null>) => {
 
 /**
  * The front page's picture: a month in a tilted 3D card, prints on its days,
- * 3D stamps floating around it – turning to the pointer. The card is
- * drawn with the marker (a scribbled sheet, a ruled table, the weekend
- * hatched, today's number in an ink blob); the stamps and their prints are
- * the color.
+ * 3D stamps floating around it – their faces turning to the pointer,
+ * wherever it is. The card is drawn with the marker (a scribbled sheet, a
+ * ruled table, the weekend hatched, today's number in an ink blob); the
+ * stamps and their prints are the color.
  */
 export const HeroScene = ({ locale }: { locale: Locale }) => {
   const t = dictionaryOf(locale);
@@ -294,7 +294,7 @@ export const HeroScene = ({ locale }: { locale: Locale }) => {
               } as React.CSSProperties
             }
           >
-            <Sticker stamp={demoStamp(item.key)} />
+            <Sticker look="always" stamp={demoStamp(item.key)} />
           </div>
         </div>
       ))}

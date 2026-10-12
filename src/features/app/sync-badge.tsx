@@ -1,7 +1,7 @@
 "use client";
 
 import { m } from "motion/react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Check, Cross, Dot } from "@/components/doodles";
 import { SPRING } from "@/components/motion";
 import { Button, ROUND_BUTTON } from "@/components/ui";
@@ -9,6 +9,7 @@ import { sync, useBoop } from "@/features/offline/store";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
+import { useDismiss } from "./use-dismiss";
 
 /**
  * Online or not, and whether changes still wait. Only a sign, round like the
@@ -46,31 +47,8 @@ export const SyncBadge = ({ locale }: { locale: Locale }) => {
     setOpen(!open);
   };
 
-  // Our own light dismiss: a press anywhere but on the badge or the note,
-  // or Escape – which takes the focus back to the badge if it was inside.
-  useEffect(() => {
-    if (!open) return;
-    const onPress = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (button.current?.contains(target) || note.current?.contains(target)) {
-        return;
-      }
-      setOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      if (note.current?.contains(document.activeElement)) {
-        button.current?.focus();
-      }
-      setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPress);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onPress);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  // Our own light dismiss – a press elsewhere, or Escape.
+  useDismiss(open, () => setOpen(false), button, note);
 
   return (
     <>

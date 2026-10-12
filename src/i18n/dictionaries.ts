@@ -1,3 +1,4 @@
+import { INVITE_DAYS } from "../features/calendar/invite-expiry";
 import type { Locale } from "./config";
 
 /**
@@ -82,6 +83,9 @@ const de = {
         "Bitte bestätige zuerst deine E-Mail-Adresse – schau in dein Postfach.",
       locked:
         "Zu viele Versuche. Warte ein paar Minuten oder setz dein Passwort zurück.",
+      remember: "Angemeldet bleiben",
+      rememberOff:
+        "Ohne Haken bist du abgemeldet, sobald du den Browser schließt – spätestens nach einem Tag.",
     },
     register: {
       title: "Konto erstellen",
@@ -112,11 +116,14 @@ const de = {
       title: "Du bist eingeladen!",
       text: (from: string, calendar: string) =>
         `${from} möchte den Kalender „${calendar}“ mit dir teilen.`,
+      until: (date: string) => `Die Einladung gilt bis zum ${date} Uhr.`,
       accept: "Einladung annehmen",
       account:
         "Erstell ein kostenloses Konto oder melde dich an – dann bist du dabei.",
-      invalid:
-        "Diese Einladung gibt es nicht mehr. Frag einfach nach einer neuen.",
+      expiredTitle: "Einladung abgelaufen",
+      expired: (from: string) =>
+        `Einladungen gelten ${INVITE_DAYS} Tage – diese ist leider abgelaufen. ${from ? `Frag ${from}` : "Frag"} einfach nach einer neuen.`,
+      invalid: `Diese Einladung gibt es nicht mehr – sie wurde schon benutzt, zurückgezogen oder ist nach ${INVITE_DAYS} Tagen abgelaufen. Frag einfach nach einer neuen.`,
     },
     verify: {
       title: "Adresse bestätigen",
@@ -153,14 +160,13 @@ const de = {
     newCalendarName: "Name des Kalenders",
     calendarPlaceholder: "z. B. Familie, Sport, Reise …",
     create: "Anlegen",
-    rename: "Umbenennen",
     deleteCalendar: "Kalender löschen",
     deleteCalendarConfirm: (name: string) =>
       `„${name}“ mit allen Stempeln darauf löschen? Das lässt sich nicht rückgängig machen.`,
     noCalendar: "Noch kein Kalender – leg einen an, dann geht's los.",
     stamps: "Deine Stempel",
     noStamps: "Noch keine Stempel – mal deinen ersten!",
-    newStamp: "Stempel malen",
+    newStamp: "Neuer Stempel",
     today: "Heute",
     prev: "Vorheriger Monat",
     next: "Nächster Monat",
@@ -180,7 +186,7 @@ const de = {
     ],
     weekdays: ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"],
     draw: {
-      title: "Stempel malen",
+      title: "Neuer Stempel",
       name: "Name (optional)",
       namePlaceholder: "z. B. Sport, Regentag, Kuss …",
       color: "Farbe",
@@ -228,6 +234,8 @@ const de = {
       turnLeft: "Nach links drehen",
       turnRight: "Nach rechts drehen",
       inHand: "In der Hand",
+      picked: "Abdruck markiert.",
+      pickedKeys: "Entf oder ⌫ entfernt ihn.",
       remove: "Abdruck entfernen",
       undo: "Rückgängig",
       print: "Abdruck",
@@ -240,7 +248,7 @@ const de = {
       add: "Einladen",
       added: (name: string) => `${name} ist jetzt dabei.`,
       invited: (email: string) =>
-        `Einladung an ${email} verschickt – sobald es ein Konto gibt, ist die Person dabei.`,
+        `Einladung an ${email} verschickt – sie gilt ${INVITE_DAYS} Tage. Sobald es ein Konto gibt, ist die Person dabei.`,
       invitesTitle: "Eingeladen",
       revoke: "Zurückziehen",
       notFound: "Das hat nicht geklappt.",
@@ -248,6 +256,36 @@ const de = {
       owner: "Besitzer:in",
       remove: "Entfernen",
       leave: "Kalender verlassen",
+      leaveAsk: (owner: string) =>
+        `Wirklich verlassen? Du siehst ihn dann nicht mehr – zurück kommst du nur, wenn ${owner} dich wieder einlädt.`,
+      leaveYes: "Ja, verlassen",
+    },
+    save: "Speichern",
+    settings: {
+      title: "Einstellungen",
+      shared: {
+        title: "Für alle",
+        owner:
+          "Der Kalender selbst – was du hier änderst, ändert sich für alle darin.",
+        member: (name: string) =>
+          `Der Kalender selbst – das legt ${name} fest.`,
+      },
+      own: {
+        title: "Nur für dich",
+        text: "Das stellt jede:r für sich ein.",
+        colorOwner: "Deine Farbe. Wer selbst keine wählt, sieht sie auch.",
+        colorMember:
+          "Nur bei dir, auf diesem Gerät – die anderen sehen ihre eigene Farbe.",
+        colorReset: "Wie der Kalender",
+      },
+      deleteShared: (others: number) =>
+        others === 1
+          ? "Er ist dann auch für die andere Person weg."
+          : `Er ist dann auch für die ${others} anderen weg.`,
+      deleteNext: "Ja, weg damit",
+      deleteType: (name: string) =>
+        `Ganz sicher? Dann tipp zur Bestätigung seinen Namen ein: ${name}`,
+      deleteForGood: "Endgültig löschen",
     },
     stamp: {
       untitled: "Stempel",
@@ -267,6 +305,37 @@ const de = {
         "Diesen Stempel löschen? Auch seine Abdrücke verschwinden.",
     },
     account: "Konto",
+    accountSheet: {
+      title: "Konto",
+      name: "Dein Name – so sehen dich die anderen",
+      nameFailed:
+        "Der Name ließ sich nicht speichern. Versuch es bitte noch einmal.",
+      email: (email: string) => `Angemeldet als ${email}`,
+      stored:
+        "Bei Boop liegen dein Name, deine E-Mail-Adresse und was du anlegst: Kalender, Stempel und Abdrücke.",
+      privacy: "Mehr im Datenschutz",
+      exportTitle: "Deine Daten",
+      exportText:
+        "Dein Konto, deine Kalender, Stempel, Abdrücke und Einladungen in einer Datei (JSON).",
+      export: "Daten herunterladen",
+      exportFailed:
+        "Das Herunterladen hat nicht geklappt. Versuch es bitte noch einmal.",
+      delete: "Konto löschen",
+      deleteLead:
+        "Das lässt sich nicht rückgängig machen. Für immer weg sind dann:",
+      deleteGone: [
+        "deine Kalender mit allen Abdrücken – auch für alle, mit denen du sie teilst",
+        "deine Stempel und ihre Abdrücke, auch in den Kalendern anderer",
+        "alles, was du in den Kalendern anderer gestempelt hast",
+        "dein Konto selbst und die Einladungen, die du verschickt hast",
+      ],
+      deleteTip:
+        "Magst du etwas behalten? Dann lad vorher deine Daten herunter.",
+      password: "Zur Sicherheit: dein Passwort",
+      deleteForGood: "Konto endgültig löschen",
+      wrongPassword: "Das Passwort stimmt nicht.",
+      tooMany: "Zu viele Versuche. Warte ein paar Minuten.",
+    },
     logout: "Abmelden",
     logoutOffline: "Zum Abmelden brauchst du eine Verbindung.",
     logoutPending: (n: number) =>
@@ -360,6 +429,9 @@ const en: Shape<Dictionary> = {
       wrong: "Email or password don't match.",
       unverified: "Please confirm your email address first – check your inbox.",
       locked: "Too many tries. Wait a few minutes or reset your password.",
+      remember: "Stay logged in",
+      rememberOff:
+        "Without the tick you're logged out once you close the browser – after a day at the latest.",
     },
     register: {
       title: "Create account",
@@ -390,9 +462,13 @@ const en: Shape<Dictionary> = {
       title: "You're invited!",
       text: (from: string, calendar: string) =>
         `${from} would like to share the calendar “${calendar}” with you.`,
+      until: (date: string) => `The invitation is valid until ${date}.`,
       accept: "Accept invitation",
       account: "Create a free account or log in – and you're in.",
-      invalid: "This invitation doesn't exist anymore. Just ask for a new one.",
+      expiredTitle: "Invitation expired",
+      expired: (from: string) =>
+        `Invitations are valid for ${INVITE_DAYS} days – this one has expired, sorry. Just ask ${from ? `${from} ` : ""}for a new one.`,
+      invalid: `This invitation doesn't exist anymore – it was used, taken back or expired after ${INVITE_DAYS} days. Just ask for a new one.`,
     },
     verify: {
       title: "Confirm address",
@@ -429,14 +505,13 @@ const en: Shape<Dictionary> = {
     newCalendarName: "Calendar name",
     calendarPlaceholder: "e.g. family, workouts, trip …",
     create: "Create",
-    rename: "Rename",
     deleteCalendar: "Delete calendar",
     deleteCalendarConfirm: (name: string) =>
       `Delete “${name}” with all its stamps? This can't be undone.`,
     noCalendar: "No calendar yet – make one to get going.",
     stamps: "Your stamps",
     noStamps: "No stamps yet – draw your first one!",
-    newStamp: "Draw a stamp",
+    newStamp: "New stamp",
     today: "Today",
     prev: "Previous month",
     next: "Next month",
@@ -456,7 +531,7 @@ const en: Shape<Dictionary> = {
     ],
     weekdays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     draw: {
-      title: "Draw a stamp",
+      title: "New stamp",
       name: "Name (optional)",
       namePlaceholder: "e.g. workout, rainy day, kiss …",
       color: "Color",
@@ -504,6 +579,8 @@ const en: Shape<Dictionary> = {
       turnLeft: "Turn left",
       turnRight: "Turn right",
       inHand: "In your hand",
+      picked: "Print selected.",
+      pickedKeys: "Delete or ⌫ removes it.",
       remove: "Remove print",
       undo: "Undo",
       print: "Print",
@@ -516,7 +593,7 @@ const en: Shape<Dictionary> = {
       add: "Invite",
       added: (name: string) => `${name} is in now.`,
       invited: (email: string) =>
-        `Invitation sent to ${email} – they're in once they have an account.`,
+        `Invitation sent to ${email} – it's valid for ${INVITE_DAYS} days. They're in once they have an account.`,
       invitesTitle: "Invited",
       revoke: "Take back",
       notFound: "That didn't work.",
@@ -524,6 +601,35 @@ const en: Shape<Dictionary> = {
       owner: "Owner",
       remove: "Remove",
       leave: "Leave calendar",
+      leaveAsk: (owner: string) =>
+        `Really leave? You won't see it any more – you only get back in if ${owner} invites you again.`,
+      leaveYes: "Yes, leave",
+    },
+    save: "Save",
+    settings: {
+      title: "Settings",
+      shared: {
+        title: "For everyone",
+        owner:
+          "The calendar itself – what you change here changes for everyone in it.",
+        member: (name: string) => `The calendar itself – that's up to ${name}.`,
+      },
+      own: {
+        title: "Just for you",
+        text: "Everyone sets this for themselves.",
+        colorOwner: "Your color. Whoever doesn't pick one sees it too.",
+        colorMember:
+          "Only for you, on this device – the others see their own color.",
+        colorReset: "Same as the calendar",
+      },
+      deleteShared: (others: number) =>
+        others === 1
+          ? "It'll be gone for the other person in it, too."
+          : `It'll be gone for the ${others} others in it, too.`,
+      deleteNext: "Yes, get rid of it",
+      deleteType: (name: string) =>
+        `Really sure? Then type its name to confirm: ${name}`,
+      deleteForGood: "Delete for good",
     },
     stamp: {
       untitled: "Stamp",
@@ -542,6 +648,33 @@ const en: Shape<Dictionary> = {
       deleteConfirm: "Delete this stamp? Its prints go too.",
     },
     account: "Account",
+    accountSheet: {
+      title: "Account",
+      name: "Your name – how the others see you",
+      nameFailed: "The name couldn't be saved. Please try again.",
+      email: (email: string) => `Logged in as ${email}`,
+      stored:
+        "Boop keeps your name, your email address and what you make: calendars, stamps and prints.",
+      privacy: "More in the privacy notes",
+      exportTitle: "Your data",
+      exportText:
+        "Your account, calendars, stamps, prints and invitations in one file (JSON).",
+      export: "Download data",
+      exportFailed: "The download didn't work. Please try again.",
+      delete: "Delete account",
+      deleteLead: "This can't be undone. Gone for good are then:",
+      deleteGone: [
+        "your calendars with all their prints – for everyone you share them with, too",
+        "your stamps and their prints, in other people's calendars too",
+        "everything you stamped in other people's calendars",
+        "your account itself and the invitations you sent",
+      ],
+      deleteTip: "Want to keep something? Then download your data first.",
+      password: "To be safe: your password",
+      deleteForGood: "Delete account for good",
+      wrongPassword: "That's not the password.",
+      tooMany: "Too many tries. Wait a few minutes.",
+    },
     logout: "Log out",
     logoutOffline: "Logging out needs a connection.",
     logoutPending: (n: number) =>

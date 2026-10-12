@@ -1,4 +1,5 @@
 import type { Endpoint } from "payload";
+import { noteSeen } from "@/features/accounts/seen";
 import { sessionAccount } from "@/features/accounts/session";
 import { calendarsOf } from "@/features/calendar/membership";
 import { sharedWithOf } from "@/features/calendar/model";
@@ -52,6 +53,8 @@ export const syncEndpoint: Endpoint = {
     if (tooMany(me)) {
       return Response.json({ error: "Too many syncs." }, { status: 429 });
     }
+    // There – not unused (accounts/retention.ts); once a day at most.
+    await noteSeen(req, account);
 
     const body = (await req.json?.().catch(() => null)) as Record<
       string,

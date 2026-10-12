@@ -96,7 +96,7 @@ const german = () =>
     p("Verantwortlich für die Verarbeitung deiner Daten ist:"),
     address(),
     p(
-      "Du erreichst mich über das Kontaktformular im Impressum oben. Name, E-Mail-Adresse und Nachricht gehen dabei per E-Mail an mich – verschickt über Resend (siehe „E-Mails über Resend“); auf der Website wird davon nichts gespeichert. Ich nutze die Angaben nur, um dir zu antworten, und lösche die Mail, wenn die Sache erledigt ist (Art. 6 Abs. 1 lit. b und f DSGVO). Gegen Missbrauch hält der Server deine IP-Adresse höchstens zehn Minuten im Arbeitsspeicher."
+      "Du erreichst mich über das Kontaktformular im Impressum oben. Name, E-Mail-Adresse und Nachricht gehen dabei per E-Mail an mich – verschickt über Resend (siehe „E-Mails über Resend“); auf der Website wird davon nichts gespeichert. Ich nutze die Angaben nur, um dir zu antworten, und lösche die Mail, wenn die Sache erledigt ist (Art. 6 Abs. 1 lit. b und f DSGVO). Gegen Missbrauch hält der Server deine IP-Adresse dabei im Arbeitsspeicher fest, höchstens zehn Minuten nach deiner letzten Nachricht (siehe „Hosting und Server-Logfiles“)."
     ),
 
     h3("Hosting und Server-Logfiles"),
@@ -107,15 +107,18 @@ const german = () =>
       "Bei jedem Aufruf verarbeitet der Server technisch notwendige Daten – IP-Adresse, Datum und Uhrzeit, aufgerufene Adresse, Browsertyp und Betriebssystem – in Server-Logfiles, um die Website auszuliefern und vor Angriffen zu schützen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO; mein berechtigtes Interesse ist ein sicherer, funktionierender Betrieb."
     ),
     p(
+      "Um Missbrauch zu bremsen – zu viele Registrierungen, Nachrichten oder Zählimpulse von einer Adresse –, hält der Server IP-Adressen außerdem im Arbeitsspeicher fest: bei der Statistik höchstens eine Minute, beim Kontaktformular höchstens zehn Minuten und bei der Registrierung höchstens eine Stunde nach der letzten Anfrage von dieser Adresse. Danach vergisst er sie von selbst; auf einen Datenträger geschrieben werden sie nie. Rechtsgrundlage ist auch hier Art. 6 Abs. 1 lit. f DSGVO."
+    ),
+    p(
       "Solange die App geöffnet ist, hält sie eine Verbindung zum Server offen, über die sie erfährt, wenn sich in deinen Kalendern etwas geändert hat – so ist sie gleich auf dem neuesten Stand. Dafür werden keine zusätzlichen Daten gespeichert."
     ),
 
     h3("Dein Konto"),
     p(
-      "Um Boop zu nutzen, legst du ein Konto an. Dafür speichere ich deine E-Mail-Adresse, deinen Anzeigenamen und die Sprache, die du gewählt hast. Dein Passwort speichere ich nie im Klartext, sondern nur als gesalzenen Hash – daraus lässt es sich nicht zurückgewinnen, auch nicht von mir. Dazu kommen technische Angaben, die die Anmeldung braucht, etwa ob deine E-Mail-Adresse bestätigt ist und wann das Konto angelegt wurde."
+      "Um Boop zu nutzen, legst du ein Konto an. Dafür speichere ich deine E-Mail-Adresse, deinen Anzeigenamen und die Sprache, die du gewählt hast. Dein Passwort speichere ich nie im Klartext, sondern nur als gesalzenen Hash – daraus lässt es sich nicht zurückgewinnen, auch nicht von mir. Dazu kommen technische Angaben, die die Anmeldung braucht: ob deine E-Mail-Adresse bestätigt ist, wann das Konto angelegt und zuletzt geändert wurde, für jede Anmeldung auf einem Gerät ein Eintrag mit Beginn und Ablauf (ohne Angaben zum Gerät), zum Schutz vor dem Ausprobieren von Passwörtern die Zahl der letzten Fehlversuche – nach zu vielen ist die Anmeldung für eine Viertelstunde gesperrt – und, für die Löschfristen unten, wann du Boop zuletzt benutzt hast (höchstens einmal am Tag notiert, beim Anmelden und wenn die App sich mit dem Server abgleicht) und gegebenenfalls, wann ich dich per E-Mail an die Löschung erinnert habe."
     ),
     p(
-      "Nach der Registrierung bekommst du eine E-Mail mit einem Link, mit dem du deine Adresse bestätigst. Hast du dein Passwort vergessen, kannst du dir eine E-Mail mit einem Link zum Zurücksetzen schicken lassen. Newsletter oder Werbung verschicke ich nicht."
+      "Nach der Registrierung bekommst du eine E-Mail mit einem Link, mit dem du deine Adresse bestätigst; bestätigst du sie nicht innerhalb von 30 Tagen, lösche ich die Anmeldung wieder. Hast du dein Passwort vergessen, kannst du dir eine E-Mail mit einem Link zum Zurücksetzen schicken lassen; er gilt eine Stunde. Newsletter oder Werbung verschicke ich nicht."
     ),
     p(
       "Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO: Ohne diese Angaben kann ich dir kein Konto anbieten."
@@ -123,13 +126,16 @@ const german = () =>
 
     h3("Deine Kalender, Stempel und Tage"),
     p(
-      "Was du in Boop anlegst, wird in deinem Konto gespeichert: deine Kalender, die Stempel, die du selbst zeichnest (die Zeichnung und ihre Farben), und die Tage, an denen du Stempel setzt – also welcher Stempel an welchem Tag in welchem Kalender liegt. So ist alles auf jedem Gerät da, auf dem du angemeldet bist."
+      "Was du in Boop anlegst, wird in deinem Konto gespeichert: deine Kalender (Name und Farbe), die Stempel, die du zeichnest (Name, Form, Farbe und die Zeichnung selbst), und deine Abdrücke – also welcher Stempel an welchem Tag in welchem Kalender liegt, wo, wie groß und wie gedreht, in welcher Farbe und von wem gesetzt. Lädst du für einen Stempel eine SVG-Datei hoch, wird sie in deinem Browser in eine Zeichnung umgewandelt; die Datei selbst wird nicht übertragen. So ist alles auf jedem Gerät da, auf dem du angemeldet bist."
     ),
     p(
-      "Einen Kalender kannst du mit anderen Boop-Konten teilen. Wer Mitglied eines Kalenders ist, sieht seinen Inhalt – die Tage und die Stempel darauf – und wer sonst noch dabei ist. Teile einen Kalender also nur mit Menschen, die das sehen sollen. Einen Kalender, den du nicht teilst, siehst nur du."
+      "Einen Kalender kannst du mit anderen Boop-Konten teilen. Wer Mitglied eines Kalenders ist, sieht seinen Inhalt – die Tage und alle Abdrücke darauf, samt der Stempel, mit denen sie gemacht wurden – und die Anzeigenamen der anderen Mitglieder; ihre E-Mail-Adressen zeigt Boop niemandem. Die Zeichnung eines Stempels liegt damit auch auf den Geräten der Mitglieder. Stempel, die du für einen Kalender freigibst, können dessen Mitglieder außerdem selbst benutzen und als Datei für den 3D-Druck herunterladen. Teile einen Kalender also nur mit Menschen, die das sehen sollen. Einen Kalender, den du nicht teilst, siehst nur du."
     ),
     p(
-      "Du kannst auch jemanden einladen, der noch kein Boop-Konto hat. Dann speichere ich die E-Mail-Adresse, die du angibst, zusammen mit dem Kalender und mit der Angabe, wer eingeladen hat, und schicke an diese Adresse eine einzige Einladungsmail (über Resend, siehe unten). Wer eingeladen wird, kann die Mail einfach ignorieren – ohne Konto passiert sonst nichts. Die Einladung wird gelöscht, sobald sie eingelöst ist, spätestens aber nach 30 Tagen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO; das berechtigte Interesse ist, dass du deinen Kalender mit Menschen teilen kannst, die du selbst auswählst."
+      "Geteilt wird über die E-Mail-Adresse: Gibt es zu der Adresse, die jemand eingibt, ein bestätigtes Boop-Konto, wird es dem Kalender sofort hinzugefügt, und wer teilt, sieht dessen Anzeigenamen. Wer deine E-Mail-Adresse kennt, kann dich also zu einem Kalender hinzufügen; du kannst ihn jederzeit wieder verlassen. Damit sich auf diesem Weg nicht reihenweise Adressen ausprobieren lassen, ist die Zahl der Versuche begrenzt."
+    ),
+    p(
+      "Du kannst auch jemanden einladen, der noch kein Boop-Konto hat. Dann speichere ich die E-Mail-Adresse, die du angibst, zusammen mit dem Kalender und mit der Angabe, wer eingeladen hat, und schicke an diese Adresse eine Einladungsmail (über Resend, siehe unten) – eine je Einladung, ohne Erinnerungen. Wer eingeladen wird, kann die Mail einfach ignorieren – ohne Konto passiert sonst nichts. Eine Einladung gilt 14 Tage; das steht auch in der Mail. Meldet sich in dieser Zeit jemand mit genau dieser Adresse bei Boop an, tritt das Konto dem Kalender bei. Die Einladung wird gelöscht, sobald sie angenommen oder von dir zurückgezogen wird, sonst nach Ablauf der 14 Tage. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO; das berechtigte Interesse ist, dass du deinen Kalender mit Menschen teilen kannst, die du selbst auswählst."
     ),
     p(
       "Suchmaschinen finden nur die öffentlichen Seiten von Boop, etwa die Startseite und diese Seite. Deine Kalender und Stempel sind nicht öffentlich und tauchen dort nicht auf."
@@ -140,18 +146,21 @@ const german = () =>
 
     h3("E-Mails über Resend"),
     p(
-      "Die E-Mails zur Bestätigung deiner Adresse, zum Zurücksetzen deines Passworts und mit Einladungen zu Kalendern sowie die Nachrichten aus dem Kontaktformular verschicke ich über den Versanddienst Resend (Resend, Inc., USA), der sie in meinem Auftrag zustellt (Auftragsverarbeitung). Resend erhält dafür die beteiligten E-Mail-Adressen und den Inhalt der jeweiligen Mail. Dabei können Daten in die USA übermittelt werden; abgesichert ist das durch die Standardvertragsklauseln der EU-Kommission (Art. 46 Abs. 2 lit. c DSGVO). Rechtsgrundlage für den Versand ist Art. 6 Abs. 1 lit. b DSGVO, bei Einladungen lit. f (siehe oben)."
+      "Die E-Mails zur Bestätigung deiner Adresse, zum Zurücksetzen deines Passworts, mit Einladungen zu Kalendern und zur Erinnerung, bevor ein lange ungenutztes Konto gelöscht wird, sowie die Nachrichten aus dem Kontaktformular verschicke ich über den Versanddienst Resend (Resend, Inc., USA), der sie in meinem Auftrag zustellt (Auftragsverarbeitung). Resend erhält dafür die beteiligten E-Mail-Adressen und den Inhalt der jeweiligen Mail. Dabei können Daten in die USA übermittelt werden; abgesichert ist das durch die Standardvertragsklauseln der EU-Kommission (Art. 46 Abs. 2 lit. c DSGVO). Rechtsgrundlage für den Versand ist Art. 6 Abs. 1 lit. b DSGVO, bei Einladungen lit. f (siehe oben)."
     ),
 
     h3("Cookies und Speicher auf deinem Gerät"),
     p(
-      "Boop setzt nur ein einziges Cookie: das Anmelde-Cookie. Es enthält ein signiertes Token, an dem der Server erkennt, dass du angemeldet bist. Beim Abmelden wird es gelöscht, sonst läuft es nach einiger Zeit von selbst ab. Weil dein Konto ohne dieses Cookie nicht funktioniert, ist es unbedingt erforderlich und braucht keine Einwilligung (§ 25 Abs. 2 Nr. 2 TDDDG). Solange du nicht angemeldet bist, setzt Boop gar keine Cookies."
+      "Boop setzt nur Cookies, die für die Anmeldung nötig sind. Das Anmelde-Cookie enthält ein signiertes Token, an dem der Server erkennt, dass du angemeldet bist; es gilt 30 Tage. Wählst du beim Anmelden „Angemeldet bleiben“ ab, gilt es nur, bis du den Browser schließt, höchstens aber einen Tag – und daneben steht ein zweites Cookie, das nichts enthält als den Hinweis, dass diese Anmeldung mit dem Browser endet. Beim Abmelden werden beide gelöscht. Weil dein Konto ohne sie nicht funktioniert, sind sie unbedingt erforderlich und brauchen keine Einwilligung (§ 25 Abs. 2 Nr. 2 TDDDG). Solange du nicht angemeldet bist, setzt Boop gar keine Cookies."
     ),
     p(
-      "Boop ist eine Web-App, die du installieren kannst und die auch ohne Internet funktioniert. Dafür legt Boop die Kalender, Stempel und Tage deines Kontos im lokalen Speicher deines Browsers ab (IndexedDB), und ein Service Worker speichert die Dateien der App zwischen, damit sie sich auch ohne Verbindung öffnet. Was du offline änderst, wird an den Server geschickt, sobald du wieder online bist."
+      "Boop ist eine Web-App, die du installieren kannst und die auch ohne Internet funktioniert. Dafür legt Boop die Kalender, Stempel und Abdrücke deines Kontos im lokalen Speicher deines Browsers ab (IndexedDB) – dazu deinen Namen und deine E-Mail-Adresse, die Anzeigenamen der Mitglieder deiner Kalender und Änderungen, die noch nicht beim Server angekommen sind –, und ein Service Worker speichert die Dateien der App zwischen, damit sie sich auch ohne Verbindung öffnet. Was du offline änderst, wird an den Server geschickt, sobald du wieder online bist."
     ),
     p(
-      "Diese Daten bleiben auf deinem Gerät. Beim Abmelden werden die dort gespeicherten Daten deines Kontos gelöscht, und über die Einstellungen deines Browsers kannst du alles jederzeit selbst entfernen. Auch dieser Speicher ist für die Funktion, die du nutzt, unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG)."
+      "Außerdem merkt sich dein Browser ein paar Kleinigkeiten (localStorage): das zuletzt gewählte Stempelkissen, eine Einladung, die du vor dem Anmelden geöffnet hast – bis zur Anmeldung –, und ob deine Anmeldung mit dem Schließen des Browsers endet."
+    ),
+    p(
+      "Diese Daten bleiben auf deinem Gerät. Beim Abmelden und wenn du dein Konto löschst, werden die dort gespeicherten Daten deines Kontos gelöscht, und über die Einstellungen deines Browsers kannst du alles jederzeit selbst entfernen. Läuft deine Anmeldung nur ab, bleiben sie auf dem Gerät, bis sich dort wieder jemand anmeldet – auf einem Gerät, das du mit anderen teilst, solltest du dich deshalb immer abmelden. Auch dieser Speicher ist für die Funktion, die du nutzt, unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG)."
     ),
     p(
       "Weitere Cookies gibt es nicht – keine Tracking- oder Werbe-Cookies und keine Analyse- oder Tracking-Dienste Dritter."
@@ -159,7 +168,7 @@ const german = () =>
 
     h3("Anonyme Statistik"),
     p(
-      "Damit ich sehe, ob und wie Boop genutzt wird, meldet die Seite beim Aufruf eine kurze Nachricht an meinen Server. Gespeichert werden nur grobe Angaben: die aufgerufene Seite, die grobe Herkunft (etwa „Google“ oder „direkt“, nie die vollständige Adresse), die Geräteklasse (Handy, Tablet oder Computer), Betriebssystem und Browser mit Hauptversion sowie der Zeitpunkt."
+      "Damit ich sehe, ob und wie Boop genutzt wird, meldet die Seite beim Aufruf einer Seite und bei einigen Aktionen – zum Beispiel „Konto erstellt“, „Stempel gesetzt“ oder „Kalender geteilt“ – eine kurze Nachricht an meinen Server. Gespeichert werden nur grobe Angaben: die aufgerufene Seite (die App zählt als eine einzige Seite; welcher Kalender offen ist, wird nicht übertragen), die grobe Herkunft (etwa „Google“ oder „direkt“, nie die vollständige Adresse), die Geräteklasse (Handy, Tablet oder Computer), Betriebssystem und Browser mit Hauptversion, bei einer Aktion ihre Art – nie ihr Inhalt – sowie der Zeitpunkt."
     ),
     p(
       "Dafür werden keine Cookies gesetzt, keine IP-Adressen gespeichert und keine Kennungen vergeben – einzelne Einträge lassen sich weder einer Person noch einem Konto zuordnen und auch nicht miteinander verknüpfen. Die Einträge werden nach 90 Tagen gelöscht. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO; mein berechtigtes Interesse ist, Boop zu verbessern. Sendet dein Browser das Signal „Global Privacy Control“, wird nichts gezählt."
@@ -167,12 +176,24 @@ const german = () =>
 
     h3("Speicherdauer und Löschung"),
     p(
-      "Deine Kontodaten und alles, was du in Boop anlegst, bleiben gespeichert, solange es dein Konto gibt. Du kannst dein Konto jederzeit löschen. Dann wird es mit allem gelöscht, was dazugehört: deine Stempel, die Tage und Stempel, die du gesetzt hast, und die Kalender, die dir gehören – auch für ihre Mitglieder. In Kalendern anderer bist du danach kein Mitglied mehr."
+      "Deine Kontodaten und alles, was du in Boop anlegst, bleiben gespeichert, solange es dein Konto gibt. Für alles andere gelten die Fristen, die oben jeweils genannt sind: Einladungen 14 Tage, die anonyme Statistik 90 Tage, Nachrichten aus dem Kontaktformular, bis die Sache erledigt ist."
+    ),
+    p(
+      "Damit keine Daten liegen bleiben, die niemand mehr braucht, räumt Boop einmal am Tag auf: Eine Registrierung, deren E-Mail-Adresse nicht innerhalb von 30 Tagen bestätigt wurde, wird gelöscht. Ein Konto, das 24 Monate lang nicht benutzt wurde – keine Anmeldung, kein Öffnen der App mit Verbindung –, wird gelöscht; 30 Tage vorher bekommst du eine E-Mail. Einmal anmelden genügt, dann bleibt alles, wie es ist. Gelöscht wird nur, wenn diese E-Mail auch verschickt werden konnte und du danach die vollen 30 Tage nicht da warst. Gelöscht wird dabei genauso wie beim Löschen von Hand (siehe unten). Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO in Verbindung mit dem Grundsatz der Speicherbegrenzung (Art. 5 Abs. 1 lit. e DSGVO)."
+    ),
+    p(
+      "Dein Konto kannst du jederzeit selbst löschen: in der App unter „Konto“ → „Konto löschen“. Zur Sicherheit fragt Boop dabei nach deinem Passwort. Gelöscht wird dann alles, was dazugehört: deine Kalender mit allen Abdrücken darauf – auch für ihre Mitglieder –, deine Stempel mit allen Abdrücken, die damit gemacht wurden, alles, was du in den Kalendern anderer gestempelt hast, und die Einladungen, die du verschickt hast. In Kalendern anderer bist du danach kein Mitglied mehr. Auf dem Gerät, auf dem du löschst, wird auch die dort gespeicherte Kopie entfernt."
+    ),
+    p(
+      "Damit die Geräte der anderen Mitglieder das Gelöschte ebenfalls entfernen, bleibt davon ein technischer Löschvermerk gespeichert. Er enthält weder deinen Namen noch deine E-Mail-Adresse noch deine Zeichnungen."
     ),
 
     h3("Deine Rechte"),
     p(
-      "Du hast das Recht auf Auskunft über deine Daten (Art. 15 DSGVO), auf Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen, die auf einem berechtigten Interesse beruhen (Art. 21 DSGVO). Schreib mir dafür einfach über das Kontaktformular oben."
+      "Du hast das Recht auf Auskunft über deine Daten (Art. 15 DSGVO), auf Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen, die auf einem berechtigten Interesse beruhen (Art. 21 DSGVO)."
+    ),
+    p(
+      "Zwei davon erledigst du direkt in der App unter „Konto“: Mit „Daten herunterladen“ bekommst du die Daten deines Kontos als Datei (JSON) – dein Konto, deine Kalender und Mitgliedschaften, deine Stempel, deine Abdrücke und die offenen Einladungen, die du verschickt hast. Mit „Konto löschen“ löschst du dein Konto samt allem, was dazugehört. Für alles andere – etwa eine andere E-Mail-Adresse – schreib mir einfach über das Kontaktformular oben."
     ),
     p(
       "Außerdem kannst du dich bei einer Datenschutzaufsichtsbehörde beschweren, zum Beispiel bei der deines Wohnorts."
@@ -215,7 +236,7 @@ const english = () =>
     p("The controller responsible for processing your data is:"),
     address(),
     p(
-      "You can reach me through the contact form in the legal notice above. Your name, email address and message reach me by email – sent through Resend (see “Emails via Resend”); nothing of it is stored on the site. I use the details only to answer you and delete the mail once the matter is settled (Art. 6 (1) (b) and (f) GDPR). Against abuse the server keeps your IP address in memory for at most ten minutes."
+      "You can reach me through the contact form in the legal notice above. Your name, email address and message reach me by email – sent through Resend (see “Emails via Resend”); nothing of it is stored on the site. I use the details only to answer you and delete the mail once the matter is settled (Art. 6 (1) (b) and (f) GDPR). Against abuse the server holds your IP address in memory as it does so, for at most ten minutes after your last message (see “Hosting and server logs”)."
     ),
 
     h3("Hosting and server logs"),
@@ -226,15 +247,18 @@ const english = () =>
       "With every request the server processes technically necessary data – IP address, date and time, requested address, browser type and operating system – in server logs, to deliver the site and protect it from attacks. Legal basis: Art. 6 (1) (f) GDPR; my legitimate interest is a secure, working service."
     ),
     p(
+      "To slow down abuse – too many sign-ups, messages or counting signals from one address – the server also holds IP addresses in memory: for the statistics at most one minute, for the contact form at most ten minutes and for signing up at most one hour after the last request from that address. Then it forgets them by itself; they are never written to disk. Legal basis, here too: Art. 6 (1) (f) GDPR."
+    ),
+    p(
       "While the app is open, it keeps a connection to the server open, through which it learns when something has changed in your calendars – so it is up to date right away. No extra data is stored for this."
     ),
 
     h3("Your account"),
     p(
-      "To use Boop, you create an account. For it I store your email address, your display name and the language you chose. I never store your password in plain text, only as a salted hash – it cannot be recovered from that, not even by me. Added to that are the technical details logging in needs, such as whether your email address is confirmed and when the account was created."
+      "To use Boop, you create an account. For it I store your email address, your display name and the language you chose. I never store your password in plain text, only as a salted hash – it cannot be recovered from that, not even by me. Added to that are the technical details logging in needs: whether your email address is confirmed, when the account was created and last changed, an entry for every login on a device with its start and its end (nothing about the device), against guessing passwords the number of recent failed tries – after too many, logging in is locked for a quarter of an hour – and, for the deletion periods below, when you last used Boop (noted once a day at most, when you log in and when the app syncs with the server) and, if it came to that, when I reminded you by email that the account would be deleted."
     ),
     p(
-      "After signing up you get an email with a link to confirm your address. If you forget your password, you can have an email sent to you with a link to reset it. I don't send newsletters or advertising."
+      "After signing up you get an email with a link to confirm your address; if you don't confirm it within 30 days, I delete the sign-up again. If you forget your password, you can have an email sent to you with a link to reset it; it is valid for one hour. I don't send newsletters or advertising."
     ),
     p(
       "Legal basis: Art. 6 (1) (b) GDPR – without these details I can't offer you an account."
@@ -242,13 +266,16 @@ const english = () =>
 
     h3("Your calendars, stamps and days"),
     p(
-      "What you create in Boop is stored in your account: your calendars, the stamps you draw yourself (the drawing and its colors), and the days you put stamps on – that is, which stamp sits on which day in which calendar. So everything is there on every device you're logged in on."
+      "What you create in Boop is stored in your account: your calendars (name and color), the stamps you draw (name, shape, color and the drawing itself), and your prints – that is, which stamp sits on which day in which calendar, where, how big and turned how, in which color and placed by whom. If you upload an SVG file for a stamp, it is turned into a drawing in your browser; the file itself is not transferred. So everything is there on every device you're logged in on."
     ),
     p(
-      "You can share a calendar with other Boop accounts. Whoever is a member of a calendar sees its content – the days and the stamps on them – and who else is in it. So only share a calendar with people who should see it. A calendar you don't share is seen only by you."
+      "You can share a calendar with other Boop accounts. Whoever is a member of a calendar sees its content – the days and all the prints on them, with the stamps they were made with – and the other members' display names; Boop shows their email addresses to nobody. A stamp's drawing is therefore on the members' devices too. Stamps you share with a calendar can also be used by its members themselves, and downloaded as a file for 3D printing. So only share a calendar with people who should see it. A calendar you don't share is seen only by you."
     ),
     p(
-      "You can also invite someone who doesn't have a Boop account yet. Then I store the email address you enter, together with the calendar and who sent the invitation, and send that address a single invitation email (via Resend, see below). Whoever is invited can simply ignore the mail – without an account, nothing else happens. The invitation is deleted once it is used, or after 30 days at the latest. Legal basis: Art. 6 (1) (f) GDPR; the legitimate interest is that you can share your calendar with people you choose yourself."
+      "Sharing goes by email address: if there is a confirmed Boop account for the address someone enters, it is added to the calendar at once, and whoever shares sees its display name. So anyone who knows your email address can add you to a calendar; you can leave it again at any time. So that addresses can't be tried out in rows this way, the number of tries is limited."
+    ),
+    p(
+      "You can also invite someone who doesn't have a Boop account yet. Then I store the email address you enter, together with the calendar and who sent the invitation, and send that address an invitation email (via Resend, see below) – one per invitation, no reminders. Whoever is invited can simply ignore the mail – without an account, nothing else happens. An invitation is valid for 14 days; the mail says so too. If someone logs in to Boop with exactly this address in that time, the account joins the calendar. The invitation is deleted once it is accepted or taken back by you, otherwise when the 14 days are over. Legal basis: Art. 6 (1) (f) GDPR; the legitimate interest is that you can share your calendar with people you choose yourself."
     ),
     p(
       "Search engines only find Boop's public pages, such as the home page and this page. Your calendars and stamps are not public and don't show up there."
@@ -259,18 +286,21 @@ const english = () =>
 
     h3("Emails via Resend"),
     p(
-      "I send the emails to confirm your address, to reset your password and to invite people to calendars, as well as the messages from the contact form, through the mail service Resend (Resend, Inc., USA), which delivers them on my behalf (data processing). For this, Resend receives the email addresses involved and the content of the mail. Data may be transferred to the USA in the process; this is safeguarded by the European Commission's standard contractual clauses (Art. 46 (2) (c) GDPR). Legal basis for sending: Art. 6 (1) (b) GDPR, for invitations Art. 6 (1) (f) GDPR (see above)."
+      "I send the emails to confirm your address, to reset your password, to invite people to calendars and to remind you before a long unused account is deleted, as well as the messages from the contact form, through the mail service Resend (Resend, Inc., USA), which delivers them on my behalf (data processing). For this, Resend receives the email addresses involved and the content of the mail. Data may be transferred to the USA in the process; this is safeguarded by the European Commission's standard contractual clauses (Art. 46 (2) (c) GDPR). Legal basis for sending: Art. 6 (1) (b) GDPR, for invitations Art. 6 (1) (f) GDPR (see above)."
     ),
 
     h3("Cookies and storage on your device"),
     p(
-      "Boop sets only one cookie: the login cookie. It holds a signed token that tells the server you're logged in. Logging out deletes it; otherwise it expires by itself after a while. Because your account can't work without it, it is strictly necessary and needs no consent (§ 25 (2) no. 2 TDDDG). As long as you're not logged in, Boop sets no cookies at all."
+      "Boop only sets cookies that logging in needs. The login cookie holds a signed token that tells the server you're logged in; it is valid for 30 days. If you untick “Stay logged in” when logging in, it only lasts until you close the browser, a day at most – and beside it there is a second cookie that holds nothing but the note that this login ends with the browser. Logging out deletes both. Because your account can't work without them, they are strictly necessary and need no consent (§ 25 (2) no. 2 TDDDG). As long as you're not logged in, Boop sets no cookies at all."
     ),
     p(
-      "Boop is a web app you can install, and it also works without internet. For that, Boop keeps your account's calendars, stamps and days in your browser's local storage (IndexedDB), and a service worker caches the app's files so it opens without a connection too. Changes you make offline are sent to the server once you're back online."
+      "Boop is a web app you can install, and it also works without internet. For that, Boop keeps your account's calendars, stamps and prints in your browser's local storage (IndexedDB) – along with your name and email address, the display names of your calendars' members and changes that haven't reached the server yet – and a service worker caches the app's files so it opens without a connection too. Changes you make offline are sent to the server once you're back online."
     ),
     p(
-      "This data stays on your device. Logging out deletes your account's data stored there, and you can remove everything yourself at any time in your browser's settings. This storage, too, is strictly necessary for the feature you use (§ 25 (2) no. 2 TDDDG)."
+      "Your browser also remembers a few small things (localStorage): the ink pad you chose last, an invitation you opened before logging in – until you log in – and whether your login ends when the browser closes."
+    ),
+    p(
+      "This data stays on your device. Logging out, and deleting your account, deletes your account's data stored there, and you can remove everything yourself at any time in your browser's settings. If your login merely runs out, it stays on the device until someone logs in there again – so on a device you share with others, always log out. This storage, too, is strictly necessary for the feature you use (§ 25 (2) no. 2 TDDDG)."
     ),
     p(
       "There are no other cookies – no tracking or advertising cookies, and no third-party analytics or tracking services."
@@ -278,7 +308,7 @@ const english = () =>
 
     h3("Anonymous statistics"),
     p(
-      "So I can see whether and how Boop is used, the site sends a short note to my server when a page is opened. Only coarse details are stored: the page, a coarse source (such as “Google” or “direct”, never the full address), the device class (phone, tablet or computer), operating system and browser with their major version, and the time."
+      "So I can see whether and how Boop is used, the site sends a short note to my server when a page is opened and on a few actions – for example “account created”, “stamp placed” or “calendar shared”. Only coarse details are stored: the page (the app counts as one single page; which calendar is open is not transferred), a coarse source (such as “Google” or “direct”, never the full address), the device class (phone, tablet or computer), operating system and browser with their major version, for an action its kind – never its content – and the time."
     ),
     p(
       "No cookies are set for this, no IP addresses stored and no identifiers assigned – single entries can neither be traced to a person or an account nor linked to each other. The entries are deleted after 90 days. Legal basis: Art. 6 (1) (f) GDPR; my legitimate interest is improving Boop. If your browser sends the “Global Privacy Control” signal, nothing is counted."
@@ -286,12 +316,24 @@ const english = () =>
 
     h3("Retention and deletion"),
     p(
-      "Your account data and everything you create in Boop is kept as long as your account exists. You can delete your account at any time. It is then deleted with everything that belongs to it: your stamps, the days and stamps you placed, and the calendars you own – for their members too. In other people's calendars you are no longer a member afterwards."
+      "Your account data and everything you create in Boop is kept as long as your account exists. For everything else the periods named above apply: invitations 14 days, the anonymous statistics 90 days, messages from the contact form until the matter is settled."
+    ),
+    p(
+      "So that no data lingers that nobody needs any more, Boop tidies up once a day: a sign-up whose email address wasn't confirmed within 30 days is deleted. An account that wasn't used for 24 months – no login, no opening the app with a connection – is deleted; 30 days before, you get an email. Logging in once is enough, and everything stays as it is. It is only deleted if that email could actually be sent and you then stayed away for the full 30 days. It is deleted just as when you delete it yourself (see below). Legal basis: Art. 6 (1) (f) GDPR together with the principle of storage limitation (Art. 5 (1) (e) GDPR)."
+    ),
+    p(
+      "You can delete your account yourself at any time: in the app under “Account” → “Delete account”. To be safe, Boop asks for your password as you do. Everything that belongs to it is then deleted: your calendars with all the prints on them – for their members too –, your stamps with all the prints made with them, everything you stamped in other people's calendars, and the invitations you sent. In other people's calendars you are no longer a member afterwards. On the device you delete it from, the copy stored there is removed as well."
+    ),
+    p(
+      "So that the other members' devices remove what was deleted as well, a technical deletion marker of it stays stored. It holds neither your name nor your email address nor your drawings."
     ),
 
     h3("Your rights"),
     p(
-      "You have the right of access to your data (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18), data portability (Art. 20) and to object to processing based on a legitimate interest (Art. 21 GDPR). Just write to me through the contact form above."
+      "You have the right of access to your data (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18), data portability (Art. 20) and to object to processing based on a legitimate interest (Art. 21 GDPR)."
+    ),
+    p(
+      "Two of these you can do right in the app under “Account”: “Download data” gives you your account's data as a file (JSON) – your account, your calendars and memberships, your stamps, your prints and the open invitations you sent. “Delete account” deletes your account with everything that belongs to it. For anything else – a different email address, say – just write to me through the contact form above."
     ),
     p(
       "You also have the right to lodge a complaint with a data protection supervisory authority, for example the one where you live."
