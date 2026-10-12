@@ -314,9 +314,13 @@ const open = async (looker: Looker) => {
       )
     );
     if (looker.gone || looker.live) return;
+    // The box may be stretched (a flex row's height): the picture is
+    // contained in it, square and centered – and so is the canvas.
     const size = Math.min(
       SIZE,
-      Math.round(host.clientWidth * window.devicePixelRatio)
+      Math.round(
+        Math.min(host.clientWidth, host.clientHeight) * window.devicePixelRatio
+      )
     );
     const canvas = document.createElement("canvas");
     const paper = canvas.getContext("2d");
@@ -334,6 +338,7 @@ const open = async (looker: Looker) => {
       inset: "0",
       width: "100%",
       height: "100%",
+      objectFit: "contain",
       pointerEvents: "none",
       opacity: "0",
     });

@@ -26,6 +26,7 @@ export interface Config {
     calendars: Calendar;
     stamps: Stamp;
     placements: Placement;
+    notes: Note;
     invites: Invite;
     'page-views': PageView;
     actions: Action;
@@ -41,6 +42,7 @@ export interface Config {
     calendars: CalendarsSelect<false> | CalendarsSelect<true>;
     stamps: StampsSelect<false> | StampsSelect<true>;
     placements: PlacementsSelect<false> | PlacementsSelect<true>;
+    notes: NotesSelect<false> | NotesSelect<true>;
     invites: InvitesSelect<false> | InvitesSelect<true>;
     'page-views': PageViewsSelect<false> | PageViewsSelect<true>;
     actions: ActionsSelect<false> | ActionsSelect<true>;
@@ -267,6 +269,31 @@ export interface Placement {
   createdAt: string;
 }
 /**
+ * What happened on a calendar's day – one note per day.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notes".
+ */
+export interface Note {
+  id: string;
+  calendar: string | Calendar;
+  date: string;
+  content?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  editedBy?: (string | null) | Account;
+  changedAt: string;
+  deleted?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * Invitations to calendars for addresses without an account. Gone once used or after 14 days.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -364,6 +391,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'placements';
         value: string | Placement;
+      } | null)
+    | ({
+        relationTo: 'notes';
+        value: string | Note;
       } | null)
     | ({
         relationTo: 'invites';
@@ -532,6 +563,21 @@ export interface PlacementsSelect<T extends boolean = true> {
   z?: T;
   ink?: T;
   placedBy?: T;
+  changedAt?: T;
+  deleted?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notes_select".
+ */
+export interface NotesSelect<T extends boolean = true> {
+  id?: T;
+  calendar?: T;
+  date?: T;
+  content?: T;
+  editedBy?: T;
   changedAt?: T;
   deleted?: T;
   updatedAt?: T;

@@ -38,7 +38,17 @@ const LONGEST = 40;
 /** A calendar whose name leaves nothing for its slug. */
 const UNNAMED: Record<Locale, string> = { de: "kalender", en: "calendar" };
 
-const UMLAUTS: Record<string, string> = { ä: "ae", ö: "oe", ü: "ue", ß: "ss" };
+/** Letters written out – the umlauts, and a few no accent can be taken off. */
+const SPELLED: Record<string, string> = {
+  ä: "ae",
+  ö: "oe",
+  ü: "ue",
+  ß: "ss",
+  æ: "ae",
+  œ: "oe",
+  ø: "o",
+  ł: "l",
+};
 
 /**
  * A name as it goes into the address: small letters, the umlauts written
@@ -50,7 +60,7 @@ export const slugOf = (name: string, locale: Locale): string => {
   const slug = name
     .normalize("NFC")
     .toLowerCase()
-    .replace(/[äöüß]/g, (letter) => UMLAUTS[letter])
+    .replace(/[äöüßæœøł]/g, (letter) => SPELLED[letter])
     .normalize("NFKD")
     .replace(/\p{M}/gu, "")
     .replace(/[^a-z0-9]+/g, "-")

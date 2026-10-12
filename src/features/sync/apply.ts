@@ -7,6 +7,7 @@ import {
   sharedWithOf,
   unit,
 } from "@/features/calendar/model";
+import { cleanNote, noteId } from "@/features/calendar/note";
 import { isColorKey } from "@/features/calendar/palette";
 import type { Change, SyncType } from "./protocol";
 
@@ -23,9 +24,12 @@ import type { Change, SyncType } from "./protocol";
  * - placement: every member of its calendar places, moves and removes – with
  *   a stamp they have: their own (in any calendar of theirs), or one shared
  *   with a calendar of theirs (in any of them, too).
+ * - note: every member of its calendar writes, empties and writes it again.
+ *   A new one's id must be its day's (`noteId`) – one note per day.
  *
  * A change older than the server's copy is no error: the later one wins,
- * and the device gets the server's copy back.
+ * and the device gets the server's copy back. So two people writing a day's
+ * note at once: whoever wrote last has it – the other's words are gone.
  *
  * A color is a stamp color's key – taken by its form alone (`isColorKey`),
  * not by what the CMS has right now: a device may be ahead of or behind the
@@ -38,6 +42,7 @@ const COLLECTION = {
   calendar: "calendars",
   stamp: "stamps",
   placement: "placements",
+  note: "notes",
 } as const satisfies Record<SyncType, string>;
 
 export type ApplyContext = {
@@ -130,7 +135,9 @@ export const applyChange = async (
   const data = change.data ?? {};
   // Nothing to delete that was never here.
   if (!existing && change.deleted) return OK;
-  if (existing?.deleted) return no("deleted");
+  // Gone is gone – but a day's note, emptied, may be written again: its id
+  // is the day's, there is no other.
+  if (existing?.deleted && change.type !== "note") return no("deleted");
 
   switch (change.type) {
     case "calendar":
@@ -139,6 +146,8 @@ export const applyChange = async (
       return applyStamp(ctx, change, existing, data, write);
     case "placement":
       return applyPlacement(ctx, change, existing, data, write);
+    case "note":
+      return applyNote(ctx, change, existing, data, write);
   }
 };
 
@@ -284,6 +293,40 @@ const applyPlacement = async (
   return OK;
 };
 
+/**
+ * A day's note: checked and trimmed (`cleanNote`) – nothing left of it, or
+ * `deleted`, and it is a marker: no text, nobody's. It stays in its
+ * calendar and on its day.
+ */
+const applyNote = async (
+  ctx: ApplyContext,
+  change: Change,
+  existing: Doc | null,
+  data: Doc,
+  write: Write
+): Promise<Outcome> => {
+  const content = change.deleted ? null : cleanNote(data.content);
+  const fields = content
+    ? { content, editedBy: ctx.me, deleted: false }
+    : { content: null, editedBy: null, deleted: true };
+  if (!existing) {
+    const calendar = String(data.calendar ?? "");
+    if (!ctx.mine.has(calendar)) return no("not a member");
+    if (!isDayKey(data.date)) return no("no day");
+    if (change.id !== noteId(calendar, data.date)) return no("not its day's");
+    // An empty one never was.
+    if (!content) return OK;
+    await write({ ...fields, calendar, date: data.date });
+    return OK;
+  }
+  const calendar = idOf(existing.calendar);
+  if (!(calendar && ctx.mine.has(calendar))) return no("not a member");
+  // Emptied twice is still empty.
+  if (!content && existing.deleted) return OK;
+  await write(fields);
+  return OK;
+};
+
 /** A stamp the account has: its own, or one shared with its calendars. */
 const canUseStamp = async (ctx: ApplyContext, id: string) => {
   const stamp = (await ctx.req.payload.findByID({
@@ -353,15 +396,17 @@ export const unshare = async (
 };
 
 /**
- * A deleted calendar keeps only its marker: its placements go for good, and
- * no stamp is shared with it any more.
+ * A deleted calendar keeps only its marker: its placements and notes go for
+ * good, and no stamp is shared with it any more.
  */
 export const purgeCalendar = async (req: PayloadRequest, id: string) => {
-  await req.payload.delete({
-    collection: "placements",
-    where: { calendar: { equals: id } },
-    overrideAccess: true,
-    req,
-  });
+  for (const collection of ["placements", "notes"] as const) {
+    await req.payload.delete({
+      collection,
+      where: { calendar: { equals: id } },
+      overrideAccess: true,
+      req,
+    });
+  }
   await unshare(req, id);
 };

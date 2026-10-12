@@ -1,5 +1,6 @@
 import type {
   CalendarDoc,
+  NoteDoc,
   PlacementDoc,
   StampDoc,
 } from "@/features/calendar/model";
@@ -28,12 +29,19 @@ import type {
  * prints show: with the calendar, or asked for by id (`need`) – those are
  * not to stamp with.
  *
+ * Notes come with their calendars, like placements. A day's note has the
+ * same id on every device (calendar/note.ts): written on two at once, it is
+ * still one note – the later change wins, the earlier is gone. That is the
+ * price of keeping it simple; a day's few lines rarely meet that way. An
+ * emptied note is deleted – and may be written again, unlike anything else.
+ *
  * An app from before (it stays cached on a phone for a while) still sends a
  * stamp's `calendar` (one, or null) instead of `sharedWith` – taken as
- * that; see apply.ts.
+ * that; see apply.ts. It knows nothing of notes: it sends none, and leaves
+ * `notes` aside.
  */
 
-export const SYNC_TYPES = ["calendar", "stamp", "placement"] as const;
+export const SYNC_TYPES = ["calendar", "stamp", "placement", "note"] as const;
 export type SyncType = (typeof SYNC_TYPES)[number];
 
 /** One change made on a device. `data` holds the fields that changed. */
@@ -71,6 +79,7 @@ export type SyncResponse = {
   /** All stamps of others shared with the account – by id. */
   shared: string[];
   placements: PlacementDoc[];
+  notes: NoteDoc[];
   /** Changes the server refused – the device takes the server's copy. */
   rejected: { type: SyncType; id: string; reason: string }[];
 };

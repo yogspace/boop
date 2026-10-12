@@ -2,11 +2,13 @@ import type { PayloadRequest, Where } from "payload";
 import { idOf } from "@/features/calendar/membership";
 import {
   type CalendarDoc,
+  type NoteDoc,
   type PlacementDoc,
   type StampDoc,
   type StampShape,
   sharedWithOf,
 } from "@/features/calendar/model";
+import { cleanNote } from "@/features/calendar/note";
 import { DEFAULT_PALETTE, isColorKey } from "@/features/calendar/palette";
 import { sharedWithAny } from "./apply";
 import type { Person, SyncResponse, SyncType } from "./protocol";
@@ -74,6 +76,20 @@ const toPlacement = (doc: Doc): PlacementDoc => ({
   deleted: Boolean(doc.deleted),
 });
 
+/** A note goes out checked, like it came in – a marker without its text. */
+const toNote = (doc: Doc): NoteDoc => {
+  const deleted = Boolean(doc.deleted);
+  return {
+    id: String(doc.id),
+    calendar: idOf(doc.calendar) ?? "",
+    date: String(doc.date ?? ""),
+    content: deleted ? null : cleanNote(doc.content),
+    editedBy: deleted ? "" : (idOf(doc.editedBy) ?? ""),
+    changedAt: iso(doc.changedAt),
+    deleted,
+  };
+};
+
 export const pull = async (
   req: PayloadRequest,
   me: string,
@@ -100,7 +116,7 @@ export const pull = async (
   const changed: Where = after ? { updatedAt: { greater_than: after } } : {};
 
   const find = async (
-    collection: "calendars" | "stamps" | "placements",
+    collection: "calendars" | "stamps" | "placements" | "notes",
     where: Where
   ) =>
     (
@@ -133,6 +149,7 @@ export const pull = async (
 
   const stamps = new Map<string, StampDoc>();
   const placements = new Map<string, PlacementDoc>();
+  const notes = new Map<string, NoteDoc>();
   const add = <T extends { id: string }>(map: Map<string, T>, docs: T[]) => {
     for (const doc of docs) map.set(doc.id, doc);
   };
@@ -159,6 +176,14 @@ export const pull = async (
         })
       ).map(toPlacement)
     );
+    add(
+      notes,
+      (
+        await find("notes", {
+          and: [{ calendar: { in: knownIds } }, after ? changed : alive],
+        })
+      ).map(toNote)
+    );
   }
   // The calendars new to the device – complete, without markers.
   if (fresh.length) {
@@ -175,6 +200,12 @@ export const pull = async (
           and: [{ calendar: { in: fresh } }, alive],
         })
       ).map(toPlacement)
+    );
+    add(
+      notes,
+      (
+        await find("notes", { and: [{ calendar: { in: fresh } }, alive] })
+      ).map(toNote)
     );
   }
 
@@ -197,6 +228,14 @@ export const pull = async (
       (await find("placements", { id: { in: [...touched.placement] } }))
         .map(toPlacement)
         .filter((placement) => mine.has(placement.calendar))
+    );
+  }
+  if (touched.note.size) {
+    add(
+      notes,
+      (await find("notes", { id: { in: [...touched.note] } }))
+        .map(toNote)
+        .filter((note) => mine.has(note.calendar))
     );
   }
 
@@ -295,5 +334,6 @@ export const pull = async (
     ),
     shared,
     placements: [...placements.values()],
+    notes: [...notes.values()],
   };
 };

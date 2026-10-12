@@ -16,6 +16,7 @@ import { Actions } from "@/features/analytics/collections/actions";
 import { PageViews } from "@/features/analytics/collections/page-views";
 import { Analytics } from "@/features/analytics/global";
 import { Calendars } from "@/features/calendar/collections/calendars";
+import { Notes } from "@/features/calendar/collections/notes";
 import { Placements } from "@/features/calendar/collections/placements";
 import { Stamps } from "@/features/calendar/collections/stamps";
 import { Invites } from "@/features/calendar/invites";
@@ -36,7 +37,7 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
  *
  * - admin      the CMS logins and the Seeds page
  * - accounts   the people using Boop (email + password, mails)
- * - calendar   calendars, stamps, placements – written through
+ * - calendar   calendars, stamps, placements, notes – written through
  * - sync       the one endpoint the app reads and writes with, also after
  *              being offline
  * - analytics  anonymous statistics and the mail report
@@ -84,6 +85,7 @@ export default buildConfig({
     Calendars,
     Stamps,
     Placements,
+    Notes,
     Invites,
     PageViews,
     Actions,
