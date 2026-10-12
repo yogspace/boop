@@ -1,62 +1,9 @@
-import type { CollectionAfterChangeHook, CollectionConfig } from "payload";
-import { adminOnly } from "@/access";
-import { purgeCalendar, unshare } from "@/features/sync/apply";
+import type { CollectionConfig } from "payload";
+import { hiddenUnlessSupport, sealed } from "@/access";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
-import { nudge, nudgeCalendars } from "@/features/sync/live";
 import { colorField } from "../color-field";
 import { addMember, removeMember } from "../endpoints/members";
 import { inviteEndpoints } from "../invites";
-import { idOf } from "../membership";
-
-const memberIds = (doc: unknown): string[] => {
-  const members = (doc as { members?: unknown } | null)?.members;
-  return Array.isArray(members)
-    ? members.map(idOf).filter((id): id is string => Boolean(id))
-    : [];
-};
-
-/**
- * Members taken out here in the admin take their stamps along, as through
- * the member endpoint (members.ts): none stays shared with the calendar.
- * The sync and the endpoints do that themselves – their writes come with
- * `context.sync` and are left alone.
- */
-const unshareLeavers: CollectionAfterChangeHook = async ({
-  doc,
-  previousDoc,
-  operation,
-  context,
-  req,
-}) => {
-  if (operation !== "update" || context.sync) return doc;
-  const now = new Set(memberIds(doc));
-  const gone = memberIds(previousDoc).filter((id) => !now.has(id));
-  if (!gone.length) return doc;
-  const calendar = String(doc.id);
-  for (const account of gone) await unshare(req, calendar, account);
-  nudge(gone);
-  await nudgeCalendars(req, [calendar]);
-  return doc;
-};
-
-/**
- * A calendar marked deleted here in the admin goes like one deleted in the
- * app (sync/apply.ts): its placements with it, no stamp shared with it any
- * more. The members' devices drop it at their next sync, nudged at once.
- */
-const purgeMarked: CollectionAfterChangeHook = async ({
-  doc,
-  previousDoc,
-  operation,
-  context,
-  req,
-}) => {
-  if (operation !== "update" || context.sync) return doc;
-  if (!doc.deleted || previousDoc?.deleted) return doc;
-  await purgeCalendar(req, String(doc.id));
-  nudge(memberIds(previousDoc));
-  return doc;
-};
 
 /**
  * Calendars. Each belongs to its owner; the members (the owner among them)
@@ -64,20 +11,16 @@ const purgeMarked: CollectionAfterChangeHook = async ({
  * go like any other.
  *
  * Read and written by the app only through the sync (features/sync) and the
- * member endpoints – plain REST access is for the admin.
+ * member endpoints. Over REST it is closed, for admins too – they read it in
+ * support mode alone (src/access), and change nothing: a member leaves and
+ * a calendar goes in the app, which sees to their stamps and prints.
  */
 export const Calendars: CollectionConfig = {
   slug: "calendars",
   labels: { singular: "Calendar", plural: "Calendars" },
-  access: {
-    read: adminOnly,
-    create: adminOnly,
-    update: adminOnly,
-    // Never for good: without a marker, a device with a change to it still
-    // in its outbox would make it anew. Deleting is the `deleted` box.
-    delete: () => false,
-  },
+  access: sealed,
   admin: {
+    hidden: hiddenUnlessSupport,
     group: "Calendars",
     useAsTitle: "name",
     defaultColumns: ["name", "color", "owner", "members", "changedAt"],
@@ -113,23 +56,7 @@ export const Calendars: CollectionConfig = {
           "Made at sign-up, from when that one couldn't be deleted. No longer used.",
       },
     },
-    ...syncFields.filter(
-      (field) => !("name" in field) || field.name !== "deleted"
-    ),
-    {
-      // Ticked here: gone as if deleted in the app (purgeMarked) – for good,
-      // it can't be unticked.
-      name: "deleted",
-      type: "checkbox",
-      defaultValue: false,
-      index: true,
-      access: { update: ({ doc }) => !doc?.deleted },
-      admin: {
-        position: "sidebar",
-        description:
-          "Deletes the calendar with all its prints – it stays only as a marker, so devices drop it too. Can't be undone.",
-      },
-    },
+    ...syncFields,
   ],
   hooks: {
     beforeChange: [
@@ -149,7 +76,6 @@ export const Calendars: CollectionConfig = {
           : { ...data, members: [...ids, owner] };
       },
     ],
-    afterChange: [unshareLeavers, purgeMarked],
   },
   endpoints: [addMember, removeMember, ...inviteEndpoints],
 };

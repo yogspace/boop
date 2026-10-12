@@ -1,5 +1,6 @@
 "use client";
 
+import { useIsPresent } from "motion/react";
 import {
   type CSSProperties,
   type PointerEvent,
@@ -38,6 +39,7 @@ import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { newId } from "@/lib/id";
+import { FADING, useFadingEdges } from "./fading-edges";
 import { InkBlot } from "./ink-blot";
 import { NameTag } from "./name-tag";
 
@@ -118,6 +120,14 @@ const typing = (event: KeyboardEvent) => {
  * can be moved, picked (a tap; Enter or Space) and, picked, removed (the
  * button; Delete or Backspace). Every step can be taken back.
  *
+ * Whose a finger on the page is: with no stamp in hand, the page's and the
+ * sheet's – a swipe up or down scrolls them, right across the prints
+ * (`touch-action: pan-y`), and moves nothing. A print is picked with a tap
+ * first; only the picked one – marked, and the finger's from then on
+ * (`touch-none`) – is moved by dragging. With a stamp in hand the page is
+ * for stamping: no finger scrolls from it. The mouse scrolls with its
+ * wheel, so it drags any print at once, as ever.
+ *
  * The keys listen on the whole window – `keyboard` false keeps them off
  * while something else lies over the page (a sheet over the today view).
  *
@@ -147,6 +157,10 @@ export const DayPage = ({
   const boop = useBoop();
   const page = useRef<HTMLDivElement>(null);
   const hand = useRef<StampHandle>(null);
+  // Going – the view it is in gives way to another, its sheet closes.
+  const leaving = !useIsPresent();
+  // The stamps' row, where it scrolls sideways: it fades where it goes on.
+  const tray = useFadingEdges("x");
   // The stamp in hand – with none, the prints can be moved and picked.
   const [held, setHeld] = useState<string | null>(null);
   const inHand = stamps.find((s) => s.id === held) ?? null;
@@ -165,15 +179,22 @@ export const DayPage = ({
   const nextId = useRef(next);
   const [picked, setPicked] = useState<string | null>(null);
   // A print being moved – written once it is let go. It keeps where it was
-  // taken hold of (`grab`, from its middle).
+  // taken hold of (`grab`, from its middle). `loose`: it may be moved – by
+  // the mouse any print, by a finger only the picked one. `strayed`: the
+  // pointer went too far for a tap, so letting go picks nothing.
   const [drag, setDrag] = useState<{
     id: string;
     x: number;
     y: number;
     grab: { x: number; y: number };
     from: { x: number; y: number };
+    loose: boolean;
+    strayed: boolean;
     moved: boolean;
   } | null>(null);
+  // Where a pointer came down beside the prints – let go right there (a
+  // tap, not a swipe that scrolls), the picked print is let go of.
+  const beside = useRef<{ id: number; x: number; y: number } | null>(null);
   // A print on its way back after an undo – it glides instead of jumping.
   const [glide, setGlide] = useState<string | null>(null);
   // What was on the page when it opened; anything newer appears like ink.
@@ -421,12 +442,44 @@ export const DayPage = ({
     trackEvent("stamp-placed");
   };
 
+  // Where a finger last was. A browser may stir the hover once something
+  // has scrolled – a “mouse” moving to just that spot, where no mouse is:
+  // the finger's echo, which mustn't call the stamp back. A mouse anywhere
+  // else is one.
+  const finger = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    const keep = (event: globalThis.PointerEvent) => {
+      if (event.pointerType !== "touch") return;
+      finger.current = { x: event.clientX, y: event.clientY };
+    };
+    window.addEventListener("pointerdown", keep, true);
+    window.addEventListener("pointerup", keep, true);
+    return () => {
+      window.removeEventListener("pointerdown", keep, true);
+      window.removeEventListener("pointerup", keep, true);
+    };
+  }, []);
+  const echo = (event: PointerEvent<HTMLElement>) => {
+    const last = finger.current;
+    if (event.pointerType === "touch") return true;
+    if (
+      last &&
+      Math.abs(event.clientX - last.x) < 1 &&
+      Math.abs(event.clientY - last.y) < 1
+    ) {
+      return true;
+    }
+    finger.current = null;
+    return false;
+  };
+
   // Over the page and the inks the stamp in hand keeps to the pointer's
   // side, and on the page the preview goes along under it. A finger doesn't
-  // hover: there the stamp goes where it is tapped, and the preview only
-  // shows once it is turned (where it was last tapped).
+  // hover: there the stamp only comes for the press, where it is tapped,
+  // and is gone again (stamp-hand.tsx) – and the preview only shows once it
+  // is turned (where it was last tapped).
   const carry = (event: PointerEvent<HTMLElement>) => {
-    if (!inHand || event.pointerType === "touch") return;
+    if (!inHand || echo(event)) return;
     const at = onPage(event.clientX, event.clientY);
     if (!at) return;
     const inside = at.x >= 0 && at.x <= 1 && at.y >= 0 && at.y <= 1;
@@ -436,7 +489,7 @@ export const DayPage = ({
     hand.current?.point(event.clientX, event.clientY);
   };
   const letGo = (event: PointerEvent<HTMLElement>) => {
-    if (event.pointerType === "touch") return;
+    if (echo(event)) return;
     aim.current.on = false;
     preview();
     hand.current?.hide();
@@ -445,8 +498,11 @@ export const DayPage = ({
   /** Down comes the stamp – the print appears as it touches. */
   const stampHere = (event: PointerEvent<HTMLDivElement>) => {
     if (!inHand) {
-      // A tap beside the prints lets go of the picked one.
-      if (event.target === event.currentTarget) setPicked(null);
+      // Beside the prints: a tap there lets go of the picked one (`tapped`).
+      beside.current =
+        event.target === event.currentTarget
+          ? { id: event.pointerId, x: event.clientX, y: event.clientY }
+          : null;
       return;
     }
     if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -466,14 +522,24 @@ export const DayPage = ({
       }
     };
     // Down right onto its print – kept on the page, so not always where the
-    // pointer is.
+    // pointer is. A finger is gone after the tap: the stamp goes too.
     const there = onScreen(spot);
+    const stay = event.pointerType !== "touch";
     if (!(hand.current && there)) touch();
     // One at a time: while the stamp is still at the last one, nothing.
-    else if (!hand.current.press(there.x, there.y, touch)) return;
+    else if (!hand.current.press(there.x, there.y, touch, stay)) return;
     aim.current.x = spot.x;
     aim.current.y = spot.y;
     preview();
+  };
+
+  /** Let go where it came down beside the prints: the picked one is let go of. */
+  const tapped = (event: PointerEvent<HTMLDivElement>) => {
+    const from = beside.current;
+    beside.current = null;
+    if (from?.id !== event.pointerId) return;
+    const far = Math.hypot(event.clientX - from.x, event.clientY - from.y);
+    if (far < DRAG) setPicked(null);
   };
 
   // The page and the inks are where the stamp in hand shows – it lingers a
@@ -506,11 +572,17 @@ export const DayPage = ({
         >
           <div
             className={cn(
-              "relative aspect-square w-full touch-none select-none overflow-hidden rounded-3xl bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]",
-              // The preview marks the spot – no arrow on top of it.
-              inHand && "cursor-none"
+              "relative aspect-square w-full select-none overflow-hidden rounded-3xl bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]",
+              // With a stamp in hand a finger on the page stamps, and
+              // nothing scrolls from it; the preview marks the spot – no
+              // arrow on top of it. Without, a swipe up or down scrolls.
+              inHand ? "touch-none cursor-none" : "touch-pan-y"
             )}
+            onPointerCancel={() => {
+              beside.current = null;
+            }}
             onPointerDown={stampHere}
+            onPointerUp={tapped}
             ref={page}
           >
             {placements.length === 0 && (
@@ -552,8 +624,10 @@ export const DayPage = ({
                       // it isn't taken for the keyboard's dashed ring, which
                       // goes round the outside of it. It holds still: a line
                       // astir would have the print's ink drawn anew with it.
+                      // And it is the finger's now: dragged, it moves – the
+                      // page doesn't scroll from it.
                       picked === p.id &&
-                        "scribble scribble-sm scribble-clear [--scribble-inset:-6px] [--scribble-ring:-12px]"
+                        "scribble scribble-sm scribble-clear touch-none [--scribble-inset:-6px] [--scribble-ring:-12px]"
                     )}
                     onClick={(event) => {
                       // By keyboard (Enter, Space) – a tap is told from a
@@ -561,6 +635,11 @@ export const DayPage = ({
                       if (event.detail !== 0) return;
                       if (inHand) take(null);
                       setPicked(picked === p.id ? null : p.id);
+                    }}
+                    // A swipe that scrolls takes the pointer away: nothing
+                    // was moved, nothing is picked.
+                    onPointerCancel={() => {
+                      if (drag?.id === p.id) setDrag(null);
                     }}
                     onPointerDown={(event) => {
                       const at = onPage(event.clientX, event.clientY);
@@ -572,6 +651,10 @@ export const DayPage = ({
                         y: p.y,
                         grab: { x: at.x - p.x, y: at.y - p.y },
                         from: { x: event.clientX, y: event.clientY },
+                        // A finger moves the picked print only – across
+                        // any other it may be on its way down the page.
+                        loose: event.pointerType === "mouse" || picked === p.id,
+                        strayed: false,
                         moved: false,
                       });
                     }}
@@ -582,6 +665,12 @@ export const DayPage = ({
                           event.clientX - drag.from.x,
                           event.clientY - drag.from.y
                         ) >= DRAG;
+                      if (!drag.loose) {
+                        if (far && !drag.strayed) {
+                          setDrag({ ...drag, strayed: true });
+                        }
+                        return;
+                      }
                       const at = onPage(event.clientX, event.clientY);
                       if (!(at && (drag.moved || far))) return;
                       setDrag({
@@ -593,6 +682,9 @@ export const DayPage = ({
                     }}
                     onPointerUp={() => {
                       if (drag?.id !== p.id) return;
+                      setDrag(null);
+                      // A finger across a print not picked: not a tap.
+                      if (drag.strayed) return;
                       if (drag.moved) {
                         const top = Math.max(...placements.map((q) => q.z)) + 1;
                         note({
@@ -608,7 +700,6 @@ export const DayPage = ({
                           ...(p.z < top - 1 && { z: top }),
                         });
                       } else setPicked(picked === p.id ? null : p.id);
-                      setDrag(null);
                     }}
                     type="button"
                   >
@@ -784,10 +875,22 @@ export const DayPage = ({
           {stamps.length === 0 ? (
             <p className="text-muted text-sm">{t.app.noStamps}</p>
           ) : (
+            // A row to swipe – sideways only: up and down the swipe is the
+            // page's. No bar; it fades where it goes on (fading-edges.ts).
             // Room all round inside the scroller (it clips both ways): a stamp
             // can lift, turn and wear its badge and focus ring without losing a
-            // corner. The one in hand: lifted, its line drawn thick.
-            <div className="-m-4 flex gap-2.5 overflow-x-auto p-4">
+            // corner – 20px above and below, all a frame, a turned one and
+            // the badge reach: with less, the row would scroll up and down by
+            // what sticks out. The one in hand: lifted, its line drawn thick.
+            // Beside the page the column is narrow – there they wrap, all in
+            // sight, nothing scrolls, cuts or fades.
+            <div
+              className={cn(
+                "-m-4 flex gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain px-4 py-5 @lg:m-0 @lg:flex-wrap @lg:gap-y-3 @lg:overflow-visible @lg:mask-none @lg:p-0",
+                FADING.x
+              )}
+              ref={tray}
+            >
               {stamps.map((s) => (
                 // Its name on a tag when pointed at – in the top layer, so the
                 // scroller doesn't clip it. (Another anchor than the shelf's.)
@@ -851,11 +954,13 @@ export const DayPage = ({
         </div>
       </div>
 
-      {/* Pressed, the stamp is as wide as its print – a special one wider. */}
+      {/* Pressed, the stamp is as wide as its print – a special one wider.
+        Once the page is on its way out (another view, its sheet closing),
+        nothing is in hand any more: the stamp is gone before the page is. */}
       <StampHand
         ink={ink}
         ref={hand}
-        stamp={inHand}
+        stamp={leaving ? null : inHand}
         unit={(unit * size) / PRINT}
       />
     </div>

@@ -8,6 +8,8 @@ import { revalidateTag } from "next/cache";
 export const TAGS = {
   site: "site",
   legal: "legal",
+  /** The interface texts (features/translations). */
+  texts: "texts",
 } as const;
 
 export type CacheTag = (typeof TAGS)[keyof typeof TAGS];

@@ -39,6 +39,7 @@ import {
   start,
   useBoop,
 } from "@/features/offline/store";
+import { deviceState, loadPush, refreshPush } from "@/features/push/client";
 import { SITE_DEFAULTS } from "@/features/site/defaults";
 import { Sticker } from "@/features/stickers/sticker";
 import { Link, useTransitionRouter } from "@/features/transitions/link";
@@ -56,6 +57,8 @@ import {
 import { CalendarSettings, PersonPlus, Sliders } from "./calendar-settings";
 import { DaySheet } from "./day-sheet";
 import { CalendarSheet, ConfirmSheet } from "./dialogs";
+import { FADING, useFadingEdges } from "./fading-edges";
+import { useGround } from "./ground";
 import { MonthGrid } from "./month-grid";
 import { NameTag } from "./name-tag";
 import { ShareSheet } from "./share-sheet";
@@ -118,76 +121,6 @@ const VIEW_TURN: Variants = {
 const PILL_ON_GROUND =
   "scribble-clear aria-pressed:scribble-bold aria-pressed:[--scribble-fill:var(--color-card)]! aria-pressed:text-ink!";
 
-/** The page's own ground color, once it follows the calendar. */
-const GROUND_COLOR = "--app-ground";
-let groundRegistered = false;
-
-/**
- * The ground the whole app lies on, in the chosen calendar's color (`color`:
- * its `bg` shade, tint.ts – null: paper white, as everywhere else). Not a
- * box: the page's own background (`--color-bg`, which `html` and `body`
- * wear – styles.css), so it also shows when scrolling past the ends and in
- * the safe areas of the installed app; the browser's bar follows
- * (`theme-color`). Only the veil behind a sheet uses `--color-bg` besides –
- * it lets the tone show through.
- *
- * Set on the root element while the app is there, and taken off again when
- * it goes – the other pages stay white:
- *
- *   --app-ground   the color – registered as one, so it can blend
- *   --color-bg     var(--app-ground)
- *   transition     --app-ground, a short blend from one calendar's color to
- *                  the next (and from white, when the first one shows)
- *
- * Where a property can't be registered the color simply changes at once.
- */
-const useGround = (color: string | null) => {
-  const before = useRef({ paper: "#ffffff", theme: "#ffffff" });
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const theme = document.querySelector<HTMLMetaElement>(
-      'meta[name="theme-color"]'
-    );
-    const paper =
-      getComputedStyle(root).getPropertyValue("--color-bg").trim() || "#ffffff";
-    before.current = { paper, theme: theme?.content ?? paper };
-    if (!groundRegistered) {
-      groundRegistered = true;
-      try {
-        CSS.registerProperty({
-          name: GROUND_COLOR,
-          syntax: "<color>",
-          inherits: true,
-          initialValue: paper,
-        });
-      } catch {
-        // Not in this browser – no blend then.
-      }
-    }
-    root.style.setProperty(GROUND_COLOR, paper);
-    root.style.setProperty("--color-bg", `var(${GROUND_COLOR})`);
-    root.style.setProperty("transition", `${GROUND_COLOR} 450ms ease`);
-    return () => {
-      root.style.removeProperty(GROUND_COLOR);
-      root.style.removeProperty("--color-bg");
-      root.style.removeProperty("transition");
-      if (theme) theme.content = before.current.theme;
-    };
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.style.setProperty(
-      GROUND_COLOR,
-      color ?? before.current.paper
-    );
-    const theme = document.querySelector<HTMLMetaElement>(
-      'meta[name="theme-color"]'
-    );
-    if (theme) theme.content = color ?? before.current.theme;
-  }, [color]);
-};
-
 /**
  * The app: the account's calendars, a month of the chosen one, a day to
  * stamp on, the 3D stamps. Everything reads the device's copy
@@ -238,10 +171,31 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   useDismiss(menu, () => setMenu(false), menuButton, menuBox);
   const [opened, setOpened] = useState<string | null>(null);
   const [dialog, setDialog] = useState<"new" | "logout" | null>(null);
+  // The calendars' row – on a phone it scrolls sideways, and fades where it
+  // goes on.
+  const pills = useFadingEdges<HTMLElement>("x");
 
   useEffect(() => {
     void start();
   }, []);
+
+  // A device that said yes to notifications says so again, once the account
+  // is known and there is a connection: that ties it to this login, its
+  // zone and the language (push/client.ts). Nothing is asked, nothing
+  // loaded where they are off on the device – and without the server's key
+  // nothing happens at all.
+  const signedIn = boop.status === "ready" && Boolean(boop.me);
+  const confirmed = useRef(false);
+  useEffect(() => {
+    if (confirmed.current || !signedIn || !boop.online) return;
+    confirmed.current = true;
+    void deviceState()
+      .then((device) => (device === "on" ? loadPush() : null))
+      .then((push) => push?.publicKey && refreshPush(locale, push.publicKey))
+      .catch(() => {
+        // No connection after all – the next start says it.
+      });
+  }, [signedIn, boop.online, locale]);
 
   useEffect(() => {
     if (boop.status === "signedOut") router.replace(`/${locale}/login`);
@@ -505,12 +459,20 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
 
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="flex min-w-0 flex-col gap-4">
-            {/* On phones a row to swipe, edge to edge – a scroller cuts off
-              all round, so it pads (and margins back) room for the pills'
-              wobble, lift and focus ring. Wider, they wrap: nothing cut. */}
+            {/* On phones a row to swipe, edge to edge – sideways only: up and
+              down the swipe is the page's. A scroller cuts off all round, so
+              it pads (and margins back) room for all a pill's frame may
+              reach – its wobble, lift and focus ring, 14px and a little:
+              with less, the row would scroll up and down by what sticks
+              out. No bar – it fades where it goes on (fading-edges.ts).
+              Wider, they wrap: nothing cut, nothing masked. */}
             <nav
               aria-label={t.app.calendars}
-              className="-mx-4 -my-3 flex gap-2.5 overflow-x-auto px-4 py-3 sm:m-0 sm:flex-wrap sm:overflow-visible sm:p-0"
+              className={cn(
+                "-m-4 flex gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain p-4 sm:m-0 sm:flex-wrap sm:overflow-visible sm:mask-none sm:p-0",
+                FADING.x
+              )}
+              ref={pills}
             >
               {calendars.map((c) => {
                 const active = c.id === calendar?.id;

@@ -16,8 +16,9 @@ const page: CSSProperties = {
 const flat: CSSProperties = { margin: 0 };
 
 /**
- * The admin's Seeds page: what the code brings along for the CMS – for now
- * the imprint and privacy policy – run by hand, not at start or deploy.
+ * The admin's Seeds page: what the code brings along for the CMS – the
+ * interface texts, the imprint and privacy policy – run by hand, not at
+ * start or deploy.
  */
 export const SeedsView = ({
   initPageResult,

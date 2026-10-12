@@ -1,5 +1,6 @@
 import type { Field, GlobalConfig } from "payload";
 import { adminOnly } from "@/access";
+import { accountTotals } from "./account-totals";
 
 /** A view of the admin as a field of its own (`ui`: no data). */
 const view = (name: string, Field: string): Field => ({
@@ -12,9 +13,10 @@ const ADMIN = "@/features/analytics/admin";
 
 /**
  * The statistics in the admin. The views read the anonymous page views and
- * actions over the REST API (admin/data.ts), the accounts as totals
- * (admin/accounts.tsx); data of its own is only what steers the mail report
- * (interval, last sent) and the token of the excluded devices.
+ * actions over the REST API (admin/data.ts), the accounts as totals from the
+ * server (account-totals.ts, admin/accounts.tsx); data of its own is only
+ * what steers the mail report (interval, last sent) and the token of the
+ * excluded devices.
  *
  * Main area: the numbers. Sidebar: what steers them – the range for ALL
  * sections, the mail report, one's own devices.
@@ -26,6 +28,8 @@ export const Analytics: GlobalConfig = {
     read: adminOnly,
     update: adminOnly,
   },
+  // The accounts' numbers, counted on the server (account-totals.ts).
+  endpoints: [accountTotals],
   admin: {
     group: "Analytics",
     description:

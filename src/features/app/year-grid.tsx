@@ -2,6 +2,7 @@
 
 import { m } from "motion/react";
 import {
+  type KeyboardEvent,
   memo,
   useCallback,
   useLayoutEffect,
@@ -22,12 +23,9 @@ import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { seedOf } from "./day-page";
 import { useToday } from "./today-view";
+import { keyOf, stepOf } from "./year-keys";
 
 type Month = { year: number; month: number };
-
-/** A day's key: 2026-10-12. */
-const keyOf = (year: number, month: number, day: number): DayKey =>
-  `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
 type Print = {
   id: string;
@@ -78,6 +76,13 @@ type Layout = ReturnType<typeof layoutOf>;
  * A month's name opens that month, a day its sheet; the arrows go from year
  * to year. The ruling stays as it is from year to year – only the months
  * come anew; a month whose days didn't change isn't drawn again.
+ *
+ * The keyboard: the months' names are stops of their own, the days one
+ * stop for all – today, or the day last been on. In the table the arrows
+ * go on from there (`stepOf`, year-keys.ts): ↑ ↓ a day back or on (past a
+ * month's end into the next), ← → a month, on the same day where it has one
+ * (else its last); Home and End the month's first and last. Enter opens
+ * the day.
  */
 export const YearGrid = ({
   calendar,
@@ -182,6 +187,32 @@ export const YearGrid = ({
     [locale]
   );
 
+  // The days' one stop for the keyboard: the day last been on, in this
+  // year – else today, or the year's first. Only its month hears of it, so
+  // a step draws no more than the two months it goes between.
+  const [been, setBeen] = useState<DayKey | null>(null);
+  const stop =
+    been?.startsWith(`${year}-`) === true
+      ? been
+      : year === thisYear
+        ? today
+        : keyOf(year, 0, 1);
+  const stopMonth = Number(stop.slice(5, 7)) - 1;
+  // Whichever day the keyboard – or a tap – comes to is the stop now.
+  const visit = useCallback((day: DayKey) => setBeen(day), []);
+
+  /** An arrow, Home or End on a day: on to the next one. */
+  const step = useCallback(
+    (from: DayKey, event: KeyboardEvent<HTMLButtonElement>) => {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      const to = stepOf(from, event.key);
+      if (!to) return;
+      event.preventDefault();
+      table.current?.querySelector<HTMLElement>(`[data-day="${to}"]`)?.focus();
+    },
+    []
+  );
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between gap-2">
@@ -204,7 +235,8 @@ export const YearGrid = ({
               onClick={() => onYear(thisYear)}
               type="button"
             >
-              {t.app.today}
+              {/* Not “today” – that is a view of its own (view-switch.tsx). */}
+              {t.app.view.thisYear}
             </button>
           )}
           <button
@@ -270,7 +302,10 @@ export const YearGrid = ({
               month={month}
               named={named}
               onDay={openDay}
+              onKey={step}
               onMonth={openMonth}
+              onVisit={visit}
+              stop={month === stopMonth ? stop : null}
               today={today}
               year={year}
             />
@@ -334,6 +369,9 @@ const MonthColumn = memo(function MonthColumn({
   named,
   onMonth,
   onDay,
+  stop,
+  onKey,
+  onVisit,
 }: {
   year: number;
   month: number;
@@ -344,6 +382,10 @@ const MonthColumn = memo(function MonthColumn({
   named: Intl.DateTimeFormat;
   onMonth: (month: Month) => void;
   onDay: (day: DayKey) => void;
+  /** The day of this month that is the keyboard's stop – none: another's. */
+  stop: DayKey | null;
+  onKey: (day: DayKey, event: KeyboardEvent<HTMLButtonElement>) => void;
+  onVisit: (day: DayKey) => void;
 }) {
   const t = dictionaryOf(locale);
   const length = new Date(year, month + 1, 0).getDate();
@@ -380,14 +422,19 @@ const MonthColumn = memo(function MonthColumn({
               "relative isolate flex shrink-0 items-center justify-center",
               // The weekend's wash – in each column somewhere else.
               (weekday === 0 || weekday === 6) && "bg-soft/70",
-              "hover:bg-[color-mix(in_oklab,var(--color-line)_40%,transparent)]"
+              "hover:bg-[color-mix(in_oklab,var(--color-line)_40%,transparent)]",
+              // The keyboard's ring inside the day's lines – outside, the
+              // days around would cover it.
+              "focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-dashed"
             )}
+            data-day={date}
             key={date}
             onClick={() => onDay(date)}
+            onFocus={() => onVisit(date)}
+            onKeyDown={(event) => onKey(date, event)}
             style={{ height: row, gap: GAP }}
-            // The keyboard goes by the months (their names), and from a
-            // month to its days.
-            tabIndex={-1}
+            // One stop for all the days – the arrows go on from it.
+            tabIndex={date === stop ? 0 : -1}
             title={label}
             type="button"
           >

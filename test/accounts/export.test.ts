@@ -195,6 +195,26 @@ const pushDevices = [
   },
 ];
 
+const calendarFeeds = [
+  {
+    id: "feed-id",
+    account: ME,
+    calendar: "cal-annas",
+    token: "feed-token-secret",
+    lastFetchedAt: "2026-10-12T07:00:00.000Z",
+    createdAt: "2026-10-05T12:00:00.000Z",
+    updatedAt: "2026-10-12T07:00:00.000Z",
+  },
+  // Anna's address for my calendar – hers.
+  {
+    id: "feed-annas",
+    account: ANNA,
+    calendar: "cal-mine",
+    token: "annas-feed-secret",
+    createdAt: "2026-10-06T12:00:00.000Z",
+  },
+];
+
 const people = { [ME]: "Max", [ANNA]: "Anna", [BEN]: "Ben" };
 
 const data = accountExport({
@@ -206,6 +226,7 @@ const data = accountExport({
   invites,
   pushSettings,
   pushDevices,
+  calendarFeeds,
   people,
   now: NOW,
 });
@@ -343,6 +364,18 @@ describe("the account's data as a file", () => {
     expect(file).not.toContain("fcm.googleapis.com");
   });
 
+  it("says which calendars it subscribes to elsewhere – never the address", () => {
+    expect(data.calendarFeeds).toEqual([
+      {
+        calendar: "cal-annas",
+        createdAt: "2026-10-05T12:00:00.000Z",
+        lastFetchedAt: "2026-10-12T07:00:00.000Z",
+      },
+    ]);
+    expect(file).not.toContain("feed-token");
+    expect(file).not.toContain("feed-annas");
+  });
+
   it("lists the invitations it sent that are still open", () => {
     expect(data.invites).toEqual([
       {
@@ -412,6 +445,7 @@ describe("the account's data as a file", () => {
       calendars: [],
       devices: [],
     });
+    expect(fresh.calendarFeeds).toEqual([]);
   });
 
   it("is named by the day", () => {

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BoopApp } from "@/features/app/boop-app";
+import { getDictionary } from "@/features/translations/get-texts";
 import { isLocale } from "@/i18n/config";
-import { dictionaryOf } from "@/i18n/dictionaries";
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -12,7 +12,7 @@ export const generateMetadata = async ({
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   return {
-    title: dictionaryOf(locale).nav.openApp,
+    title: (await getDictionary(locale)).nav.openApp,
     robots: { index: false, follow: false },
   };
 };

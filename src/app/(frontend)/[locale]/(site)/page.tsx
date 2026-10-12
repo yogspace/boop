@@ -1,12 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import {
-  ArrowRight,
-  Circle,
-  Star,
-  Ticks,
-  Underline,
-} from "@/components/doodles";
+import { Circle, Star, Ticks, Underline } from "@/components/doodles";
 import { LinkButton } from "@/components/ui";
 import { ONLY_SIGNED_IN, ONLY_SIGNED_OUT } from "@/features/accounts/signed-in";
 import {
@@ -14,8 +8,9 @@ import {
   HeroScene,
   StickerRow,
 } from "@/features/landing/hero-scene";
+import { Steps } from "@/features/landing/steps";
+import { getDictionary } from "@/features/translations/get-texts";
 import { isLocale, LOCALES } from "@/i18n/config";
-import { dictionaryOf } from "@/i18n/dictionaries";
 import { serverUrl } from "@/lib/server-url";
 
 type Props = { params: Promise<{ locale: string }> };
@@ -25,7 +20,7 @@ export const generateMetadata = async ({
 }: Props): Promise<Metadata> => {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
-  const t = dictionaryOf(locale);
+  const t = await getDictionary(locale);
   return {
     title: { absolute: t.meta.title },
     alternates: {
@@ -46,9 +41,6 @@ export const generateMetadata = async ({
 /** The features' stickers – in the order of the texts. */
 const FEATURES = ["flower", "heart", "smile", "cloud"];
 
-/** How each step's number sits – set down freely, none straight. */
-const STEP_TILTS = ["-rotate-6", "rotate-3", "-rotate-3"];
-
 /**
  * The front door – what Boop is, and the way in. Marker on paper: the frames,
  * the circle round the word, the numbers are scribbled; the stickers are the
@@ -57,7 +49,7 @@ const STEP_TILTS = ["-rotate-6", "rotate-3", "-rotate-3"];
 const Home = async ({ params }: Props) => {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
-  const t = dictionaryOf(locale);
+  const t = await getDictionary(locale);
   const [before, highlight, after] = t.landing.title;
   // What search engines read about the app (schema.org).
   const structured = {
@@ -148,27 +140,14 @@ const Home = async ({ params }: Props) => {
       </section>
 
       <section aria-labelledby="how" className="flex flex-col gap-8">
-        <h2 className="text-4xl sm:text-5xl" id="how">
-          {t.landing.howTitle}
-        </h2>
-        {/* No boxes here – the numbers are circled, an arrow leads on. */}
-        <ol className="grid gap-x-6 gap-y-7 sm:grid-cols-3">
-          {t.landing.how.map((step, i) => (
-            <li className="flex items-start gap-4" key={step}>
-              <span
-                className={`scribble scribble-sm flex h-12 w-12 shrink-0 items-center justify-center rounded-full font-black text-xl ${STEP_TILTS[i]}`}
-              >
-                {i + 1}
-              </span>
-              <span className="pt-2.5 font-bold text-lg leading-snug">
-                {step}
-              </span>
-              {i < t.landing.how.length - 1 && (
-                <ArrowRight className="mt-3 ml-auto h-7 w-7 shrink-0 max-lg:hidden" />
-              )}
-            </li>
-          ))}
-        </ol>
+        <div className="self-start">
+          <h2 className="text-4xl sm:text-5xl" id="how">
+            {t.landing.howTitle}
+          </h2>
+          <Underline className="mt-1 h-3.5 w-full" />
+        </div>
+        {/* A little picture story, each step on its own slip (steps.tsx). */}
+        <Steps steps={t.landing.how} />
       </section>
 
       {/* A `group`: wherever the pointer is in the box, the stamps above

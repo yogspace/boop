@@ -1,5 +1,5 @@
 import type { CollectionConfig } from "payload";
-import { adminOnly } from "@/access";
+import { hiddenUnlessSupport, sealed } from "@/access";
 import { notifyStamped } from "@/features/push/stamped";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
 import { colorField } from "../color-field";
@@ -8,17 +8,16 @@ import { isDayKey } from "../model";
 /**
  * Stamps put on a day of a calendar. A day's canvas is all placements with
  * its calendar and date – a day has no document of its own.
+ *
+ * The app's through the sync alone; closed over REST, for admins too – they
+ * read it in support mode (src/access).
  */
 export const Placements: CollectionConfig = {
   slug: "placements",
   labels: { singular: "Placement", plural: "Placements" },
-  access: {
-    read: adminOnly,
-    create: adminOnly,
-    update: adminOnly,
-    delete: adminOnly,
-  },
+  access: sealed,
   admin: {
+    hidden: hiddenUnlessSupport,
     group: "Calendars",
     useAsTitle: "date",
     defaultColumns: [

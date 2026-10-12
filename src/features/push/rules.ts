@@ -361,11 +361,15 @@ export type PushMessage = {
 export const calendarUrl = (locale: Locale, calendar: string) =>
   `/${locale}/app/${encodeURIComponent(calendar)}`;
 
+/**
+ * What a notification says. `t`: the texts – the server's callers pass the
+ * CMS's (`getDictionary`, features/translations); without, the code's.
+ */
 export const stampedMessage = (
   locale: Locale,
-  { name, calendar }: { name: string; calendar: { id: string; name: string } }
+  { name, calendar }: { name: string; calendar: { id: string; name: string } },
+  t = dictionaryOf(locale).app.push
 ): PushMessage => {
-  const t = dictionaryOf(locale).app.push;
   return {
     title: t.stampedTitle,
     body: t.stampedBody(name.trim() || t.someone, calendar.name),
@@ -376,9 +380,9 @@ export const stampedMessage = (
 
 export const reminderMessage = (
   locale: Locale,
-  calendars: readonly { id: string; name: string }[]
+  calendars: readonly { id: string; name: string }[],
+  t = dictionaryOf(locale).app.push
 ): PushMessage => {
-  const t = dictionaryOf(locale).app.push;
   return {
     title: t.reminderTitle,
     body: t.reminderBody(calendars.map((calendar) => calendar.name)),

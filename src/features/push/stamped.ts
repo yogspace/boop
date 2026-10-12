@@ -1,4 +1,5 @@
 import type { CollectionAfterChangeHook, Payload } from "payload";
+import { getDictionary } from "@/features/translations/get-texts";
 import { LOCALES } from "@/i18n/config";
 import { devicesOf, peopleOf, settingsOf } from "./read";
 import {
@@ -103,10 +104,11 @@ const tellOthers = async (
     await sendPush(
       payload,
       mine,
-      stampedMessage(locale, {
-        name,
-        calendar: { id: calendar, name: doc.name ?? "" },
-      }),
+      stampedMessage(
+        locale,
+        { name, calendar: { id: calendar, name: doc.name ?? "" } },
+        (await getDictionary(locale)).app.push
+      ),
       { ttl: TTL_SECONDS }
     );
   }

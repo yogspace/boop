@@ -1,5 +1,5 @@
 import type { CollectionConfig } from "payload";
-import { adminOnly } from "@/access";
+import { hiddenUnlessSupport, sealed } from "@/access";
 import { LOCALES } from "@/i18n/config";
 import {
   cleanReminderAt,
@@ -21,22 +21,17 @@ import {
  *   endpoints (endpoints.ts), and nothing of it rides along with the login.
  *
  * Both go with the account (accounts/collection.ts, `removeData`) and are
- * in its export (accounts/export.ts). Admins only – the app goes through
- * endpoints.ts.
+ * in its export (accounts/export.ts). The app goes through endpoints.ts;
+ * over REST both are closed, for admins too – they read them in support
+ * mode (src/access), without the keys.
  */
-
-const ADMIN_ONLY = {
-  read: adminOnly,
-  create: adminOnly,
-  update: adminOnly,
-  delete: adminOnly,
-};
 
 export const PushSubscriptions: CollectionConfig = {
   slug: "push-subscriptions",
   labels: { singular: "Push device", plural: "Push devices" },
-  access: ADMIN_ONLY,
+  access: sealed,
   admin: {
+    hidden: hiddenUnlessSupport,
     group: "People",
     useAsTitle: "timeZone",
     defaultColumns: [
@@ -68,8 +63,10 @@ export const PushSubscriptions: CollectionConfig = {
       admin: { readOnly: true },
     },
     {
+      // Server code's alone – never read over REST.
       name: "keys",
       type: "group",
+      access: { read: () => false },
       admin: { hidden: true },
       fields: [
         { name: "p256dh", type: "text", required: true },
@@ -78,9 +75,10 @@ export const PushSubscriptions: CollectionConfig = {
     },
     {
       // Payload's id of the login it was turned on in – logged out, it's
-      // quiet (and goes at the next send).
+      // quiet (and goes at the next send). Never read over REST either.
       name: "session",
       type: "text",
+      access: { read: () => false },
       admin: { hidden: true },
     },
     {
@@ -127,8 +125,9 @@ export const PushSettings: CollectionConfig = {
     singular: "Notification settings",
     plural: "Notification settings",
   },
-  access: ADMIN_ONLY,
+  access: sealed,
   admin: {
+    hidden: hiddenUnlessSupport,
     group: "People",
     useAsTitle: "reminderAt",
     defaultColumns: ["account", "reminderAt", "updatedAt"],

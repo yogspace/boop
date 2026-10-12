@@ -1,11 +1,42 @@
 import { INVITE_DAYS } from "../features/calendar/invite-expiry";
-import type { Locale } from "./config";
+import { LOCALES, type Locale } from "./config";
+import { build, type Flat, flatten, type Resolved, type Shape } from "./flat";
+import { checkPlaceholders, type Placeholders, template } from "./template";
 
 /**
- * Every text of the site and the app, per language. German is the shape;
- * English must have the same keys (checked by the type below). Not here:
- * the stamp colors' names – they come with the colors, from the CMS
- * (features/calendar/palette.ts).
+ * Every text of the site and the app, per language – as the code writes
+ * them. German is the shape; English must have the same keys (checked by
+ * the type below). Not here: the stamp colors' names – they come with the
+ * colors, from the CMS (features/calendar/palette.ts).
+ *
+ * What the pages show comes from the CMS: the “Translations” global
+ * (features/translations) has a field per key here and wins where it is
+ * filled; a new key, an emptied field or no database show the text below.
+ *
+ * HOW TO READ A TEXT
+ *
+ * - In a client component: `dictionaryOf(locale)`. The layout hands the
+ *   CMS's texts to `TextsProvider`, which puts them in use while rendering,
+ *   on the server and in the browser (features/translations/
+ *   texts-provider.tsx) – they are part of the page, so it also opens
+ *   offline.
+ * - On the server – a server component, a layout, `generateMetadata`, a
+ *   route, a mail, a notification: `await getDictionary(locale)`
+ *   (features/translations/get-texts.ts). Nothing has put the CMS's texts
+ *   in use there, so `dictionaryOf` would give the code's.
+ * - A component drawn on both sides (components/site-footer.tsx) calls
+ *   `dictionaryOf` – on the server under a component that awaited
+ *   `getDictionary` for that language, which puts them in use there too.
+ *
+ * HOW TO WRITE ONE
+ *
+ * - A plain text is a string. A list is an array – as long here as it is
+ *   in the CMS.
+ * - A text with something in it – a name, a number, one wording for one and
+ *   another for many – is a `template` (template.ts): written with
+ *   placeholders, “Hallo {name}!”, so it can be edited in the CMS. In
+ *   English it is only the wording(s).
+ * - A function written by hand still works, but stays out of the CMS.
  */
 
 const de = {
@@ -116,16 +147,36 @@ const de = {
     },
     invite: {
       title: "Du bist eingeladen!",
-      text: (from: string, calendar: string) =>
-        `${from} möchte den Kalender „${calendar}“ mit dir teilen.`,
-      until: (date: string) => `Die Einladung gilt bis zum ${date} Uhr.`,
+      text: template(
+        "{from} möchte den Kalender „{calendar}“ mit dir teilen.",
+        (say) => (from: string, calendar: string) => say({ from, calendar })
+      ),
+      until: template(
+        "Die Einladung gilt bis zum {date} Uhr.",
+        (say) => (date: string) => say({ date })
+      ),
       accept: "Einladung annehmen",
       account:
         "Erstell ein kostenloses Konto oder melde dich an – dann bist du dabei.",
       expiredTitle: "Einladung abgelaufen",
-      expired: (from: string) =>
-        `Einladungen gelten ${INVITE_DAYS} Tage – diese ist leider abgelaufen. ${from ? `Frag ${from}` : "Frag"} einfach nach einer neuen.`,
-      invalid: `Diese Einladung gibt es nicht mehr – sie wurde schon benutzt, zurückgezogen oder ist nach ${INVITE_DAYS} Tagen abgelaufen. Frag einfach nach einer neuen.`,
+      expired: template(
+        {
+          named:
+            "Einladungen gelten {days} Tage – diese ist leider abgelaufen. Frag {from} einfach nach einer neuen.",
+          unnamed:
+            "Einladungen gelten {days} Tage – diese ist leider abgelaufen. Frag einfach nach einer neuen.",
+        },
+        (say) => (from: string) =>
+          from
+            ? say.named({ from, days: INVITE_DAYS })
+            : say.unnamed({ days: INVITE_DAYS }),
+        { optional: ["days"] }
+      ),
+      invalid: template(
+        "Diese Einladung gibt es nicht mehr – sie wurde schon benutzt, zurückgezogen oder ist nach {days} Tagen abgelaufen. Frag einfach nach einer neuen.",
+        (say) => say({ days: INVITE_DAYS }),
+        { optional: ["days"] }
+      ),
     },
     verify: {
       title: "Adresse bestätigen",
@@ -138,12 +189,17 @@ const de = {
   },
   app: {
     loading: "Boop lädt …",
-    hello: (name: string) => (name ? `Hallo ${name}!` : "Hallo!"),
+    hello: template(
+      { named: "Hallo {name}!", unnamed: "Hallo!" },
+      (say) => (name: string) => (name ? say.named({ name }) : say.unnamed())
+    ),
     lead: "Welcher Tag bekommt heute einen Boop?",
     offline: "Offline – wir gleichen ab, sobald du wieder Netz hast",
     syncing: "Gleiche ab …",
-    pending: (n: number) =>
-      n === 1 ? "1 Änderung wartet" : `${n} Änderungen warten`,
+    pending: template(
+      { one: "1 Änderung wartet", many: "{n} Änderungen warten" },
+      (say) => (n: number) => (n === 1 ? say.one() : say.many({ n }))
+    ),
     synced: "Alles abgeglichen",
     sync: {
       synced:
@@ -163,8 +219,10 @@ const de = {
     calendarPlaceholder: "z. B. Familie, Sport, Reise …",
     create: "Anlegen",
     deleteCalendar: "Kalender löschen",
-    deleteCalendarConfirm: (name: string) =>
-      `„${name}“ mit allen Stempeln darauf löschen? Das lässt sich nicht rückgängig machen.`,
+    deleteCalendarConfirm: template(
+      "„{name}“ mit allen Stempeln darauf löschen? Das lässt sich nicht rückgängig machen.",
+      (say) => (name: string) => say({ name })
+    ),
     noCalendar: "Noch kein Kalender – leg einen an, dann geht's los.",
     stamps: "Deine Stempel",
     noStamps: "Noch keine Stempel – mal deinen ersten!",
@@ -194,6 +252,8 @@ const de = {
       year: "Jahr",
       prevYear: "Vorheriges Jahr",
       nextYear: "Nächstes Jahr",
+      thisMonth: "Dieser Monat",
+      thisYear: "Dieses Jahr",
     },
     draw: {
       title: "Neuer Stempel",
@@ -259,7 +319,11 @@ const de = {
       bold: "Fett",
       underline: "Unterstrichen",
       ctrl: "Strg",
-      by: (name: string, when: string) => (name ? `${name}, ${when}` : when),
+      by: template(
+        { named: "{name}, {when}", unnamed: "{when}" },
+        (say) => (name: string, when: string) =>
+          name ? say.named({ name, when }) : say.unnamed({ when })
+      ),
       justNow: "gerade eben",
       inMonth: "Notiz",
     },
@@ -268,9 +332,15 @@ const de = {
       text: "Lade Leute per E-Mail ein. Ohne Boop-Konto bekommen sie eine Einladung.",
       email: "E-Mail-Adresse",
       add: "Einladen",
-      added: (name: string) => `${name} ist jetzt dabei.`,
-      invited: (email: string) =>
-        `Einladung an ${email} verschickt – sie gilt ${INVITE_DAYS} Tage. Sobald es ein Konto gibt, ist die Person dabei.`,
+      added: template(
+        "{name} ist jetzt dabei.",
+        (say) => (name: string) => say({ name })
+      ),
+      invited: template(
+        "Einladung an {email} verschickt – sie gilt {days} Tage. Sobald es ein Konto gibt, ist die Person dabei.",
+        (say) => (email: string) => say({ email, days: INVITE_DAYS }),
+        { optional: ["days"] }
+      ),
       invitesTitle: "Eingeladen",
       revoke: "Zurückziehen",
       notFound: "Das hat nicht geklappt.",
@@ -278,8 +348,10 @@ const de = {
       owner: "Besitzer:in",
       remove: "Entfernen",
       leave: "Kalender verlassen",
-      leaveAsk: (owner: string) =>
-        `Wirklich verlassen? Du siehst ihn dann nicht mehr – zurück kommst du nur, wenn ${owner} dich wieder einlädt.`,
+      leaveAsk: template(
+        "Wirklich verlassen? Du siehst ihn dann nicht mehr – zurück kommst du nur, wenn {owner} dich wieder einlädt.",
+        (say) => (owner: string) => say({ owner })
+      ),
       leaveYes: "Ja, verlassen",
     },
     save: "Speichern",
@@ -289,8 +361,10 @@ const de = {
         title: "Für alle",
         owner:
           "Der Kalender selbst – was du hier änderst, ändert sich für alle darin.",
-        member: (name: string) =>
-          `Der Kalender selbst – das legt ${name} fest.`,
+        member: template(
+          "Der Kalender selbst – das legt {name} fest.",
+          (say) => (name: string) => say({ name })
+        ),
       },
       own: {
         title: "Nur für dich",
@@ -299,13 +373,19 @@ const de = {
           "Nur bei dir, auf diesem Gerät – die anderen sehen ihre eigene Farbe.",
         colorReset: "Wie der Kalender",
       },
-      deleteShared: (others: number) =>
-        others === 1
-          ? "Er ist dann auch für die andere Person weg."
-          : `Er ist dann auch für die ${others} anderen weg.`,
+      deleteShared: template(
+        {
+          one: "Er ist dann auch für die andere Person weg.",
+          many: "Er ist dann auch für die {others} anderen weg.",
+        },
+        (say) => (others: number) =>
+          others === 1 ? say.one() : say.many({ others })
+      ),
       deleteNext: "Ja, weg damit",
-      deleteType: (name: string) =>
-        `Ganz sicher? Dann tipp zur Bestätigung seinen Namen ein: ${name}`,
+      deleteType: template(
+        "Ganz sicher? Dann tipp zur Bestätigung seinen Namen ein: {name}",
+        (say) => (name: string) => say({ name })
+      ),
       deleteForGood: "Endgültig löschen",
     },
     push: {
@@ -327,20 +407,55 @@ const de = {
       // What the notifications say – in the device's language.
       someone: "Jemand",
       stampedTitle: "Boop!",
-      stampedBody: (name: string, calendar: string) =>
-        `${name} hat in „${calendar}“ gestempelt.`,
+      stampedBody: template(
+        "{name} hat in „{calendar}“ gestempelt.",
+        (say) => (name: string, calendar: string) => say({ name, calendar })
+      ),
       reminderTitle: "Heute schon gestempelt?",
-      reminderBody: (calendars: string[]) => {
-        const names = calendars.map((name) => `„${name}“`);
-        const last = names.pop() ?? "";
-        return names.length
-          ? `${names.join(", ")} und ${last} warten noch auf deinen Stempel.`
-          : `${last} wartet noch auf deinen Stempel.`;
-      },
+      // Each calendar quoted; several: “„A“, „B“ und „C“ …”.
+      reminderBody: template(
+        {
+          quote: "„{name}“",
+          one: "{calendar} wartet noch auf deinen Stempel.",
+          many: "{calendars} und {last} warten noch auf deinen Stempel.",
+        },
+        (say) => (calendars: string[]) => {
+          const names = calendars.map((name) => say.quote({ name }));
+          const last = names.pop() ?? "";
+          return names.length
+            ? say.many({ calendars: names.join(", "), last })
+            : say.one({ calendar: last });
+        }
+      ),
+    },
+    ical: {
+      title: "Kalender-Abo",
+      text: "Hol diesen Kalender in deine Kalender-App (Apple, Google & Co.): Jeder Tag mit Stempeln oder einer Notiz wird dort ein ganztägiger Termin.",
+      create: "Abo-Adresse erzeugen",
+      address: "Deine Abo-Adresse",
+      warning:
+        "Wer diese Adresse kennt, kann mitlesen – ganz ohne Anmeldung. Behalt sie also für dich.",
+      copy: "Kopieren",
+      copied: "Kopiert!",
+      open: "In Kalender-App öffnen",
+      renew: "Neue Adresse",
+      renewAsk:
+        "Neue Adresse erzeugen? Die alte gilt dann nicht mehr – deine Kalender-App braucht die neue.",
+      renewYes: "Ja, neue Adresse",
+      revoke: "Zurückziehen",
+      fetched: "Zuletzt abgerufen:",
+      neverFetched: "Noch nicht abgerufen.",
+      download: "Als Datei herunterladen (.ics)",
+      offline: "Dafür brauchst du eine Verbindung.",
+      failed: "Das hat nicht geklappt. Versuch es bitte noch einmal.",
+      // What the feed says – in the account's language.
+      stamp: "Stempel",
+      stamps: "Stempel",
+      calendar: "Kalender",
     },
     stamp: {
       untitled: "Stempel",
-      by: (name: string) => `Von ${name}`,
+      by: template("Von {name}", (say) => (name: string) => say({ name })),
       shared: "Geteilt",
       share: "Teilen",
       shareText:
@@ -349,8 +464,10 @@ const de = {
         "Teile zuerst einen Kalender – dann kannst du dort auch deine Stempel teilen.",
       onlyYou: "Bisher nur du",
       print3d: "Für den 3D-Drucker (STL)",
-      hint: (mm: number) =>
-        `${mm} mm breit, mit „boop“ auf dem Rücken. Er steht auf seiner Stempelfläche, der Knauf zeigt nach oben – nur größere Vertiefungen brauchen Stützen vom Druckbett. Die Fläche ist gespiegelt, so kommt dein Abdruck richtig herum raus.`,
+      hint: template(
+        "{mm} mm breit, mit „boop“ auf dem Rücken. Er steht auf seiner Stempelfläche, der Knauf zeigt nach oben – nur größere Vertiefungen brauchen Stützen vom Druckbett. Die Fläche ist gespiegelt, so kommt dein Abdruck richtig herum raus.",
+        (say) => (mm: number) => say({ mm })
+      ),
       delete: "Stempel löschen",
       deleteConfirm:
         "Diesen Stempel löschen? Auch seine Abdrücke verschwinden.",
@@ -361,7 +478,10 @@ const de = {
       name: "Dein Name – so sehen dich die anderen",
       nameFailed:
         "Der Name ließ sich nicht speichern. Versuch es bitte noch einmal.",
-      email: (email: string) => `Angemeldet als ${email}`,
+      email: template(
+        "Angemeldet als {email}",
+        (say) => (email: string) => say({ email })
+      ),
       stored:
         "Bei Boop liegen dein Name, deine E-Mail-Adresse und was du anlegst: Kalender, Stempel, Abdrücke und Notizen – und, wenn du sie einschaltest, deine Geräte für Benachrichtigungen.",
       privacy: "Mehr im Datenschutz",
@@ -389,25 +509,21 @@ const de = {
     },
     logout: "Abmelden",
     logoutOffline: "Zum Abmelden brauchst du eine Verbindung.",
-    logoutPending: (n: number) =>
-      `${n === 1 ? "1 Änderung ist" : `${n} Änderungen sind`} noch nicht abgeglichen und gehen beim Abmelden verloren.`,
+    logoutPending: template(
+      {
+        one: "1 Änderung ist noch nicht abgeglichen und geht beim Abmelden verloren.",
+        many: "{n} Änderungen sind noch nicht abgeglichen und gehen beim Abmelden verloren.",
+      },
+      (say) => (n: number) => (n === 1 ? say.one() : say.many({ n }))
+    ),
   },
 };
 
-export type Dictionary = typeof de;
+/** The texts as the pages read them – a template is what it makes. */
+export type Dictionary = Resolved<typeof de>;
 
-/** Same keys as German; the values may differ (strings, functions, lists). */
-type Shape<T> = T extends (...args: infer A) => infer R
-  ? (...args: A) => R
-  : T extends readonly (infer U)[]
-    ? Shape<U>[]
-    : T extends object
-      ? { [K in keyof T]: Shape<T[K]> }
-      : T extends string
-        ? string
-        : T;
-
-const en: Shape<Dictionary> = {
+/** Same keys as German, its own texts – of a template only the wording(s). */
+const en: Shape<typeof de> = {
   meta: {
     title: "Boop – your doodle stamp calendar",
     short: "Boop",
@@ -512,15 +628,19 @@ const en: Shape<Dictionary> = {
     },
     invite: {
       title: "You're invited!",
-      text: (from: string, calendar: string) =>
-        `${from} would like to share the calendar “${calendar}” with you.`,
-      until: (date: string) => `The invitation is valid until ${date}.`,
+      text: "{from} would like to share the calendar “{calendar}” with you.",
+      until: "The invitation is valid until {date}.",
       accept: "Accept invitation",
       account: "Create a free account or log in – and you're in.",
       expiredTitle: "Invitation expired",
-      expired: (from: string) =>
-        `Invitations are valid for ${INVITE_DAYS} days – this one has expired, sorry. Just ask ${from ? `${from} ` : ""}for a new one.`,
-      invalid: `This invitation doesn't exist anymore – it was used, taken back or expired after ${INVITE_DAYS} days. Just ask for a new one.`,
+      expired: {
+        named:
+          "Invitations are valid for {days} days – this one has expired, sorry. Just ask {from} for a new one.",
+        unnamed:
+          "Invitations are valid for {days} days – this one has expired, sorry. Just ask for a new one.",
+      },
+      invalid:
+        "This invitation doesn't exist anymore – it was used, taken back or expired after {days} days. Just ask for a new one.",
     },
     verify: {
       title: "Confirm address",
@@ -533,12 +653,11 @@ const en: Shape<Dictionary> = {
   },
   app: {
     loading: "Boop is loading …",
-    hello: (name: string) => (name ? `Hi ${name}!` : "Hi!"),
+    hello: { named: "Hi {name}!", unnamed: "Hi!" },
     lead: "Which day gets a boop today?",
     offline: "Offline – we'll sync once you're back online",
     syncing: "Syncing …",
-    pending: (n: number) =>
-      n === 1 ? "1 change waiting" : `${n} changes waiting`,
+    pending: { one: "1 change waiting", many: "{n} changes waiting" },
     synced: "All synced",
     sync: {
       synced:
@@ -558,8 +677,8 @@ const en: Shape<Dictionary> = {
     calendarPlaceholder: "e.g. family, workouts, trip …",
     create: "Create",
     deleteCalendar: "Delete calendar",
-    deleteCalendarConfirm: (name: string) =>
-      `Delete “${name}” with all its stamps? This can't be undone.`,
+    deleteCalendarConfirm:
+      "Delete “{name}” with all its stamps? This can't be undone.",
     noCalendar: "No calendar yet – make one to get going.",
     stamps: "Your stamps",
     noStamps: "No stamps yet – draw your first one!",
@@ -589,6 +708,8 @@ const en: Shape<Dictionary> = {
       year: "Year",
       prevYear: "Previous year",
       nextYear: "Next year",
+      thisMonth: "This month",
+      thisYear: "This year",
     },
     draw: {
       title: "New stamp",
@@ -654,7 +775,7 @@ const en: Shape<Dictionary> = {
       bold: "Bold",
       underline: "Underline",
       ctrl: "Ctrl",
-      by: (name: string, when: string) => (name ? `${name}, ${when}` : when),
+      by: { named: "{name}, {when}", unnamed: "{when}" },
       justNow: "just now",
       inMonth: "Note",
     },
@@ -663,9 +784,9 @@ const en: Shape<Dictionary> = {
       text: "Invite people by email. Without a Boop account they get an invitation.",
       email: "Email address",
       add: "Invite",
-      added: (name: string) => `${name} is in now.`,
-      invited: (email: string) =>
-        `Invitation sent to ${email} – it's valid for ${INVITE_DAYS} days. They're in once they have an account.`,
+      added: "{name} is in now.",
+      invited:
+        "Invitation sent to {email} – it's valid for {days} days. They're in once they have an account.",
       invitesTitle: "Invited",
       revoke: "Take back",
       notFound: "That didn't work.",
@@ -673,8 +794,8 @@ const en: Shape<Dictionary> = {
       owner: "Owner",
       remove: "Remove",
       leave: "Leave calendar",
-      leaveAsk: (owner: string) =>
-        `Really leave? You won't see it any more – you only get back in if ${owner} invites you again.`,
+      leaveAsk:
+        "Really leave? You won't see it any more – you only get back in if {owner} invites you again.",
       leaveYes: "Yes, leave",
     },
     save: "Save",
@@ -684,7 +805,7 @@ const en: Shape<Dictionary> = {
         title: "For everyone",
         owner:
           "The calendar itself – what you change here changes for everyone in it.",
-        member: (name: string) => `The calendar itself – that's up to ${name}.`,
+        member: "The calendar itself – that's up to {name}.",
       },
       own: {
         title: "Just for you",
@@ -693,13 +814,12 @@ const en: Shape<Dictionary> = {
           "Only for you, on this device – the others see their own color.",
         colorReset: "Same as the calendar",
       },
-      deleteShared: (others: number) =>
-        others === 1
-          ? "It'll be gone for the other person in it, too."
-          : `It'll be gone for the ${others} others in it, too.`,
+      deleteShared: {
+        one: "It'll be gone for the other person in it, too.",
+        many: "It'll be gone for the {others} others in it, too.",
+      },
       deleteNext: "Yes, get rid of it",
-      deleteType: (name: string) =>
-        `Really sure? Then type its name to confirm: ${name}`,
+      deleteType: "Really sure? Then type its name to confirm: {name}",
       deleteForGood: "Delete for good",
     },
     push: {
@@ -720,20 +840,41 @@ const en: Shape<Dictionary> = {
       timeHint: "For all your calendars – on your device's clock.",
       someone: "Someone",
       stampedTitle: "Boop!",
-      stampedBody: (name: string, calendar: string) =>
-        `${name} stamped in “${calendar}”.`,
+      stampedBody: "{name} stamped in “{calendar}”.",
       reminderTitle: "Stamped yet today?",
-      reminderBody: (calendars: string[]) => {
-        const names = calendars.map((name) => `“${name}”`);
-        const last = names.pop() ?? "";
-        return names.length
-          ? `${names.join(", ")} and ${last} are still waiting for your stamp.`
-          : `${last} is still waiting for your stamp.`;
+      reminderBody: {
+        quote: "“{name}”",
+        one: "{calendar} is still waiting for your stamp.",
+        many: "{calendars} and {last} are still waiting for your stamp.",
       },
+    },
+    ical: {
+      title: "Calendar subscription",
+      text: "Get this calendar into your calendar app (Apple, Google & co.): every day with stamps or a note becomes an all-day event there.",
+      create: "Create subscription address",
+      address: "Your subscription address",
+      warning:
+        "Anyone who knows this address can read along – no login needed. So keep it to yourself.",
+      copy: "Copy",
+      copied: "Copied!",
+      open: "Open in calendar app",
+      renew: "New address",
+      renewAsk:
+        "Make a new address? The old one stops working – your calendar app needs the new one.",
+      renewYes: "Yes, new address",
+      revoke: "Take back",
+      fetched: "Last fetched:",
+      neverFetched: "Not fetched yet.",
+      download: "Download as a file (.ics)",
+      offline: "This needs a connection.",
+      failed: "That didn't work. Please try again.",
+      stamp: "Stamp",
+      stamps: "stamps",
+      calendar: "Calendar",
     },
     stamp: {
       untitled: "Stamp",
-      by: (name: string) => `By ${name}`,
+      by: "By {name}",
       shared: "Shared",
       share: "Share",
       shareText:
@@ -742,8 +883,7 @@ const en: Shape<Dictionary> = {
         "Share a calendar first – then you can share your stamps there, too.",
       onlyYou: "Just you so far",
       print3d: "For the 3D printer (STL)",
-      hint: (mm: number) =>
-        `${mm} mm wide, with “boop” on its back. It stands on its stamp face, knob up – only bigger hollows need supports from the bed. The face is mirrored, so your print comes out the right way round.`,
+      hint: "{mm} mm wide, with “boop” on its back. It stands on its stamp face, knob up – only bigger hollows need supports from the bed. The face is mirrored, so your print comes out the right way round.",
       delete: "Delete stamp",
       deleteConfirm: "Delete this stamp? Its prints go too.",
     },
@@ -752,7 +892,7 @@ const en: Shape<Dictionary> = {
       title: "Account",
       name: "Your name – how the others see you",
       nameFailed: "The name couldn't be saved. Please try again.",
-      email: (email: string) => `Logged in as ${email}`,
+      email: "Logged in as {email}",
       stored:
         "Boop keeps your name, your email address and what you make: calendars, stamps, prints and notes – and, once you turn them on, your devices for notifications.",
       privacy: "More in the privacy notes",
@@ -777,15 +917,113 @@ const en: Shape<Dictionary> = {
     },
     logout: "Log out",
     logoutOffline: "Logging out needs a connection.",
-    logoutPending: (n: number) =>
-      `${n === 1 ? "1 change isn't" : `${n} changes aren't`} synced yet and will be lost when you log out.`,
+    logoutPending: {
+      one: "1 change isn't synced yet and will be lost when you log out.",
+      many: "{n} changes aren't synced yet and will be lost when you log out.",
+    },
   },
 };
 
-const dictionaries = { de, en: en as Dictionary } satisfies Record<
+// ── The texts in use ────────────────────────────────────────────────────────
+
+const flat = { de: flatten(de), en: flatten(en) } satisfies Record<
   Locale,
-  Dictionary
+  Flat
 >;
 
-export const dictionaryOf = (locale: Locale): Dictionary =>
-  dictionaries[locale];
+/** The code's own texts by key (flat.ts), per language. */
+export const CODE_TEXTS: Record<Locale, Record<string, string>> = {
+  de: flat.de.texts,
+  en: flat.en.texts,
+};
+
+/** The placeholders of the texts that have some – German's: the code fills them. */
+export const PLACEHOLDERS: Record<string, Placeholders> = flat.de.placeholders;
+
+/**
+ * Functions written by hand – they have no text to store, so they stay as
+ * the code has them, outside the CMS, until they are templates.
+ */
+export const CODE_ONLY: string[] = [
+  ...new Set([...flat.de.codeOnly, ...flat.en.codeOnly]),
+];
+
+/** Texts from the CMS, per language and key. */
+export type Texts = Partial<Record<Locale, Record<string, string>>>;
+
+const NO_PLACEHOLDERS: Placeholders = { known: [], required: [] };
+
+/**
+ * Whether a text from the CMS may stand in for the code's: a key the code
+ * has, something in it, and the placeholders the code fills – no other, and
+ * none missing (template.ts). Checked when saving in the admin, and again
+ * here: a text that doesn't fit shows the code's instead.
+ */
+export const fits = (key: string, text: unknown): text is string =>
+  typeof text === "string" &&
+  Boolean(text.trim()) &&
+  Object.hasOwn(CODE_TEXTS.de, key) &&
+  checkPlaceholders(text, PLACEHOLDERS[key] ?? NO_PLACEHOLDERS) === true;
+
+/**
+ * Of the CMS's texts, those to show: the ones that fit and say something
+ * else than the code – all a page has to carry, as the code's are in it
+ * anyway.
+ */
+export const usableTexts = (texts: unknown): Texts => {
+  const given = (texts ?? {}) as Partial<Record<Locale, unknown>>;
+  const usable: Texts = {};
+  for (const locale of LOCALES) {
+    const own = given[locale];
+    if (!own || typeof own !== "object") continue;
+    const kept = Object.entries(own).filter(
+      ([key, text]) => fits(key, text) && text !== CODE_TEXTS[locale][key]
+    );
+    if (kept.length) usable[locale] = Object.fromEntries(kept);
+  }
+  return usable;
+};
+
+/**
+ * The CMS's texts in use – one set for everybody, like the stamp colors
+ * (features/calendar/palette.ts). Set while rendering: in the browser and
+ * for client components on the server by `TextsProvider`, for server
+ * components by `getDictionary` (features/translations).
+ */
+let inUse: Texts = {};
+let given = "{}";
+const built = new Map<Locale, Dictionary>();
+
+/**
+ * Puts the CMS's texts in use. The same again changes nothing – not even
+ * the dictionaries handed out, so rendering twice is fine.
+ */
+export const setTexts = (texts: unknown) => {
+  const next = JSON.stringify(texts ?? {});
+  if (next === given) return;
+  given = next;
+  inUse = usableTexts(texts);
+  built.clear();
+};
+
+const own: Record<Locale, unknown> = { de, en };
+
+/**
+ * A language's texts, as the pages read them: the CMS's where it has one
+ * that fits, the code's for the rest. Synchronous – the texts in use, see
+ * the top of this file for when that is the CMS's. One object per language
+ * until the texts change.
+ */
+export const dictionaryOf = (locale: Locale): Dictionary => {
+  const known = built.get(locale);
+  if (known) return known;
+  const cms = inUse[locale] ?? {};
+  const code = CODE_TEXTS[locale];
+  const dictionary = build(
+    de,
+    own[locale],
+    (key) => cms[key] ?? code[key] ?? CODE_TEXTS.de[key] ?? ""
+  );
+  built.set(locale, dictionary);
+  return dictionary;
+};

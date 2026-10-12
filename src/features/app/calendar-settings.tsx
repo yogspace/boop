@@ -6,6 +6,7 @@ import { Bang } from "@/components/doodles";
 import { Button, Field, Notice } from "@/components/ui";
 import type { CalendarDoc, ColorName } from "@/features/calendar/model";
 import { hexOf } from "@/features/calendar/palette";
+import { CalendarFeed } from "@/features/ical/calendar-feed";
 import {
   colorOf,
   deleteCalendar,
@@ -66,8 +67,9 @@ export const PersonPlus = (props: SVGProps<SVGSVGElement>) => (
  * - **For everyone** – the calendar itself: its name and who is in it. Its
  *   owner's to change – the server holds to that (sync/apply.ts); anyone
  *   else reads.
- * - **Just for you** – how one sees it oneself: its color, and what one
- *   hears of it – the notifications (push/notification-settings.tsx).
+ * - **Just for you** – how one sees it oneself: its color, what one hears
+ *   of it – the notifications (push/notification-settings.tsx) – and one's
+ *   own address to have it in a calendar app (ical/calendar-feed.tsx).
  *
  * At the very end, below both, the way out: the owner deletes it (asked
  * twice), a member leaves it (asked once).
@@ -79,7 +81,8 @@ export const PersonPlus = (props: SVGProps<SVGSVGElement>) => (
  * behind the sheet turns with it.
  *
  * Name, color and deleting work offline like everything kept on the device;
- * removing someone and leaving need a connection.
+ * removing someone, leaving and the calendar app's address need a
+ * connection.
  */
 export const CalendarSettings = ({
   calendar,
@@ -194,6 +197,8 @@ export const CalendarSettings = ({
         </ColorPicker>
         {/* A reminder, “someone stamped” – each one's own. */}
         <NotificationSettings calendar={calendar} locale={locale} />
+        {/* In a calendar app: one's own address to subscribe to, or a file. */}
+        <CalendarFeed calendar={calendar} locale={locale} />
       </Part>
       {/* The way out – the owner's or a member's – last of all. */}
       <span aria-hidden="true" className="scribble-rule" />

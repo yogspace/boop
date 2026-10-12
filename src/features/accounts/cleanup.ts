@@ -1,6 +1,7 @@
 import type { Payload, Where } from "payload";
 import { expiredInvites } from "@/features/calendar/invite-expiry";
 import { sweepInvites } from "@/features/calendar/invites";
+import { sweepFeeds } from "@/features/ical/store";
 import { sendMail } from "@/lib/mail";
 import { inactiveMail } from "./emails";
 import {
@@ -140,6 +141,8 @@ const tendUnused = async (
 export type CleanupResult = {
   dry: boolean;
   invites: number;
+  /** Calendar feeds whose account is no longer in the calendar. */
+  feeds: number;
   unverified: { deleted: number; failed: number; left: number };
   inactive: InactivityTally;
 };
@@ -163,6 +166,7 @@ export const runCleanup = async (
           })
         ).totalDocs
       : await sweepInvites(payload),
+    feeds: await sweepFeeds(payload, { dry }),
     unverified: await sweepUnverified(payload, { now, dry }),
     inactive: await tendUnused(payload, { now, dry }),
   };

@@ -430,7 +430,8 @@ export const MonthGrid = ({
               }
               type="button"
             >
-              {t.app.today}
+              {/* Not “today” – that is a view of its own (view-switch.tsx). */}
+              {t.app.view.thisMonth}
             </button>
           )}
           <button

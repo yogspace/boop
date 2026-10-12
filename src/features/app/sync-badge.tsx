@@ -12,10 +12,10 @@ import { cn } from "@/lib/cn";
 import { useDismiss } from "./use-dismiss";
 
 /**
- * Online or not, and whether changes still wait. Only a sign, round like the
- * account's button: a tick (all in sync), a pulsing dot with the number
- * still waiting (on its way), a cross (offline). The words are its label,
- * read out.
+ * Online or not, and whether changes still wait. Only a sign, beside the
+ * account's button but quieter – no frame of its own: a grey tick (all in
+ * sync, nothing to see here), a pulsing dot with the number still waiting
+ * (on its way), a cross (offline). The words are its label, read out.
  *
  * Tapping it opens a note hung from it (a popover – `sync-overlay`,
  * styles.css): the state, what it means, and a button to sync now. It
@@ -58,8 +58,11 @@ export const SyncBadge = ({ locale }: { locale: Locale }) => {
         aria-label={label}
         className={cn(
           ROUND_BUTTON,
-          "relative [anchor-name:--sync-badge] aria-expanded:scribble-ink",
-          !online && "text-muted aria-expanded:text-card"
+          // Quiet in the bar: no frame, a soft blob when pointed at – and
+          // grey while there is nothing to say. It speaks up only when
+          // changes wait or the connection is gone.
+          "relative scribble-bare scribble-clear [anchor-name:--sync-badge] hover:scribble-soft hover:translate-y-0 hover:rotate-0 aria-expanded:scribble-ink",
+          state === "synced" && "text-muted aria-expanded:text-card"
         )}
         onClick={toggle}
         ref={button}

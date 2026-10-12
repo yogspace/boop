@@ -1,5 +1,5 @@
 import type { CollectionConfig } from "payload";
-import { adminOnly } from "@/access";
+import { hiddenUnlessSupport, sealed } from "@/access";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
 import { colorField } from "../color-field";
 import { SHAPES } from "../model";
@@ -12,17 +12,16 @@ import { SHAPES } from "../model";
  * `calendar` is how sharing was kept before (one calendar only): wherever
  * stamps are read it counts as one more of `sharedWith` (`sharedWithOf`,
  * model.ts), and the sync empties it whenever it writes a stamp's sharing.
+ *
+ * The app's through the sync alone; closed over REST, for admins too – they
+ * read it in support mode (src/access).
  */
 export const Stamps: CollectionConfig = {
   slug: "stamps",
   labels: { singular: "Stamp", plural: "Stamps" },
-  access: {
-    read: adminOnly,
-    create: adminOnly,
-    update: adminOnly,
-    delete: adminOnly,
-  },
+  access: sealed,
   admin: {
+    hidden: hiddenUnlessSupport,
     group: "Calendars",
     useAsTitle: "name",
     defaultColumns: ["name", "color", "owner", "sharedWith", "changedAt"],

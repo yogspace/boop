@@ -17,9 +17,10 @@ import {
  *
  * It is put together field by field: what isn't named here doesn't get out
  * – no password hash, no token, no session id, no push address or key (only
- * whose push service it is). And it is the account's own: its calendars,
- * its stamps, the prints it made, the notes it wrote last, the invitations
- * it sent, its notifications. Of
+ * whose push service it is), no calendar app's address (only that there is
+ * one). And it is the account's own: its calendars, its stamps, the prints
+ * it made, the notes it wrote last, the invitations it sent, its
+ * notifications, its addresses for calendar apps. Of
  * other people only what the app shows it anyway – their names, as members
  * of its calendars and owners of the ones it is in. What they drew and
  * stamped is theirs.
@@ -57,6 +58,7 @@ export const accountExport = ({
   invites,
   pushSettings = null,
   pushDevices = [],
+  calendarFeeds = [],
   people,
   now = new Date(),
 }: {
@@ -72,6 +74,8 @@ export const accountExport = ({
   pushSettings?: Doc | null;
   /** Its devices that get notifications. */
   pushDevices?: Doc[];
+  /** Its addresses for calendar apps (features/ical). */
+  calendarFeeds?: Doc[];
   /** The people in those calendars – names by account id. */
   people: Record<string, string>;
   now?: Date;
@@ -199,6 +203,18 @@ export const accountExport = ({
           lastUsedAt: when(device.lastUsedAt),
         })),
     },
+    /**
+     * The calendars it has an address for, to subscribe to in a calendar
+     * app: since when, and when one last fetched it. Not the address – it
+     * is a key, and the calendar's settings show it.
+     */
+    calendarFeeds: calendarFeeds
+      .filter((feed) => ref(feed.account) === me)
+      .map((feed) => ({
+        calendar: ref(feed.calendar),
+        createdAt: when(feed.createdAt),
+        lastFetchedAt: when(feed.lastFetchedAt),
+      })),
   };
 };
 
@@ -218,7 +234,8 @@ export const collectExport = async (
       | "notes"
       | "invites"
       | "push-settings"
-      | "push-subscriptions",
+      | "push-subscriptions"
+      | "calendar-feeds",
     where: Where
   ) =>
     (
@@ -259,6 +276,9 @@ export const collectExport = async (
   const pushDevices = await find("push-subscriptions", {
     account: { equals: me },
   });
+  const calendarFeeds = await find("calendar-feeds", {
+    account: { equals: me },
+  });
 
   // The people in its calendars, by name – nothing else about them.
   const ids = [...new Set(calendars.flatMap(memberIds))];
@@ -286,6 +306,7 @@ export const collectExport = async (
     invites,
     pushSettings: pushSettings ?? null,
     pushDevices,
+    calendarFeeds,
     people,
   });
 };

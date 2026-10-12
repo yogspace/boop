@@ -4,8 +4,8 @@ import { knownKey } from "@/features/calendar/palette";
 import { strokePath } from "@/features/calendar/stamp-svg";
 import { getSite } from "@/features/site/get-site";
 import { demoStamp } from "@/features/stickers/demo";
+import { getDictionary } from "@/features/translations/get-texts";
 import { isLocale } from "@/i18n/config";
-import { dictionaryOf } from "@/i18n/dictionaries";
 
 /**
  * The picture when a page is shared – the site's look: black marker on white
@@ -88,7 +88,7 @@ const Print = ({
 
 const Image = async ({ params }: { params: Promise<{ locale: string }> }) => {
   const { locale } = await params;
-  const t = dictionaryOf(isLocale(locale) ? locale : "de");
+  const t = await getDictionary(isLocale(locale) ? locale : "de");
   // The CMS's colors – a demo stamp's color it lacks shows in its first.
   const { stampColors } = await getSite();
   const hexOf = (key: string) =>

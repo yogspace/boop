@@ -27,10 +27,15 @@ import { createInk, type Ink, UNDER } from "./ink";
  * Turned (`turn()`), it spins about its own axis: pressed, it lies exactly
  * as the print does.
  *
+ * A finger doesn't point: there it is no companion. It only comes for the
+ * press – flies to the spot, comes down, comes off – and is gone again by
+ * itself (`press()` without `stay`).
+ *
  * One small canvas that travels along – fixed, on the body itself, so no
  * sheet clips it – moved and drawn without React, through the ref:
  * `point()`, `hide()`, `press()`, `turn()`. It only draws while something
- * moves.
+ * moves. Fixed means it doesn't go along when something scrolls: it lets go
+ * then (`drop`), rather than stand where the spot it was at no longer is.
  */
 
 export type StampHandle = {
@@ -40,11 +45,13 @@ export type StampHandle = {
   hide: () => void;
   /**
    * Onto this spot and back – `contact` runs as it touches (at once without
-   * WebGL or with reduced motion). It stays beside the spot until it is
-   * pointed elsewhere. One press at a time: while it is still at it, the
-   * next one is refused (`false`) and nothing touches.
+   * WebGL or with reduced motion). With `stay` (a mouse) it then keeps
+   * beside the spot until it is pointed elsewhere; without (a finger, which
+   * never points elsewhere) it goes as it comes off the page. One press at a
+   * time: while it is still at it, the next one is refused (`false`) and
+   * nothing touches.
    */
-  press: (x: number, y: number, contact: () => void) => boolean;
+  press: (x: number, y: number, contact: () => void, stay?: boolean) => boolean;
   /**
    * Turned like a print with this `rotation` (degrees, clockwise) – it spins
    * there the shortest way round.
@@ -106,6 +113,8 @@ const TWIST = 0.35;
 const FADE_IN = 0.12;
 const FADE_OUT = 0.09;
 const LINGER = 90;
+/** Taken away after a press (s): slower – one sees it come off and go. */
+const FADE_AWAY = 0.16;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
@@ -196,6 +205,8 @@ type Press = {
   from: { x: number; y: number; pressed: number };
   /** What happens as it touches – null once it has. */
   contact: (() => void) | null;
+  /** Back beside the spot afterwards – else it goes as it comes off. */
+  stay: boolean;
 };
 
 /** A soft round shadow – dark in the middle, gone at the edge. */
@@ -341,6 +352,29 @@ const createHand = () => {
     };
   };
 
+  /** A press on its way down touches now. */
+  const land = () => {
+    const contact = press?.contact;
+    if (!(press && contact)) return;
+    press.contact = null;
+    contact();
+  };
+
+  /**
+   * Something scrolled – the page, a sheet: the canvas is fixed and stays,
+   * what it was beside or over went on. So the stamp lets go: a press on
+   * its way still leaves its print, and it is gone – until it is pointed
+   * somewhere again.
+   */
+  const drop = () => {
+    if (!(shown || press)) return;
+    land();
+    press = null;
+    shown = false;
+    hideAt = 0;
+    wake();
+  };
+
   /** The one canvas – made when the first stamp is taken. */
   const open = () => {
     if (!opening) {
@@ -350,11 +384,16 @@ const createHand = () => {
       void mine.then((made) => {
         if (opening === mine) view = made;
       });
+      // Whatever scrolls, wherever: scrolling doesn't bubble, but it can be
+      // caught on its way down.
+      window.addEventListener("scroll", drop, { capture: true, passive: true });
     }
     return opening;
   };
 
   const close = (old: View) => {
+    // Off the page first – then what it was made of.
+    old.box.remove();
     if (old.sticker) disposeSticker(old.sticker);
     old.shadow.geometry.dispose();
     old.shadow.material.map?.dispose();
@@ -362,15 +401,6 @@ const createHand = () => {
     old.ink.dispose();
     old.renderer.dispose();
     old.renderer.forceContextLoss();
-    old.box.remove();
-  };
-
-  /** A press on its way down touches now. */
-  const land = () => {
-    const contact = press?.contact;
-    if (!(press && contact)) return;
-    press.contact = null;
-    contact();
   };
 
   /** Right beside the pointer, upright, turned – no gliding in from before. */
@@ -443,9 +473,11 @@ const createHand = () => {
       hideAt = 0;
     }
     const goal = shown && view?.sticker ? 1 : 0;
+    // Going while still at a press: taken away after it, not sent off.
+    const out = press ? FADE_AWAY : FADE_OUT;
     if (calm) presence = goal;
     else if (presence < goal) presence = Math.min(1, presence + dt / FADE_IN);
-    else if (presence > goal) presence = Math.max(0, presence - dt / FADE_OUT);
+    else if (presence > goal) presence = Math.max(0, presence - dt / out);
 
     // What follows the pointer – the stamp is parked beside it.
     if (calm) {
@@ -462,6 +494,8 @@ const createHand = () => {
     // A press, beat by beat: lifted over the spot (bigger, tipping flat),
     // the blow (down to the print's size), on the page (squashed), off it
     // (bigger again), back beside the pointer – wherever that is by now.
+    // Where no pointer is to go back to (`stay`), it fades on that last
+    // way: come off the page, it is taken away.
     let squash = 0;
     if (press) {
       const { from } = press;
@@ -489,6 +523,7 @@ const createHand = () => {
           high = HOP * hop((t - BEAT.touch) / BEAT.off);
           at = spot;
         } else if (t < BEAT.touch + BEAT.off + BEAT.back) {
+          if (!press.stay) shown = false;
           const u = (t - BEAT.touch - BEAT.off) / BEAT.back;
           const e = settle(u);
           pressed = 1 - e;
@@ -523,8 +558,10 @@ const createHand = () => {
     if (calm || !moving) jump();
 
     draw(squash);
-    if (moving && presence + goal > 0) frame = requestAnimationFrame(tick);
-    else last = 0;
+    // A press runs to its end, seen or not – only then is the next one let.
+    if (moving && (press || presence + goal > 0)) {
+      frame = requestAnimationFrame(tick);
+    } else last = 0;
   };
 
   const wake = () => {
@@ -538,6 +575,8 @@ const createHand = () => {
       hideAt = 0;
       if (!shown && presence < 0.05 && !press) jump();
       shown = true;
+      // A pointer after all – a press under way has somewhere to go back to.
+      if (press) press.stay = true;
       wake();
     },
 
@@ -547,31 +586,34 @@ const createHand = () => {
       wake();
     },
 
-    press: (toX: number, toY: number, contact: () => void) => {
+    press: (toX: number, toY: number, contact: () => void, stay = true) => {
       if (!view?.sticker) {
         contact();
         return true;
       }
       // Still at the last one – this one doesn't happen.
       if (press) return false;
-      // Afterwards it is beside this spot – a finger doesn't point first,
-      // and then the stamp is simply there as it taps.
+      // It sets off from beside this spot, and comes back there – a finger
+      // doesn't point first, and then the stamp is simply there as it taps.
       px = toX;
       py = toY;
       if (presence < 0.05 || still?.matches) jump();
-      shown = true;
       hideAt = 0;
       if (still?.matches) {
-        // No flight: the print is simply there.
+        // No flight: the print is simply there – and the stamp beside it,
+        // where it stays.
+        shown = stay;
         press = null;
         contact();
       } else {
+        shown = true;
         press = {
           x: toX,
           y: toY,
           start: performance.now(),
           from: { ...at, pressed: clamp(pressed, 0, 1) },
           contact,
+          stay,
         };
       }
       wake();
@@ -636,6 +678,7 @@ const createHand = () => {
       wake();
     },
 
+    /** Gone for good: off the page, its canvas and its WebGL given back. */
     dispose: () => {
       taken++;
       land();
@@ -645,6 +688,7 @@ const createHand = () => {
       cancelAnimationFrame(frame);
       frame = 0;
       last = 0;
+      window.removeEventListener("scroll", drop, { capture: true });
       const old = opening;
       opening = null;
       view = null;

@@ -20,12 +20,15 @@ import { Notes } from "@/features/calendar/collections/notes";
 import { Placements } from "@/features/calendar/collections/placements";
 import { Stamps } from "@/features/calendar/collections/stamps";
 import { Invites } from "@/features/calendar/invites";
+import { CalendarFeeds } from "@/features/ical/collection";
+import { icalEndpoints } from "@/features/ical/endpoints";
 import { Legal } from "@/features/legal/global";
 import { PushSettings, PushSubscriptions } from "@/features/push/collections";
 import { pushEndpoints } from "@/features/push/endpoints";
 import { Site } from "@/features/site/global";
 import { syncEndpoint } from "@/features/sync/endpoint";
 import { liveEndpoint } from "@/features/sync/live";
+import { Translations } from "@/features/translations/global";
 import { LOCALES } from "@/i18n/config";
 import { devMailAdapter } from "@/lib/dev-mail";
 import { mailSender } from "@/lib/mail";
@@ -43,8 +46,12 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
  * - sync       the one endpoint the app reads and writes with, also after
  *              being offline
  * - push       notifications: the devices that said yes, their settings
+ * - ical       a calendar for calendar apps: private feed addresses, the
+ *              feed itself, the export as a file
  * - analytics  anonymous statistics and the mail report
  * - site/legal settings, imprint and privacy
+ * - translations the texts of the site and the app, editable – the code
+ *              brings them along (i18n/dictionaries.ts)
  *
  * Everything that differs between machines comes from the environment (see
  * .env.example).
@@ -61,6 +68,8 @@ export default buildConfig({
       icons: [{ rel: "icon", type: "image/svg+xml", url: "/icon.svg" }],
     },
     components: {
+      // Support mode on (ADMIN_SUPPORT, src/access): said on every page.
+      header: ["@/features/admin/support-banner#SupportBanner"],
       afterNavLinks: ["@/features/admin/seeds/seeds-nav-link#SeedsNavLink"],
       views: {
         seeds: {
@@ -92,17 +101,25 @@ export default buildConfig({
     Placements,
     Notes,
     Invites,
+    CalendarFeeds,
     PageViews,
     Actions,
   ],
   // Analytics last – its own group, at the very bottom.
-  globals: [Site, Legal, Analytics],
-  endpoints: [syncEndpoint, liveEndpoint, ...pushEndpoints, seedEndpoint],
+  globals: [Site, Legal, Translations, Analytics],
+  endpoints: [
+    syncEndpoint,
+    liveEndpoint,
+    ...pushEndpoints,
+    ...icalEndpoints,
+    seedEndpoint,
+  ],
   // The admin's login cookie, `boop-token` – the app has its own
   // (features/accounts/session.ts). Only sent along from our own pages.
   cookiePrefix: "boop",
   csrf: [serverUrl()],
-  // The app speaks REST (and the sync) only.
+  // The app speaks REST (and the sync) only – and GraphQL would be one more
+  // way in to keep closed (src/access).
   graphQL: { disable: true },
   editor: lexicalEditor(),
   localization: {

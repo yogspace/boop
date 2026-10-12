@@ -5,7 +5,7 @@ import type {
   Payload,
   PayloadRequest,
 } from "payload";
-import { adminOnly } from "@/access";
+import { hiddenUnlessSupport, sealed } from "@/access";
 import { sessionAccount } from "@/features/accounts/session";
 import { nudgeCalendars } from "@/features/sync/live";
 import { isLocale, type Locale } from "@/i18n/config";
@@ -68,13 +68,11 @@ const senderName = async (req: PayloadRequest, id: string) => {
 export const Invites: CollectionConfig = {
   slug: "invites",
   labels: { singular: "Invitation", plural: "Invitations" },
-  access: {
-    read: adminOnly,
-    create: adminOnly,
-    update: adminOnly,
-    delete: adminOnly,
-  },
+  // The app's through the endpoints here alone; closed over REST, for
+  // admins too – they read it in support mode (src/access).
+  access: sealed,
   admin: {
+    hidden: hiddenUnlessSupport,
     group: "Calendars",
     useAsTitle: "email",
     defaultColumns: ["email", "calendar", "invitedBy", "expiresAt"],
@@ -95,11 +93,14 @@ export const Invites: CollectionConfig = {
       required: true,
     },
     {
+      // The link's secret – whoever has it joins the calendar. Never read
+      // over REST, in support mode neither.
       name: "token",
       type: "text",
       required: true,
       unique: true,
       index: true,
+      access: { read: () => false },
       admin: { hidden: true },
     },
     { name: "expiresAt", type: "date", required: true, index: true },

@@ -23,6 +23,7 @@ Each feature lives in `src/features/<name>/` and brings its own collections, glo
 | `accounts` | People using Boop (`accounts`): email + password, verification and reset mails (DE/EN), a first calendar at sign-up, cleanup on delete; the app's own login cookie (`session.ts`, `cookie.ts`) with the account's ways out – its data as a JSON file (`export.ts`), deleting itself with its password; account forms |
 | `calendar` | `calendars`, `stamps`, `placements`, `notes`, `invites` and the shared model (`model.ts`); a day's note as data – checked, read from the editor, its id (`note.ts`); member endpoints (share by email, remove, leave); invitations by mail for addresses without an account, good for 14 days (`invites.ts`, `invite-expiry.ts`); shapes and rim patterns (`outline.ts`), SVG import (`import-svg.ts`), the stamp colors from the CMS (`palette.ts`), the flat stamp/print renderer (`stamp-svg.tsx`) |
 | `sync` | `POST /api/sync` – the app's only way to read and write calendar data – and `GET /api/sync/live`, the live nudges (see below) |
+| `ical` | A calendar in calendar apps: private feed addresses (`calendar-feeds`), the feed and the `.ics` file (see “Calendar apps”) |
 | `stickers` | Stamps in 3D (three.js): the model with raised doodle and “boop” watermark (`build.ts`), the cartoon ink-line renderer (`ink.ts`) and the special stamps' sparkles (`glitter.ts`), pictures for lists (`render.ts`), the live view (`sticker-view.tsx`), the stamp in hand (`stamp-hand.tsx`), STL export for 3D printing (`export-stl.ts`) |
 | `transitions` | Page transitions with the View Transitions API |
 | `offline` | The device's copy: IndexedDB (`db.ts`) and the valtio store with outbox and sync (`store.ts`) |
@@ -58,6 +59,14 @@ All of `/{locale}/app/…` is one page: the proxy (`src/proxy.ts`) rewrites it t
 A stamp is drawn on one of five shapes (circle, square, octagon, triangle, diamond) in one color – a key of the stamp colors kept in the CMS (“Site” → Stamp colors). Its drawing may also hold an uploaded SVG's filled areas, a rim pattern, `inverted` (the face in ink, the doodle cut out) and `special` (bigger prints that glitter). In 3D (`features/stickers`) it becomes a rubber stamp drawn like a cartoon – flat colors and ink lines: a block with a knob, the rim and doodle standing out of the rubber face, “boop” engraved on top. The rubber face is a closed surface built from a height map of the drawing, so the same model exports as a printable STL (40 mm, mirrored so the real print reads correctly). It stands on its rubber face, knob up: the knob prints without supports, only bigger hollows between the raised lines need supports from the bed.
 
 A print (`placements`) records the ink pad it was made with (`ink`). It shows what stands out of the rubber: rim and doodle in ink (an inverted stamp: the face in ink, the doodle as gaps). A per-print seed makes coverage, grain and edges a little different every time.
+
+## Calendar apps
+
+A calendar can be subscribed to in Apple Calendar, Google Calendar & co. (`features/ical`). Every day with prints or a note is one all-day event: the names of the stamps on it, each once (“Sport, Lesen”; unnamed ones counted: “3 Stempel”), the note as plain text in its description; its `UID` is made of calendar and day, `LAST-MODIFIED` is the day's latest change. The few fixed words are in the account's language.
+
+- **The feed:** `GET /api/ical/{token}.ics` – no cookie, the token (192 random bits) is the key, as calendar apps can't log in. `text/calendar`, RFC 5545 (CRLF, folded at 75 octets), refresh every hour; `ETag` → `304`; rate-limited per feed. It is good only while its account is in the calendar – checked at every fetch: left, taken out, calendar or account deleted, and it's a plain `404` (and the entry goes). Tokens are never logged.
+- **Per account and calendar, from the calendar's settings** (cookie, members only): `GET|POST|DELETE /api/ical/feeds/:calendar`, `POST /api/ical/feeds/:calendar/renew` (the old address is dead at once), and `POST /api/ical/export/:calendar` – the same text once as a file.
+- **`calendar-feeds`**: account, calendar, token, `createdAt`, `lastFetchedAt` (once a day at most). Closed to everyone over the API, the admin too, and hidden in the admin – only server code with `overrideAccess`. The token is stored as it is, on purpose: the settings show the address again. Feeds go with their account (`removeData`), are in its export without the token, and dead ones are swept whenever an address is made.
 
 ## Access
 

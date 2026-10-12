@@ -4,20 +4,23 @@ import type { ReactNode } from "react";
 import { MotionProvider } from "@/components/motion";
 import { ScribbleDefs } from "@/components/scribble-defs";
 import { SIGNED_IN_SCRIPT } from "@/features/accounts/signed-in";
+import { SignedInMark } from "@/features/accounts/signed-in-mark";
 import { PageViewTracker } from "@/features/analytics/page-view-tracker";
 import { PaletteProvider } from "@/features/calendar/palette-provider";
 import { ServiceWorker } from "@/features/pwa/service-worker";
 import { getSite } from "@/features/site/get-site";
 import { TransitionDone } from "@/features/transitions/link";
+import { getDictionary, getTexts } from "@/features/translations/get-texts";
+import { TextsProvider } from "@/features/translations/texts-provider";
 import { isLocale, LOCALES } from "@/i18n/config";
-import { dictionaryOf } from "@/i18n/dictionaries";
 import { serverUrl } from "@/lib/server-url";
 import "@/styles.css";
 
 // No `dynamicParams = false` here: Next applies it to every page below, and
-// the app's calendar addresses (/de/app/{id}) render on demand – as does a
-// public page after its content changed in the admin ((site)/layout.tsx).
-// The proxy sends anything without a language to one anyway.
+// a public page renders on demand after its content changed in the admin
+// ((site)/layout.tsx). The app's addresses (/de/app/familie/heute) are all
+// the one page of /de/app – the proxy rewrites them to it (proxy.ts) – and
+// it sends anything without a language to one, too.
 export const generateStaticParams = () => LOCALES.map((locale) => ({ locale }));
 
 type Props = { params: Promise<{ locale: string }> };
@@ -27,7 +30,7 @@ export const generateMetadata = async ({
 }: Props): Promise<Metadata> => {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
-  const t = dictionaryOf(locale);
+  const t = await getDictionary(locale);
   return {
     metadataBase: new URL(serverUrl()),
     title: { default: t.meta.title, template: `%s · ${t.meta.short}` },
@@ -60,8 +63,8 @@ export const viewport: Viewport = {
 };
 
 /**
- * The frame of every page in a language: fonts, the stamp colors, statistics,
- * offline.
+ * The frame of every page in a language: fonts, the stamp colors, the
+ * texts, statistics, offline.
  */
 const LocaleLayout = async ({
   children,
@@ -69,11 +72,14 @@ const LocaleLayout = async ({
 }: Props & { children: ReactNode }) => {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
-  // The CMS's colors, in the page itself – so they are there from the first
-  // paint, and offline too (the service worker keeps the page).
-  const { stampColors } = await getSite();
+  // The CMS's colors and texts, in the page itself – so they are there from
+  // the first paint, and offline too (the service worker keeps the page).
+  // The texts of both languages, as far as they differ from the code's: the
+  // app switches its language without loading anew (get-texts.ts).
+  const [{ stampColors }, texts] = await Promise.all([getSite(), getTexts()]);
   return (
-    // `data-in` is set by the script below, before React – not a mismatch.
+    // `data-in` is set by the script below, before React – not a mismatch –
+    // and kept by `SignedInMark` when this frame is built anew.
     <html lang={locale} suppressHydrationWarning>
       <head>
         {/* Logged in on this device? Marked before the first paint. */}
@@ -93,8 +99,11 @@ const LocaleLayout = async ({
       <body>
         <ScribbleDefs />
         <MotionProvider>
-          <PaletteProvider colors={stampColors}>{children}</PaletteProvider>
+          <TextsProvider texts={texts}>
+            <PaletteProvider colors={stampColors}>{children}</PaletteProvider>
+          </TextsProvider>
         </MotionProvider>
+        <SignedInMark />
         <PageViewTracker />
         <TransitionDone />
         <ServiceWorker />

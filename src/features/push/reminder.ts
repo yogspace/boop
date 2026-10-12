@@ -1,4 +1,5 @@
 import type { Payload } from "payload";
+import { getDictionary } from "@/features/translations/get-texts";
 import { peopleOf, settingsOf } from "./read";
 import {
   loginLasts,
@@ -128,7 +129,11 @@ export const runReminders = async (
       const result = await sendPush(
         payload,
         [device],
-        reminderMessage(device.locale, open),
+        reminderMessage(
+          device.locale,
+          open,
+          (await getDictionary(device.locale)).app.push
+        ),
         { ttl: secondsLeftOfDay(device.timeZone, now) }
       );
       tally.sent += result.sent;

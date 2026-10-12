@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ForgotForm } from "@/features/accounts/forms";
+import { getDictionary } from "@/features/translations/get-texts";
 import { isLocale } from "@/i18n/config";
-import { dictionaryOf } from "@/i18n/dictionaries";
 
 type Props = { params: Promise<{ locale: string }> };
 
@@ -12,7 +12,7 @@ export const generateMetadata = async ({
 }: Props): Promise<Metadata> => {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
-  const t = dictionaryOf(locale);
+  const t = await getDictionary(locale);
   // Account pages stay out of search results.
   return { title: t.auth.forgot.title, robots: { index: false, follow: true } };
 };

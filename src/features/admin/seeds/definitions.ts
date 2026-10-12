@@ -6,7 +6,7 @@
  * is missing; “Replace” – where offered, behind a confirmation – sets it back
  * to the code's version.
  */
-export const SEEDS = ["legal"] as const;
+export const SEEDS = ["translations", "legal"] as const;
 
 export type SeedKey = (typeof SEEDS)[number];
 
@@ -15,6 +15,8 @@ export const isSeedKey = (value: unknown): value is SeedKey =>
 
 /** Seeds that can also reset what is there, behind a confirmation. */
 export const seedCanReplace: Record<SeedKey, boolean> = {
+  // Never: what is written in the admin wins (features/translations/seed.ts).
+  translations: false,
   legal: true,
 };
 
@@ -30,6 +32,11 @@ export const SEED_TEXTS: Record<
   SeedKey,
   { title: string; description: string; replaceWarning?: string }
 > = {
+  translations: {
+    title: "Translations",
+    description:
+      "Adds the texts the code has new, in German and English, and removes the ones it no longer has. Texts already there stay as they are.",
+  },
   legal: {
     title: "Imprint & privacy",
     description:

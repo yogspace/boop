@@ -1,0 +1,6 @@
+// An account's page is read-only (src/access): Payload's own “Change
+// password” and “Force unlock” would only sit there greyed out. Unlocking
+// has its own button by the document's controls (unlock-account.tsx).
+.collection-edit--accounts .auth-fields__controls {
+  display: none;
+}

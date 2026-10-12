@@ -6,8 +6,8 @@ import { AccountButton } from "@/features/accounts/account-button";
 import { ONLY_SIGNED_IN, ONLY_SIGNED_OUT } from "@/features/accounts/signed-in";
 import { getSite } from "@/features/site/get-site";
 import { Link } from "@/features/transitions/link";
+import { getDictionary } from "@/features/translations/get-texts";
 import { isLocale } from "@/i18n/config";
-import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
 // No `dynamicParams = false`: a page whose cache tag was expired (saving
@@ -26,7 +26,7 @@ const SiteLayout = async ({
 }) => {
   const { locale: raw } = await params;
   const locale = isLocale(raw) ? raw : "de";
-  const t = dictionaryOf(locale);
+  const t = await getDictionary(locale);
   const site = await getSite();
   return (
     <div className="flex min-h-dvh flex-col">

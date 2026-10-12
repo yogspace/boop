@@ -1,5 +1,5 @@
+import { getDictionary } from "@/features/translations/get-texts";
 import { isLocale, LOCALES } from "@/i18n/config";
-import { dictionaryOf } from "@/i18n/dictionaries";
 
 /**
  * The web app manifest per language (/de/manifest.webmanifest): what the
@@ -16,7 +16,7 @@ export const GET = async (
 ) => {
   const { locale: raw } = await params;
   const locale = isLocale(raw) ? raw : "de";
-  const t = dictionaryOf(locale);
+  const t = await getDictionary(locale);
   return Response.json(
     {
       id: "/",

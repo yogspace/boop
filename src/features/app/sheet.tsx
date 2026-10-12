@@ -1,11 +1,12 @@
 "use client";
 
 import { m, useIsPresent } from "motion/react";
-import { type ReactNode, useEffect, useRef, useSyncExternalStore } from "react";
+import { type ReactNode, useEffect, useSyncExternalStore } from "react";
 import { Cross } from "@/components/doodles";
 import { SPRING } from "@/components/motion";
 import { ROUND_BUTTON } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { FADING, useFadingEdges } from "./fading-edges";
 
 /** Tailwind's `sm` – where the sheet stops being a phone's bottom sheet. */
 const WIDE = "(min-width: 40rem)";
@@ -20,45 +21,6 @@ const useWide = () =>
     () => matchMedia(WIDE).matches,
     () => false
   );
-
-/**
- * How far (px) what scrolls fades out at an edge it goes on beyond – no
- * scrollbar, the fade says there is more. It grows with what is hidden
- * there, so it comes and goes smoothly as one scrolls.
- */
-const FADE = 32;
-
-/** The fading edges of a scroller – as `--fade-top` / `--fade-bottom`. */
-const useFadingEdges = () => {
-  const scroller = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const box = scroller.current;
-    if (!box) return;
-    const fade = () => {
-      const below = box.scrollHeight - box.clientHeight - box.scrollTop;
-      box.style.setProperty("--fade-top", `${Math.min(FADE, box.scrollTop)}px`);
-      box.style.setProperty(
-        "--fade-bottom",
-        `${Math.min(FADE, Math.max(0, below))}px`
-      );
-    };
-    fade();
-    box.addEventListener("scroll", fade, { passive: true });
-    // What is inside may grow or shrink (a form opening, a picture loading).
-    const sizes = new ResizeObserver(fade);
-    sizes.observe(box);
-    for (const child of box.children) sizes.observe(child);
-    return () => {
-      box.removeEventListener("scroll", fade);
-      sizes.disconnect();
-    };
-  }, []);
-  return scroller;
-};
-
-/** Scrolls without a bar, fading at the edges (`useFadingEdges`). */
-const FADING =
-  "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_bottom,transparent,#000_var(--fade-top,0px),#000_calc(100%_-_var(--fade-bottom,0px)),transparent)]";
 
 /**
  * How the sheet comes and goes. On a phone it slides up from below the
@@ -154,11 +116,13 @@ export const Sheet = ({
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* The page fades back like paper under tracing paper – no dark veil.
-          Going, it still catches taps: a second one lands on nothing. */}
+          Going, it still catches taps: a second one lands on nothing. In
+          the ground's tone – should that change under it (the calendar's
+          color, picked in its settings), it blends along (ground.ts). */}
       <m.button
         animate={{ opacity: 1, transition: { duration: 0.24 } }}
         aria-label="Close"
-        className="fixed inset-0 touch-none bg-bg/80 backdrop-blur-[2px]"
+        className="fixed inset-0 touch-none bg-bg/80 backdrop-blur-[2px] transition-[background-color] duration-450 ease-out"
         exit={{ opacity: 0, transition: { duration: 0.2, ease: "easeIn" } }}
         initial={{ opacity: 0 }}
         onClick={leaving ? undefined : onClose}
@@ -190,7 +154,7 @@ export const Sheet = ({
           <div
             className={cn(
               "flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain px-5 pt-3 pb-5 sm:px-6 sm:pb-6",
-              FADING
+              FADING.y
             )}
             ref={scroller}
           >

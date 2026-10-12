@@ -30,6 +30,7 @@ export interface Config {
     placements: Placement;
     notes: Note;
     invites: Invite;
+    'calendar-feeds': CalendarFeed;
     'page-views': PageView;
     actions: Action;
     'payload-kv': PayloadKv;
@@ -48,6 +49,7 @@ export interface Config {
     placements: PlacementsSelect<false> | PlacementsSelect<true>;
     notes: NotesSelect<false> | NotesSelect<true>;
     invites: InvitesSelect<false> | InvitesSelect<true>;
+    'calendar-feeds': CalendarFeedsSelect<false> | CalendarFeedsSelect<true>;
     'page-views': PageViewsSelect<false> | PageViewsSelect<true>;
     actions: ActionsSelect<false> | ActionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -62,11 +64,13 @@ export interface Config {
   globals: {
     site: Site;
     legal: Legal;
+    translations: Translation;
     analytics: Analytics;
   };
   globalsSelect: {
     site: SiteSelect<false> | SiteSelect<true>;
     legal: LegalSelect<false> | LegalSelect<true>;
+    translations: TranslationsSelect<false> | TranslationsSelect<true>;
     analytics: AnalyticsSelect<false> | AnalyticsSelect<true>;
   };
   locale: 'de' | 'en';
@@ -143,7 +147,7 @@ export interface User {
   collection: 'users';
 }
 /**
- * People using Boop. Deleting an account removes its calendars, its stamps and what it placed elsewhere. Sign-ups never confirmed go after 30 days; accounts unused for 24 months after a warning mail.
+ * People using Boop – to look up and to help, not to edit: nothing of an account can be changed here, only the account deleted or its login unlocked. Deleting an account removes its calendars, its stamps and what it placed elsewhere. Sign-ups never confirmed go after 30 days; accounts unused for 24 months after a warning mail.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "accounts".
@@ -248,9 +252,6 @@ export interface Calendar {
    */
   personal?: boolean | null;
   changedAt: string;
-  /**
-   * Deletes the calendar with all its prints – it stays only as a marker, so devices drop it too. Can't be undone.
-   */
   deleted?: boolean | null;
   updatedAt: string;
   createdAt: string;
@@ -361,6 +362,19 @@ export interface Invite {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "calendar-feeds".
+ */
+export interface CalendarFeed {
+  id: string;
+  account: string | Account;
+  calendar: string | Calendar;
+  token: string;
+  lastFetchedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "page-views".
  */
 export interface PageView {
@@ -457,6 +471,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'invites';
         value: string | Invite;
+      } | null)
+    | ({
+        relationTo: 'calendar-feeds';
+        value: string | CalendarFeed;
       } | null)
     | ({
         relationTo: 'page-views';
@@ -695,6 +713,18 @@ export interface InvitesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "calendar-feeds_select".
+ */
+export interface CalendarFeedsSelect<T extends boolean = true> {
+  account?: T;
+  calendar?: T;
+  token?: T;
+  lastFetchedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "page-views_select".
  */
 export interface PageViewsSelect<T extends boolean = true> {
@@ -828,6 +858,1343 @@ export interface Legal {
   createdAt?: string | null;
 }
 /**
+ * Every text of the site and the app – switch the language at the top. An empty field shows the code's text (below each field). Keep the placeholders in braces, like {name}.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "translations".
+ */
+export interface Translation {
+  id: string;
+  meta?: {
+    /**
+     * DE: Boop – dein Doodle-Stempelkalender  ·  EN: Boop – your doodle stamp calendar
+     */
+    title?: string | null;
+    /**
+     * DE: Boop  ·  EN: Boop
+     */
+    short?: string | null;
+    /**
+     * DE: Zeichne deine eigenen Stempel und boop sie auf deine Tage. Ein süßer Stempelkalender für dich, deine Freund:innen und deine Familie – auch offline.  ·  EN: Draw your own stamps and boop them onto your days. A cute stamp calendar for you, your friends and your family – offline too.
+     */
+    description?: string | null;
+    keywords?: {
+      /**
+       * DE: Stempelkalender  ·  EN: stamp calendar
+       */
+      _0?: string | null;
+      /**
+       * DE: Doodle  ·  EN: doodle
+       */
+      _1?: string | null;
+      /**
+       * DE: Kalender  ·  EN: calendar
+       */
+      _2?: string | null;
+      /**
+       * DE: Habit Tracker  ·  EN: habit tracker
+       */
+      _3?: string | null;
+      /**
+       * DE: Stimmungskalender  ·  EN: mood calendar
+       */
+      _4?: string | null;
+      /**
+       * DE: geteilter Kalender  ·  EN: shared calendar
+       */
+      _5?: string | null;
+      /**
+       * DE: Stempel zeichnen  ·  EN: draw stamps
+       */
+      _6?: string | null;
+    };
+  };
+  nav?: {
+    /**
+     * DE: Anmelden  ·  EN: Log in
+     */
+    login?: string | null;
+    /**
+     * DE: Konto erstellen  ·  EN: Create account
+     */
+    register?: string | null;
+    /**
+     * DE: Zur App  ·  EN: Open the app
+     */
+    openApp?: string | null;
+    /**
+     * DE: Ein paar Änderungen sind noch nicht abgeglichen – melde dich in der App ab.  ·  EN: A few changes aren't synced yet – log out in the app.
+     */
+    logoutInApp?: string | null;
+    /**
+     * DE: Impressum & Datenschutz  ·  EN: Imprint & privacy
+     */
+    legal?: string | null;
+    /**
+     * DE: Boop – Startseite  ·  EN: Boop – home
+     */
+    home?: string | null;
+  };
+  landing?: {
+    /**
+     * DE: Doodle-Stempelkalender  ·  EN: Doodle stamp calendar
+     */
+    kicker?: string | null;
+    title?: {
+      /**
+       * DE: Jeder Tag verdient einen   ·  EN: Every day deserves a
+       */
+      _0?: string | null;
+      /**
+       * DE: Boop  ·  EN: boop
+       */
+      _1?: string | null;
+      /**
+       * DE: .  ·  EN: .
+       */
+      _2?: string | null;
+    };
+    /**
+     * DE: Zeichne deine eigenen kleinen Stempel, boop sie auf deine Tage und sieh zu, wie dein Jahr bunt wird. Allein oder zusammen mit deinen Liebsten.  ·  EN: Draw your own little stamps, boop them onto your days and watch your year fill with color. On your own or together with your favorite people.
+     */
+    lead?: string | null;
+    /**
+     * DE: Kostenlos loslegen  ·  EN: Start for free
+     */
+    cta?: string | null;
+    /**
+     * DE: Kalender öffnen  ·  EN: Open calendar
+     */
+    ctaApp?: string | null;
+    /**
+     * DE: Was Boop kann  ·  EN: What Boop does
+     */
+    featuresTitle?: string | null;
+    features?: {
+      _0?: {
+        /**
+         * DE: Eigene Stempel  ·  EN: Your own stamps
+         */
+        title?: string | null;
+        /**
+         * DE: Kritzel deinen Stempel selbst – eine Farbe, ein paar Striche, fertig. Ein Herz fürs Training, eine Wolke für Regentage.  ·  EN: Doodle your stamp yourself – one color, a few lines, done. A heart for workouts, a cloud for rainy days.
+         */
+        text?: string | null;
+      };
+      _1?: {
+        /**
+         * DE: Boop auf jeden Tag  ·  EN: Boop every day
+         */
+        title?: string | null;
+        /**
+         * DE: Öffne einen Tag und setz so viele Stempel, wie du magst – verschieben, drehen, stapeln.  ·  EN: Open a day and place as many stamps as you like – move them, turn them, stack them.
+         */
+        text?: string | null;
+      };
+      _2?: {
+        /**
+         * DE: Zusammen stempeln  ·  EN: Stamp together
+         */
+        title?: string | null;
+        /**
+         * DE: Teile Kalender mit Freund:innen oder der Familie. Alle stempeln mit, jede:r mit eigenen Stempeln.  ·  EN: Share calendars with friends or family. Everyone stamps along, each with their own stamps.
+         */
+        text?: string | null;
+      };
+      _3?: {
+        /**
+         * DE: Auch offline  ·  EN: Offline too
+         */
+        title?: string | null;
+        /**
+         * DE: Boop lässt sich wie eine App installieren und funktioniert ohne Netz. Sobald du wieder online bist, wird alles abgeglichen.  ·  EN: Install Boop like an app and use it without a connection. Once you're back online, everything syncs.
+         */
+        text?: string | null;
+      };
+    };
+    /**
+     * DE: So einfach geht's  ·  EN: How it works
+     */
+    howTitle?: string | null;
+    how?: {
+      /**
+       * DE: Konto erstellen und E-Mail bestätigen.  ·  EN: Create an account and confirm your email.
+       */
+      _0?: string | null;
+      /**
+       * DE: Deinen ersten Stempel zeichnen.  ·  EN: Draw your first stamp.
+       */
+      _1?: string | null;
+      /**
+       * DE: Einen Tag antippen – boop!  ·  EN: Tap a day – boop!
+       */
+      _2?: string | null;
+    };
+    /**
+     * DE: Bereit für deinen ersten Boop?  ·  EN: Ready for your first boop?
+     */
+    closing?: string | null;
+  };
+  auth?: {
+    /**
+     * DE: Wie sollen wir dich nennen?  ·  EN: What should we call you?
+     */
+    name?: string | null;
+    /**
+     * DE: E-Mail-Adresse  ·  EN: Email address
+     */
+    email?: string | null;
+    /**
+     * DE: Passwort  ·  EN: Password
+     */
+    password?: string | null;
+    /**
+     * DE: Neues Passwort  ·  EN: New password
+     */
+    newPassword?: string | null;
+    /**
+     * DE: Mindestens 8 Zeichen.  ·  EN: At least 8 characters.
+     */
+    passwordHint?: string | null;
+    /**
+     * DE: Einen Moment …  ·  EN: One moment …
+     */
+    working?: string | null;
+    /**
+     * DE: Das hat nicht geklappt. Versuch es bitte noch einmal.  ·  EN: That didn't work. Please try again.
+     */
+    failed?: string | null;
+    /**
+     * DE: Du bist offline – dafür brauchst du eine Verbindung.  ·  EN: You're offline – this needs a connection.
+     */
+    offline?: string | null;
+    login?: {
+      /**
+       * DE: Willkommen zurück  ·  EN: Welcome back
+       */
+      title?: string | null;
+      /**
+       * DE: Anmelden  ·  EN: Log in
+       */
+      submit?: string | null;
+      /**
+       * DE: Noch kein Konto?  ·  EN: No account yet?
+       */
+      noAccount?: string | null;
+      /**
+       * DE: Passwort vergessen?  ·  EN: Forgot your password?
+       */
+      forgot?: string | null;
+      /**
+       * DE: E-Mail oder Passwort stimmen nicht.  ·  EN: Email or password don't match.
+       */
+      wrong?: string | null;
+      /**
+       * DE: Bitte bestätige zuerst deine E-Mail-Adresse – schau in dein Postfach.  ·  EN: Please confirm your email address first – check your inbox.
+       */
+      unverified?: string | null;
+      /**
+       * DE: Zu viele Versuche. Warte ein paar Minuten oder setz dein Passwort zurück.  ·  EN: Too many tries. Wait a few minutes or reset your password.
+       */
+      locked?: string | null;
+      /**
+       * DE: Angemeldet bleiben  ·  EN: Stay logged in
+       */
+      remember?: string | null;
+      /**
+       * DE: Ohne Haken bist du abgemeldet, sobald du den Browser schließt – spätestens nach einem Tag.  ·  EN: Without the tick you're logged out once you close the browser – after a day at the latest.
+       */
+      rememberOff?: string | null;
+    };
+    register?: {
+      /**
+       * DE: Konto erstellen  ·  EN: Create account
+       */
+      title?: string | null;
+      /**
+       * DE: Konto erstellen  ·  EN: Create account
+       */
+      submit?: string | null;
+      /**
+       * DE: Schon ein Konto?  ·  EN: Already have an account?
+       */
+      haveAccount?: string | null;
+      /**
+       * DE: Mit dem Konto gelten unsere Hinweise zum Datenschutz.  ·  EN: Our privacy notes apply to your account.
+       */
+      privacy?: string | null;
+      /**
+       * DE: Schau in dein Postfach!  ·  EN: Check your inbox!
+       */
+      doneTitle?: string | null;
+      /**
+       * DE: Wir haben dir eine Mail geschickt. Bestätige darin deine Adresse, dann kannst du dich anmelden.  ·  EN: We've sent you a mail. Confirm your address there, then you can log in.
+       */
+      doneText?: string | null;
+      /**
+       * DE: Mit dieser Adresse gibt es schon ein Konto.  ·  EN: There's already an account with this address.
+       */
+      taken?: string | null;
+      /**
+       * DE: Zu viele Anmeldungen von hier – versuch es später noch einmal.  ·  EN: Too many sign-ups from here – please try again later.
+       */
+      tooMany?: string | null;
+    };
+    forgot?: {
+      /**
+       * DE: Passwort vergessen  ·  EN: Forgot password
+       */
+      title?: string | null;
+      /**
+       * DE: Gib deine Adresse ein – wir schicken dir einen Link für ein neues Passwort.  ·  EN: Enter your address – we'll send you a link for a new password.
+       */
+      text?: string | null;
+      /**
+       * DE: Link schicken  ·  EN: Send link
+       */
+      submit?: string | null;
+      /**
+       * DE: Unterwegs!  ·  EN: On its way!
+       */
+      doneTitle?: string | null;
+      /**
+       * DE: Wenn es ein Konto mit dieser Adresse gibt, ist der Link jetzt in deinem Postfach. Er gilt eine Stunde.  ·  EN: If there's an account with this address, the link is in your inbox now. It's valid for one hour.
+       */
+      doneText?: string | null;
+    };
+    reset?: {
+      /**
+       * DE: Neues Passwort  ·  EN: New password
+       */
+      title?: string | null;
+      /**
+       * DE: Passwort speichern  ·  EN: Save password
+       */
+      submit?: string | null;
+      /**
+       * DE: Der Link ist abgelaufen oder wurde schon benutzt. Fordere einfach einen neuen an.  ·  EN: The link has expired or was already used. Simply ask for a new one.
+       */
+      invalid?: string | null;
+    };
+    invite?: {
+      /**
+       * DE: Du bist eingeladen!  ·  EN: You're invited!
+       */
+      title?: string | null;
+      /**
+       * DE: {from} möchte den Kalender „{calendar}“ mit dir teilen.  ·  EN: {from} would like to share the calendar “{calendar}” with you.  ·  Keeps {from}, {calendar}
+       */
+      text?: string | null;
+      /**
+       * DE: Die Einladung gilt bis zum {date} Uhr.  ·  EN: The invitation is valid until {date}.  ·  Keeps {date}
+       */
+      until?: string | null;
+      /**
+       * DE: Einladung annehmen  ·  EN: Accept invitation
+       */
+      accept?: string | null;
+      /**
+       * DE: Erstell ein kostenloses Konto oder melde dich an – dann bist du dabei.  ·  EN: Create a free account or log in – and you're in.
+       */
+      account?: string | null;
+      /**
+       * DE: Einladung abgelaufen  ·  EN: Invitation expired
+       */
+      expiredTitle?: string | null;
+      expired?: {
+        /**
+         * DE: Einladungen gelten {days} Tage – diese ist leider abgelaufen. Frag {from} einfach nach einer neuen.  ·  EN: Invitations are valid for {days} days – this one has expired, sorry. Just ask {from} for a new one.  ·  Keeps {from}  ·  May use {days}
+         */
+        named?: string | null;
+        /**
+         * DE: Einladungen gelten {days} Tage – diese ist leider abgelaufen. Frag einfach nach einer neuen.  ·  EN: Invitations are valid for {days} days – this one has expired, sorry. Just ask for a new one.  ·  May use {days}
+         */
+        unnamed?: string | null;
+      };
+      /**
+       * DE: Diese Einladung gibt es nicht mehr – sie wurde schon benutzt, zurückgezogen oder ist nach {days} Tagen abgelaufen. Frag einfach nach einer neuen.  ·  EN: This invitation doesn't exist anymore – it was used, taken back or expired after {days} days. Just ask for a new one.  ·  May use {days}
+       */
+      invalid?: string | null;
+    };
+    verify?: {
+      /**
+       * DE: Adresse bestätigen  ·  EN: Confirm address
+       */
+      title?: string | null;
+      /**
+       * DE: Wir bestätigen deine Adresse …  ·  EN: Confirming your address …
+       */
+      working?: string | null;
+      /**
+       * DE: Geschafft – deine Adresse ist bestätigt!  ·  EN: Done – your address is confirmed!
+       */
+      done?: string | null;
+      /**
+       * DE: Der Link ist ungültig oder wurde schon benutzt. Vielleicht ist deine Adresse schon bestätigt?  ·  EN: The link is invalid or was already used. Maybe your address is confirmed already?
+       */
+      failed?: string | null;
+      /**
+       * DE: Zur Anmeldung  ·  EN: Go to log in
+       */
+      toLogin?: string | null;
+    };
+  };
+  app?: {
+    /**
+     * DE: Boop lädt …  ·  EN: Boop is loading …
+     */
+    loading?: string | null;
+    hello?: {
+      /**
+       * DE: Hallo {name}!  ·  EN: Hi {name}!  ·  Keeps {name}
+       */
+      named?: string | null;
+      /**
+       * DE: Hallo!  ·  EN: Hi!
+       */
+      unnamed?: string | null;
+    };
+    /**
+     * DE: Welcher Tag bekommt heute einen Boop?  ·  EN: Which day gets a boop today?
+     */
+    lead?: string | null;
+    /**
+     * DE: Offline – wir gleichen ab, sobald du wieder Netz hast  ·  EN: Offline – we'll sync once you're back online
+     */
+    offline?: string | null;
+    /**
+     * DE: Gleiche ab …  ·  EN: Syncing …
+     */
+    syncing?: string | null;
+    pending?: {
+      /**
+       * DE: 1 Änderung wartet  ·  EN: 1 change waiting
+       */
+      one?: string | null;
+      /**
+       * DE: {n} Änderungen warten  ·  EN: {n} changes waiting  ·  Keeps {n}
+       */
+      many?: string | null;
+    };
+    /**
+     * DE: Alles abgeglichen  ·  EN: All synced
+     */
+    synced?: string | null;
+    sync?: {
+      /**
+       * DE: Alles liegt sicher auf dem Server – auch für deine anderen Geräte.  ·  EN: Everything's safe on the server – ready for your other devices too.
+       */
+      synced?: string | null;
+      /**
+       * DE: Deine Änderungen sind gerade unterwegs.  ·  EN: Your changes are on their way.
+       */
+      syncing?: string | null;
+      /**
+       * DE: Sie liegen sicher auf deinem Gerät und gehen gleich raus.  ·  EN: They're safe on this device and go out in a moment.
+       */
+      pending?: string | null;
+      /**
+       * DE: Boop geht trotzdem weiter – nichts geht verloren.  ·  EN: Boop keeps going anyway – nothing gets lost.
+       */
+      offline?: string | null;
+      /**
+       * DE: Offline  ·  EN: Offline
+       */
+      offlineTitle?: string | null;
+      /**
+       * DE: Boop speichert alles zuerst auf deinem Gerät und schickt es los, sobald Netz da ist: gleich nach jeder Änderung, wenn du wieder online bist, beim Öffnen und alle 30 Sekunden.  ·  EN: Boop keeps everything on your device first and sends it off once there's a connection: right after each change, when you're back online, when you open the app and every 30 seconds.
+       */
+      how?: string | null;
+      /**
+       * DE: Jetzt abgleichen  ·  EN: Sync now
+       */
+      now?: string | null;
+    };
+    /**
+     * DE: Du bist offline. Melde dich einmal mit Verbindung an – danach klappt Boop auch ohne Netz.  ·  EN: You're offline. Log in once with a connection – after that Boop works offline too.
+     */
+    offlineNoAccount?: string | null;
+    /**
+     * DE: Kalender  ·  EN: Calendars
+     */
+    calendars?: string | null;
+    /**
+     * DE: Neuer Kalender  ·  EN: New calendar
+     */
+    newCalendar?: string | null;
+    /**
+     * DE: Name des Kalenders  ·  EN: Calendar name
+     */
+    newCalendarName?: string | null;
+    /**
+     * DE: z. B. Familie, Sport, Reise …  ·  EN: e.g. family, workouts, trip …
+     */
+    calendarPlaceholder?: string | null;
+    /**
+     * DE: Anlegen  ·  EN: Create
+     */
+    create?: string | null;
+    /**
+     * DE: Kalender löschen  ·  EN: Delete calendar
+     */
+    deleteCalendar?: string | null;
+    /**
+     * DE: „{name}“ mit allen Stempeln darauf löschen? Das lässt sich nicht rückgängig machen.  ·  EN: Delete “{name}” with all its stamps? This can't be undone.  ·  Keeps {name}
+     */
+    deleteCalendarConfirm?: string | null;
+    /**
+     * DE: Noch kein Kalender – leg einen an, dann geht's los.  ·  EN: No calendar yet – make one to get going.
+     */
+    noCalendar?: string | null;
+    /**
+     * DE: Deine Stempel  ·  EN: Your stamps
+     */
+    stamps?: string | null;
+    /**
+     * DE: Noch keine Stempel – mal deinen ersten!  ·  EN: No stamps yet – draw your first one!
+     */
+    noStamps?: string | null;
+    /**
+     * DE: Neuer Stempel  ·  EN: New stamp
+     */
+    newStamp?: string | null;
+    /**
+     * DE: Heute  ·  EN: Today
+     */
+    today?: string | null;
+    /**
+     * DE: Vorheriger Monat  ·  EN: Previous month
+     */
+    prev?: string | null;
+    /**
+     * DE: Nächster Monat  ·  EN: Next month
+     */
+    next?: string | null;
+    months?: {
+      /**
+       * DE: Januar  ·  EN: January
+       */
+      _0?: string | null;
+      /**
+       * DE: Februar  ·  EN: February
+       */
+      _1?: string | null;
+      /**
+       * DE: März  ·  EN: March
+       */
+      _2?: string | null;
+      /**
+       * DE: April  ·  EN: April
+       */
+      _3?: string | null;
+      /**
+       * DE: Mai  ·  EN: May
+       */
+      _4?: string | null;
+      /**
+       * DE: Juni  ·  EN: June
+       */
+      _5?: string | null;
+      /**
+       * DE: Juli  ·  EN: July
+       */
+      _6?: string | null;
+      /**
+       * DE: August  ·  EN: August
+       */
+      _7?: string | null;
+      /**
+       * DE: September  ·  EN: September
+       */
+      _8?: string | null;
+      /**
+       * DE: Oktober  ·  EN: October
+       */
+      _9?: string | null;
+      /**
+       * DE: November  ·  EN: November
+       */
+      _10?: string | null;
+      /**
+       * DE: Dezember  ·  EN: December
+       */
+      _11?: string | null;
+    };
+    weekdays?: {
+      /**
+       * DE: Mo  ·  EN: Mon
+       */
+      _0?: string | null;
+      /**
+       * DE: Di  ·  EN: Tue
+       */
+      _1?: string | null;
+      /**
+       * DE: Mi  ·  EN: Wed
+       */
+      _2?: string | null;
+      /**
+       * DE: Do  ·  EN: Thu
+       */
+      _3?: string | null;
+      /**
+       * DE: Fr  ·  EN: Fri
+       */
+      _4?: string | null;
+      /**
+       * DE: Sa  ·  EN: Sat
+       */
+      _5?: string | null;
+      /**
+       * DE: So  ·  EN: Sun
+       */
+      _6?: string | null;
+    };
+    view?: {
+      /**
+       * DE: Ansicht  ·  EN: View
+       */
+      label?: string | null;
+      /**
+       * DE: Heute  ·  EN: Today
+       */
+      today?: string | null;
+      /**
+       * DE: Monat  ·  EN: Month
+       */
+      month?: string | null;
+      /**
+       * DE: Jahr  ·  EN: Year
+       */
+      year?: string | null;
+      /**
+       * DE: Vorheriges Jahr  ·  EN: Previous year
+       */
+      prevYear?: string | null;
+      /**
+       * DE: Nächstes Jahr  ·  EN: Next year
+       */
+      nextYear?: string | null;
+      /**
+       * DE: Dieser Monat  ·  EN: This month
+       */
+      thisMonth?: string | null;
+      /**
+       * DE: Dieses Jahr  ·  EN: This year
+       */
+      thisYear?: string | null;
+    };
+    draw?: {
+      /**
+       * DE: Neuer Stempel  ·  EN: New stamp
+       */
+      title?: string | null;
+      /**
+       * DE: Name (optional)  ·  EN: Name (optional)
+       */
+      name?: string | null;
+      /**
+       * DE: z. B. Sport, Regentag, Kuss …  ·  EN: e.g. workout, rainy day, kiss …
+       */
+      namePlaceholder?: string | null;
+      /**
+       * DE: Farbe  ·  EN: Color
+       */
+      color?: string | null;
+      /**
+       * DE: Form  ·  EN: Shape
+       */
+      shape?: string | null;
+      shapes?: {
+        /**
+         * DE: Rund  ·  EN: Round
+         */
+        circle?: string | null;
+        /**
+         * DE: Eckig  ·  EN: Square
+         */
+        square?: string | null;
+        /**
+         * DE: Achteck  ·  EN: Octagon
+         */
+        octagon?: string | null;
+        /**
+         * DE: Dreieck  ·  EN: Triangle
+         */
+        triangle?: string | null;
+        /**
+         * DE: Raute  ·  EN: Diamond
+         */
+        diamond?: string | null;
+      };
+      /**
+       * DE: Zurück  ·  EN: Undo
+       */
+      undo?: string | null;
+      /**
+       * DE: Wiederholen  ·  EN: Redo
+       */
+      redo?: string | null;
+      /**
+       * DE: Leeren  ·  EN: Clear
+       */
+      clear?: string | null;
+      /**
+       * DE: Strichstärke  ·  EN: Line width
+       */
+      width?: string | null;
+      widths?: {
+        /**
+         * DE: Fein  ·  EN: Thin
+         */
+        thin?: string | null;
+        /**
+         * DE: Mittel  ·  EN: Medium
+         */
+        medium?: string | null;
+        /**
+         * DE: Dick  ·  EN: Thick
+         */
+        thick?: string | null;
+      };
+      /**
+       * DE: SVG hochladen  ·  EN: Upload SVG
+       */
+      upload?: string | null;
+      /**
+       * DE: Invertiert (ausgeschnitten)  ·  EN: Inverted (cut out)
+       */
+      inverted?: string | null;
+      /**
+       * DE: Special – größer & glitzert  ·  EN: Special – bigger & sparkly
+       */
+      special?: string | null;
+      /**
+       * DE: Rahmen  ·  EN: Rim
+       */
+      rim?: string | null;
+      rims?: {
+        /**
+         * DE: Glatt  ·  EN: Plain
+         */
+        plain?: string | null;
+        /**
+         * DE: Gestrichelt  ·  EN: Dashed
+         */
+        dashed?: string | null;
+        /**
+         * DE: Gepunktet  ·  EN: Dotted
+         */
+        dotted?: string | null;
+        /**
+         * DE: Welle  ·  EN: Wave
+         */
+        wave?: string | null;
+        /**
+         * DE: Zacken  ·  EN: Zigzag
+         */
+        zigzag?: string | null;
+        /**
+         * DE: Bögen  ·  EN: Scallops
+         */
+        scallop?: string | null;
+        /**
+         * DE: Doppelt  ·  EN: Double
+         */
+        double?: string | null;
+      };
+      /**
+       * DE: Mit dieser Datei kann ich nichts anfangen.  ·  EN: I can't make anything of this file.
+       */
+      uploadFailed?: string | null;
+      /**
+       * DE: Stempel speichern  ·  EN: Save stamp
+       */
+      save_?: string | null;
+      /**
+       * DE: Abbrechen  ·  EN: Cancel
+       */
+      cancel?: string | null;
+      /**
+       * DE: Weiter malen  ·  EN: Keep drawing
+       */
+      back?: string | null;
+      /**
+       * DE: Die anderen in diesem Kalender dürfen auch damit stempeln  ·  EN: The others in this calendar may stamp with it too
+       */
+      shared?: string | null;
+      /**
+       * DE: Mal hier drauf!  ·  EN: Draw on here!
+       */
+      hint?: string | null;
+      /**
+       * DE: Fertig – mach ihn 3D  ·  EN: Done – make it 3D
+       */
+      make3d?: string | null;
+      /**
+       * DE: Ta-da! Dein Stempel  ·  EN: Ta-da! Your stamp
+       */
+      done?: string | null;
+      /**
+       * DE: Zum Drehen ziehen  ·  EN: Drag to turn it
+       */
+      turn?: string | null;
+    };
+    day?: {
+      /**
+       * DE: Noch nichts los – wähl unten einen Stempel und tipp auf den Tag.  ·  EN: Nothing here yet – pick a stamp below and tap the day.
+       */
+      empty?: string | null;
+      /**
+       * DE: Stempel antippen, dann auf den Tag tippen  ·  EN: Tap a stamp, then tap the day
+       */
+      tray?: string | null;
+      /**
+       * DE: Tipp auf den Tag – oder tunk ihn in ein Stempelkissen.  ·  EN: Tap the day – or dip it into an ink pad.
+       */
+      held?: string | null;
+      /**
+       * DE: Das Mausrad dreht den Stempel.  ·  EN: Scroll to turn the stamp.
+       */
+      wheel?: string | null;
+      /**
+       * DE: Nach links drehen  ·  EN: Turn left
+       */
+      turnLeft?: string | null;
+      /**
+       * DE: Nach rechts drehen  ·  EN: Turn right
+       */
+      turnRight?: string | null;
+      /**
+       * DE: In der Hand  ·  EN: In your hand
+       */
+      inHand?: string | null;
+      /**
+       * DE: Abdruck markiert.  ·  EN: Print selected.
+       */
+      picked?: string | null;
+      /**
+       * DE: Entf oder ⌫ entfernt ihn.  ·  EN: Delete or ⌫ removes it.
+       */
+      pickedKeys?: string | null;
+      /**
+       * DE: Abdruck entfernen  ·  EN: Remove print
+       */
+      remove_?: string | null;
+      /**
+       * DE: Rückgängig  ·  EN: Undo
+       */
+      undo?: string | null;
+      /**
+       * DE: Abdruck  ·  EN: Print
+       */
+      print?: string | null;
+      /**
+       * DE: Stempelkissen  ·  EN: Ink pad
+       */
+      ink?: string | null;
+    };
+    note?: {
+      /**
+       * DE: Notiz zum Tag  ·  EN: Note for the day
+       */
+      label?: string | null;
+      /**
+       * DE: Was war heute?  ·  EN: What happened today?
+       */
+      today?: string | null;
+      /**
+       * DE: Was war an dem Tag?  ·  EN: What happened that day?
+       */
+      past?: string | null;
+      /**
+       * DE: Was steht an?  ·  EN: What's coming up?
+       */
+      future?: string | null;
+      /**
+       * DE: Fett  ·  EN: Bold
+       */
+      bold?: string | null;
+      /**
+       * DE: Unterstrichen  ·  EN: Underline
+       */
+      underline?: string | null;
+      /**
+       * DE: Strg  ·  EN: Ctrl
+       */
+      ctrl?: string | null;
+      by?: {
+        /**
+         * DE: {name}, {when}  ·  EN: {name}, {when}  ·  Keeps {name}, {when}
+         */
+        named?: string | null;
+        /**
+         * DE: {when}  ·  EN: {when}  ·  Keeps {when}
+         */
+        unnamed?: string | null;
+      };
+      /**
+       * DE: gerade eben  ·  EN: just now
+       */
+      justNow?: string | null;
+      /**
+       * DE: Notiz  ·  EN: Note
+       */
+      inMonth?: string | null;
+    };
+    share?: {
+      /**
+       * DE: Teilen  ·  EN: Share
+       */
+      title?: string | null;
+      /**
+       * DE: Lade Leute per E-Mail ein. Ohne Boop-Konto bekommen sie eine Einladung.  ·  EN: Invite people by email. Without a Boop account they get an invitation.
+       */
+      text?: string | null;
+      /**
+       * DE: E-Mail-Adresse  ·  EN: Email address
+       */
+      email?: string | null;
+      /**
+       * DE: Einladen  ·  EN: Invite
+       */
+      add?: string | null;
+      /**
+       * DE: {name} ist jetzt dabei.  ·  EN: {name} is in now.  ·  Keeps {name}
+       */
+      added?: string | null;
+      /**
+       * DE: Einladung an {email} verschickt – sie gilt {days} Tage. Sobald es ein Konto gibt, ist die Person dabei.  ·  EN: Invitation sent to {email} – it's valid for {days} days. They're in once they have an account.  ·  Keeps {email}  ·  May use {days}
+       */
+      invited?: string | null;
+      /**
+       * DE: Eingeladen  ·  EN: Invited
+       */
+      invitesTitle?: string | null;
+      /**
+       * DE: Zurückziehen  ·  EN: Take back
+       */
+      revoke?: string | null;
+      /**
+       * DE: Das hat nicht geklappt.  ·  EN: That didn't work.
+       */
+      notFound?: string | null;
+      /**
+       * DE: Dabei  ·  EN: Members
+       */
+      members?: string | null;
+      /**
+       * DE: Besitzer:in  ·  EN: Owner
+       */
+      owner?: string | null;
+      /**
+       * DE: Entfernen  ·  EN: Remove
+       */
+      remove_?: string | null;
+      /**
+       * DE: Kalender verlassen  ·  EN: Leave calendar
+       */
+      leave?: string | null;
+      /**
+       * DE: Wirklich verlassen? Du siehst ihn dann nicht mehr – zurück kommst du nur, wenn {owner} dich wieder einlädt.  ·  EN: Really leave? You won't see it any more – you only get back in if {owner} invites you again.  ·  Keeps {owner}
+       */
+      leaveAsk?: string | null;
+      /**
+       * DE: Ja, verlassen  ·  EN: Yes, leave
+       */
+      leaveYes?: string | null;
+    };
+    /**
+     * DE: Speichern  ·  EN: Save
+     */
+    save_?: string | null;
+    settings?: {
+      /**
+       * DE: Einstellungen  ·  EN: Settings
+       */
+      title?: string | null;
+      shared?: {
+        /**
+         * DE: Für alle  ·  EN: For everyone
+         */
+        title?: string | null;
+        /**
+         * DE: Der Kalender selbst – was du hier änderst, ändert sich für alle darin.  ·  EN: The calendar itself – what you change here changes for everyone in it.
+         */
+        owner?: string | null;
+        /**
+         * DE: Der Kalender selbst – das legt {name} fest.  ·  EN: The calendar itself – that's up to {name}.  ·  Keeps {name}
+         */
+        member?: string | null;
+      };
+      own?: {
+        /**
+         * DE: Nur für dich  ·  EN: Just for you
+         */
+        title?: string | null;
+        /**
+         * DE: Das stellt jede:r für sich ein.  ·  EN: Everyone sets this for themselves.
+         */
+        text?: string | null;
+        /**
+         * DE: Nur bei dir, auf diesem Gerät – die anderen sehen ihre eigene Farbe.  ·  EN: Only for you, on this device – the others see their own color.
+         */
+        colorMember?: string | null;
+        /**
+         * DE: Wie der Kalender  ·  EN: Same as the calendar
+         */
+        colorReset?: string | null;
+      };
+      deleteShared?: {
+        /**
+         * DE: Er ist dann auch für die andere Person weg.  ·  EN: It'll be gone for the other person in it, too.
+         */
+        one?: string | null;
+        /**
+         * DE: Er ist dann auch für die {others} anderen weg.  ·  EN: It'll be gone for the {others} others in it, too.  ·  Keeps {others}
+         */
+        many?: string | null;
+      };
+      /**
+       * DE: Ja, weg damit  ·  EN: Yes, get rid of it
+       */
+      deleteNext?: string | null;
+      /**
+       * DE: Ganz sicher? Dann tipp zur Bestätigung seinen Namen ein: {name}  ·  EN: Really sure? Then type its name to confirm: {name}  ·  Keeps {name}
+       */
+      deleteType?: string | null;
+      /**
+       * DE: Endgültig löschen  ·  EN: Delete for good
+       */
+      deleteForGood?: string | null;
+    };
+    push?: {
+      /**
+       * DE: Benachrichtigungen  ·  EN: Notifications
+       */
+      title?: string | null;
+      /**
+       * DE: Auf diesem Gerät an. Was du hier einstellst, gilt für alle deine Geräte.  ·  EN: On for this device. What you set here counts on all your devices.
+       */
+      on_?: string | null;
+      /**
+       * DE: Benachrichtigungen einschalten  ·  EN: Turn on notifications
+       */
+      enable?: string | null;
+      /**
+       * DE: Auf diesem Gerät ausschalten  ·  EN: Turn off on this device
+       */
+      disable?: string | null;
+      /**
+       * DE: Dieser Browser kann leider keine Benachrichtigungen.  ·  EN: Sorry, this browser can't do notifications.
+       */
+      unsupported?: string | null;
+      /**
+       * DE: Auf dem iPhone erst zum Home-Bildschirm hinzufügen: Teilen → „Zum Home-Bildschirm“. Dann Boop von dort öffnen.  ·  EN: On the iPhone, add Boop to your Home Screen first: Share → “Add to Home Screen”. Then open it from there.
+       */
+      install?: string | null;
+      /**
+       * DE: Benachrichtigungen sind für Boop blockiert. Erlaub sie in den Einstellungen deines Browsers – auf dem iPhone unter Einstellungen → Mitteilungen → Boop.  ·  EN: Notifications are blocked for Boop. Allow them in your browser's settings – on the iPhone under Settings → Notifications → Boop.
+       */
+      denied?: string | null;
+      /**
+       * DE: Das hat nicht geklappt. Versuch es bitte noch einmal.  ·  EN: That didn't work. Please try again.
+       */
+      failed?: string | null;
+      /**
+       * DE: Zum Ändern brauchst du eine Verbindung.  ·  EN: Changing this needs a connection.
+       */
+      offline?: string | null;
+      /**
+       * DE: Erinnern, wenn ich heute noch nicht gestempelt habe  ·  EN: Remind me when I haven't stamped today
+       */
+      reminder?: string | null;
+      /**
+       * DE: Wenn jemand anderes hier stempelt  ·  EN: When someone else stamps here
+       */
+      stamped?: string | null;
+      /**
+       * DE: Erinnerung um  ·  EN: Reminder at
+       */
+      time?: string | null;
+      /**
+       * DE: Für alle deine Kalender – in der Uhrzeit deines Geräts.  ·  EN: For all your calendars – on your device's clock.
+       */
+      timeHint?: string | null;
+      /**
+       * DE: Jemand  ·  EN: Someone
+       */
+      someone?: string | null;
+      /**
+       * DE: Boop!  ·  EN: Boop!
+       */
+      stampedTitle?: string | null;
+      /**
+       * DE: {name} hat in „{calendar}“ gestempelt.  ·  EN: {name} stamped in “{calendar}”.  ·  Keeps {name}, {calendar}
+       */
+      stampedBody?: string | null;
+      /**
+       * DE: Heute schon gestempelt?  ·  EN: Stamped yet today?
+       */
+      reminderTitle?: string | null;
+      reminderBody?: {
+        /**
+         * DE: „{name}“  ·  EN: “{name}”  ·  Keeps {name}
+         */
+        quote?: string | null;
+        /**
+         * DE: {calendar} wartet noch auf deinen Stempel.  ·  EN: {calendar} is still waiting for your stamp.  ·  Keeps {calendar}
+         */
+        one?: string | null;
+        /**
+         * DE: {calendars} und {last} warten noch auf deinen Stempel.  ·  EN: {calendars} and {last} are still waiting for your stamp.  ·  Keeps {calendars}, {last}
+         */
+        many?: string | null;
+      };
+    };
+    ical?: {
+      /**
+       * DE: Kalender-Abo  ·  EN: Calendar subscription
+       */
+      title?: string | null;
+      /**
+       * DE: Hol diesen Kalender in deine Kalender-App (Apple, Google & Co.): Jeder Tag mit Stempeln oder einer Notiz wird dort ein ganztägiger Termin.  ·  EN: Get this calendar into your calendar app (Apple, Google & co.): every day with stamps or a note becomes an all-day event there.
+       */
+      text?: string | null;
+      /**
+       * DE: Abo-Adresse erzeugen  ·  EN: Create subscription address
+       */
+      create?: string | null;
+      /**
+       * DE: Deine Abo-Adresse  ·  EN: Your subscription address
+       */
+      address?: string | null;
+      /**
+       * DE: Wer diese Adresse kennt, kann mitlesen – ganz ohne Anmeldung. Behalt sie also für dich.  ·  EN: Anyone who knows this address can read along – no login needed. So keep it to yourself.
+       */
+      warning?: string | null;
+      /**
+       * DE: Kopieren  ·  EN: Copy
+       */
+      copy?: string | null;
+      /**
+       * DE: Kopiert!  ·  EN: Copied!
+       */
+      copied?: string | null;
+      /**
+       * DE: In Kalender-App öffnen  ·  EN: Open in calendar app
+       */
+      open?: string | null;
+      /**
+       * DE: Neue Adresse  ·  EN: New address
+       */
+      renew?: string | null;
+      /**
+       * DE: Neue Adresse erzeugen? Die alte gilt dann nicht mehr – deine Kalender-App braucht die neue.  ·  EN: Make a new address? The old one stops working – your calendar app needs the new one.
+       */
+      renewAsk?: string | null;
+      /**
+       * DE: Ja, neue Adresse  ·  EN: Yes, new address
+       */
+      renewYes?: string | null;
+      /**
+       * DE: Zurückziehen  ·  EN: Take back
+       */
+      revoke?: string | null;
+      /**
+       * DE: Zuletzt abgerufen:  ·  EN: Last fetched:
+       */
+      fetched?: string | null;
+      /**
+       * DE: Noch nicht abgerufen.  ·  EN: Not fetched yet.
+       */
+      neverFetched?: string | null;
+      /**
+       * DE: Als Datei herunterladen (.ics)  ·  EN: Download as a file (.ics)
+       */
+      download?: string | null;
+      /**
+       * DE: Dafür brauchst du eine Verbindung.  ·  EN: This needs a connection.
+       */
+      offline?: string | null;
+      /**
+       * DE: Das hat nicht geklappt. Versuch es bitte noch einmal.  ·  EN: That didn't work. Please try again.
+       */
+      failed?: string | null;
+      /**
+       * DE: Stempel  ·  EN: Stamp
+       */
+      stamp?: string | null;
+      /**
+       * DE: Stempel  ·  EN: stamps
+       */
+      stamps?: string | null;
+      /**
+       * DE: Kalender  ·  EN: Calendar
+       */
+      calendar?: string | null;
+    };
+    stamp?: {
+      /**
+       * DE: Stempel  ·  EN: Stamp
+       */
+      untitled?: string | null;
+      /**
+       * DE: Von {name}  ·  EN: By {name}  ·  Keeps {name}
+       */
+      by?: string | null;
+      /**
+       * DE: Geteilt  ·  EN: Shared
+       */
+      shared?: string | null;
+      /**
+       * DE: Teilen  ·  EN: Share
+       */
+      share?: string | null;
+      /**
+       * DE: Er bleibt dein Stempel. Wer in einem angekreuzten Kalender ist, darf auch damit stempeln.  ·  EN: It stays your stamp. Everyone in a calendar you tick may stamp with it too.
+       */
+      shareText?: string | null;
+      /**
+       * DE: Teile zuerst einen Kalender – dann kannst du dort auch deine Stempel teilen.  ·  EN: Share a calendar first – then you can share your stamps there, too.
+       */
+      shareNone?: string | null;
+      /**
+       * DE: Bisher nur du  ·  EN: Just you so far
+       */
+      onlyYou?: string | null;
+      /**
+       * DE: Für den 3D-Drucker (STL)  ·  EN: For the 3D printer (STL)
+       */
+      print3d?: string | null;
+      /**
+       * DE: {mm} mm breit, mit „boop“ auf dem Rücken. Er steht auf seiner Stempelfläche, der Knauf zeigt nach oben – nur größere Vertiefungen brauchen Stützen vom Druckbett. Die Fläche ist gespiegelt, so kommt dein Abdruck richtig herum raus.  ·  EN: {mm} mm wide, with “boop” on its back. It stands on its stamp face, knob up – only bigger hollows need supports from the bed. The face is mirrored, so your print comes out the right way round.  ·  Keeps {mm}
+       */
+      hint?: string | null;
+      /**
+       * DE: Stempel löschen  ·  EN: Delete stamp
+       */
+      delete?: string | null;
+      /**
+       * DE: Diesen Stempel löschen? Auch seine Abdrücke verschwinden.  ·  EN: Delete this stamp? Its prints go too.
+       */
+      deleteConfirm?: string | null;
+    };
+    /**
+     * DE: Konto  ·  EN: Account
+     */
+    account?: string | null;
+    accountSheet?: {
+      /**
+       * DE: Konto  ·  EN: Account
+       */
+      title?: string | null;
+      /**
+       * DE: Dein Name – so sehen dich die anderen  ·  EN: Your name – how the others see you
+       */
+      name?: string | null;
+      /**
+       * DE: Der Name ließ sich nicht speichern. Versuch es bitte noch einmal.  ·  EN: The name couldn't be saved. Please try again.
+       */
+      nameFailed?: string | null;
+      /**
+       * DE: Angemeldet als {email}  ·  EN: Logged in as {email}  ·  Keeps {email}
+       */
+      email?: string | null;
+      /**
+       * DE: Bei Boop liegen dein Name, deine E-Mail-Adresse und was du anlegst: Kalender, Stempel, Abdrücke und Notizen – und, wenn du sie einschaltest, deine Geräte für Benachrichtigungen.  ·  EN: Boop keeps your name, your email address and what you make: calendars, stamps, prints and notes – and, once you turn them on, your devices for notifications.
+       */
+      stored?: string | null;
+      /**
+       * DE: Mehr im Datenschutz  ·  EN: More in the privacy notes
+       */
+      privacy?: string | null;
+      /**
+       * DE: Deine Daten  ·  EN: Your data
+       */
+      exportTitle?: string | null;
+      /**
+       * DE: Dein Konto, deine Kalender, Stempel, Abdrücke, Notizen, Einladungen und Benachrichtigungen in einer Datei (JSON).  ·  EN: Your account, calendars, stamps, prints, notes, invitations and notification settings in one file (JSON).
+       */
+      exportText?: string | null;
+      /**
+       * DE: Daten herunterladen  ·  EN: Download data
+       */
+      export?: string | null;
+      /**
+       * DE: Das Herunterladen hat nicht geklappt. Versuch es bitte noch einmal.  ·  EN: The download didn't work. Please try again.
+       */
+      exportFailed?: string | null;
+      /**
+       * DE: Konto löschen  ·  EN: Delete account
+       */
+      delete?: string | null;
+      /**
+       * DE: Das lässt sich nicht rückgängig machen. Für immer weg sind dann:  ·  EN: This can't be undone. Gone for good are then:
+       */
+      deleteLead?: string | null;
+      deleteGone?: {
+        /**
+         * DE: deine Kalender mit allen Abdrücken und Notizen – auch für alle, mit denen du sie teilst  ·  EN: your calendars with all their prints and notes – for everyone you share them with, too
+         */
+        _0?: string | null;
+        /**
+         * DE: deine Stempel und ihre Abdrücke, auch in den Kalendern anderer  ·  EN: your stamps and their prints, in other people's calendars too
+         */
+        _1?: string | null;
+        /**
+         * DE: alles, was du in den Kalendern anderer gestempelt hast – deine Notizen dort bleiben, ohne deinen Namen  ·  EN: everything you stamped in other people's calendars – your notes there stay, without your name
+         */
+        _2?: string | null;
+        /**
+         * DE: dein Konto selbst, die Einladungen, die du verschickt hast, und deine Benachrichtigungen  ·  EN: your account itself, the invitations you sent and your notifications
+         */
+        _3?: string | null;
+      };
+      /**
+       * DE: Magst du etwas behalten? Dann lad vorher deine Daten herunter.  ·  EN: Want to keep something? Then download your data first.
+       */
+      deleteTip?: string | null;
+      /**
+       * DE: Zur Sicherheit: dein Passwort  ·  EN: To be safe: your password
+       */
+      password?: string | null;
+      /**
+       * DE: Konto endgültig löschen  ·  EN: Delete account for good
+       */
+      deleteForGood?: string | null;
+      /**
+       * DE: Das Passwort stimmt nicht.  ·  EN: That's not the password.
+       */
+      wrongPassword?: string | null;
+      /**
+       * DE: Zu viele Versuche. Warte ein paar Minuten.  ·  EN: Too many tries. Wait a few minutes.
+       */
+      tooMany?: string | null;
+    };
+    /**
+     * DE: Abmelden  ·  EN: Log out
+     */
+    logout?: string | null;
+    /**
+     * DE: Zum Abmelden brauchst du eine Verbindung.  ·  EN: Logging out needs a connection.
+     */
+    logoutOffline?: string | null;
+    logoutPending?: {
+      /**
+       * DE: 1 Änderung ist noch nicht abgeglichen und geht beim Abmelden verloren.  ·  EN: 1 change isn't synced yet and will be lost when you log out.
+       */
+      one?: string | null;
+      /**
+       * DE: {n} Änderungen sind noch nicht abgeglichen und gehen beim Abmelden verloren.  ·  EN: {n} changes aren't synced yet and will be lost when you log out.  ·  Keeps {n}
+       */
+      many?: string | null;
+    };
+  };
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
  * Anonymous page views and actions (no IP, nothing stored on visitors' devices), and accounts as totals only. The time range in the sidebar applies to every section.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -883,6 +2250,504 @@ export interface SiteSelect<T extends boolean = true> {
  */
 export interface LegalSelect<T extends boolean = true> {
   content?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "translations_select".
+ */
+export interface TranslationsSelect<T extends boolean = true> {
+  meta?:
+    | T
+    | {
+        title?: T;
+        short?: T;
+        description?: T;
+        keywords?:
+          | T
+          | {
+              _0?: T;
+              _1?: T;
+              _2?: T;
+              _3?: T;
+              _4?: T;
+              _5?: T;
+              _6?: T;
+            };
+      };
+  nav?:
+    | T
+    | {
+        login?: T;
+        register?: T;
+        openApp?: T;
+        logoutInApp?: T;
+        legal?: T;
+        home?: T;
+      };
+  landing?:
+    | T
+    | {
+        kicker?: T;
+        title?:
+          | T
+          | {
+              _0?: T;
+              _1?: T;
+              _2?: T;
+            };
+        lead?: T;
+        cta?: T;
+        ctaApp?: T;
+        featuresTitle?: T;
+        features?:
+          | T
+          | {
+              _0?:
+                | T
+                | {
+                    title?: T;
+                    text?: T;
+                  };
+              _1?:
+                | T
+                | {
+                    title?: T;
+                    text?: T;
+                  };
+              _2?:
+                | T
+                | {
+                    title?: T;
+                    text?: T;
+                  };
+              _3?:
+                | T
+                | {
+                    title?: T;
+                    text?: T;
+                  };
+            };
+        howTitle?: T;
+        how?:
+          | T
+          | {
+              _0?: T;
+              _1?: T;
+              _2?: T;
+            };
+        closing?: T;
+      };
+  auth?:
+    | T
+    | {
+        name?: T;
+        email?: T;
+        password?: T;
+        newPassword?: T;
+        passwordHint?: T;
+        working?: T;
+        failed?: T;
+        offline?: T;
+        login?:
+          | T
+          | {
+              title?: T;
+              submit?: T;
+              noAccount?: T;
+              forgot?: T;
+              wrong?: T;
+              unverified?: T;
+              locked?: T;
+              remember?: T;
+              rememberOff?: T;
+            };
+        register?:
+          | T
+          | {
+              title?: T;
+              submit?: T;
+              haveAccount?: T;
+              privacy?: T;
+              doneTitle?: T;
+              doneText?: T;
+              taken?: T;
+              tooMany?: T;
+            };
+        forgot?:
+          | T
+          | {
+              title?: T;
+              text?: T;
+              submit?: T;
+              doneTitle?: T;
+              doneText?: T;
+            };
+        reset?:
+          | T
+          | {
+              title?: T;
+              submit?: T;
+              invalid?: T;
+            };
+        invite?:
+          | T
+          | {
+              title?: T;
+              text?: T;
+              until?: T;
+              accept?: T;
+              account?: T;
+              expiredTitle?: T;
+              expired?:
+                | T
+                | {
+                    named?: T;
+                    unnamed?: T;
+                  };
+              invalid?: T;
+            };
+        verify?:
+          | T
+          | {
+              title?: T;
+              working?: T;
+              done?: T;
+              failed?: T;
+              toLogin?: T;
+            };
+      };
+  app?:
+    | T
+    | {
+        loading?: T;
+        hello?:
+          | T
+          | {
+              named?: T;
+              unnamed?: T;
+            };
+        lead?: T;
+        offline?: T;
+        syncing?: T;
+        pending?:
+          | T
+          | {
+              one?: T;
+              many?: T;
+            };
+        synced?: T;
+        sync?:
+          | T
+          | {
+              synced?: T;
+              syncing?: T;
+              pending?: T;
+              offline?: T;
+              offlineTitle?: T;
+              how?: T;
+              now?: T;
+            };
+        offlineNoAccount?: T;
+        calendars?: T;
+        newCalendar?: T;
+        newCalendarName?: T;
+        calendarPlaceholder?: T;
+        create?: T;
+        deleteCalendar?: T;
+        deleteCalendarConfirm?: T;
+        noCalendar?: T;
+        stamps?: T;
+        noStamps?: T;
+        newStamp?: T;
+        today?: T;
+        prev?: T;
+        next?: T;
+        months?:
+          | T
+          | {
+              _0?: T;
+              _1?: T;
+              _2?: T;
+              _3?: T;
+              _4?: T;
+              _5?: T;
+              _6?: T;
+              _7?: T;
+              _8?: T;
+              _9?: T;
+              _10?: T;
+              _11?: T;
+            };
+        weekdays?:
+          | T
+          | {
+              _0?: T;
+              _1?: T;
+              _2?: T;
+              _3?: T;
+              _4?: T;
+              _5?: T;
+              _6?: T;
+            };
+        view?:
+          | T
+          | {
+              label?: T;
+              today?: T;
+              month?: T;
+              year?: T;
+              prevYear?: T;
+              nextYear?: T;
+              thisMonth?: T;
+              thisYear?: T;
+            };
+        draw?:
+          | T
+          | {
+              title?: T;
+              name?: T;
+              namePlaceholder?: T;
+              color?: T;
+              shape?: T;
+              shapes?:
+                | T
+                | {
+                    circle?: T;
+                    square?: T;
+                    octagon?: T;
+                    triangle?: T;
+                    diamond?: T;
+                  };
+              undo?: T;
+              redo?: T;
+              clear?: T;
+              width?: T;
+              widths?:
+                | T
+                | {
+                    thin?: T;
+                    medium?: T;
+                    thick?: T;
+                  };
+              upload?: T;
+              inverted?: T;
+              special?: T;
+              rim?: T;
+              rims?:
+                | T
+                | {
+                    plain?: T;
+                    dashed?: T;
+                    dotted?: T;
+                    wave?: T;
+                    zigzag?: T;
+                    scallop?: T;
+                    double?: T;
+                  };
+              uploadFailed?: T;
+              save_?: T;
+              cancel?: T;
+              back?: T;
+              shared?: T;
+              hint?: T;
+              make3d?: T;
+              done?: T;
+              turn?: T;
+            };
+        day?:
+          | T
+          | {
+              empty?: T;
+              tray?: T;
+              held?: T;
+              wheel?: T;
+              turnLeft?: T;
+              turnRight?: T;
+              inHand?: T;
+              picked?: T;
+              pickedKeys?: T;
+              remove_?: T;
+              undo?: T;
+              print?: T;
+              ink?: T;
+            };
+        note?:
+          | T
+          | {
+              label?: T;
+              today?: T;
+              past?: T;
+              future?: T;
+              bold?: T;
+              underline?: T;
+              ctrl?: T;
+              by?:
+                | T
+                | {
+                    named?: T;
+                    unnamed?: T;
+                  };
+              justNow?: T;
+              inMonth?: T;
+            };
+        share?:
+          | T
+          | {
+              title?: T;
+              text?: T;
+              email?: T;
+              add?: T;
+              added?: T;
+              invited?: T;
+              invitesTitle?: T;
+              revoke?: T;
+              notFound?: T;
+              members?: T;
+              owner?: T;
+              remove_?: T;
+              leave?: T;
+              leaveAsk?: T;
+              leaveYes?: T;
+            };
+        save_?: T;
+        settings?:
+          | T
+          | {
+              title?: T;
+              shared?:
+                | T
+                | {
+                    title?: T;
+                    owner?: T;
+                    member?: T;
+                  };
+              own?:
+                | T
+                | {
+                    title?: T;
+                    text?: T;
+                    colorMember?: T;
+                    colorReset?: T;
+                  };
+              deleteShared?:
+                | T
+                | {
+                    one?: T;
+                    many?: T;
+                  };
+              deleteNext?: T;
+              deleteType?: T;
+              deleteForGood?: T;
+            };
+        push?:
+          | T
+          | {
+              title?: T;
+              on_?: T;
+              enable?: T;
+              disable?: T;
+              unsupported?: T;
+              install?: T;
+              denied?: T;
+              failed?: T;
+              offline?: T;
+              reminder?: T;
+              stamped?: T;
+              time?: T;
+              timeHint?: T;
+              someone?: T;
+              stampedTitle?: T;
+              stampedBody?: T;
+              reminderTitle?: T;
+              reminderBody?:
+                | T
+                | {
+                    quote?: T;
+                    one?: T;
+                    many?: T;
+                  };
+            };
+        ical?:
+          | T
+          | {
+              title?: T;
+              text?: T;
+              create?: T;
+              address?: T;
+              warning?: T;
+              copy?: T;
+              copied?: T;
+              open?: T;
+              renew?: T;
+              renewAsk?: T;
+              renewYes?: T;
+              revoke?: T;
+              fetched?: T;
+              neverFetched?: T;
+              download?: T;
+              offline?: T;
+              failed?: T;
+              stamp?: T;
+              stamps?: T;
+              calendar?: T;
+            };
+        stamp?:
+          | T
+          | {
+              untitled?: T;
+              by?: T;
+              shared?: T;
+              share?: T;
+              shareText?: T;
+              shareNone?: T;
+              onlyYou?: T;
+              print3d?: T;
+              hint?: T;
+              delete?: T;
+              deleteConfirm?: T;
+            };
+        account?: T;
+        accountSheet?:
+          | T
+          | {
+              title?: T;
+              name?: T;
+              nameFailed?: T;
+              email?: T;
+              stored?: T;
+              privacy?: T;
+              exportTitle?: T;
+              exportText?: T;
+              export?: T;
+              exportFailed?: T;
+              delete?: T;
+              deleteLead?: T;
+              deleteGone?:
+                | T
+                | {
+                    _0?: T;
+                    _1?: T;
+                    _2?: T;
+                    _3?: T;
+                  };
+              deleteTip?: T;
+              password?: T;
+              deleteForGood?: T;
+              wrongPassword?: T;
+              tooMany?: T;
+            };
+        logout?: T;
+        logoutOffline?: T;
+        logoutPending?:
+          | T
+          | {
+              one?: T;
+              many?: T;
+            };
+      };
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

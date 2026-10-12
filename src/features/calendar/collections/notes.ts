@@ -1,5 +1,5 @@
 import type { CollectionConfig } from "payload";
-import { adminOnly } from "@/access";
+import { hiddenUnlessSupport, sealed } from "@/access";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
 import { isDayKey } from "../model";
 import { cleanNote } from "../note";
@@ -10,17 +10,16 @@ import { cleanNote } from "../note";
  * synced). Its id is made of calendar and day (note.ts), so the day has one
  * on every device too; emptied, it is deleted – a marker without its text –
  * and may be written again. Goes with its calendar (sync/apply.ts).
+ *
+ * The app's through the sync alone; closed over REST, for admins too – they
+ * read it in support mode (src/access).
  */
 export const Notes: CollectionConfig = {
   slug: "notes",
   labels: { singular: "Note", plural: "Notes" },
-  access: {
-    read: adminOnly,
-    create: adminOnly,
-    update: adminOnly,
-    delete: adminOnly,
-  },
+  access: sealed,
   admin: {
+    hidden: hiddenUnlessSupport,
     group: "Calendars",
     useAsTitle: "date",
     defaultColumns: ["date", "calendar", "editedBy", "changedAt"],

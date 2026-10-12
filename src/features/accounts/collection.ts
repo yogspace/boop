@@ -1,5 +1,4 @@
 import {
-  type Access,
   APIError,
   type CollectionAfterChangeHook,
   type CollectionBeforeChangeHook,
@@ -7,7 +6,7 @@ import {
   type CollectionBeforeOperationHook,
   type CollectionConfig,
 } from "payload";
-import { accountOf, adminOnly, anyone, isAdmin } from "@/access";
+import { adminOnly, isAdmin, nobody, visitors } from "@/access";
 import { createFirstCalendar } from "@/features/calendar/membership";
 import { purgeCalendar } from "@/features/sync/apply";
 import { LOCALES } from "@/i18n/config";
@@ -32,15 +31,12 @@ import { sessionEndpoints } from "./session";
  * one: a sign-up never confirmed, or an account long unused (retention.ts,
  * cleanup.ts).
  *
- * An account sees and changes only itself; the admin sees all.
+ * An account sees and changes itself through the app's own endpoints
+ * (session.ts) – its name, its language, its end; over REST nobody changes
+ * an account. The admin looks accounts up to help – address, name, the
+ * dates – deletes one and unlocks a login, and that is all: no new name, no
+ * new address, no new password, and so no way in as someone else.
  */
-
-/** The account itself – or, for the admin, every one. */
-const selfOrAdmin: Access = ({ req }) => {
-  if (isAdmin(req)) return true;
-  const me = accountOf(req);
-  return me ? { id: { equals: me.id } } : false;
-};
 
 // Sign-ups per IP – enough for a family behind one router, not for a bot.
 const tooManySignups = rateLimit({ limit: 10, windowMs: 60 * 60 * 1000 });
@@ -55,17 +51,15 @@ const limitSignups: CollectionBeforeOperationHook = ({ operation, req }) => {
 };
 
 /**
- * Only the confirmation link (or the admin) confirms an address, and the
- * address stays as confirmed: an account can't change it itself (yet – that
- * would need a new confirmation).
+ * Only the confirmation link confirms an address, and the address stays as
+ * confirmed: an account can't change it itself (yet – that would need a new
+ * confirmation). Whoever writes: no admin is let past either.
  */
 const protectAccount: CollectionBeforeChangeHook = ({
   data,
   operation,
   originalDoc,
-  req,
 }) => {
-  if (isAdmin(req)) return data;
   // Only a new account gets the field (as false); a change never touches it.
   const { _verified, ...rest } = data;
   const next = operation === "create" ? { ...rest, _verified: false } : rest;
@@ -96,7 +90,8 @@ const addFirstCalendar: CollectionAfterChangeHook = async ({
  * its stamps and the stamps it placed elsewhere are removed – with its
  * stamps' prints, whoever made them, and the invitations it sent. Its notes
  * elsewhere stay without its name; its notification devices and settings
- * go (features/push).
+ * go (features/push), and so do its addresses for calendar apps – with
+ * everyone's for the calendars that went with it (features/ical).
  */
 const removeData: CollectionBeforeDeleteHook = async ({ id, req }) => {
   const account = String(id);
@@ -210,6 +205,21 @@ const removeData: CollectionBeforeDeleteHook = async ({ id, req }) => {
       req,
     });
   }
+
+  // No calendar app reads on with its addresses – nor with anyone's for the
+  // calendars that just went.
+  const gone = owned.docs.map((calendar) => String(calendar.id));
+  await payload.delete({
+    collection: "calendar-feeds",
+    where: {
+      or: [
+        { account: { equals: account } },
+        ...(gone.length ? [{ calendar: { in: gone } }] : []),
+      ],
+    },
+    overrideAccess: true,
+    req,
+  });
 };
 
 export const Accounts: CollectionConfig = {
@@ -238,10 +248,19 @@ export const Accounts: CollectionConfig = {
   access: {
     // Never into the admin – that is for `users`.
     admin: () => false,
-    create: anyone,
-    read: selfOrAdmin,
-    update: selfOrAdmin,
-    delete: selfOrAdmin,
+    // Signing up. Not from the admin: an account made there would be one
+    // whose password the admin knows.
+    create: visitors,
+    // The admin's list. The app asks through its own endpoints (session.ts),
+    // which need none of these.
+    read: adminOnly,
+    // Nobody over REST – the admin neither: a new address or password would
+    // be a way in as that person. The app changes name and language through
+    // PATCH /me, and only those.
+    update: nobody,
+    // The admin – with everything in it (`removeData`). The app deletes
+    // through DELETE /me, which asks for the password once more.
+    delete: adminOnly,
     unlock: adminOnly,
     readVersions: adminOnly,
   },
@@ -249,7 +268,14 @@ export const Accounts: CollectionConfig = {
     group: "People",
     useAsTitle: "email",
     defaultColumns: ["name", "email", "_verified", "lastSeenAt", "createdAt"],
-    description: `People using Boop. Deleting an account removes its calendars, its stamps and what it placed elsewhere. Sign-ups never confirmed go after ${UNVERIFIED_DAYS} days; accounts unused for ${INACTIVE_MONTHS} months after a warning mail.`,
+    description: `People using Boop – to look up and to help, not to edit: nothing of an account can be changed here, only the account deleted or its login unlocked. Deleting an account removes its calendars, its stamps and what it placed elsewhere. Sign-ups never confirmed go after ${UNVERIFIED_DAYS} days; accounts unused for ${INACTIVE_MONTHS} months after a warning mail.`,
+    components: {
+      edit: {
+        beforeDocumentControls: [
+          "@/features/admin/unlock-account#UnlockAccount",
+        ],
+      },
+    },
   },
   fields: [
     { name: "name", type: "text", required: true, maxLength: 40 },

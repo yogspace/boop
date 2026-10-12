@@ -8,17 +8,15 @@ Stand: 12.10.2026
   schon gespeichert hat, hat dort noch „Tinte“ als erste Farbe – von Hand
   auf Rot ändern (Schlüssel `red`, `#ee3b33`).
 
-- **Benachrichtigungen (PWA, Web Push)**:
-  - Tägliche Erinnerung ans Stempeln.
-  - Nachricht, wenn jemand in einem geteilten Kalender gestempelt hat.
-  - Beides je Kalender abschaltbar (Einstellungen pro Kalender).
-  - Braucht: Push-Abo im Service Worker, VAPID-Schlüssel, Abos am Account,
-    einen Cron für die Erinnerung; auf dem iPhone nur als installierte App.
+- **Benachrichtigungen (Web Push)** – gebaut, aber aus, bis es
+  VAPID-Schlüssel gibt (`npx web-push generate-vapid-keys`, als Secrets in
+  GitHub). Noch offen: Doku und `deploy.yml` mit den Namen, Abschnitt im
+  Datenschutztext, der Cron für die Erinnerung (`setup-cron.sh`, bewusst noch
+  nicht eingetragen), und ein Test mit echtem Push auf einem Gerät.
 - **Oberflächentexte ins CMS (wie ccm)**: Global „Translations“, Felder
   aus den Schlüsseln in `dictionaries.ts`, Seeds füllen neue Texte und
   löschen verwaiste, Änderungen im Admin gewinnen. Texte mit Logik als
-  Vorlagen mit Platzhaltern (Einzahl/Mehrzahl). Startet, sobald Heute-Ansicht
-  und Tagesnotiz fertig sind (beide ändern gerade `dictionaries.ts`).
+  Vorlagen mit Platzhaltern (Einzahl/Mehrzahl). In Arbeit.
 - **Widget für Apple** (Idee): ginge nur mit einer nativen Hülle, nicht als
   PWA.
 - **Datenschutztext**: Die Vorlage im Code (`features/legal/seed-content.ts`,
@@ -65,6 +63,19 @@ Stand: 12.10.2026
 - Tagesansicht: Stempel kommt in seiner eigenen Farbe; Namensschild beim
   Hover in der Stempelauswahl.
 - Kontomenü und Sync-Notiz schließen bei Klick daneben.
+- iCal (alles braucht Server und echte Apps): Abo-Adresse in den
+  Kalender-Einstellungen erzeugen, in Apple Kalender und Google Kalender
+  abonnieren (`webcal://` auf iPhone/Android), „.ics herunterladen“; nach
+  Verlassen des Kalenders ist die Adresse tot. Google ruft nur alle paar
+  Stunden ab.
+- Startseite: „So einfach geht's“ als drei Zettel mit Bildgeschichte
+  (Desktop nebeneinander, Phone untereinander); Sprachwechsel dort behält
+  jetzt den Login-Zustand.
+- Sync-Knopf in der Leiste: ohne Rahmen und grau, solange alles abgeglichen
+  ist; Punkt mit Zahl bzw. Kreuz, wenn etwas wartet oder kein Netz da ist.
+- Heute-, Monats- und Jahresansicht mit dem echten Router: Umschalter,
+  Adresse `/de/app/{kalender}/{heute|monat|jahr}`, Zurück/Vor, alte
+  Id-Adressen, Reload; offline eine noch nie geöffnete Adresse.
 - Gezeichnete Linien jetzt als Vektoren (Zeichner im Browser,
   `components/scribble-draw.ts`): in echtem Safari/iPhone ansehen – Knöpfe,
   Karten, Monatstabelle, Fokusringe, Hover-Fleck. Im Dev-Modus springen die
@@ -94,11 +105,9 @@ Stand: 12.10.2026
 
 ## Ideen am Rand
 
-- auf der startseite sollte eher today gezeigt werden und dann der monat als übersicht. also so wie jetzt, aber today bekommt extra nochmal eine eigene view (es gibt einen toggle je kalender, today ist aber zuerst ausgewählt)
-- die slug des kalenders ergibt sich aus dem namen. man muss aber nach account auflösen, weil ja mehrere accounts die gleichen namen nutzen. also das muss schon sinn ergeben
-- jahresansicht als dritte ansicht (heute / monat / jahr): zwölf kleine monate, klick auf monat → monat, klick auf tag → tag
-- die ansicht (heute / monat) steht als slug dahinter in der adresse: `/de/app/{kalender}/{heute|monat}` – so bleibt sie beim neu laden und lässt sich verlinken
-- meantime habe ich die google url bestätigungsfile in public gelegt
-
-- Jede besuchte Kalender-Adresse (`/de/app/{id}`) wird als eigene Seite
-  gecacht; ein Rewrite auf `/de/app` würde das sparen.
+- phone safari: kalender bar (wo die kalender sind und ich neue hinzufügen kann: scrollt sowohl auf x als auch auf y achse?. die stempel auswahl leiste genauso.
+- phone: wenn ich über die heute/stempel canvas stelle scrolle (per touch) scrollt es nicht.
+- phone: sobald ich 1x einen stempel gewählt und gestempelt habe, bleibt der mini 3d stempel fixed an meinem fenster kleben, bis ich hard reloade.
+- kein schöner farbenfade des hintergrundes bei kalenderwechsel (auf handy).
+- stempelscrollbereich auch ohne scrollbar, mit fade.
+- gefährlich, was ich alles im cms sehen und verändern kann an persönlichen daten. wie machen wir das am besten?
