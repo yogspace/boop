@@ -7,13 +7,15 @@ import {
 } from "@/features/calendar/model";
 import { outlinePoints, rimLine } from "@/features/calendar/outline";
 import { hexOf } from "@/features/calendar/palette";
+import { inkRubber, rgb, tint, toonMaterial } from "./ink";
 
 /**
- * A stamp in 3D – a real rubber stamp: a block in the stamp's shape (a soft
+ * A stamp in 3D – a real rubber stamp: a block in the stamp's shape (a light
  * tint of its color), a knob to hold it by (the full color), and underneath
  * the rubber with the rim and the doodle standing out of it – inked, so the
  * face looks just like the drawing (FACE: the same outline, rim and lines).
- * A small plate on top carries “boop”, engraved. One unit wide.
+ * A small plate on top carries “boop”, engraved. One unit wide. Drawn like
+ * a cartoon – flat colors, ink lines (ink.ts).
  *
  * Built lying on its back: the rubber face looks along +Z, its raised parts
  * at z = 0, the knob points to −Z. `pose()` turns it for a picture, `pivot()`
@@ -48,6 +50,10 @@ const RUBBER = { grow: FACE.rim / 2, thickness: 0.08, relief: 0.035 };
 const BLOCK = { depth: 0.16, bevel: 0.04 };
 const KNOB = { neck: 0.11, height: 0.24, ball: 0.2 };
 const PLATE = { size: 0.78, thickness: 0.02, groove: 0.012 };
+/** How much white the block's tint takes – a dark color more. */
+const BLOCK_TINT = { light: 0.45, dark: 0.55 };
+/** The rubber's ground: the ink with this much white – the drawing's. */
+const GROUND = 0.86;
 /** Resolution of the shaped surfaces: rings × steps around. */
 const RINGS = 150;
 const STEPS = 420;
@@ -89,10 +95,6 @@ const reach = (points: Point[], angle: number) => {
   }
   return best;
 };
-
-/** The color mixed with white – a soft tint. */
-const tint = (THREE: typeof Three, hex: string, amount: number) =>
-  new THREE.Color(hex).lerp(new THREE.Color("#ffffff"), amount);
 
 /** Softens a height map a little – the walls slope like cut rubber. */
 const soften = (data: Float32Array, passes = 2) => {
@@ -337,10 +339,6 @@ const shapedSlab = (
     new THREE.Float32BufferAttribute(positions, 3)
   );
   geometry.setAttribute("relief", new THREE.Float32BufferAttribute(relief, 1));
-  geometry.setAttribute(
-    "color",
-    new THREE.Float32BufferAttribute(new Float32Array(relief.length * 3), 3)
-  );
   geometry.setIndex(index);
   geometry.computeVertexNormals();
   return geometry;
@@ -426,23 +424,15 @@ export const buildSticker = (
   const stamp = new THREE.Group();
   const hex = hexOf(input.color);
 
-  // A dark color takes more white, or its block turns out gloomy.
+  // Flat cartoon colors: the block a light tint – a dark color takes more
+  // white, or its block turns out gloomy – the knob the full color.
   const dark = new THREE.Color(hex).getHSL({ h: 0, s: 0, l: 0 }).l < 0.25;
-  const blockMaterial = new THREE.MeshPhysicalMaterial({
-    color: tint(THREE, hex, dark ? 0.55 : 0.45),
-    roughness: 0.45,
-    clearcoat: 0.8,
-    clearcoatRoughness: 0.3,
-  });
-  const knobMaterial = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(hex),
-    roughness: 0.3,
-    clearcoat: 1,
-    clearcoatRoughness: 0.15,
-  });
-  const rubberMaterial = new THREE.MeshStandardMaterial({
-    vertexColors: true,
-    roughness: 0.7,
+  const light = tint(hex, dark ? BLOCK_TINT.dark : BLOCK_TINT.light);
+  const blockMaterial = toonMaterial(THREE, "block", light);
+  const knob = rgb(hex);
+  // Below any of the face's ground is the rubber's side.
+  const rubberMaterial = toonMaterial(THREE, "rubber", knob, {
+    SIDE: -(RUBBER.relief + 0.01),
   });
 
   // The rubber: rim and doodle raised to z = 0, the ground below.
@@ -488,7 +478,7 @@ export const buildSticker = (
       thickness: PLATE.thickness + 0.01,
       surface: (x, y) => ({ z: -PLATE.groove * watermark(x, y), relief: 0 }),
     }),
-    blockMaterial
+    toonMaterial(THREE, "plate", light, { GROOVE: PLATE.groove })
   );
   plate.rotation.y = Math.PI;
   plate.position.z = back - PLATE.thickness;
@@ -498,14 +488,14 @@ export const buildSticker = (
   // The knob: a neck and a ball.
   const neck = new THREE.Mesh(
     new THREE.CylinderGeometry(KNOB.neck, KNOB.neck * 1.35, KNOB.height, 40),
-    knobMaterial
+    toonMaterial(THREE, "neck", knob)
   );
   neck.rotation.x = Math.PI / 2;
   neck.position.z = top - KNOB.height / 2 + 0.01;
   stamp.add(neck);
   const ball = new THREE.Mesh(
     new THREE.SphereGeometry(KNOB.ball, 40, 28),
-    knobMaterial
+    toonMaterial(THREE, "ball", knob)
   );
   ball.scale.z = 0.85;
   ball.position.z = top - KNOB.height - KNOB.ball * 0.6;
@@ -516,7 +506,7 @@ export const buildSticker = (
   // From the face to the middle of the whole stamp.
   holder.userData.half = -(top - KNOB.height - KNOB.ball * 1.4) / 2;
   pivot(holder, 1);
-  paintSticker(THREE, holder, input.color);
+  paintSticker(holder, input.color);
   return holder;
 };
 
@@ -532,28 +522,13 @@ export const pivot = (sticker: Three.Object3D, amount: number) => {
 
 /**
  * Inks the rubber: rim and doodle in the ink, the ground a pale tint of it –
- * like the drawing (stamp-svg.tsx). Quick – only the colors change.
+ * exactly the drawing's (stamp-svg.tsx). Quick – only two colors change.
  */
-export const paintSticker = (
-  THREE: typeof Three,
-  sticker: Three.Object3D,
-  ink: ColorName
-) => {
+export const paintSticker = (sticker: Three.Object3D, ink: ColorName) => {
   const rubber = sticker.getObjectByName("rubber") as Three.Mesh | undefined;
   if (!rubber) return;
-  const relief = rubber.geometry.getAttribute("relief");
-  const color = rubber.geometry.getAttribute("color") as Three.BufferAttribute;
-  const full = new THREE.Color(hexOf(ink));
-  const ground = tint(THREE, hexOf(ink), 0.84);
-  const mixed = new THREE.Color();
-  for (let i = 0; i < relief.count; i++) {
-    const r = relief.getX(i);
-    // Sharp, like ink on the raised parts only.
-    const t = Math.min(1, Math.max(0, (r - 0.3) / 0.4));
-    mixed.copy(ground).lerp(full, t * t * (3 - 2 * t));
-    color.setXYZ(i, mixed.r, mixed.g, mixed.b);
-  }
-  color.needsUpdate = true;
+  const hex = hexOf(ink);
+  inkRubber(rubber.material as Three.Material, rgb(hex), tint(hex, GROUND));
 };
 
 /**
@@ -592,25 +567,12 @@ export const disposeSticker = (object: Three.Object3D) => {
   });
 };
 
-/** Light and room reflections that make the gloss – shared by all views. */
-export const stage = async (
-  THREE: typeof Three,
-  renderer: Three.WebGLRenderer
-) => {
-  const { RoomEnvironment } = await import(
-    "three/examples/jsm/environments/RoomEnvironment.js"
-  );
+/**
+ * The scene and camera all views share – no lights: the colors are flat,
+ * their touch of shade comes from the materials (ink.ts).
+ */
+export const stage = (THREE: typeof Three) => {
   const scene = new THREE.Scene();
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.55;
-  scene.add(new THREE.HemisphereLight("#ffffff", "#d9d0ff", 1.3));
-  const key = new THREE.DirectionalLight("#ffffff", 2.4);
-  key.position.set(-1.5, 2, 3);
-  scene.add(key);
-  const rim = new THREE.DirectionalLight("#ffd6ec", 0.9);
-  rim.position.set(2, -1.2, 1);
-  scene.add(rim);
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 20);
   camera.position.set(0, 0, 3);
   return { scene, camera };
