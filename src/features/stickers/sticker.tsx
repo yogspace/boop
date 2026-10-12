@@ -78,10 +78,7 @@ export const Sticker = ({
       {url ? (
         <img
           alt=""
-          className={cn(
-            "h-full w-full object-contain drop-shadow-[0_6px_6px_rgba(29,27,58,0.18)]",
-            fresh && POP
-          )}
+          className={cn("h-full w-full object-contain", fresh && POP)}
           draggable={false}
           // A new picture pops in afresh.
           key={url}

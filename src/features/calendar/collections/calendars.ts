@@ -1,6 +1,6 @@
 import type { CollectionAfterChangeHook, CollectionConfig } from "payload";
 import { adminOnly } from "@/access";
-import { unshare } from "@/features/sync/apply";
+import { purgeCalendar, unshare } from "@/features/sync/apply";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
 import { nudge, nudgeCalendars } from "@/features/sync/live";
 import { colorField } from "../color-field";
@@ -40,6 +40,25 @@ const unshareLeavers: CollectionAfterChangeHook = async ({
 };
 
 /**
+ * A calendar marked deleted here in the admin goes like one deleted in the
+ * app (sync/apply.ts): its placements with it, no stamp shared with it any
+ * more. The members' devices drop it at their next sync, nudged at once.
+ */
+const purgeMarked: CollectionAfterChangeHook = async ({
+  doc,
+  previousDoc,
+  operation,
+  context,
+  req,
+}) => {
+  if (operation !== "update" || context.sync) return doc;
+  if (!doc.deleted || previousDoc?.deleted) return doc;
+  await purgeCalendar(req, String(doc.id));
+  nudge(memberIds(previousDoc));
+  return doc;
+};
+
+/**
  * Calendars. Each belongs to its owner; the members (the owner among them)
  * see it and stamp on it. Every account gets a first one at sign-up; it can
  * go like any other.
@@ -54,7 +73,9 @@ export const Calendars: CollectionConfig = {
     read: adminOnly,
     create: adminOnly,
     update: adminOnly,
-    delete: adminOnly,
+    // Never for good: without a marker, a device with a change to it still
+    // in its outbox would make it anew. Deleting is the `deleted` box.
+    delete: () => false,
   },
   admin: {
     group: "Calendars",
@@ -92,7 +113,23 @@ export const Calendars: CollectionConfig = {
           "Made at sign-up, from when that one couldn't be deleted. No longer used.",
       },
     },
-    ...syncFields,
+    ...syncFields.filter(
+      (field) => !("name" in field) || field.name !== "deleted"
+    ),
+    {
+      // Ticked here: gone as if deleted in the app (purgeMarked) – for good,
+      // it can't be unticked.
+      name: "deleted",
+      type: "checkbox",
+      defaultValue: false,
+      index: true,
+      access: { update: ({ doc }) => !doc?.deleted },
+      admin: {
+        position: "sidebar",
+        description:
+          "Deletes the calendar with all its prints – it stays only as a marker, so devices drop it too. Can't be undone.",
+      },
+    },
   ],
   hooks: {
     beforeChange: [
@@ -112,7 +149,7 @@ export const Calendars: CollectionConfig = {
           : { ...data, members: [...ids, owner] };
       },
     ],
-    afterChange: [unshareLeavers],
+    afterChange: [unshareLeavers, purgeMarked],
   },
   endpoints: [addMember, removeMember, ...inviteEndpoints],
 };

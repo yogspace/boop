@@ -1,8 +1,9 @@
 import { serverUrl } from "./server-url";
 
 /**
- * The frame of Boop's mails to people: warm paper, a white card, one big
- * button – tables and inline styles, so every mail program shows it alike.
+ * The frame of Boop's mails to people – the site's look: white paper, black
+ * ink, a card drawn round with a marker line and one black button. Tables
+ * and inline styles, so every mail program shows it alike.
  * The texts come escaped from the caller's data (`escapeHtml`).
  */
 
@@ -14,10 +15,9 @@ export const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const PAPER = "#f5f2ff";
-const INK = "#1d1b3a";
-const MUTED = "#6e6a8f";
-const BUTTON = "#7c5cff";
+const PAPER = "#ffffff";
+const INK = "#141414";
+const MUTED = "#6b6b6b";
 const FONT =
   "ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', sans-serif";
 
@@ -54,8 +54,8 @@ export const mailLayout = ({
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${PAPER};">
 <tr><td align="center" style="padding:32px 16px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
-<tr><td style="padding:0 8px 16px;font-family:${FONT};font-size:22px;font-weight:800;color:${INK};letter-spacing:-0.02em;">boop<span style="color:${BUTTON};">.</span></td></tr>
-<tr><td style="background:#ffffff;border:2px solid ${INK};border-radius:20px;padding:28px 24px;font-family:${FONT};color:${INK};">
+<tr><td style="padding:0 8px 16px;font-family:${FONT};font-size:22px;font-weight:800;color:${INK};letter-spacing:-0.02em;">boop.</td></tr>
+<tr><td style="background:#ffffff;border:3px solid ${INK};border-radius:22px;padding:28px 24px;font-family:${FONT};color:${INK};">
 <h1 style="margin:0 0 12px;font-size:22px;line-height:1.25;font-weight:800;">${escapeHtml(title)}</h1>
 ${paragraphs
   .map(
@@ -65,8 +65,8 @@ ${paragraphs
   .join("\n")}
 ${
   button
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 8px;"><tr><td style="background:${BUTTON};border:2px solid ${INK};border-radius:999px;">
-<a href="${escapeHtml(button.url)}" style="display:inline-block;padding:12px 24px;font-family:${FONT};font-size:16px;font-weight:800;color:${INK};text-decoration:none;">${escapeHtml(button.label)}</a>
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 8px;"><tr><td style="background:${INK};border:2px solid ${INK};border-radius:999px;">
+<a href="${escapeHtml(button.url)}" style="display:inline-block;padding:12px 24px;font-family:${FONT};font-size:16px;font-weight:800;color:#ffffff;text-decoration:none;">${escapeHtml(button.label)}</a>
 </td></tr></table>
 <p style="margin:12px 0 0;font-size:12px;line-height:1.5;color:${MUTED};word-break:break-all;">${escapeHtml(button.url)}</p>`
     : ""
