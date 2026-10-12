@@ -9,19 +9,20 @@ import {
   useState,
 } from "react";
 import type { Snapshot } from "valtio";
-import { Circle } from "@/components/doodles";
+import { Circle, Sparkle } from "@/components/doodles";
 import { Button } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import {
   type ColorName,
   type DayKey,
   type PlacementDoc,
+  SPECIAL_SIZE,
   type StampDoc,
   todayKey,
 } from "@/features/calendar/model";
 import { isColorKey, knownKey } from "@/features/calendar/palette";
 import { usePalette } from "@/features/calendar/palette-provider";
-import { StampSvg } from "@/features/calendar/stamp-svg";
+import { Glitter, StampSvg } from "@/features/calendar/stamp-svg";
 import {
   movePlacement,
   placeStamp,
@@ -52,6 +53,10 @@ const INK_KEY = "boop-ink";
  */
 const PRINT = 0.26;
 const VIEW_BOX = 1.04;
+
+/** A stamp's print width on the page – a special stamp's is bigger. */
+const printOf = (stamp: Stamp | null | undefined) =>
+  stamp?.drawing?.special ? PRINT * SPECIAL_SIZE : PRINT;
 
 /** How much of the next print's preview shows. */
 const GHOST = 0.4;
@@ -147,6 +152,8 @@ export const DaySheet = ({
   const [held, setHeld] = useState<string | null>(null);
   const inHand = stamps.find((s) => s.id === held) ?? null;
   const holding = Boolean(inHand);
+  // How wide its print comes out.
+  const size = printOf(inHand);
   // The next print: where the stamp is aimed (the page, 0–1), whether its
   // preview shows, and how it is turned – degrees, running on past ±180 so
   // nothing ever spins back the long way. Kept beside React: they change
@@ -251,12 +258,12 @@ export const DaySheet = ({
     const inked = box?.firstElementChild;
     if (!(box && inked instanceof HTMLElement)) return;
     const { x, y, on } = aim.current;
-    // In its own widths – the page is 1 / PRINT of them; its middle there.
-    const to = (at: number) => `${((at / PRINT) * 100 - 50).toFixed(2)}%`;
+    // In its own widths – the page is 1 / size of them; its middle there.
+    const to = (at: number) => `${((at / size) * 100 - 50).toFixed(2)}%`;
     box.style.transform = `translate(${to(x)}, ${to(y)})`;
     inked.style.rotate = `${Math.round(turn.current)}deg`;
     inked.style.opacity = on ? `${GHOST}` : "0";
-  }, []);
+  }, [size]);
   useEffect(() => {
     if (holding) preview();
   }, [holding, preview]);
@@ -485,6 +492,7 @@ export const DaySheet = ({
           {placements.map((p) => {
             const stamp = boop.stamps[p.stamp];
             const here = drag?.id === p.id ? drag : p;
+            const inked = p.ink ?? stamp?.color ?? "ink";
             return (
               <div
                 className={cn(
@@ -494,7 +502,7 @@ export const DaySheet = ({
                 key={p.id}
                 onTransitionEnd={() => setGlide(null)}
                 style={{
-                  width: `${PRINT * 100}%`,
+                  width: `${printOf(stamp) * 100}%`,
                   left: `${here.x * 100}%`,
                   top: `${here.y * 100}%`,
                   transform: `translate(-50%, -50%) rotate(${p.rotation}deg) scale(${p.scale})`,
@@ -505,7 +513,7 @@ export const DaySheet = ({
                   aria-label={stamp?.name || t.app.day.print}
                   aria-pressed={picked === p.id}
                   className={cn(
-                    "block w-full rounded-2xl mix-blend-multiply",
+                    "relative block w-full rounded-2xl mix-blend-multiply",
                     // With a stamp in hand the page is for stamping.
                     inHand
                       ? "pointer-events-none"
@@ -560,12 +568,21 @@ export const DaySheet = ({
                 >
                   <StampSvg
                     className="pointer-events-none h-auto w-full"
-                    color={p.ink ?? stamp?.color ?? "ink"}
+                    color={inked}
                     drawing={stamp?.drawing ?? null}
                     print
                     seed={seedOf(p.id)}
                     shape={stamp?.shape}
                   />
+                  {stamp?.drawing?.special && (
+                    // In the print's blend, so its white falls on ink only.
+                    <Glitter
+                      color={inked}
+                      drawing={stamp.drawing}
+                      seed={seedOf(p.id)}
+                      shape={stamp.shape}
+                    />
+                  )}
                 </button>
               </div>
             );
@@ -577,9 +594,9 @@ export const DaySheet = ({
               aria-hidden="true"
               className="pointer-events-none absolute top-0 left-0 aspect-square mix-blend-multiply will-change-transform"
               ref={ghost}
-              style={{ width: `${PRINT * 100}%`, zIndex: 2000 }}
+              style={{ width: `${size * 100}%`, zIndex: 2000 }}
             >
-              <div className="opacity-0 transition-[rotate,opacity] duration-150 ease-out">
+              <div className="relative opacity-0 transition-[rotate,opacity] duration-150 ease-out">
                 <StampSvg
                   className="h-auto w-full"
                   color={ink}
@@ -588,6 +605,15 @@ export const DaySheet = ({
                   seed={seedOf(next)}
                   shape={inHand.shape}
                 />
+                {inHand.drawing?.special && (
+                  <Glitter
+                    color={ink}
+                    drawing={inHand.drawing}
+                    seed={seedOf(next)}
+                    shape={inHand.shape}
+                    still
+                  />
+                )}
               </div>
             </div>
           )}
@@ -762,6 +788,10 @@ export const DaySheet = ({
               <span className="block animate-press-dip" key={dip}>
                 <Sticker className="pointer-events-none" stamp={s} />
               </span>
+              {s.drawing?.special && (
+                // A stamp for the big days.
+                <Sparkle className="pointer-events-none absolute top-1 right-1 h-3.5 w-3.5 text-ink" />
+              )}
               {held === s.id && (
                 <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 animate-fade whitespace-nowrap rounded-full border-2 border-ink bg-sun px-1.5 font-black text-[9px] leading-4">
                   {t.app.day.inHand}
@@ -772,7 +802,13 @@ export const DaySheet = ({
         </div>
       )}
 
-      <StampHand ink={ink} ref={hand} stamp={inHand} unit={unit} />
+      {/* Pressed, the stamp is as wide as its print – a special one wider. */}
+      <StampHand
+        ink={ink}
+        ref={hand}
+        stamp={inHand}
+        unit={(unit * size) / PRINT}
+      />
     </Sheet>
   );
 };

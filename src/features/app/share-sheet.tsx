@@ -5,7 +5,7 @@ import type { Snapshot } from "valtio";
 import { Mail } from "@/components/doodles";
 import { Button, Field, Notice } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
-import { type CalendarDoc, mayLetGo } from "@/features/calendar/model";
+import type { CalendarDoc } from "@/features/calendar/model";
 import { sync, useBoop } from "@/features/offline/store";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
@@ -14,7 +14,7 @@ import { Sheet } from "./sheet";
 /**
  * Who is in a calendar – the owner invites by email (an account joins at
  * once, an address without one gets an invitation by mail) and removes
- * people; a member can leave (not their last calendar). Needs a connection: the server decides.
+ * people; a member can leave. Needs a connection: the server decides.
  */
 export const ShareSheet = ({
   calendar,
@@ -26,7 +26,7 @@ export const ShareSheet = ({
   onClose: () => void;
 }) => {
   const t = dictionaryOf(locale);
-  const { me, people, online, calendars } = useBoop();
+  const { me, people, online } = useBoop();
   const [email, setEmail] = useState("");
   const [notice, setNotice] = useState<{
     tone: "success" | "error";
@@ -35,8 +35,6 @@ export const ShareSheet = ({
   const [busy, setBusy] = useState(false);
   const [invites, setInvites] = useState<{ id: string; email: string }[]>([]);
   const owner = calendar.owner === me?.id;
-  // Nobody leaves their last calendar (model.ts).
-  const last = !mayLetGo(calendar.id, Object.keys(calendars));
   const base = `/api/calendars/${calendar.id}`;
 
   const loadInvites = useCallback(async () => {
@@ -188,20 +186,13 @@ export const ShareSheet = ({
         </div>
       )}
       {!owner && me && (
-        <>
-          <Button
-            disabled={busy || !online || last}
-            onClick={() => remove(me.id)}
-            variant="plain"
-          >
-            {t.app.share.leave}
-          </Button>
-          {last && (
-            <p className="-mt-2 font-medium text-muted text-xs">
-              {t.app.lastCalendar}
-            </p>
-          )}
-        </>
+        <Button
+          disabled={busy || !online}
+          onClick={() => remove(me.id)}
+          variant="plain"
+        >
+          {t.app.share.leave}
+        </Button>
       )}
     </Sheet>
   );

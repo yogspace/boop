@@ -3,7 +3,7 @@
  * the app in the browser (offline store). No server imports here.
  *
  * - A **calendar** belongs to its owner; members see and stamp it too.
- *   Every account is in one at least (`mayLetGo`).
+ *   Any of them can go – the last one, too.
  * - A **stamp** is a doodle someone drew, in ONE color. It is its owner's,
  *   always: they have it in every calendar they are in. Shared with
  *   calendars (`sharedWith`), those calendars' members have it too – in
@@ -146,15 +146,6 @@ export type CalendarDoc = Synced & {
    * nothing goes by it any more: it is a calendar like any other.
    */
   personal: boolean;
-};
-
-/**
- * Whether an account may let go of a calendar – delete it or leave it: only
- * while it is in another one, too. Nobody is without a calendar.
- */
-export const mayLetGo = (id: string, mine: Iterable<string>) => {
-  for (const other of mine) if (other !== id) return true;
-  return false;
 };
 
 export type StampDoc = Synced & {

@@ -21,9 +21,9 @@ import {
   type StampShape,
   type Stroke,
 } from "@/features/calendar/model";
+import { rimLine } from "@/features/calendar/outline";
 import { knownKey } from "@/features/calendar/palette";
 import { usePalette } from "@/features/calendar/palette-provider";
-import { rimLine } from "@/features/calendar/outline";
 import { Glitter, ShapeOutline, StampSvg } from "@/features/calendar/stamp-svg";
 import { createStamp } from "@/features/offline/store";
 import { STAGE, StickerView } from "@/features/stickers/sticker-view";
@@ -373,6 +373,17 @@ export const StampDrawer = ({
           filled
           shape={shape}
         />
+        {draws && special && !empty && (
+          // A taste of what its prints will do.
+          <span className="pointer-events-none absolute inset-3 animate-fade">
+            <Glitter
+              color={color}
+              drawing={doodle}
+              shape={shape}
+              sheen={false}
+            />
+          </span>
+        )}
         {draws && empty && (
           <p
             className={cn(

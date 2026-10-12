@@ -389,13 +389,13 @@ const glitterOf = (
     taken.push(spot);
     return spot;
   };
-  const sparkles = Array.from({ length: still ? 2 : 4 }, (_, i) =>
-    pick(0.2 - i * 0.025 - next() * 0.02, 0.3)
+  const sparkles = Array.from({ length: still ? 2 : 5 }, (_, i) =>
+    pick(0.24 - i * 0.025 - next() * 0.02, 0.28)
   );
   const glints = Array.from({ length: still ? 0 : 5 }, () =>
     pick(0.03 + next() * 0.015, 0.14)
   );
-  return { sparkles, glints, sheen: next() };
+  return { sparkles, glints, phase: next() };
 };
 
 /** A four-point sparkle, slim – in a 24 × 24 box. */
@@ -410,10 +410,11 @@ const across = (unit: number) => `${((unit * 100) / 1.04).toFixed(2)}%`;
  * The glitter on a special stamp's print – laid over it (StampSvg print) in
  * the same square box, inside whatever multiplies the print onto the page:
  * then white shows only where there is ink. Sparkles, outlined in a dark
- * shade of the ink, twinkle out of step – white on the ink, a drawn spark
- * on the paper – with small glints between them, and now and then a sheen
- * runs over the ink. `still`: a few sparkles, nothing moving (small prints
+ * shade of the ink and filled with a pale one, twinkle out of step – light
+ * on the ink, a drawn spark on the paper – with small white glints between
+ * them, and now and then a sheen runs over the ink. `still`: a few sparkles, nothing moving (small prints
  * by the dozen – the month). Nothing moves for reduced motion either.
+ * Without `sheen` (on a drawing, where nothing multiplies) no light runs.
  *
  * Plain HTML that only changes opacity and transform: the browser moves it
  * on its own, and the print below (its ink filter) is never drawn again.
@@ -424,6 +425,7 @@ export const Glitter = ({
   shape = "circle",
   seed = 7,
   still = false,
+  sheen = !still,
   className,
 }: {
   drawing: ReadonlyDrawing;
@@ -431,13 +433,17 @@ export const Glitter = ({
   shape?: StampShape;
   seed?: number;
   still?: boolean;
+  sheen?: boolean;
   className?: string;
 }) => {
-  const { sparkles, glints, sheen } = useMemo(
+  const { sparkles, glints, phase } = useMemo(
     () => glitterOf(drawing, shape, seed, still),
     [drawing, shape, seed, still]
   );
-  const line = `color-mix(in srgb, ${hexOf(color)} 40%, #141414)`;
+  const hex = hexOf(color);
+  const line = `color-mix(in srgb, ${hex} 40%, #141414)`;
+  // Light – on the ink a glint, on the paper a pale spark.
+  const light = `color-mix(in srgb, ${hex} 22%, white)`;
   const twinkle = still ? "" : "animate-twinkle motion-reduce:animate-none";
   const place = (spot: Spot, duration: number) => ({
     left: share(spot.x - spot.size / 2),
@@ -447,16 +453,50 @@ export const Glitter = ({
     animationDelay: `${(-spot.delay * duration).toFixed(2)}s`,
     animationDuration: `${duration.toFixed(2)}s`,
   });
+  const spark = (
+    <path
+      d={SPARKLE}
+      fill={light}
+      stroke={line}
+      strokeLinejoin="round"
+      // Thinner on the small, still ones – or they are all line.
+      strokeWidth={still ? 0.9 : 1.6}
+      vectorEffect="non-scaling-stroke"
+    />
+  );
+  if (still) {
+    // Nothing moves: drawn like the print – the same view box, so it fits
+    // over it in any box, square or not.
+    return (
+      <svg
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute inset-0 h-full w-full overflow-visible",
+          className
+        )}
+        viewBox="-2 -2 104 104"
+      >
+        {sparkles.map((spot, i) => (
+          <g
+            key={`sparkle-${i}`}
+            transform={`translate(${(spot.x - spot.size / 2) * 100} ${(spot.y - spot.size / 2) * 100}) scale(${(spot.size * 100) / 24})`}
+          >
+            {spark}
+          </g>
+        ))}
+      </svg>
+    );
+  }
   return (
     <span
       aria-hidden="true"
       className={cn("pointer-events-none absolute inset-0", className)}
     >
-      {!still && (
+      {sheen && (
         <span className="absolute inset-0 overflow-hidden motion-reduce:hidden">
           <span
             className="absolute inset-0 animate-sheen bg-[linear-gradient(105deg,transparent_32%,rgb(255_255_255/0.55)_50%,transparent_68%)]"
-            style={{ animationDelay: `${(-sheen * 5).toFixed(2)}s` }}
+            style={{ animationDelay: `${(-phase * 5).toFixed(2)}s` }}
           />
         </span>
       )}
@@ -469,19 +509,13 @@ export const Glitter = ({
       ))}
       {sparkles.map((spot, i) => (
         <svg
+          aria-hidden="true"
           className={cn("absolute overflow-visible", twinkle)}
           key={`sparkle-${i}`}
           style={place(spot, 2.4 + spot.delay)}
           viewBox="0 0 24 24"
         >
-          <path
-            d={SPARKLE}
-            fill="white"
-            stroke={line}
-            strokeLinejoin="round"
-            strokeWidth={1.4}
-            vectorEffect="non-scaling-stroke"
-          />
+          {spark}
         </svg>
       ))}
     </span>

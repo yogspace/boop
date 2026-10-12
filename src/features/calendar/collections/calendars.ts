@@ -41,8 +41,8 @@ const unshareLeavers: CollectionAfterChangeHook = async ({
 
 /**
  * Calendars. Each belongs to its owner; the members (the owner among them)
- * see it and stamp on it. Every account gets a first one at sign-up and is
- * always in one at least (calendar/model.ts `mayLetGo`).
+ * see it and stamp on it. Every account gets a first one at sign-up; it can
+ * go like any other.
  *
  * Read and written by the app only through the sync (features/sync) and the
  * member endpoints – plain REST access is for the admin.

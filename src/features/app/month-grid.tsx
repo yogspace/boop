@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight } from "@/components/doodles";
 import { Ruling } from "@/components/ruling";
 import { buttonClass, ROUND_BUTTON } from "@/components/ui";
 import { type DayKey, todayKey } from "@/features/calendar/model";
-import { StampSvg } from "@/features/calendar/stamp-svg";
+import { Glitter, StampSvg } from "@/features/calendar/stamp-svg";
 import { useBoop } from "@/features/offline/store";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
@@ -23,7 +23,7 @@ const key = (year: number, month: number, day: number): DayKey =>
  * its lines.
  */
 const DAY =
-  "scribble scribble-bare scribble-clear scribble-sm flex aspect-square min-h-0 flex-col rounded-xl p-1 text-left [--scribble-inset:4px] [--scribble-ring:5px] hover:scribble-soft active:scribble-soft sm:p-2";
+  "scribble scribble-bare scribble-clear scribble-sm relative flex aspect-square min-h-0 flex-col rounded-xl p-1 text-left [--scribble-inset:4px] [--scribble-ring:5px] hover:scribble-soft active:scribble-soft sm:p-2";
 
 /**
  * A month of a calendar, Monday first; each day shows its prints. Drawn as a
@@ -123,7 +123,13 @@ export const MonthGrid = ({
       {/* The ruled table stays as it is from month to month – only the days
           in it are swapped (and fade in). */}
       <div className="relative isolate">
-        <Ruling className="[--scribble-width:2.5px]" rows={rows} shade={2} />
+        {/* On a phone the cells are small: a finer marker, so the lines don't
+            outweigh the prints. */}
+        <Ruling
+          className="[--scribble-width:1.5px] sm:[--scribble-width:2.5px]"
+          rows={rows}
+          shade={2}
+        />
         <div
           className="grid animate-fade grid-cols-7"
           key={`${month.year}-${month.month}`}
@@ -155,19 +161,26 @@ export const MonthGrid = ({
                   {i + 1}
                 </span>
                 {/* One print has the day to itself; more share it. The rows
-                    take what room there is – a day stays square. */}
+                    take what room there is – a day stays square. On a phone
+                    a day is too small to share: the top print shows, big,
+                    and a count says how many more there are. */}
                 <span
                   className={cn(
-                    "grid min-h-0 flex-1 auto-rows-fr place-items-center",
+                    "grid min-h-0 flex-1 auto-rows-fr place-items-center max-sm:grid-cols-1 max-sm:[&>*:nth-child(n+2)]:hidden",
                     day.length === 1 ? "grid-cols-1" : "grid-cols-2"
                   )}
                 >
                   {day.slice(0, 4).map((p, n) => {
                     const stamp = stamps[p.stamp];
-                    return (
+                    const inked = p.ink ?? stamp?.color ?? "ink";
+                    const print = (
                       <StampSvg
-                        className="h-[90%] w-[90%] mix-blend-multiply"
-                        color={p.ink ?? stamp?.color ?? "ink"}
+                        className={
+                          stamp?.drawing?.special
+                            ? "h-full w-full"
+                            : "h-[90%] w-[90%] mix-blend-multiply"
+                        }
+                        color={inked}
                         drawing={stamp?.drawing ?? null}
                         key={p.id}
                         print
@@ -180,8 +193,32 @@ export const MonthGrid = ({
                         }
                       />
                     );
+                    // A special one: as big as its room allows, with a few
+                    // sparkles that hold still – a month has many days.
+                    return stamp?.drawing?.special ? (
+                      <span
+                        className="relative h-full w-full mix-blend-multiply"
+                        key={p.id}
+                      >
+                        {print}
+                        <Glitter
+                          color={inked}
+                          drawing={stamp.drawing}
+                          seed={seedOf(p.id)}
+                          shape={stamp.shape}
+                          still
+                        />
+                      </span>
+                    ) : (
+                      print
+                    );
                   })}
                 </span>
+                {day.length > 1 && (
+                  <span className="absolute right-0.5 bottom-0.5 rounded-full bg-ink px-1 font-black text-[9px] text-white leading-3.5 sm:hidden">
+                    +{day.length - 1}
+                  </span>
+                )}
               </button>
             );
           })}

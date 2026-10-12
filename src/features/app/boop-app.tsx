@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Squiggle, Ticks } from "@/components/doodles";
+import { Plus, Sparkle, Squiggle, Ticks } from "@/components/doodles";
 import { LocaleSwitch } from "@/components/locale-switch";
 import { SiteFooter } from "@/components/site-footer";
 import {
@@ -16,7 +16,6 @@ import { trackEvent } from "@/features/analytics/client";
 import {
   type ColorName,
   type DayKey,
-  mayLetGo,
   stampsOf,
 } from "@/features/calendar/model";
 import { hexOf, nextKey } from "@/features/calendar/palette";
@@ -155,13 +154,6 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   };
 
   const owner = calendar && calendar.owner === me;
-  // The last one stays (model.ts) – it can be renamed and shared, though.
-  const last =
-    !!calendar &&
-    !mayLetGo(
-      calendar.id,
-      calendars.map((c) => c.id)
-    );
   const firstName = boop.me?.name.split(" ")[0] ?? "";
 
   return (
@@ -264,6 +256,16 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
             </button>
           </nav>
 
+          {!calendar && (
+            // Every calendar may go, the last one too – then this.
+            <div className="flex flex-col items-start gap-3 py-10">
+              <p className="font-bold text-muted">{t.app.noCalendar}</p>
+              <Button onClick={() => setDialog("new")}>
+                + {t.app.newCalendar}
+              </Button>
+            </div>
+          )}
+
           {calendar && (
             // No box around the month: its ruled table is the drawing.
             <div>
@@ -295,18 +297,12 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
                       {t.app.rename}
                     </Button>
                     <Button
-                      disabled={last}
                       onClick={() => setDialog("delete")}
                       size="sm"
                       variant="ghost"
                     >
                       {t.app.deleteCalendar}
                     </Button>
-                    {last && (
-                      <p className="basis-full font-medium text-muted text-xs">
-                        {t.app.lastCalendar}
-                      </p>
-                    )}
                   </>
                 )}
               </div>
@@ -351,6 +347,10 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
                 >
                   <Sticker stamp={s} />
                 </button>
+                {s.drawing?.special && (
+                  // A stamp for the big days.
+                  <Sparkle className="pointer-events-none absolute top-1 right-1 h-4 w-4 text-ink" />
+                )}
                 {s.owner !== me ? (
                   <span className="pointer-events-none absolute right-0 bottom-0 flex max-w-full">
                     <span className={cn(BADGE, "min-w-0")}>

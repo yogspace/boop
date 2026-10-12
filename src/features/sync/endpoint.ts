@@ -1,9 +1,6 @@
 import type { Endpoint } from "payload";
 import { sessionAccount } from "@/features/accounts/session";
-import {
-  calendarsOf,
-  createFirstCalendar,
-} from "@/features/calendar/membership";
+import { calendarsOf } from "@/features/calendar/membership";
 import { sharedWithOf } from "@/features/calendar/model";
 import { isId } from "@/lib/id";
 import { rateLimit } from "@/lib/rate-limit";
@@ -151,10 +148,6 @@ export const syncEndpoint: Endpoint = {
         await nudgeCalendars(req, affected);
       })().catch(() => undefined);
     }
-
-    // In no calendar any more – its last one deleted, or taken out of it by
-    // the owner: a new first one, which this pull already brings along.
-    if (ctx.mine.size === 0) await createFirstCalendar(req, account);
 
     const result = await pull(req, me, {
       since: typeof body.since === "string" ? body.since : null,

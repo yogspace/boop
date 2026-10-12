@@ -4,14 +4,12 @@ import { unshare } from "@/features/sync/apply";
 import { nudge, nudgeCalendars } from "@/features/sync/live";
 import { rateLimit } from "@/lib/rate-limit";
 import { invite } from "../invites";
-import { calendarById, calendarsOf } from "../membership";
-import { mayLetGo } from "../model";
+import { calendarById } from "../membership";
 
 /**
  * Sharing a calendar: its owner adds someone by their email address – or,
  * without an account, invites them by mail (invites.ts) – and removes
- * members again; a member can leave – not the last calendar they are in
- * (`mayLetGo`; taken out by the owner, the sync gives them a new one). The
+ * members again; a member can leave – any calendar, the last one too. The
  * calendar's `changedAt` moves on, so every member's devices learn of it at
  * the next sync.
  *
@@ -119,15 +117,6 @@ export const removeMember: Endpoint = {
       !(mine || who === String(me.id))
     ) {
       return Response.json({ error: "Not allowed." }, { status: 403 });
-    }
-    if (
-      !mine &&
-      !mayLetGo(
-        calendar.id,
-        (await calendarsOf(req, who)).map((c) => c.id)
-      )
-    ) {
-      return Response.json({ error: "Last calendar." }, { status: 409 });
     }
     if (calendar.members.includes(who)) {
       // First their stamps – so none stays shared with a calendar its owner
