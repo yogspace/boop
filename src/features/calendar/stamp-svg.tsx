@@ -6,7 +6,8 @@ import { outlinePath } from "./outline";
  * A stamp flat, as SVG – the drawing while it is being made (its rim and the
  * doodle – lines and filled areas – in its color) and the print it leaves on
  * a day: what stands raised on the rubber – the rim and the doodle – in ink,
- * blotchy and a little frayed, like real ink.
+ * blotchy and a little frayed, like real ink. An inverted stamp is the other
+ * way round: its whole face in ink, the doodle cut out of it.
  *
  * The face lives in the unit square (FACE) but is drawn 100× up: Safari
  * can't run the ink filter in a space one unit wide – the prints vanished.
@@ -86,6 +87,7 @@ type ReadonlyDrawing = {
     readonly p: readonly number[];
   }[];
   readonly fills?: readonly ReadonlyFill[];
+  readonly inverted?: boolean;
 };
 
 export const StampSvg = ({
@@ -118,17 +120,19 @@ export const StampSvg = ({
     drawing && (drawing.strokes.length || drawing.fills?.length)
       ? drawing
       : null;
+  const inverted = Boolean(drawing?.inverted);
+  const pale = `color-mix(in srgb, ${ink} 14%, white)`;
   // The doodle – filled areas below, the lines on top – kept inside the
-  // outline.
+  // outline. In ink – or, cut out of an inverted face, as the mask's black.
   const doodle = drawn && (
     <g clipPath={`url(#${id}-clip)`}>
       {drawn.fills?.map((fill, i) => (
         <path
           d={fillPath(fill)}
-          fill={ink}
+          fill={inverted ? "black" : ink}
           fillRule={fill.rule ?? "nonzero"}
           key={`fill-${i}`}
-          style={fade}
+          style={inverted ? undefined : fade}
         />
       ))}
       {drawn.strokes.map((stroke, i) => (
@@ -136,15 +140,16 @@ export const StampSvg = ({
           d={strokePath(stroke.p)}
           fill="none"
           key={`stroke-${i}`}
-          stroke={ink}
+          stroke={inverted ? "black" : ink}
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={stroke.w}
-          style={fade}
+          style={inverted ? undefined : fade}
         />
       ))}
     </g>
   );
+  const cut = inverted ? `url(#${id}-cut)` : undefined;
   return (
     // Named when given a title (role img), otherwise hidden – decoration.
     // biome-ignore lint/a11y/noSvgWithoutTitle: the title is conditional
@@ -159,6 +164,21 @@ export const StampSvg = ({
         <clipPath id={`${id}-clip`}>
           <ShapeOutline shape={shape} />
         </clipPath>
+        {inverted && (
+          // What is left of an inverted face: all but the doodle. In the
+          // 100× space, like the filter.
+          <mask
+            height="116"
+            id={`${id}-cut`}
+            maskUnits="userSpaceOnUse"
+            width="116"
+            x="-8"
+            y="-8"
+          >
+            <rect fill="white" height="116" width="116" x="-8" y="-8" />
+            <g transform="scale(100)">{doodle}</g>
+          </mask>
+        )}
         {print && (
           // Like a real rubber stamp: blotchy coverage, fine grain, frayed
           // edges – and never twice the same (seed). In the 100× space.
@@ -220,30 +240,45 @@ export const StampSvg = ({
       </defs>
       {print ? (
         // The print: what stands raised on the rubber – the rim and the
-        // doodle – in ink; the face around them stays bare.
+        // doodle – in ink; the face around them stays bare. Inverted: the
+        // whole face, less the doodle.
         <g filter={`url(#${id}-ink)`} opacity={0.9}>
-          <g transform="scale(100)">
-            <ShapeOutline
-              fill="none"
-              shape={shape}
-              stroke={ink}
-              strokeDasharray={drawn ? undefined : "0.06 0.06"}
-              strokeWidth={FACE.rim}
-            />
-            {doodle}
+          <g mask={cut}>
+            <g transform="scale(100)">
+              <ShapeOutline
+                fill={inverted ? ink : "none"}
+                shape={shape}
+                stroke={ink}
+                strokeDasharray={drawn || inverted ? undefined : "0.06 0.06"}
+                strokeWidth={FACE.rim}
+              />
+              {!inverted && doodle}
+            </g>
           </g>
         </g>
       ) : (
-        <g transform="scale(100)">
-          <ShapeOutline
-            fill={filled ? `color-mix(in srgb, ${ink} 14%, white)` : "none"}
-            shape={shape}
-            stroke={ink}
-            strokeDasharray={drawn || filled ? undefined : "0.06 0.06"}
-            strokeWidth={FACE.rim}
-          />
-          {doodle}
-        </g>
+        <>
+          {inverted && filled && (
+            // The ground showing through where the doodle is cut out.
+            <g transform="scale(100)">
+              <ShapeOutline fill={pale} shape={shape} />
+            </g>
+          )}
+          <g mask={cut}>
+            <g transform="scale(100)">
+              <ShapeOutline
+                fill={inverted ? ink : filled ? pale : "none"}
+                shape={shape}
+                stroke={ink}
+                strokeDasharray={
+                  drawn || filled || inverted ? undefined : "0.06 0.06"
+                }
+                strokeWidth={FACE.rim}
+              />
+              {!inverted && doodle}
+            </g>
+          </g>
+        </>
       )}
     </svg>
   );

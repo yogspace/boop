@@ -6,21 +6,37 @@ import type {
 } from "react";
 import { Link } from "@/features/transitions/link";
 import { cn } from "@/lib/cn";
+import { Bang, Check, Dot } from "./doodles";
 
 /**
- * Boop's building blocks – stickers on paper: an ink outline, a hard offset
- * shadow that grows on hover and disappears when pressed.
+ * Boop's building blocks – marker on paper: every box is a scribbled frame
+ * (the `scribble` utilities, styles.css), black on white. What is “on” or
+ * the main thing to do is filled with ink; hovering makes a frame's line
+ * boil and lifts it a little, pressing squashes it. No color here – color is
+ * for the stamps.
  */
 
-const BUTTON =
-  "inline-flex select-none items-center justify-center gap-2 rounded-full border-2 border-ink font-bold transition-[transform,box-shadow,background-color] duration-150 hover:-translate-x-px hover:-translate-y-px active:translate-x-0.5 active:translate-y-0.5 active:shadow-none disabled:pointer-events-none disabled:opacity-45";
+/** How a frame answers the pointer: it lifts and tilts a touch, boils, squashes when pressed. */
+const LIVELY =
+  "transition-transform duration-150 ease-out hover:-translate-y-0.5 hover:-rotate-1 hover:scribble-boil active:translate-y-px active:rotate-0 active:scale-x-[1.02] active:scale-y-[0.94]";
+
+const BUTTON = cn(
+  "scribble inline-flex select-none items-center justify-center gap-2 rounded-full font-bold disabled:pointer-events-none disabled:opacity-40",
+  LIVELY
+);
 
 const VARIANTS = {
-  primary: "bg-violet text-white shadow-sticker-sm hover:shadow-sticker",
-  pink: "bg-pink text-white shadow-sticker-sm hover:shadow-sticker",
-  plain: "bg-card text-ink shadow-sticker-sm hover:shadow-sticker",
+  /** The main thing to do: filled with ink. */
+  primary: "scribble-ink",
+  /** Anything else: just the frame. */
+  plain: "",
+  /** The quiet one: bare words, a soft blob behind them when hovered. */
   ghost:
-    "border-transparent bg-transparent text-ink hover:translate-0 hover:bg-ink/5",
+    "scribble-bare scribble-clear hover:scribble-soft hover:translate-y-0 hover:rotate-0",
+  /** Something goes for good – filled like the main thing; the words say it. */
+  danger: "scribble-ink",
+  /** @deprecated the candy look's name for `danger`. */
+  pink: "scribble-ink",
 } as const;
 
 const SIZES = {
@@ -57,6 +73,28 @@ export const LinkButton = ({
   <Link className={cn(buttonClass({ variant, size }), className)} {...props} />
 );
 
+/**
+ * A round button for one sign (an arrow, a cross, an initial) – 40px. Put a
+ * doodle or a letter in it and give it an `aria-label`.
+ */
+export const ROUND_BUTTON = cn(
+  "scribble scribble-sm flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-full font-black disabled:pointer-events-none disabled:opacity-40",
+  LIVELY
+);
+
+/**
+ * A pill to pick one of several (a calendar, a tab): the frame, filled with
+ * ink when it is the one – `aria-pressed` or `aria-current` says so.
+ */
+export const PILL = cn(
+  "scribble flex shrink-0 select-none items-center gap-2 rounded-full px-4 py-2 font-bold text-sm aria-pressed:scribble-ink aria-[current=page]:scribble-ink",
+  LIVELY
+);
+
+/** A small label on something: “today”, a count. */
+export const BADGE =
+  "scribble scribble-sm scribble-thin inline-flex items-center rounded-full px-2 py-0.5 font-black text-xs leading-4";
+
 export const Card = ({
   className,
   children,
@@ -64,19 +102,18 @@ export const Card = ({
   className?: string;
   children: ReactNode;
 }) => (
-  <div
-    className={cn(
-      "rounded-[28px] border-2 border-ink bg-card p-6 shadow-sticker",
-      className
-    )}
-  >
-    {children}
-  </div>
+  <div className={cn("scribble rounded-[28px] p-6", className)}>{children}</div>
 );
 
-/** A field's box – for inputs, and anything that should look like one. */
+/**
+ * A field's box – the frame around a control (an input can't draw one
+ * itself). The control's focus shows on it.
+ */
+export const FIELD_BOX = "scribble scribble-field flex rounded-2xl";
+
+/** The control inside a `FIELD_BOX` – an input, a textarea. */
 export const FIELD_INPUT =
-  "rounded-2xl border-2 border-ink bg-card px-4 py-3 text-base outline-none transition-shadow placeholder:text-muted/60 focus:shadow-[0_0_0_4px_var(--color-violet-soft)]";
+  "w-full min-w-0 rounded-[inherit] bg-transparent px-4 py-3 text-base outline-none placeholder:text-muted/70";
 
 export const Field = ({
   label,
@@ -89,12 +126,18 @@ export const Field = ({
 }) => (
   <label className={cn("flex flex-col gap-1.5", className)}>
     <span className="font-bold text-sm">{label}</span>
-    <input className={FIELD_INPUT} {...props} />
+    <span className={FIELD_BOX}>
+      <input className={FIELD_INPUT} {...props} />
+    </span>
     {hint && <span className="text-muted text-xs">{hint}</span>}
   </label>
 );
 
-/** A message under a form – success or trouble. */
+/**
+ * A message under a form. Trouble gets a thick frame and an exclamation
+ * mark, success a tick, anything else a soft grey note – told apart without
+ * color.
+ */
 export const Notice = ({
   tone = "info",
   children,
@@ -104,18 +147,19 @@ export const Notice = ({
 }) => (
   <p
     className={cn(
-      "animate-fade rounded-2xl border-2 px-4 py-3 font-medium text-sm",
-      tone === "error" && "border-pink bg-pink-soft",
-      tone === "success" && "border-mint bg-mint-soft",
-      tone === "info" && "border-line bg-soft"
+      "scribble flex animate-fade items-start gap-2.5 rounded-2xl px-4 py-3 font-medium text-sm",
+      tone === "error" && "scribble-bold font-bold",
+      tone === "info" && "scribble-soft scribble-thin"
     )}
     role={tone === "error" ? "alert" : "status"}
   >
-    {children}
+    {tone === "error" && <Bang className="h-5 w-5 shrink-0" />}
+    {tone === "success" && <Check className="h-5 w-5 shrink-0" />}
+    <span className="min-w-0">{children}</span>
   </p>
 );
 
-/** The word mark: “boop” with a candy dot. */
+/** The word mark: “boop” and a marker dot. */
 export const Logo = ({ className }: { className?: string }) => (
   <span
     className={cn(
@@ -125,6 +169,6 @@ export const Logo = ({ className }: { className?: string }) => (
     style={{ viewTransitionName: "logo" }}
   >
     boop
-    <span className="ml-0.5 inline-block h-[0.32em] w-[0.32em] rounded-full border-2 border-ink bg-pink" />
+    <Dot className="ml-[0.06em] h-[0.3em] w-[0.3em]" />
   </span>
 );

@@ -33,6 +33,7 @@ export type StickerInput = {
       readonly p: readonly (readonly number[])[];
       readonly rule?: "evenodd";
     }[];
+    readonly inverted?: boolean;
   } | null;
 };
 
@@ -169,8 +170,10 @@ const tracePath = (
 
 /**
  * The face's relief, exactly as the drawing shows it (stamp-svg.tsx): the
- * rim along the outline and the strokes – the same smoothing – clipped to
- * it. Mirrored for printing: a real stamp's face reads the other way round.
+ * rim along the outline and the doodle – the same smoothing – clipped to
+ * it. An inverted stamp is the other way round: the whole face stands, the
+ * doodle is cut into it. Mirrored for printing: a real stamp's face reads
+ * the other way round.
  */
 const faceMap = (input: StickerInput, mirror: boolean) =>
   heightMap((ctx) => {
@@ -178,12 +181,17 @@ const faceMap = (input: StickerInput, mirror: boolean) =>
       ctx.translate(1, 0);
       ctx.scale(-1, 1);
     }
-    // The rim: everything outside its inner edge.
+    const inverted = Boolean(input.drawing?.inverted);
+    // The rim: everything outside its inner edge – or all of it.
     ctx.fillRect(0, 0, 1, 1);
-    ctx.fillStyle = "#000";
-    tracePath(ctx, input.shape, -FACE.rim / 2);
-    ctx.fill();
-    ctx.fillStyle = "#fff";
+    if (!inverted) {
+      ctx.fillStyle = "#000";
+      tracePath(ctx, input.shape, -FACE.rim / 2);
+      ctx.fill();
+    }
+    // The doodle stands out of the ground – or is cut into the face.
+    ctx.fillStyle = inverted ? "#000" : "#fff";
+    ctx.strokeStyle = ctx.fillStyle;
     tracePath(ctx, input.shape, 0);
     ctx.clip();
     for (const fill of input.drawing?.fills ?? []) {

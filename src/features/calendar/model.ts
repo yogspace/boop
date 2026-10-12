@@ -75,8 +75,17 @@ export type Stroke = { w: number; p: number[] };
  */
 export type Fill = { p: number[][]; rule?: "evenodd" };
 
-/** Drawings made before pictures could be uploaded have no `fills`. */
-export type Drawing = { v: 1; strokes: Stroke[]; fills?: Fill[] };
+/**
+ * Drawings made before pictures could be uploaded have no `fills`. With
+ * `inverted` the stamp prints the other way round: its whole face in ink,
+ * the doodle cut out of it.
+ */
+export type Drawing = {
+  v: 1;
+  strokes: Stroke[];
+  fills?: Fill[];
+  inverted?: true;
+};
 
 /**
  * Limits that keep one stamp small (a few dozen KB at most) – the points of
@@ -185,7 +194,14 @@ export const cleanDrawing = (value: unknown): Drawing | null => {
     clean.push({ w: Math.min(Math.max(w, 0.005), 0.2), p: coords });
   }
   if (!(clean.length || areas.length)) return null;
-  return { v: 1, strokes: clean, ...(areas.length && { fills: areas }) };
+  return {
+    v: 1,
+    strokes: clean,
+    ...(areas.length && { fills: areas }),
+    ...((value as { inverted?: unknown }).inverted === true && {
+      inverted: true,
+    }),
+  };
 };
 
 /** A number clamped into 0–1, rounded to 3 decimals; junk becomes 0.5. */

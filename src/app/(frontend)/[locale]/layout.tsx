@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+import { ScribbleDefs } from "@/components/scribble-defs";
 import { PageViewTracker } from "@/features/analytics/page-view-tracker";
 import { PaletteProvider } from "@/features/calendar/palette-provider";
 import { ServiceWorker } from "@/features/pwa/service-worker";
@@ -12,9 +13,9 @@ import { serverUrl } from "@/lib/server-url";
 import "@/styles.css";
 
 // No `dynamicParams = false` here: Next applies it to every page below, and
-// the app's calendar addresses (/de/app/{id}) render on demand. The public
-// pages set it ((site)/layout.tsx); the proxy sends anything without a
-// language to one anyway.
+// the app's calendar addresses (/de/app/{id}) render on demand – as does a
+// public page after its content changed in the admin ((site)/layout.tsx).
+// The proxy sends anything without a language to one anyway.
 export const generateStaticParams = () => LOCALES.map((locale) => ({ locale }));
 
 type Props = { params: Promise<{ locale: string }> };
@@ -82,6 +83,7 @@ const LocaleLayout = async ({
         />
       </head>
       <body>
+        <ScribbleDefs />
         <PaletteProvider colors={stampColors}>{children}</PaletteProvider>
         <PageViewTracker />
         <TransitionDone />

@@ -2,7 +2,8 @@
 
 import { type Ref, useEffect, useImperativeHandle, useState } from "react";
 import type * as Three from "three";
-import type { ColorName } from "@/features/calendar/model";
+import type { ColorName, StampShape } from "@/features/calendar/model";
+import { outlinePoints } from "@/features/calendar/outline";
 import {
   buildSticker,
   disposeSticker,
@@ -52,11 +53,21 @@ const HELD = Math.PI / 2 + 0.42;
 /** Pressed: face down on the page, seen from straight above. */
 const FLAT = Math.PI;
 /**
- * Turned about its axis so the top of its doodle points up the page, like
- * its print's. (From above, the rubber is the print mirrored left to right –
- * as on any stamp.)
+ * How a stamp is turned about its axis to go down as its print lies. Its
+ * back carries “boop”, written to be read with the doodle's top towards
+ * you – so that is how it is held wherever the outline is the same upside
+ * down. A shape that isn't (a triangle) is held the other way round: its
+ * outline over the print's comes first.
  */
-const FACING = Math.PI;
+const facingOf = (shape: StampShape) => {
+  // The points face evenly round, so each has its mirror image in the list.
+  const points = outlinePoints(shape, 0, 48);
+  const same = points.every(([px, py], i) => {
+    const [qx, qy] = points[points.length - 1 - i];
+    return Math.abs(px - qx) < 0.001 && Math.abs(py + qy - 1) < 0.001;
+  });
+  return same ? 0 : Math.PI;
+};
 /** Flat already when it is this far down (0–1) – the rest is the push. */
 const FLAT_BY = 0.85;
 /** Carried, it is this much of its real size … */
@@ -221,7 +232,9 @@ const createHand = () => {
   let leanSpeed = 0;
   let nod = 0;
   let nodSpeed = 0;
-  // Spun about its axis (radians) – and where that is heading.
+  // How it is held to match its print (facingOf), spun about its axis
+  // (radians) – and where that is heading.
+  let facing = 0;
   let spin = 0;
   let spinSpeed = 0;
   let spinTo = 0;
@@ -380,7 +393,7 @@ const createHand = () => {
     // Turned as its print lies – exactly so once it is down; carried, a
     // little with the lean too.
     sticker.rotation.z =
-      FACING + mix(spin, spinTo, down) + lean * (1 - down) * TWIST;
+      facing + mix(spin, spinTo, down) + lean * (1 - down) * TWIST;
     // The shadow tightens and darkens as the stamp comes down.
     view.shadow.scale.setScalar(0.9 - 0.12 * down);
     view.shadow.material.opacity = 0.3 + 0.22 * down;
@@ -550,6 +563,7 @@ const createHand = () => {
         // Turning – and squashing – around the middle of its face.
         pivot(sticker, 0);
         paintSticker(made.THREE, sticker, ink);
+        facing = facingOf(stamp.shape);
         made.seat.add(sticker);
         made.sticker = sticker;
         wake();
