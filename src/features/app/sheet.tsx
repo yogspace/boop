@@ -1,59 +1,75 @@
 "use client";
 
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { m, useIsPresent } from "motion/react";
+import { type ReactNode, useEffect, useSyncExternalStore } from "react";
 import { Cross } from "@/components/doodles";
+import { SPRING } from "@/components/motion";
 import { ROUND_BUTTON } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
-/**
- * Whether the sheet in a SheetSlot is on its way out – and how it tells the
- * slot, once its animation is over, that it is gone.
- */
-const Leaving = createContext({ leaving: false, gone: () => {} });
-
-/**
- * Where a sheet appears: `{open && <SomeSheet … />}` goes inside. However it
- * is closed – the X, a tap beside it, Escape, or the sheet itself after
- * saving – the parent drops it at once, as ever; the slot keeps the last one
- * a moment longer, still and deaf to taps, until it has gone (Sheet below).
- * So the sheets know nothing of it: they call onClose like before.
- *
- * Opened again before it is gone, the new one simply takes its place.
- */
-export const SheetSlot = ({ children }: { children: ReactNode }) => {
-  // The sheet as last shown – what stays on the page while it goes.
-  const [last, setLast] = useState(children);
-  if (children && children !== last) setLast(children);
-  const leaving = !children && Boolean(last);
-
-  const value = useMemo(
-    () => ({ leaving, gone: () => setLast(null) }),
-    [leaving]
-  );
-  // Should its animation never end (a page in the background, say), it goes
-  // anyway – a sheet that stays would cover the app.
-  useEffect(() => {
-    if (!leaving) return;
-    const timer = setTimeout(value.gone, 1000);
-    return () => clearTimeout(timer);
-  }, [leaving, value]);
-
-  return <Leaving.Provider value={value}>{children || last}</Leaving.Provider>;
+/** Tailwind's `sm` – where the sheet stops being a phone's bottom sheet. */
+const WIDE = "(min-width: 40rem)";
+const watchWide = (change: () => void) => {
+  const query = matchMedia(WIDE);
+  query.addEventListener("change", change);
+  return () => query.removeEventListener("change", change);
 };
+const useWide = () =>
+  useSyncExternalStore(
+    watchWide,
+    () => matchMedia(WIDE).matches,
+    () => false
+  );
+
+/**
+ * How the sheet comes and goes. On a phone it slides up from below the
+ * screen's edge and back down; wider, it lies down in the middle, a little
+ * larger than it ends up, and steps back again. Going is quicker than coming,
+ * and falls rather than springs.
+ */
+const PHONE = {
+  initial: { y: "100%", opacity: 0 },
+  animate: {
+    y: 0,
+    opacity: 1,
+    transition: { ...SPRING.soft, opacity: { duration: 0.15 } },
+  },
+  exit: {
+    y: "100%",
+    opacity: 0,
+    transition: {
+      duration: 0.24,
+      ease: [0.4, 0, 0.9, 0.5],
+      opacity: { duration: 0.12, delay: 0.12 },
+    },
+  },
+} as const;
+const DESKTOP = {
+  initial: { y: 16, scale: 0.96, opacity: 0 },
+  animate: {
+    y: 0,
+    scale: 1,
+    opacity: 1,
+    transition: { ...SPRING.soft, opacity: { duration: 0.2 } },
+  },
+  exit: {
+    y: 8,
+    scale: 0.96,
+    opacity: 0,
+    transition: { duration: 0.18, ease: [0.4, 0, 1, 1] },
+  },
+} as const;
 
 /**
  * A layer over the app – a sheet of paper laid on the page: it rises from
  * the bottom on phones, pops up in the middle on wider screens. Closes with
- * Escape or a tap beside it – and, in a SheetSlot, goes the way it came:
- * sliding down on phones, stepping back on wider screens, while the page
- * behind comes clear again.
+ * Escape or a tap beside it.
+ *
+ * Its way out needs an AnimatePresence round where it is shown
+ * (`<AnimatePresence>{open && <SomeSheet key="…" … />}</AnimatePresence>`):
+ * the parent drops it at once, however it was closed – the X, beside it,
+ * Escape, or the sheet itself after saving – and it stays just long enough
+ * to go, deaf to any further tap or key.
  *
  * Taller than the screen, the whole sheet scrolls – the layer it lies on is
  * the scroller, like a page: wherever the finger or the wheel is, it moves
@@ -72,7 +88,8 @@ export const Sheet = ({
   children: ReactNode;
   className?: string;
 }) => {
-  const { leaving, gone } = useContext(Leaving);
+  const leaving = !useIsPresent();
+  const moves = useWide() ? DESKTOP : PHONE;
 
   // The page behind stays where it is – until the sheet is gone.
   useEffect(() => {
@@ -96,28 +113,25 @@ export const Sheet = ({
     <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain">
       {/* The page fades back like paper under tracing paper – no dark veil.
           Going, it still catches taps: a second one lands on nothing. */}
-      <button
+      <m.button
+        animate={{ opacity: 1, transition: { duration: 0.24 } }}
         aria-label="Close"
-        className={cn(
-          "fixed inset-0 bg-bg/80 backdrop-blur-[2px]",
-          leaving ? "animate-fade-out" : "animate-fade"
-        )}
+        className="fixed inset-0 bg-bg/80 backdrop-blur-[2px]"
+        exit={{ opacity: 0, transition: { duration: 0.2, ease: "easeIn" } }}
+        initial={{ opacity: 0 }}
         onClick={leaving ? undefined : onClose}
         tabIndex={leaving ? -1 : undefined}
         type="button"
       />
       <div className="pointer-events-none flex min-h-full items-end justify-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:items-center sm:p-6">
-        <div
+        <m.div
+          {...moves}
           aria-modal="true"
           className={cn(
             "scribble pointer-events-auto relative flex w-full max-w-lg flex-col rounded-[28px] sm:rounded-[32px]",
-            leaving ? "animate-sink sm:animate-recede" : "animate-rise",
             className
           )}
           inert={leaving}
-          onAnimationEnd={(event) => {
-            if (leaving && event.target === event.currentTarget) gone();
-          }}
           role="dialog"
         >
           <div className="my-2 flex flex-col gap-4 px-5 py-3 sm:px-6 sm:py-4">
@@ -134,7 +148,7 @@ export const Sheet = ({
             </div>
             {children}
           </div>
-        </div>
+        </m.div>
       </div>
     </div>
   );

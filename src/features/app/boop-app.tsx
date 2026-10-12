@@ -1,8 +1,10 @@
 "use client";
 
+import { AnimatePresence, m } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Sparkle, Squiggle, Ticks } from "@/components/doodles";
 import { LocaleSwitch } from "@/components/locale-switch";
+import { SPRING } from "@/components/motion";
 import { SiteFooter } from "@/components/site-footer";
 import {
   BADGE,
@@ -36,8 +38,9 @@ import { cn } from "@/lib/cn";
 import { DaySheet } from "./day-sheet";
 import { CalendarSheet, ConfirmSheet } from "./dialogs";
 import { MonthGrid } from "./month-grid";
+import { NameTag } from "./name-tag";
 import { ShareSheet } from "./share-sheet";
-import { SheetSlot } from "./sheet";
+
 import { StampDrawer } from "./stamp-drawer";
 import { StampSheet } from "./stamp-sheet";
 import { SyncBadge } from "./sync-badge";
@@ -75,8 +78,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   const [day, setDay] = useState<DayKey | null>(null);
   const [drawing, setDrawing] = useState(false);
   const [sharing, setSharing] = useState(false);
-  // The account menu – "going" while it steps back, before it is gone.
-  const [menu, setMenu] = useState<"open" | "going" | null>(null);
+  const [menu, setMenu] = useState(false);
   const [opened, setOpened] = useState<string | null>(null);
   const [dialog, setDialog] = useState<
     "new" | "rename" | "delete" | "logout" | null
@@ -171,47 +173,56 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
           <LocaleSwitch className="mr-1 max-sm:hidden" locale={locale} />
           <SyncBadge locale={locale} />
           <button
-            aria-expanded={menu === "open"}
+            aria-expanded={menu}
             aria-label={t.app.account}
             className={cn(ROUND_BUTTON, "aria-expanded:scribble-ink")}
-            onClick={() => setMenu(menu === "open" ? "going" : "open")}
+            onClick={() => setMenu(!menu)}
             type="button"
           >
             {firstName.slice(0, 1).toUpperCase() || "?"}
           </button>
-          {menu && (
-            <div
-              className={cn(
-                "scribble absolute top-13 right-0 z-40 flex w-60 flex-col gap-3 rounded-3xl p-4",
-                menu === "going" ? "animate-recede" : "animate-rise"
-              )}
-              inert={menu === "going"}
-              onAnimationEnd={(event) => {
-                if (menu === "going" && event.target === event.currentTarget) {
-                  setMenu(null);
-                }
-              }}
-            >
-              <div>
-                <p className="font-black">{boop.me?.name}</p>
-                <p className="truncate text-muted text-sm">{boop.me?.email}</p>
-              </div>
-              <LocaleSwitch className="sm:hidden" locale={locale} />
-              <Button
-                disabled={!boop.online}
-                onClick={() =>
-                  boop.pending ? setDialog("logout") : void doLogout()
-                }
-                size="sm"
-                variant="plain"
+          {/* Unfolds from the button, and folds back into it. */}
+          <AnimatePresence>
+            {menu && (
+              <m.div
+                animate={{
+                  y: 0,
+                  scale: 1,
+                  opacity: 1,
+                  transition: { ...SPRING.soft, opacity: { duration: 0.15 } },
+                }}
+                className="scribble absolute top-13 right-0 z-40 flex w-60 origin-top-right flex-col gap-3 rounded-3xl p-4"
+                exit={{
+                  y: -6,
+                  scale: 0.96,
+                  opacity: 0,
+                  transition: { duration: 0.15, ease: "easeIn" },
+                }}
+                initial={{ y: -8, scale: 0.96, opacity: 0 }}
               >
-                {t.app.logout}
-              </Button>
-              {!boop.online && (
-                <p className="text-muted text-xs">{t.app.logoutOffline}</p>
-              )}
-            </div>
-          )}
+                <div>
+                  <p className="font-black">{boop.me?.name}</p>
+                  <p className="truncate text-muted text-sm">
+                    {boop.me?.email}
+                  </p>
+                </div>
+                <LocaleSwitch className="sm:hidden" locale={locale} />
+                <Button
+                  disabled={!boop.online}
+                  onClick={() =>
+                    boop.pending ? setDialog("logout") : void doLogout()
+                  }
+                  size="sm"
+                  variant="plain"
+                >
+                  {t.app.logout}
+                </Button>
+                {!boop.online && (
+                  <p className="text-muted text-xs">{t.app.logoutOffline}</p>
+                )}
+              </m.div>
+            )}
+          </AnimatePresence>
         </div>
       </header>
 
@@ -346,20 +357,28 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
                 className="relative"
                 key={s.id}
                 style={{ transform: `rotate(${tilt(s.id)}deg)` }}
-                title={
-                  [s.name, whose(s)].filter(Boolean).join(" – ") || undefined
-                }
               >
-                <button
-                  aria-label={[s.name || t.app.stamp.untitled, whose(s)]
-                    .filter(Boolean)
-                    .join(" – ")}
-                  className="scribble scribble-bare scribble-clear flex aspect-square w-full items-center justify-center rounded-3xl p-1 hover:animate-wiggle hover:scribble-soft"
-                  onClick={() => setOpened(s.id)}
-                  type="button"
+                <NameTag
+                  id={s.id}
+                  text={[s.name, whose(s)].filter(Boolean).join(" – ")}
                 >
-                  <Sticker stamp={s} />
-                </button>
+                  {({ onClick, ...anchor }) => (
+                    <button
+                      {...anchor}
+                      aria-label={[s.name || t.app.stamp.untitled, whose(s)]
+                        .filter(Boolean)
+                        .join(" – ")}
+                      className="scribble scribble-bare scribble-clear flex aspect-square w-full items-center justify-center rounded-3xl p-1 hover:animate-wiggle hover:scribble-soft"
+                      onClick={() => {
+                        onClick();
+                        setOpened(s.id);
+                      }}
+                      type="button"
+                    >
+                      <Sticker stamp={s} />
+                    </button>
+                  )}
+                </NameTag>
                 {s.drawing?.special && (
                   // A stamp for the big days.
                   <Sparkle className="pointer-events-none absolute top-1 right-1 h-4 w-4 text-ink" />
@@ -391,34 +410,37 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
         website={SITE_DEFAULTS.links.website}
       />
 
-      {/* Each sheet in its slot – there it can go the way it came. */}
-      <SheetSlot>
+      {/* Each sheet in its own presence – there it can go the way it came. */}
+      <AnimatePresence>
         {calendar && day && (
           <DaySheet
             calendar={calendar.id}
             date={day}
+            key="day"
             locale={locale}
             onClose={() => setDay(null)}
             stamps={myStamps}
           />
         )}
-      </SheetSlot>
-      <SheetSlot>
+      </AnimatePresence>
+      <AnimatePresence>
         {drawing && (
           <StampDrawer
             calendar={
               calendar && calendar.members.length > 1 ? calendar.id : null
             }
+            key="drawer"
             locale={locale}
             onClose={() => setDrawing(false)}
           />
         )}
-      </SheetSlot>
-      <SheetSlot>
+      </AnimatePresence>
+      <AnimatePresence>
         {dialog === "new" && (
           <CalendarSheet
             // New calendars take turns with the stamp colors (palette.ts).
             color={nextKey(calendars.map((c) => c.color))}
+            key="new"
             locale={locale}
             onClose={() => setDialog(null)}
             onSave={(name, color) => void onNewCalendar(name, color)}
@@ -426,11 +448,12 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
             title={t.app.newCalendar}
           />
         )}
-      </SheetSlot>
-      <SheetSlot>
+      </AnimatePresence>
+      <AnimatePresence>
         {dialog === "rename" && calendar && (
           <CalendarSheet
             color={calendar.color}
+            key="rename"
             locale={locale}
             name={calendar.name}
             onClose={() => setDialog(null)}
@@ -441,11 +464,12 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
             title={t.app.rename}
           />
         )}
-      </SheetSlot>
-      <SheetSlot>
+      </AnimatePresence>
+      <AnimatePresence>
         {dialog === "delete" && calendar && (
           <ConfirmSheet
             confirm={t.app.deleteCalendar}
+            key="delete"
             locale={locale}
             onClose={() => setDialog(null)}
             onConfirm={() => {
@@ -457,11 +481,12 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
             {t.app.deleteCalendarConfirm(calendar.name)}
           </ConfirmSheet>
         )}
-      </SheetSlot>
-      <SheetSlot>
+      </AnimatePresence>
+      <AnimatePresence>
         {dialog === "logout" && (
           <ConfirmSheet
             confirm={t.app.logout}
+            key="logout"
             locale={locale}
             onClose={() => setDialog(null)}
             onConfirm={() => void doLogout()}
@@ -470,26 +495,28 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
             {t.app.logoutPending(boop.pending)}
           </ConfirmSheet>
         )}
-      </SheetSlot>
-      <SheetSlot>
+      </AnimatePresence>
+      <AnimatePresence>
         {opened && boop.stamps[opened] && (
           <StampSheet
+            key="stamp"
             locale={locale}
             mine={boop.stamps[opened].owner === me}
             onClose={() => setOpened(null)}
             stamp={boop.stamps[opened]}
           />
         )}
-      </SheetSlot>
-      <SheetSlot>
+      </AnimatePresence>
+      <AnimatePresence>
         {calendar && sharing && (
           <ShareSheet
             calendar={calendar}
+            key="share"
             locale={locale}
             onClose={() => setSharing(false)}
           />
         )}
-      </SheetSlot>
+      </AnimatePresence>
     </div>
   );
 };

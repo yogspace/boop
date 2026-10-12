@@ -1,7 +1,9 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { AnimatePresence, m, type Variants } from "motion/react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight } from "@/components/doodles";
+import { SPRING } from "@/components/motion";
 import { Ruling } from "@/components/ruling";
 import { buttonClass, ROUND_BUTTON } from "@/components/ui";
 import { type DayKey, todayKey } from "@/features/calendar/model";
@@ -44,6 +46,7 @@ const Beside = ({
   day,
   by,
   cell,
+  dir,
   label,
   onClick,
 }: {
@@ -51,17 +54,20 @@ const Beside = ({
   /** −1: the month before, 1: the one after. */
   by: -1 | 1;
   cell: number;
+  dir: number;
   label: string;
   onClick: () => void;
 }) => {
   const Arrow = by < 0 ? ArrowLeft : ArrowRight;
   return (
-    <button
+    <m.button
       aria-label={label}
       className={cn(DAY, "group", weekend(cell) && WEEKEND)}
+      custom={{ dir, order: orderOf(cell, dir) }}
       onClick={onClick}
       title={label}
       type="button"
+      variants={DAY_TURN}
     >
       <span className="font-black text-[11px] text-muted/50 leading-none sm:text-sm">
         {day}
@@ -75,56 +81,59 @@ const Beside = ({
       >
         <Arrow className="h-5 w-5 sm:h-6 sm:w-6" />
       </span>
-    </button>
+    </m.button>
   );
 };
 
-/** A soft spring – a touch past the mark, then back. */
-const SPRING = "cubic-bezier(0.34, 1.5, 0.64, 1)";
-
 /**
- * A new month comes in like a page turned: its days in a wave, the way the
- * months go (from the right when forward), each a little tilted, settling
- * with a spring – then their prints land, as if stamped just now. The first
- * month comes up from below. Nothing moves for whoever asked for less motion.
+ * A new month comes in like a page turned: its days in a wave from the side
+ * the months went (from the right when forward), each a little tilted,
+ * settling with a spring – then their prints land, as if stamped just now.
+ * The month before slides away the other way. The first one comes up from
+ * below.
  */
-const turnIn = (grid: HTMLElement, title: HTMLElement | null, dir: number) => {
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const cells = [...grid.children] as HTMLElement[];
-  cells.forEach((cell, n) => {
-    const col = n % 7;
-    const row = Math.floor(n / 7);
-    const delay = ((dir > 0 ? 6 - col : col) + row) * 22;
-    cell.animate(
-      [
-        {
-          opacity: 0,
-          transform: `translate(${dir * 14}px, ${dir ? 0 : 8}px) rotate(${dir * -4}deg) scale(0.88)`,
-        },
-        { opacity: 1, transform: "none" },
-      ],
-      { duration: 420, delay, easing: SPRING, fill: "backwards" }
-    );
-    for (const print of cell.querySelectorAll("[data-prints] > *")) {
-      print.animate(
-        [
-          { opacity: 0, transform: "scale(1.35) rotate(-8deg)" },
-          { opacity: 1, transform: "none" },
-        ],
-        { duration: 340, delay: delay + 180, easing: SPRING, fill: "backwards" }
-      );
-    }
-  });
-  title?.animate(
-    [
-      {
-        opacity: 0,
-        transform: `translateX(${dir * 18}px) rotate(${dir * -2}deg)`,
-      },
-      { opacity: 1, transform: "none" },
-    ],
-    { duration: 380, easing: SPRING }
-  );
+type Turn = { dir: number; order: number };
+
+/** Where a day's wave starts: the side it comes from, top row first. */
+const orderOf = (cell: number, dir: number) =>
+  (dir > 0 ? 6 - (cell % 7) : cell % 7) + Math.floor(cell / 7);
+
+const DAY_TURN: Variants = {
+  hidden: ({ dir }: Turn) => ({
+    opacity: 0,
+    x: dir * 14,
+    y: dir ? 0 : 8,
+    rotate: dir * -4,
+    scale: 0.88,
+  }),
+  shown: ({ order }: Turn) => ({
+    opacity: 1,
+    x: 0,
+    y: 0,
+    rotate: 0,
+    scale: 1,
+    transition: { ...SPRING.bouncy, delay: order * 0.022 },
+  }),
+};
+
+const PRINT_TURN: Variants = {
+  hidden: { opacity: 0, scale: 1.35, rotate: -8 },
+  shown: ({ order }: Turn) => ({
+    opacity: 1,
+    scale: 1,
+    rotate: 0,
+    transition: { ...SPRING.bouncy, delay: order * 0.022 + 0.18 },
+  }),
+};
+
+const MONTH_TURN: Variants = {
+  hidden: {},
+  shown: {},
+  gone: (dir: number) => ({
+    opacity: 0,
+    x: dir * -24,
+    transition: { duration: 0.16, ease: "easeIn" },
+  }),
 };
 
 /**
@@ -177,30 +186,27 @@ export const MonthGrid = ({
   const after = beside(1);
   const lengthBefore = new Date(month.year, month.month, 0).getDate();
   // Which way the months went – the new one turns in from that side.
-  const grid = useRef<HTMLDivElement>(null);
-  const title = useRef<HTMLHeadingElement>(null);
-  const seen = useRef<number | null>(null);
   const index = month.year * 12 + month.month;
-  useLayoutEffect(() => {
-    const from = seen.current;
-    seen.current = index;
-    if (grid.current) {
-      turnIn(
-        grid.current,
-        title.current,
-        from === null ? 0 : Math.sign(index - from)
-      );
-    }
-  }, [index]);
+  const [turn, setTurn] = useState({ index, dir: 0 });
+  if (turn.index !== index) {
+    setTurn({ index, dir: Math.sign(index - turn.index) });
+  }
+  const dir = turn.index === index ? turn.dir : Math.sign(index - turn.index);
   const labelOf = ({ year, month }: Month) => `${t.app.months[month]} ${year}`;
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between gap-2">
-        <h2 className="origin-left text-3xl leading-none" ref={title}>
+        <m.h2
+          animate={{ opacity: 1, x: 0, rotate: 0 }}
+          className="origin-left text-3xl leading-none"
+          initial={{ opacity: 0, x: dir * 18, rotate: dir * -2 }}
+          key={index}
+          transition={SPRING.bouncy}
+        >
           {t.app.months[month.month]}{" "}
           <span className="font-bold text-muted">{month.year}</span>
-        </h2>
+        </m.h2>
         <div className="flex gap-2">
           {!thisMonth && (
             <button
@@ -254,118 +260,129 @@ export const MonthGrid = ({
           rows={rows}
           shade={2}
         />
-        <div
-          className="grid grid-cols-7"
-          key={`${month.year}-${month.month}`}
-          ref={grid}
-        >
-          {Array.from({ length: offset }, (_, i) => (
-            <Beside
-              by={-1}
-              cell={i}
-              day={lengthBefore - offset + i + 1}
-              key={`before-${i}`}
-              label={labelOf(before)}
-              onClick={() => onMonth(before)}
-            />
-          ))}
-          {Array.from({ length }, (_, i) => {
-            const date = key(month.year, month.month, i + 1);
-            const day = byDay.get(date) ?? [];
-            const isToday = date === today;
-            return (
-              <button
-                aria-current={isToday ? "date" : undefined}
-                className={cn(DAY, weekend(offset + i) && WEEKEND)}
-                key={date}
-                onClick={() => onDay(date)}
-                type="button"
-              >
-                <span
-                  className={cn(
-                    "font-black text-[11px] leading-none sm:text-sm",
-                    // The blob reaches over the number's line – the prints
-                    // below keep their room.
-                    isToday &&
-                      "scribble scribble-sm scribble-ink -my-[0.4em] -ml-[0.3em] flex h-[2.1em] w-[2.1em] shrink-0 items-center justify-center self-start rounded-full"
-                  )}
+        <AnimatePresence custom={dir} mode="popLayout">
+          <m.div
+            animate="shown"
+            className="grid w-full grid-cols-7"
+            custom={dir}
+            exit="gone"
+            initial="hidden"
+            key={index}
+            variants={MONTH_TURN}
+          >
+            {Array.from({ length: offset }, (_, i) => (
+              <Beside
+                by={-1}
+                cell={i}
+                day={lengthBefore - offset + i + 1}
+                dir={dir}
+                key={`before-${i}`}
+                label={labelOf(before)}
+                onClick={() => onMonth(before)}
+              />
+            ))}
+            {Array.from({ length }, (_, i) => {
+              const date = key(month.year, month.month, i + 1);
+              const day = byDay.get(date) ?? [];
+              const isToday = date === today;
+              return (
+                <m.button
+                  aria-current={isToday ? "date" : undefined}
+                  className={cn(DAY, weekend(offset + i) && WEEKEND)}
+                  custom={{ dir, order: orderOf(offset + i, dir) }}
+                  key={date}
+                  onClick={() => onDay(date)}
+                  type="button"
+                  variants={DAY_TURN}
                 >
-                  {i + 1}
-                </span>
-                {/* One print has the day to itself; more share it. The rows
+                  <span
+                    className={cn(
+                      "font-black text-[11px] leading-none sm:text-sm",
+                      // The blob reaches over the number's line – the prints
+                      // below keep their room.
+                      isToday &&
+                        "scribble scribble-sm scribble-ink -my-[0.4em] -ml-[0.3em] flex h-[2.1em] w-[2.1em] shrink-0 items-center justify-center self-start rounded-full"
+                    )}
+                  >
+                    {i + 1}
+                  </span>
+                  {/* One print has the day to itself; more share it. The rows
                     take what room there is – a day stays square. On a phone
                     a day is too small to share: the top print shows, big,
                     and a count says how many more there are. */}
-                <span
-                  className={cn(
-                    "grid min-h-0 flex-1 auto-rows-fr place-items-center max-sm:grid-cols-1 max-sm:[&>*:nth-child(n+2)]:hidden",
-                    day.length === 1 ? "grid-cols-1" : "grid-cols-2"
-                  )}
-                  data-prints
-                >
-                  {day.slice(0, 4).map((p, n) => {
-                    const stamp = stamps[p.stamp];
-                    const inked = p.ink ?? stamp?.color ?? "red";
-                    const print = (
-                      <StampSvg
-                        className={
-                          stamp?.drawing?.special
-                            ? "h-full w-full"
-                            : "h-[90%] w-[90%] mix-blend-multiply"
-                        }
-                        color={inked}
-                        drawing={stamp?.drawing ?? null}
-                        key={p.id}
-                        print
-                        seed={seedOf(p.id)}
-                        shape={stamp?.shape}
-                        title={
-                          n === 3 && day.length > 4
-                            ? `+${day.length - 3}`
-                            : undefined
-                        }
-                      />
-                    );
-                    // A special one: as big as its room allows, with a few
-                    // sparkles that hold still – a month has many days.
-                    return stamp?.drawing?.special ? (
-                      <span
-                        className="relative h-full w-full mix-blend-multiply"
-                        key={p.id}
-                      >
-                        {print}
-                        <Glitter
+                  <m.span
+                    className={cn(
+                      "grid min-h-0 flex-1 auto-rows-fr place-items-center max-sm:grid-cols-1 max-sm:[&>*:nth-child(n+2)]:hidden",
+                      day.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                    )}
+                    custom={{ dir, order: orderOf(offset + i, dir) }}
+                    variants={PRINT_TURN}
+                  >
+                    {day.slice(0, 4).map((p, n) => {
+                      const stamp = stamps[p.stamp];
+                      const inked = p.ink ?? stamp?.color ?? "red";
+                      const print = (
+                        <StampSvg
+                          className={
+                            stamp?.drawing?.special
+                              ? "h-full w-full"
+                              : "h-[90%] w-[90%] mix-blend-multiply"
+                          }
                           color={inked}
-                          drawing={stamp.drawing}
+                          drawing={stamp?.drawing ?? null}
+                          key={p.id}
+                          print
                           seed={seedOf(p.id)}
-                          shape={stamp.shape}
-                          still
+                          shape={stamp?.shape}
+                          title={
+                            n === 3 && day.length > 4
+                              ? `+${day.length - 3}`
+                              : undefined
+                          }
                         />
-                      </span>
-                    ) : (
-                      print
-                    );
-                  })}
-                </span>
-                {day.length > 1 && (
-                  <span className="absolute right-0.5 bottom-0.5 rounded-full bg-ink px-1 font-black text-[9px] text-white leading-3.5 sm:hidden">
-                    +{day.length - 1}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-          {Array.from({ length: rows * 7 - offset - length }, (_, i) => (
-            <Beside
-              by={1}
-              cell={offset + length + i}
-              day={i + 1}
-              key={`after-${i}`}
-              label={labelOf(after)}
-              onClick={() => onMonth(after)}
-            />
-          ))}
-        </div>
+                      );
+                      // A special one: as big as its room allows, with a few
+                      // sparkles that hold still – a month has many days.
+                      return stamp?.drawing?.special ? (
+                        <span
+                          className="relative h-full w-full mix-blend-multiply"
+                          key={p.id}
+                        >
+                          {print}
+                          <Glitter
+                            color={inked}
+                            drawing={stamp.drawing}
+                            seed={seedOf(p.id)}
+                            shape={stamp.shape}
+                            still
+                          />
+                        </span>
+                      ) : (
+                        print
+                      );
+                    })}
+                  </m.span>
+                  {day.length > 1 && (
+                    <span className="absolute right-0.5 bottom-0.5 rounded-full bg-ink px-1 font-black text-[9px] text-white leading-3.5 sm:hidden">
+                      +{day.length - 1}
+                    </span>
+                  )}
+                </m.button>
+              );
+            })}
+            {Array.from({ length: rows * 7 - offset - length }, (_, i) => (
+              <Beside
+                by={1}
+                cell={offset + length + i}
+                day={i + 1}
+                dir={dir}
+                key={`after-${i}`}
+                label={labelOf(after)}
+                onClick={() => onMonth(after)}
+              />
+            ))}
+          </m.div>
+        </AnimatePresence>
       </div>
     </div>
   );

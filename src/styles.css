@@ -47,12 +47,7 @@
   --animate-wiggle: wiggle 500ms ease-in-out;
   --animate-float: float 5s ease-in-out infinite;
   --animate-ink: ink 260ms ease-out both;
-  --animate-rise: rise 420ms cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
   --animate-fade: fade 240ms ease-out both;
-  /* Going is quicker than coming, and falls rather than bounces. */
-  --animate-sink: sink 240ms cubic-bezier(0.45, 0, 0.85, 0.4) both;
-  --animate-recede: recede 200ms cubic-bezier(0.4, 0, 0.9, 0.5) both;
-  --animate-fade-out: fade-out 200ms ease-in both;
   --animate-pulse-dot: pulse-dot 1.2s ease-in-out infinite;
   --animate-press-dip: press-dip 360ms cubic-bezier(0.3, 0.7, 0.4, 1);
   --animate-twinkle: twinkle 2.6s ease-in-out infinite both;
@@ -158,45 +153,12 @@
     }
   }
 
-  @keyframes rise {
-    0% {
-      transform: translateY(40px) scale(0.96);
-      opacity: 0;
-    }
-    100% {
-      transform: none;
-      opacity: 1;
-    }
-  }
-
   @keyframes fade {
     0% {
       opacity: 0;
     }
     100% {
       opacity: 1;
-    }
-  }
-
-  /* rise, backwards: a sheet taken off the page – on a phone it slides
-     down where it came from, on a wider screen it lifts off and fades. */
-  @keyframes sink {
-    100% {
-      transform: translateY(72px);
-      opacity: 0;
-    }
-  }
-
-  @keyframes recede {
-    100% {
-      transform: translateY(8px) scale(0.95);
-      opacity: 0;
-    }
-  }
-
-  @keyframes fade-out {
-    100% {
-      opacity: 0;
     }
   }
 
@@ -601,8 +563,8 @@
  * end, where the badge is.
  *
  * The popover itself is only the hanger – no box of its own, and nothing
- * clipped: the scribbled frame inside is the note and wobbles past it. It
- * drops in a few pixels and fades, and lifts away again when it closes.
+ * clipped: the scribbled frame inside is the note and wobbles past it. How
+ * it comes and goes is Motion's, on the note (sync-badge.tsx).
  */
 .sync-overlay {
   position-anchor: --sync-badge;
@@ -626,24 +588,6 @@
   padding: 0;
   background: none;
   color: inherit;
-  transition:
-    opacity 180ms ease-out,
-    translate 260ms cubic-bezier(0.2, 0.9, 0.3, 1.1),
-    display 260ms allow-discrete,
-    overlay 260ms allow-discrete;
-
-  &:not(:popover-open) {
-    opacity: 0;
-    translate: 0 -4px;
-    transition-duration: 140ms;
-  }
-
-  @starting-style {
-    &:popover-open {
-      opacity: 0;
-      translate: 0 -8px;
-    }
-  }
 }
 
 @position-try --sync-overlay-beside {
@@ -655,5 +599,52 @@
   .sync-overlay {
     top: 4.5rem;
     right: max(1rem, calc((100vw - 72rem) / 2 + 1.5rem));
+  }
+}
+
+/* Name tags */
+/*
+ * A stamp's name on the shelf (features/app/name-tag.tsx) – a popover hung
+ * above the stamp by anchor positioning. Where there is no room above it
+ * goes below, then beside. Without anchor positioning there is no tag (the
+ * stamp's sheet says its name).
+ */
+.name-tag {
+  position-area: top;
+  position-try-fallbacks: flip-block, --name-tag-right, --name-tag-left;
+  inset: auto;
+  margin: 0 0 6px;
+  max-width: min(16rem, calc(100vw - 2rem));
+  overflow: visible;
+  border: 0;
+  color: inherit;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  transition:
+    opacity 140ms ease-out,
+    translate 200ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+
+  @starting-style {
+    &:popover-open {
+      opacity: 0;
+      translate: 0 4px;
+    }
+  }
+}
+
+@position-try --name-tag-right {
+  position-area: right;
+  margin: 0 0 0 6px;
+}
+
+@position-try --name-tag-left {
+  position-area: left;
+  margin: 0 6px 0 0;
+}
+
+@supports not (anchor-name: --x) {
+  .name-tag {
+    display: none;
   }
 }

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+import { MotionProvider } from "@/components/motion";
 import { ScribbleDefs } from "@/components/scribble-defs";
 import { PageViewTracker } from "@/features/analytics/page-view-tracker";
 import { PaletteProvider } from "@/features/calendar/palette-provider";
@@ -84,7 +85,9 @@ const LocaleLayout = async ({
       </head>
       <body>
         <ScribbleDefs />
-        <PaletteProvider colors={stampColors}>{children}</PaletteProvider>
+        <MotionProvider>
+          <PaletteProvider colors={stampColors}>{children}</PaletteProvider>
+        </MotionProvider>
         <PageViewTracker />
         <TransitionDone />
         <ServiceWorker />
