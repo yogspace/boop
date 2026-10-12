@@ -194,10 +194,10 @@ export const DaySheet = ({
 
   // The inks to dip into: the stamp colors. The one in use is the one last
   // chosen – on this device, too – as long as the palette has it; else, and
-  // to begin with, “ink” or the palette's first. And a dip of the tray's
+  // to begin with, “red” or the palette's first. And a dip of the tray's
   // stamps when it changes.
   const palette = usePalette();
-  const [chosen, setInk] = useState<ColorName>("ink");
+  const [chosen, setInk] = useState<ColorName>("red");
   const ink = knownKey(chosen, palette);
   const [dip, setDip] = useState(0);
   useEffect(() => {
@@ -492,7 +492,7 @@ export const DaySheet = ({
           {placements.map((p) => {
             const stamp = boop.stamps[p.stamp];
             const here = drag?.id === p.id ? drag : p;
-            const inked = p.ink ?? stamp?.color ?? "ink";
+            const inked = p.ink ?? stamp?.color ?? "red";
             return (
               <div
                 className={cn(

@@ -32,7 +32,7 @@ export const Stamps: CollectionConfig = {
   fields: [
     idField,
     { name: "name", type: "text", maxLength: 40 },
-    colorField("color", "ink"),
+    colorField("color", "red"),
     {
       // The stamp's body the doodle is drawn on.
       name: "shape",

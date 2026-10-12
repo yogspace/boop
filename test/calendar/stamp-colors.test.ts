@@ -42,10 +42,10 @@ describe("the stamp colors as the CMS keeps them", () => {
   it("starts a new document in the wished color, if the CMS has it", async () => {
     expect(await defaultColor(request(ROWS), "coral")).toBe("coral");
     // Gone from the CMS: its first color.
-    expect(await defaultColor(request(ROWS), "ink")).toBe("moss");
+    expect(await defaultColor(request(ROWS), "red")).toBe("moss");
     // A global never saved, or a database out of reach: the code's colors.
     expect(await defaultColor(request(undefined), "coral")).toBe("coral");
     expect(await defaultColor(request(ROWS, true), "coral")).toBe("coral");
-    expect(await defaultColor(request(ROWS, true), "lime")).toBe("ink");
+    expect(await defaultColor(request(ROWS, true), "lime")).toBe("red");
   });
 });

@@ -172,7 +172,7 @@ export const MonthGrid = ({
                 >
                   {day.slice(0, 4).map((p, n) => {
                     const stamp = stamps[p.stamp];
-                    const inked = p.ink ?? stamp?.color ?? "ink";
+                    const inked = p.ink ?? stamp?.color ?? "red";
                     const print = (
                       <StampSvg
                         className={

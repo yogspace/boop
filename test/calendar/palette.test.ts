@@ -16,7 +16,7 @@ describe("the stamp colors", () => {
   it("starts with the code's own", () => {
     expect(getPalette()).toBe(DEFAULT_PALETTE);
     expect(colorKeys()).toEqual([
-      "ink",
+      "red",
       "coral",
       "sun",
       "mint",
@@ -91,15 +91,15 @@ describe("the stamp colors", () => {
 
   it("starts things in a color it has", () => {
     expect(knownKey("grape")).toBe("grape");
-    expect(knownKey("lime")).toBe("ink");
+    expect(knownKey("lime")).toBe("red");
     const colors = cleanPalette([
       { key: "moss", hex: "#335533" },
       { key: "grape", hex: "#7c5cff" },
     ]);
     expect(knownKey("grape", colors)).toBe("grape");
-    expect(knownKey("ink", colors)).toBe("moss");
+    expect(knownKey("red", colors)).toBe("moss");
     // No colors at all: the code's first.
-    expect(knownKey("grape", [])).toBe("ink");
+    expect(knownKey("grape", [])).toBe("red");
   });
 
   it("gives new calendars a color in turns", () => {

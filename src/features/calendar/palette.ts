@@ -27,7 +27,7 @@ export type StampColor = {
 };
 
 export const DEFAULT_PALETTE: StampColor[] = [
-  { key: "ink", hex: "#1d1b3a", name: { de: "Tinte", en: "Ink" } },
+  { key: "red", hex: "#ee3b33", name: { de: "Rot", en: "Red" } },
   { key: "coral", hex: "#ff8159", name: { de: "Koralle", en: "Coral" } },
   { key: "sun", hex: "#ffc928", name: { de: "Sonne", en: "Sun" } },
   { key: "mint", hex: "#22c993", name: { de: "Minze", en: "Mint" } },
