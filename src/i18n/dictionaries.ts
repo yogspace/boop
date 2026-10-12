@@ -403,6 +403,9 @@ const de = {
       offline: "Zum Ändern brauchst du eine Verbindung.",
       reminder: "Erinnern, wenn ich heute noch nicht gestempelt habe",
       stamped: "Wenn jemand anderes hier stempelt",
+      changed: "Wenn jemand anderes etwas ändert",
+      changedHint:
+        "Notizen, verschobene oder entfernte Abdrücke, ein neuer Name, wer dazukommt oder geht.",
       time: "Erinnerung um",
       timeHint: "Für alle deine Kalender – in der Uhrzeit deines Geräts.",
       // What the notifications say – in the device's language.
@@ -411,6 +414,43 @@ const de = {
       stampedBody: template(
         "{name} hat in „{calendar}“ gestempelt.",
         (say) => (name: string, calendar: string) => say({ name, calendar })
+      ),
+      changedTitle: "Boop!",
+      // One kind of change by its name; several: `several`. {name} is who
+      // did it – who came or went, for those three.
+      changedBody: template(
+        {
+          note: "{name} hat in „{calendar}“ eine Notiz geschrieben.",
+          noteDeleted: "{name} hat in „{calendar}“ eine Notiz gelöscht.",
+          moved: "{name} hat in „{calendar}“ Abdrücke verschoben.",
+          unstamped: "{name} hat in „{calendar}“ Abdrücke entfernt.",
+          renamed: "{name} hat „{from}“ in „{to}“ umbenannt.",
+          joined: "{name} ist jetzt in „{calendar}“ dabei.",
+          left: "{name} hat „{calendar}“ verlassen.",
+          removed: "{name} ist nicht mehr in „{calendar}“ dabei.",
+          several: "{name} hat in „{calendar}“ einiges geändert.",
+        },
+        (say) =>
+          (
+            kind:
+              | "note"
+              | "noteDeleted"
+              | "moved"
+              | "unstamped"
+              | "renamed"
+              | "joined"
+              | "left"
+              | "removed"
+              | "several",
+            {
+              name,
+              calendar,
+              from = "",
+            }: { name: string; calendar: string; from?: string }
+          ) =>
+            kind === "renamed"
+              ? say.renamed({ name, from, to: calendar })
+              : say[kind]({ name, calendar })
       ),
       reminderTitle: "Heute schon gestempelt?",
       // Each calendar quoted; several: “„A“, „B“ und „C“ …”.
@@ -925,11 +965,26 @@ const en: Shape<typeof de> = {
       offline: "Changing this needs a connection.",
       reminder: "Remind me when I haven't stamped today",
       stamped: "When someone else stamps here",
+      changed: "When someone else changes something",
+      changedHint:
+        "Notes, moved or removed prints, a new name, who joins or leaves.",
       time: "Reminder at",
       timeHint: "For all your calendars – on your device's clock.",
       someone: "Someone",
       stampedTitle: "Boop!",
       stampedBody: "{name} stamped in “{calendar}”.",
+      changedTitle: "Boop!",
+      changedBody: {
+        note: "{name} wrote a note in “{calendar}”.",
+        noteDeleted: "{name} deleted a note in “{calendar}”.",
+        moved: "{name} moved prints in “{calendar}”.",
+        unstamped: "{name} removed prints from “{calendar}”.",
+        renamed: "{name} renamed “{from}” to “{to}”.",
+        joined: "{name} is in “{calendar}” now.",
+        left: "{name} left “{calendar}”.",
+        removed: "{name} is no longer in “{calendar}”.",
+        several: "{name} changed a few things in “{calendar}”.",
+      },
       reminderTitle: "Stamped yet today?",
       reminderBody: {
         quote: "“{name}”",

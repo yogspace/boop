@@ -16,7 +16,7 @@ import {
  *   its clock's zone and language. Tied to the login it was switched on in
  *   (rules.ts, `loginLasts`).
  * - `push-settings`: what an account wants to hear of – its reminder's time
- *   and, per calendar, the switches it turned off. One per account, apart
+ *   and, per calendar, the switches it flipped. One per account, apart
  *   from the account itself: the app reads and writes it through its own
  *   endpoints (endpoints.ts), and nothing of it rides along with the login.
  *
@@ -132,7 +132,7 @@ export const PushSettings: CollectionConfig = {
     useAsTitle: "reminderAt",
     defaultColumns: ["account", "reminderAt", "updatedAt"],
     description:
-      "What an account wants to hear of. A calendar not listed has both on – the reminder and “someone else stamped”.",
+      "What an account wants to hear of. A calendar not listed is as by default: the reminder and “someone else stamped” on, “someone else changed something” off.",
   },
   fields: [
     {
@@ -154,7 +154,8 @@ export const PushSettings: CollectionConfig = {
         `A time like 20:00 – ${LATEST_REMINDER_AT} at the latest.`,
     },
     {
-      // Only calendars with a switch off – kept tidy whenever written.
+      // Only calendars with a switch not as by default – kept tidy whenever
+      // written.
       name: "calendars",
       type: "array",
       fields: [
@@ -169,6 +170,8 @@ export const PushSettings: CollectionConfig = {
           fields: [
             { name: "reminder", type: "checkbox", defaultValue: true },
             { name: "stamped", type: "checkbox", defaultValue: true },
+            // Off by default – and in entries from before it was there.
+            { name: "changed", type: "checkbox", defaultValue: false },
           ],
         },
       ],

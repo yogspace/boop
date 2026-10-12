@@ -121,3 +121,4 @@ Stand: 12.10.2026
 
 ## Ideen am Rand
 
+refactor. manche files haben > 700 zeilen!

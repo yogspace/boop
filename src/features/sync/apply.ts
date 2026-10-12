@@ -108,13 +108,14 @@ export const applyChange = async (
     return OK;
   }
 
+  // `by`: whose change it is – the hooks tell the others (features/push).
   const write = (data: Doc) =>
     existing
       ? req.payload.update({
           collection,
           id: change.id,
           data: { ...data, changedAt: changedAt.toISOString() },
-          context: { sync: true },
+          context: { sync: true, by: ctx.me },
           depth: 0,
           overrideAccess: true,
           req,
@@ -126,7 +127,7 @@ export const applyChange = async (
             id: change.id,
             changedAt: changedAt.toISOString(),
           } as never,
-          context: { sync: true },
+          context: { sync: true, by: ctx.me },
           depth: 0,
           overrideAccess: true,
           req,
@@ -235,7 +236,7 @@ const applyStamp = async (
         ],
       },
       data: { deleted: true, changedAt: new Date().toISOString() },
-      context: { sync: true },
+      context: { sync: true, by: ctx.me },
       overrideAccess: true,
       req: ctx.req,
     });

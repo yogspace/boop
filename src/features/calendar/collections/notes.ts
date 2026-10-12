@@ -1,5 +1,6 @@
 import type { CollectionConfig } from "payload";
 import { hiddenUnlessSupport, sealed } from "@/access";
+import { notifyNoteChanged } from "@/features/push/changed";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
 import { isDayKey } from "../model";
 import { cleanNote } from "../note";
@@ -65,5 +66,9 @@ export const Notes: CollectionConfig = {
     },
     ...syncFields,
   ],
-  hooks: { beforeChange: [touchChangedAt] },
+  hooks: {
+    beforeChange: [touchChangedAt],
+    // Written or emptied by someone: the other members hear of it (push).
+    afterChange: [notifyNoteChanged],
+  },
 };

@@ -1,5 +1,6 @@
 import type { CollectionConfig } from "payload";
 import { hiddenUnlessSupport, sealed } from "@/access";
+import { notifyCalendarChanged } from "@/features/push/changed";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
 import { colorField } from "../color-field";
 import { addMember, removeMember } from "../endpoints/members";
@@ -76,6 +77,8 @@ export const Calendars: CollectionConfig = {
           : { ...data, members: [...ids, owner] };
       },
     ],
+    // Renamed, someone in or out: the other members hear of it (push).
+    afterChange: [notifyCalendarChanged],
   },
   endpoints: [addMember, removeMember, ...inviteEndpoints],
 };

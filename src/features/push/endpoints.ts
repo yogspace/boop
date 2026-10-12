@@ -28,7 +28,7 @@ import { pushReady, vapidPublicKey } from "./send";
  *   GET   /api/push              on at all? our public key, the settings
  *   POST  /api/push/subscribe    { subscription, timeZone, locale, previous? }
  *   POST  /api/push/unsubscribe  { endpoint }
- *   PATCH /api/push/settings     { reminderAt } or { calendar, reminder?, stamped? }
+ *   PATCH /api/push/settings     { reminderAt } or { calendar, reminder?, stamped?, changed? }
  *
  * A device is known by its push service's address (`endpoint`): saying yes
  * again – after a new login, from another account, with another zone –
@@ -272,6 +272,7 @@ export const pushEndpoints: Endpoint[] = [
             reminder: body.reminder,
           }),
           ...(typeof body.stamped === "boolean" && { stamped: body.stamped }),
+          ...(typeof body.changed === "boolean" && { changed: body.changed }),
         };
       }
       const data = {

@@ -24,12 +24,18 @@ import { calendarById } from "../membership";
 // which addresses have an account.
 const tooMany = rateLimit({ limit: 30, windowMs: 60 * 60 * 1000 });
 
-const touch = (req: PayloadRequest, id: string, members: string[]) =>
+/** `by`: who did it – the others hear of it (features/push). */
+const touch = (
+  req: PayloadRequest,
+  id: string,
+  members: string[],
+  by: string
+) =>
   req.payload.update({
     collection: "calendars",
     id,
     data: { members, changedAt: new Date().toISOString() },
-    context: { sync: true },
+    context: { sync: true, by },
     overrideAccess: true,
     req,
   });
@@ -91,7 +97,7 @@ export const addMember: Endpoint = {
     }
     const id = String(person.id);
     if (!calendar.members.includes(id)) {
-      await touch(req, calendar.id, [...calendar.members, id]);
+      await touch(req, calendar.id, [...calendar.members, id], String(me.id));
       await nudgeCalendars(req, [calendar.id]);
     }
     return Response.json({
@@ -125,7 +131,8 @@ export const removeMember: Endpoint = {
       await touch(
         req,
         calendar.id,
-        calendar.members.filter((m) => m !== who)
+        calendar.members.filter((m) => m !== who),
+        String(me.id)
       );
       nudge([who]);
       await nudgeCalendars(req, [calendar.id]);

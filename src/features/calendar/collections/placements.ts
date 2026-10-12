@@ -1,5 +1,6 @@
 import type { CollectionConfig } from "payload";
 import { hiddenUnlessSupport, sealed } from "@/access";
+import { notifyPlacementChanged } from "@/features/push/changed";
 import { notifyStamped } from "@/features/push/stamped";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
 import { colorField } from "../color-field";
@@ -78,7 +79,8 @@ export const Placements: CollectionConfig = {
   ],
   hooks: {
     beforeChange: [touchChangedAt],
-    // A new print from a device: the other members hear of it (push).
-    afterChange: [notifyStamped],
+    // A print new from a device, or moved or taken off by someone: the
+    // other members hear of it (push).
+    afterChange: [notifyStamped, notifyPlacementChanged],
   },
 };
