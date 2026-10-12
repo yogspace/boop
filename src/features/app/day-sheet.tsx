@@ -283,7 +283,7 @@ export const DaySheet = ({
         ))}
       </div>
 
-      <fieldset className="flex items-center gap-2 overflow-x-auto pb-1">
+      <fieldset className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
         <legend className="mb-2 font-bold text-muted text-sm">
           {t.app.day.ink}
         </legend>
@@ -292,7 +292,7 @@ export const DaySheet = ({
             aria-label={t.colors[c]}
             aria-pressed={ink === c}
             className={cn(
-              "relative h-11 w-14 shrink-0 rounded-2xl border-2 border-ink transition-transform",
+              "relative h-10 w-11 shrink-0 rounded-2xl border-2 border-ink transition-transform",
               ink === c
                 ? "-translate-y-1 shadow-sticker-sm"
                 : "hover:-translate-y-0.5"

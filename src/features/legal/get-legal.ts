@@ -27,12 +27,18 @@ const seeded = (): LegalText => ({
   updatedAt: LEGAL_SEED_DATE,
 });
 
+type Stored = {
+  content: Partial<Record<Locale, SerializedEditorState>>;
+  updatedAt: string | null;
+};
+
 /**
- * The legal text in both languages from the “Imprint & privacy” global – a
- * language without text gets the code's (seed-content.ts).
+ * What the “Imprint & privacy” global holds – only that is cached (until the
+ * global is saved). The code's text is added outside the cache, so a new
+ * version of it shows at once.
  */
-const readLegal = unstable_cache(
-  async (): Promise<LegalText> => {
+const readStored = unstable_cache(
+  async (): Promise<Stored> => {
     const payload = await getPayload({ config });
     const legal = (await payload.findGlobal({
       slug: "legal",
@@ -42,26 +48,35 @@ const readLegal = unstable_cache(
     })) as { content?: unknown; updatedAt?: string | null };
     // With locale "all" a localized field comes as { de, en }.
     const content = (legal.content ?? {}) as Partial<Record<Locale, unknown>>;
-    const fallback = seeded();
     return {
       content: Object.fromEntries(
-        LOCALES.map((locale) => {
-          const stored = content[locale];
-          return [
-            locale,
-            hasContent(stored) ? stored : fallback.content[locale],
-          ];
-        })
-      ) as LegalText["content"],
-      updatedAt: legal.updatedAt || LEGAL_SEED_DATE,
+        LOCALES.filter((locale) => hasContent(content[locale])).map(
+          (locale) => [locale, content[locale]]
+        )
+      ) as Stored["content"],
+      updatedAt: legal.updatedAt ?? null,
     };
   },
-  ["legal"],
+  ["legal-stored"],
   { tags: [TAGS.legal] }
 );
 
 /**
- * The legal text – cached until the global is saved, the code's own without
- * a database (down, or the build). A failure is not cached.
+ * The legal text in both languages – a language without text in the admin
+ * gets the code's (seed-content.ts), and so does everything without a
+ * database (down, or the build).
  */
-export const getLegal = (): Promise<LegalText> => readLegal().catch(seeded);
+export const getLegal = async (): Promise<LegalText> => {
+  const fallback = seeded();
+  const stored = await readStored().catch(() => null);
+  if (!stored) return fallback;
+  return {
+    content: Object.fromEntries(
+      LOCALES.map((locale) => [
+        locale,
+        stored.content[locale] ?? fallback.content[locale],
+      ])
+    ) as LegalText["content"],
+    updatedAt: stored.updatedAt || LEGAL_SEED_DATE,
+  };
+};
