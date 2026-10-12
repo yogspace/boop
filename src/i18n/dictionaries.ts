@@ -190,7 +190,7 @@ const de = {
       save: "Stempel speichern",
       cancel: "Abbrechen",
       back: "Weiter malen",
-      shared: "Für alle in diesem Kalender",
+      shared: "Die anderen in diesem Kalender dürfen auch damit stempeln",
       hint: "Mal hier drauf!",
       make3d: "Fertig – mach ihn 3D",
       done: "Ta-da! Dein Stempel",
@@ -228,6 +228,14 @@ const de = {
     },
     stamp: {
       untitled: "Stempel",
+      by: (name: string) => `Von ${name}`,
+      shared: "Geteilt",
+      share: "Teilen",
+      shareText:
+        "Er bleibt dein Stempel. Wer in einem angekreuzten Kalender ist, darf auch damit stempeln.",
+      shareNone:
+        "Teile zuerst einen Kalender – dann kannst du dort auch deine Stempel teilen.",
+      onlyYou: "Bisher nur du",
       print3d: "Für den 3D-Drucker (STL)",
       hint: (mm: number) =>
         `${mm} mm breit, mit „boop“ auf dem Rücken. Die Stempelfläche ist gespiegelt – so kommt dein Abdruck richtig herum raus.`,
@@ -445,7 +453,7 @@ const en: Shape<Dictionary> = {
       save: "Save stamp",
       cancel: "Cancel",
       back: "Keep drawing",
-      shared: "For everyone in this calendar",
+      shared: "The others in this calendar may stamp with it too",
       hint: "Draw on here!",
       make3d: "Done – make it 3D",
       done: "Ta-da! Your stamp",
@@ -483,6 +491,14 @@ const en: Shape<Dictionary> = {
     },
     stamp: {
       untitled: "Stamp",
+      by: (name: string) => `By ${name}`,
+      shared: "Shared",
+      share: "Share",
+      shareText:
+        "It stays your stamp. Everyone in a calendar you tick may stamp with it too.",
+      shareNone:
+        "Share a calendar first – then you can share your stamps there, too.",
+      onlyYou: "Just you so far",
       print3d: "For the 3D printer (STL)",
       hint: (mm: number) =>
         `${mm} mm wide, with “boop” on its back. The stamp face is mirrored – so your print comes out the right way round.`,

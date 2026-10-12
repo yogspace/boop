@@ -5,7 +5,12 @@ import { Plus, Squiggle, Ticks } from "@/components/doodles";
 import { SiteFooter } from "@/components/site-footer";
 import { Button, Logo, Notice, PILL, ROUND_BUTTON } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
-import { COLORS, type ColorName, type DayKey } from "@/features/calendar/model";
+import {
+  COLORS,
+  type ColorName,
+  type DayKey,
+  stampsOf,
+} from "@/features/calendar/model";
 import {
   createCalendar,
   deleteCalendar,
@@ -97,14 +102,11 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
   const calendar =
     calendars.find((c) => c.id === calendarId) ?? calendars[0] ?? null;
   const me = boop.me?.id;
+  // The same in every calendar: mine, then what others share with me.
   const myStamps = useMemo(
     () =>
-      Object.values(boop.stamps).filter(
-        (s) =>
-          (s.owner === me && !s.calendar) ||
-          (calendar && s.calendar === calendar.id)
-      ),
-    [boop.stamps, me, calendar]
+      stampsOf(Object.values(boop.stamps), me, Object.keys(boop.calendars)),
+    [boop.stamps, boop.calendars, me]
   );
 
   // Whichever calendar shows goes into the address – chosen, new, or the

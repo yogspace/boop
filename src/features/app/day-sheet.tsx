@@ -14,7 +14,6 @@ import { Button } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import {
   COLOR_NAMES,
-  COLORS,
   type ColorName,
   type DayKey,
   isColorName,
@@ -22,6 +21,7 @@ import {
   type StampDoc,
   todayKey,
 } from "@/features/calendar/model";
+import { hexOf } from "@/features/calendar/palette";
 import { StampSvg } from "@/features/calendar/stamp-svg";
 import {
   movePlacement,
@@ -611,7 +611,7 @@ export const DaySheet = ({
                 <svg
                   aria-hidden="true"
                   className="h-9 w-9"
-                  fill={COLORS[c]}
+                  fill={hexOf(c)}
                   // Each lies a little differently.
                   style={{ rotate: `${(i * 67) % 360}deg` }}
                   viewBox="0 0 40 40"
