@@ -103,6 +103,8 @@ export const StampDrawer = ({
   const [fills, setFills] = useState<Fill[]>([]);
   const [uploaded, setUploaded] = useState(0);
   const [refused, setRefused] = useState(false);
+  // Prints the other way round: the face in ink, the doodle cut out.
+  const [inverted, setInverted] = useState(false);
   const [shape, setShape] = useState<StampShape>("circle");
   const [color, setColor] = useState<ColorName>("grape");
   const [name, setName] = useState("");
@@ -124,7 +126,10 @@ export const StampDrawer = ({
     return () => clearTimeout(leave.current);
   }, []);
 
-  const doodle = useMemo(() => ({ strokes, fills }), [strokes, fills]);
+  const doodle = useMemo(
+    () => ({ strokes, fills, inverted }),
+    [strokes, fills, inverted]
+  );
   const sticker = useMemo(
     () => ({ shape, color, drawing: doodle }),
     [shape, color, doodle]
@@ -228,7 +233,12 @@ export const StampDrawer = ({
         name: name.trim().slice(0, 40),
         color,
         shape,
-        drawing: fills.length ? { v: 1, strokes, fills } : { v: 1, strokes },
+        drawing: {
+          v: 1,
+          strokes,
+          ...(fills.length > 0 && { fills }),
+          ...(inverted && { inverted: true as const }),
+        },
         calendar: shared ? calendar : null,
       });
       trackEvent("stamp-created");
@@ -349,7 +359,13 @@ export const StampDrawer = ({
           shape={shape}
         />
         {draws && empty && (
-          <p className="pointer-events-none absolute inset-0 flex animate-fade items-center justify-center font-bold text-muted">
+          <p
+            className={cn(
+              "pointer-events-none absolute inset-0 flex animate-fade items-center justify-center font-bold",
+              // On an inverted stamp's inked face.
+              inverted ? "text-white" : "text-muted"
+            )}
+          >
             {t.app.draw.hint}
           </p>
         )}
@@ -403,7 +419,16 @@ export const StampDrawer = ({
               />
             ))}
           </fieldset>
-          <div className="flex justify-center">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            <label className="flex items-center gap-2 font-medium text-sm">
+              <input
+                checked={inverted}
+                className="h-5 w-5 accent-ink"
+                onChange={(event) => setInverted(event.target.checked)}
+                type="checkbox"
+              />
+              {t.app.draw.inverted}
+            </label>
             <Button
               onClick={() => file.current?.click()}
               size="sm"
