@@ -74,6 +74,10 @@ export const Card = ({
   </div>
 );
 
+/** A field's box – for inputs, and anything that should look like one. */
+export const FIELD_INPUT =
+  "rounded-2xl border-2 border-ink bg-card px-4 py-3 text-base outline-none transition-shadow placeholder:text-muted/60 focus:shadow-[0_0_0_4px_var(--color-violet-soft)]";
+
 export const Field = ({
   label,
   hint,
@@ -85,10 +89,7 @@ export const Field = ({
 }) => (
   <label className={cn("flex flex-col gap-1.5", className)}>
     <span className="font-bold text-sm">{label}</span>
-    <input
-      className="rounded-2xl border-2 border-ink bg-card px-4 py-3 text-base outline-none transition-shadow placeholder:text-muted/60 focus:shadow-[0_0_0_4px_var(--color-violet-soft)]"
-      {...props}
-    />
+    <input className={FIELD_INPUT} {...props} />
     {hint && <span className="text-muted text-xs">{hint}</span>}
   </label>
 );

@@ -4,8 +4,8 @@ import { SITE_LINK_LABELS, type SiteLinks } from "@/features/site/defaults";
 /**
  * The legal text's own building blocks (global.ts, drawn by
  * legal-content.tsx). They keep what belongs elsewhere out of the text: the
- * address, the email and the links live in the “Site” global, the date
- * keeps itself.
+ * address and the links live in the “Site” global, the form is the form,
+ * the date keeps itself.
  */
 
 const PREVIEWS = "@/features/legal/block-previews";
@@ -21,13 +21,13 @@ export const AddressBlock: Block = {
   fields: [],
 };
 
-/** The owner's email from the “Site” global, as a link inside a sentence. */
-export const EmailBlock: Block = {
-  slug: "email",
-  labels: { singular: "Email", plural: "Emails" },
+/** The contact form (contact-form.tsx), where the block sits. */
+export const ContactFormBlock: Block = {
+  slug: "contactForm",
+  labels: { singular: "Contact form", plural: "Contact forms" },
   admin: {
     disableBlockName: true,
-    components: { Label: `${PREVIEWS}#EmailLabel` },
+    components: { Block: `${PREVIEWS}#ContactFormBlockPreview` },
   },
   fields: [],
 };

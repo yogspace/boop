@@ -29,10 +29,10 @@ const addressLine = (
 });
 
 /**
- * What the pages link to, and the owner's address and email – in one place.
- * The legal text shows them through its blocks (“Address”, “Email”, “Site
- * link”), so a move changes one form, not every paragraph. Readable by
- * anyone: it is all on the public imprint anyway.
+ * What the pages link to, and the owner's address – in one place. The legal
+ * text shows them through its blocks (“Address”, “Site link”), so a move
+ * changes one form, not every paragraph. Readable by anyone: it is all on
+ * the public imprint anyway.
  */
 export const Site: GlobalConfig = {
   slug: "site",
@@ -44,7 +44,7 @@ export const Site: GlobalConfig = {
   admin: {
     group: "Settings",
     description:
-      "The owner's address and email for the imprint and privacy policy, and the link to mxwr.de.",
+      "The owner's address for the imprint and privacy policy, and the link to mxwr.de.",
   },
   fields: [
     {
@@ -59,24 +59,6 @@ export const Site: GlobalConfig = {
         addressLine("street"),
         addressLine("city", "Postcode and city"),
         addressLine("country"),
-      ],
-    },
-    {
-      name: "contact",
-      type: "group",
-      admin: {
-        description:
-          "Shown wherever the legal text has an “Email” block – the imprint needs a way to write (§ 5 DDG).",
-      },
-      fields: [
-        {
-          name: "email",
-          type: "email",
-          required: true,
-          ...(SITE_DEFAULTS.contact.email && {
-            defaultValue: SITE_DEFAULTS.contact.email,
-          }),
-        },
       ],
     },
     {

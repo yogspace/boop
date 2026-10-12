@@ -16,7 +16,7 @@ import { adminOnly, anyone } from "@/access";
 import { expireOnChange, TAGS } from "@/lib/cache";
 import {
   AddressBlock,
-  EmailBlock,
+  ContactFormBlock,
   SiteLinkBlock,
   UpdatedBlock,
 } from "./blocks";
@@ -28,8 +28,9 @@ import {
  * The editor has what the page draws and nothing else, so the text can't
  * look any different from the rest of it: big headings (h2) for the parts,
  * small ones (h3) for the sections, paragraphs, bold and italic, lists and
- * links. Plus the blocks of blocks.ts – address, email and links come from
- * the “Site” global, and “Last updated” keeps the date by itself.
+ * links. Plus the blocks of blocks.ts – address and links come from the
+ * “Site” global, the contact form is the form, and “Last updated” keeps the
+ * date by itself.
  *
  * While a language has no text, the page shows the code's (seed-content.ts);
  * the Seeds page writes it in here.
@@ -44,7 +45,7 @@ export const Legal: GlobalConfig = {
   admin: {
     group: "Content",
     description:
-      "The page behind “Imprint & privacy”. Address, email and links come from “Site”; switch the language at the top.",
+      "The page behind “Imprint & privacy”. Address and links come from “Site”, the contact form is a block; switch the language at the top.",
   },
   fields: [
     {
@@ -63,8 +64,8 @@ export const Legal: GlobalConfig = {
           // External links only – there are no documents to link to.
           LinkFeature({ enabledCollections: [] }),
           BlocksFeature({
-            blocks: [AddressBlock],
-            inlineBlocks: [EmailBlock, SiteLinkBlock, UpdatedBlock],
+            blocks: [AddressBlock, ContactFormBlock],
+            inlineBlocks: [SiteLinkBlock, UpdatedBlock],
           }),
           FixedToolbarFeature(),
           InlineToolbarFeature(),

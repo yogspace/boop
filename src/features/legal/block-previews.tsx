@@ -11,8 +11,8 @@ import type { SiteContent, SiteLinks } from "@/features/site/defaults";
 
 /**
  * The legal text's blocks in the admin's editor (blocks.ts) – showing what
- * the page will show instead of an empty box: the address and email from
- * the “Site” global, the linked words, the date.
+ * the page will show instead of an empty box: the address from the “Site”
+ * global, the form, the linked words, the date.
  */
 
 type StoredSite = { [K in keyof SiteContent]?: Partial<SiteContent[K]> };
@@ -101,6 +101,53 @@ export const AddressBlockPreview = () => {
   );
 };
 
+/** A sketch of a form's box – what the field or button will be. */
+const box = (extra: CSSProperties = {}): CSSProperties => ({
+  display: "block",
+  padding: "6px 10px",
+  border: "1px solid var(--theme-elevation-250)",
+  borderRadius: 10,
+  fontSize: 12,
+  color: "var(--theme-elevation-500)",
+  ...extra,
+});
+
+/** “Contact form”: a sketch of the form the page shows here. */
+export const ContactFormBlockPreview = () => {
+  const { BlockCollapsible } = useBlockComponentContext();
+  return (
+    <BlockCollapsible>
+      <div
+        aria-hidden
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 8,
+          maxWidth: 420,
+        }}
+      >
+        <span style={box()}>Name</span>
+        <span style={box()}>Email</span>
+        <span style={box({ gridColumn: "1 / -1", height: 56 })}>Message</span>
+        <span
+          style={box({
+            justifySelf: "start",
+            borderRadius: 999,
+            fontWeight: 600,
+            color: "var(--theme-text)",
+          })}
+        >
+          Send
+        </span>
+      </div>
+      <p style={hint}>
+        The contact form – its texts live in the code (DE and EN). Messages go
+        by email to MAIL_CONTACT_RECIPIENT; nothing is stored.
+      </p>
+    </BlockCollapsible>
+  );
+};
+
 /**
  * The fields of the inline block a label sits in. The label component gets
  * none and is rendered outside the block's context, so it asks Lexical: the
@@ -124,20 +171,6 @@ const useInlineFields = <T,>() => {
     return editor.registerUpdateListener(read);
   }, []);
   return [ref, fields] as const;
-};
-
-/** “Email”: the address from “Site → Contact”, or a nudge to set it. */
-export const EmailLabel = () => {
-  const site = useSite();
-  const email = site?.contact?.email;
-  return (
-    <span
-      style={inline}
-      title={email ? "From Site → Contact" : "Set it in Site → Contact"}
-    >
-      ✉ {email || "email not set yet"}
-    </span>
-  );
 };
 
 /** A site link inside a sentence: the linked words, with a little arrow. */

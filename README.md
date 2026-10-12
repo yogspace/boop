@@ -1,6 +1,6 @@
 # Boop
 
-A cute doodle stamp calendar. Draw your own stamps – a round or square stamp, one color, a few lines – and boop them onto your days. Calendars can be shared with other accounts. Boop installs like an app and works offline; changes sync once you're back online.
+A cute doodle stamp calendar. Draw your own stamp – round or square, a few lines – and it turns into a 3D rubber stamp with your doodle engraved. Dip it into an ink pad and boop it onto your days; every print is a little imperfect, like a real one. Calendars can be shared with other accounts (or invited by mail), and changes show up live on everyone's devices. Stamps can be downloaded as STL to 3D-print them for real. Boop installs like an app and works offline; changes sync once you're back online.
 
 Live: [boop.mxwr.de](https://boop.mxwr.de)
 
@@ -20,14 +20,17 @@ Each feature lives in `src/features/<name>/` and brings its own collections, glo
 | Feature | What it does |
 |---|---|
 | `admin` | CMS logins (`users`), first admin from the environment, Seeds page |
-| `accounts` | People using Boop (`accounts`): email + password, verification and reset mails (DE/EN), personal calendar at sign-up, cleanup on delete; account forms |
-| `calendar` | `calendars`, `stamps`, `placements` and the shared model (`model.ts`); member endpoints (share by email, remove, leave) |
-| `sync` | `POST /api/sync` – the app's only way to read and write calendar data (see below) |
+| `accounts` | People using Boop (`accounts`): email + password, verification and reset mails (DE/EN), personal calendar at sign-up, cleanup on delete; the app's own login cookie (`session.ts`); account forms |
+| `calendar` | `calendars`, `stamps`, `placements`, `invites` and the shared model (`model.ts`); member endpoints (share by email, remove, leave); invitations by mail for addresses without an account (`invites.ts`); the flat stamp/print renderer (`stamp-svg.tsx`) |
+| `sync` | `POST /api/sync` – the app's only way to read and write calendar data – and `GET /api/sync/live`, the live nudges (see below) |
+| `stickers` | Stamps in 3D (three.js): the model with engraved doodle and “boop” watermark (`build.ts`), pictures for lists (`render.ts`), the live view (`sticker-view.tsx`), STL export for 3D printing (`export-stl.ts`) |
+| `transitions` | Page transitions with the View Transitions API |
 | `offline` | The device's copy: IndexedDB (`db.ts`) and the valtio store with outbox and sync (`store.ts`) |
-| `app` | The app UI: calendars, month view, day canvas, stamp drawing, sharing |
+| `app` | The app UI: calendars, month view, day page with ink pads, drawing a stamp, a stamp up close, sharing, dialogs |
+| `landing` | The front page's 3D scene |
 | `pwa` | Service worker registration (`public/sw.js` is the worker) |
 | `analytics` | Anonymous statistics (no cookies, no IP), admin chart views, mail report |
-| `site`, `legal` | Settings, imprint and privacy policy (CMS, with code seeds) |
+| `site`, `legal` | Settings, imprint and privacy policy (CMS, with code seeds); contact form (`/next/contact`, sends to `MAIL_CONTACT_RECIPIENT`, stores nothing) |
 
 Pages are in `src/app/(frontend)/[locale]/` (`de`, `en`); texts in `src/i18n/dictionaries.ts`.
 
@@ -41,11 +44,21 @@ The app always reads and writes the device's copy first. Every change is noted i
 - The server checks every change (`src/features/sync/apply.ts`): only owners rename/delete calendars and change their stamps; members place, move and remove stamps in their calendars.
 - A sync answers with everything new since the last one; calendars new to a device come complete; stamps a device lacks are asked for by id.
 
+**Live:** every open app holds `GET /api/sync/live` (Server-Sent Events). After a sync that changed something, the server nudges all members of the affected calendars, and their devices sync at once. The nudge carries no data. It lives in memory, which fits one server process (several would need a shared channel). Polling every 30 s and on focus remains as the net below.
+
 The app page is static and the same for everyone, so the service worker can open it without a connection. `/api`, `/admin` and `/next` are never cached.
+
+## Stamps and prints
+
+A stamp is drawn on a round or square base in one color. In 3D (`features/stickers`) it becomes a rubber stamp: a block in its color with a knob, the doodle engraved into the rubber face, “boop” engraved on top. The rubber face is a closed surface built from a height map of the doodle, so the same model exports as a printable STL (40 mm, engraving mirrored so the real print reads correctly).
+
+A print (`placements`) records the ink pad it was made with (`ink`). It is drawn negative, like an engraved stamp prints: the shape in ink, the doodle as gaps. A per-print seed makes coverage, grain and edges a little different every time.
 
 ## Access
 
-Two kinds of login share Payload's auth: admins (`users`) and accounts. Payload's default access ("any logged-in user") would let accounts in everywhere, so **every collection and global sets access explicitly** via `src/access` (`adminOnly`, `isAdmin`, `accountOf`). The calendar collections are admin-only over REST; accounts go through the sync and member endpoints.
+Two kinds of login: admins (`users`, Payload's cookie `boop-token`) and accounts. Payload keeps all auth collections in one cookie, so an app login would lock the admin out. Accounts therefore get their own cookie, `boop-session` (`features/accounts/session.ts`). It replaces Payload's login, logout, “me” and reset endpoints for `accounts` and checks the token with Payload's own strategies. App endpoints find their account with `sessionAccount(req)` and refuse cookie requests from other origins.
+
+Payload's default access ("any logged-in user") would let accounts in everywhere, so **every collection and global sets access explicitly** via `src/access` (`adminOnly`, `isAdmin`). The calendar collections are admin-only over REST; accounts go through the sync, member and invitation endpoints.
 
 ## Development
 
@@ -64,14 +77,14 @@ pnpm dev                  # http://localhost:3000
 
 ### Font
 
-Boop uses **Telma** (Indian Type Foundry, ITF Free Font License) as a self-hosted variable font. The license forbids redistribution, so it is **not in the repo**: `scripts/prepare.mjs` downloads it from Fontshare into `public/fonts/` (ignored) before `dev` and `build`. Without it the system font applies.
+Boop uses **Satoshi** (Indian Type Foundry, ITF Free Font License) as a self-hosted variable font. The license forbids redistribution, so it is **not in the repo**: `scripts/prepare.mjs` downloads it from Fontshare into `public/fonts/` (ignored) before `dev` and `build`. Without it the system font applies.
 
 ## Deploy
 
 `make deploy` merges `development` into `main` and pushes; the pipeline (`.github/workflows/deploy.yml`) then runs lint, types and tests, builds the image and deploys it to `/opt/apps/boop` on the server.
 
 Repository **variables** (public, baked into the build): `NEXT_PUBLIC_SERVER_URL`, `MAIL_FROM`, optional `GOOGLE_SITE_VERIFICATION`.
-Repository **secrets**: `HETZNER_HOST`, `HETZNER_USER`, `HETZNER_SSH_KEY`, `PAYLOAD_SECRET`, `RESEND_API_KEY`, `CRON_SECRET`, `MAIL_STATS_RECIPIENT`, optional `PAYLOAD_ADMIN_EMAIL`/`PAYLOAD_ADMIN_PASSWORD` (first admin).
+Repository **secrets**: `HETZNER_HOST`, `HETZNER_USER`, `HETZNER_SSH_KEY`, `PAYLOAD_SECRET`, `RESEND_API_KEY`, `CRON_SECRET`, `MAIL_STATS_RECIPIENT`, `MAIL_CONTACT_RECIPIENT`, optional `PAYLOAD_ADMIN_EMAIL`/`PAYLOAD_ADMIN_PASSWORD` (first admin).
 
 The server's `.env` is rewritten from them on every deploy. The daily statistics report runs by cron (`scripts/setup-cron.sh`, installed by the deploy; log: `journalctl -t boop-cron`).
 

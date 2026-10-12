@@ -2,9 +2,10 @@ import { useId } from "react";
 import { COLORS, type ColorName, type StampShape } from "./model";
 
 /**
- * A stamp flat, as SVG – the drawing (while it is being made) and the print
- * it leaves on a day: its rim in the shape and the doodle inside, in its one
- * color. As a `print`, the ink is speckled like a real rubber stamp's.
+ * A stamp flat, as SVG – the drawing while it is being made (its rim and the
+ * lines, in its color) and the print it leaves on a day: an engraved stamp
+ * prints negative – the shape in ink, the doodle as gaps – blotchy and a
+ * little frayed, like real ink.
  */
 
 /** The SVG path of one stroke – quadratic curves through the midpoints. */
@@ -160,34 +161,69 @@ export const StampSvg = ({
           </filter>
         )}
       </defs>
-      <g
-        filter={print ? `url(#${id}-ink)` : undefined}
-        opacity={print ? 0.9 : 1}
-      >
-        <ShapeOutline
-          fill={filled ? `color-mix(in srgb, ${ink} 14%, white)` : "none"}
-          shape={shape}
-          stroke={ink}
-          strokeDasharray={drawing || filled ? undefined : "0.06 0.06"}
-          strokeWidth="0.035"
-        />
-        {drawing && (
-          <g clipPath={`url(#${id}-clip)`}>
-            {drawing.strokes.map((stroke, i) => (
-              <path
-                d={strokePath(stroke.p)}
-                fill="none"
-                key={i}
-                stroke={ink}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={stroke.w}
-                style={fade}
-              />
-            ))}
+      {print ? (
+        // The print of an engraved stamp: the shape in ink, the doodle as
+        // gaps where the rubber was cut away.
+        <>
+          <defs>
+            <mask
+              height="1.2"
+              id={`${id}-cut`}
+              maskUnits="userSpaceOnUse"
+              width="1.2"
+              x="-0.1"
+              y="-0.1"
+            >
+              <ShapeOutline fill="white" shape={shape} />
+              {drawing?.strokes.map((stroke, i) => (
+                <path
+                  d={strokePath(stroke.p)}
+                  fill="none"
+                  key={i}
+                  stroke="black"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={stroke.w}
+                />
+              ))}
+            </mask>
+          </defs>
+          <g filter={`url(#${id}-ink)`} opacity={0.88}>
+            <ShapeOutline
+              fill={ink}
+              mask={`url(#${id}-cut)`}
+              shape={shape}
+              strokeDasharray={drawing ? undefined : "0.06 0.06"}
+            />
           </g>
-        )}
-      </g>
+        </>
+      ) : (
+        <g>
+          <ShapeOutline
+            fill={filled ? `color-mix(in srgb, ${ink} 14%, white)` : "none"}
+            shape={shape}
+            stroke={ink}
+            strokeDasharray={drawing || filled ? undefined : "0.06 0.06"}
+            strokeWidth="0.035"
+          />
+          {drawing && (
+            <g clipPath={`url(#${id}-clip)`}>
+              {drawing.strokes.map((stroke, i) => (
+                <path
+                  d={strokePath(stroke.p)}
+                  fill="none"
+                  key={i}
+                  stroke={ink}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={stroke.w}
+                  style={fade}
+                />
+              ))}
+            </g>
+          )}
+        </g>
+      )}
     </svg>
   );
 };

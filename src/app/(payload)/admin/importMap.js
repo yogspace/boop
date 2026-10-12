@@ -5,7 +5,7 @@ import { InlineToolbarFeatureClient as InlineToolbarFeatureClient_e70f5e05f09f93
 import { FixedToolbarFeatureClient as FixedToolbarFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { BlocksFeatureClient as BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { AddressBlockPreview as AddressBlockPreview_a8bacab047100d7865c584b2c66e5ed0 } from '@/features/legal/block-previews'
-import { EmailLabel as EmailLabel_a8bacab047100d7865c584b2c66e5ed0 } from '@/features/legal/block-previews'
+import { ContactFormBlockPreview as ContactFormBlockPreview_a8bacab047100d7865c584b2c66e5ed0 } from '@/features/legal/block-previews'
 import { SiteLinkLabel as SiteLinkLabel_a8bacab047100d7865c584b2c66e5ed0 } from '@/features/legal/block-previews'
 import { UpdatedLabel as UpdatedLabel_a8bacab047100d7865c584b2c66e5ed0 } from '@/features/legal/block-previews'
 import { LinkFeatureClient as LinkFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -35,7 +35,7 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#FixedToolbarFeatureClient": FixedToolbarFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#BlocksFeatureClient": BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@/features/legal/block-previews#AddressBlockPreview": AddressBlockPreview_a8bacab047100d7865c584b2c66e5ed0,
-  "@/features/legal/block-previews#EmailLabel": EmailLabel_a8bacab047100d7865c584b2c66e5ed0,
+  "@/features/legal/block-previews#ContactFormBlockPreview": ContactFormBlockPreview_a8bacab047100d7865c584b2c66e5ed0,
   "@/features/legal/block-previews#SiteLinkLabel": SiteLinkLabel_a8bacab047100d7865c584b2c66e5ed0,
   "@/features/legal/block-previews#UpdatedLabel": UpdatedLabel_a8bacab047100d7865c584b2c66e5ed0,
   "@payloadcms/richtext-lexical/client#LinkFeatureClient": LinkFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,

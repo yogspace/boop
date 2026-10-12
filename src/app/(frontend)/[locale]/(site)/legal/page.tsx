@@ -10,7 +10,7 @@ import {
 import { getSite } from "@/features/site/get-site";
 import { isLocale, LOCALES } from "@/i18n/config";
 
-// Rendered per request: the text, address and email come from the admin
+// Rendered per request: the text, address and links come from the admin
 // (cached until saved, see lib/cache.ts) – and the build has no database.
 export const dynamic = "force-dynamic";
 

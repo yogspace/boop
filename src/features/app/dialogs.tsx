@@ -45,7 +45,6 @@ export const CalendarSheet = ({
     <Sheet onClose={onClose} title={title}>
       <form className="flex flex-col gap-5" onSubmit={save}>
         <Field
-          // biome-ignore lint/a11y/noAutofocus: the dialog exists to type a name
           autoFocus
           label={t.app.newCalendarName}
           maxLength={60}

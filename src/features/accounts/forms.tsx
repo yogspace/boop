@@ -79,7 +79,7 @@ const Frame = ({
   children: ReactNode;
 }) => (
   <div className="mx-auto w-full max-w-md px-4 pt-10 pb-16">
-    <div className="relative animate-rise rounded-[32px] border-2 border-ink bg-card p-6 shadow-sticker-lg sm:p-8">
+    <div className="relative rounded-[32px] border-2 border-ink bg-card p-6 shadow-sticker-lg sm:p-8">
       <div
         className="absolute -top-10 -right-4 w-24 animate-float"
         style={{ "--tilt": "10deg" } as React.CSSProperties}

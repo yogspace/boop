@@ -24,7 +24,7 @@ const filled = <T extends Record<string, string>>(
   ) as T;
 };
 
-/** Address, email and links from the “Site” global (global.ts). */
+/** Address and links from the “Site” global (global.ts). */
 const readSite = unstable_cache(
   async (): Promise<SiteContent> => {
     const payload = await getPayload({ config });
@@ -36,7 +36,6 @@ const readSite = unstable_cache(
     return {
       links: filled(SITE_DEFAULTS.links, site.links),
       address: filled(SITE_DEFAULTS.address, site.address),
-      contact: filled(SITE_DEFAULTS.contact, site.contact),
     };
   },
   ["site"],
@@ -44,8 +43,8 @@ const readSite = unstable_cache(
 );
 
 /**
- * Address, email and links – cached until the global is saved, the code's
- * own without a database (down, or the build). A failure is not cached.
+ * Address and links – cached until the global is saved, the code's own
+ * without a database (down, or the build). A failure is not cached.
  */
 export const getSite = (): Promise<SiteContent> =>
   readSite().catch(() => SITE_DEFAULTS);

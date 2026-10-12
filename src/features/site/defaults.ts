@@ -1,9 +1,9 @@
 // Client-safe: plain data and types, no server code.
 
 /**
- * The site's link and the owner's address and email as the code knows them –
- * the defaults of the “Site” global (global.ts), and what the pages fall
- * back to while the global is empty or the database is out of reach.
+ * The site's link and the owner's address as the code knows them – the
+ * defaults of the “Site” global (global.ts), and what the pages fall back to
+ * while the global is empty or the database is out of reach.
  */
 export type SiteLinks = {
   /** mxwr.de – the owner's website. */
@@ -18,15 +18,9 @@ export type SiteAddress = {
   country: string;
 };
 
-export type SiteContact = {
-  /** Where people can write – the imprint's email (§ 5 DDG). */
-  email: string;
-};
-
 export type SiteContent = {
   links: SiteLinks;
   address: SiteAddress;
-  contact: SiteContact;
 };
 
 export const SITE_DEFAULTS: SiteContent = {
@@ -41,8 +35,6 @@ export const SITE_DEFAULTS: SiteContent = {
     city: "64289 Darmstadt",
     country: "Deutschland",
   },
-  // No address in the code yet – set it in the admin (Site → Contact).
-  contact: { email: "" },
 };
 
 export const SITE_LINK_LABELS: Record<keyof SiteLinks, string> = {

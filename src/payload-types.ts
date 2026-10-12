@@ -588,7 +588,7 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   createdAt?: T;
 }
 /**
- * The owner's address and email for the imprint and privacy policy, and the link to mxwr.de.
+ * The owner's address for the imprint and privacy policy, and the link to mxwr.de.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "site".
@@ -604,12 +604,6 @@ export interface Site {
     city: string;
     country: string;
   };
-  /**
-   * Shown wherever the legal text has an “Email” block – the imprint needs a way to write (§ 5 DDG).
-   */
-  contact: {
-    email: string;
-  };
   links: {
     /**
      * The legal text's “Site link”. Keep the utm part – it shows where visits came from.
@@ -620,7 +614,7 @@ export interface Site {
   createdAt?: string | null;
 }
 /**
- * The page behind “Imprint & privacy”. Address, email and links come from “Site”; switch the language at the top.
+ * The page behind “Imprint & privacy”. Address and links come from “Site”, the contact form is a block; switch the language at the top.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "legal".
@@ -677,11 +671,6 @@ export interface SiteSelect<T extends boolean = true> {
         street?: T;
         city?: T;
         country?: T;
-      };
-  contact?:
-    | T
-    | {
-        email?: T;
       };
   links?:
     | T

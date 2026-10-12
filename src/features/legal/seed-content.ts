@@ -7,15 +7,16 @@ import type { Locale } from "@/i18n/config";
  * and what the page shows while a language has no text (get-legal.ts).
  *
  * Written with a few small helpers instead of raw JSON: the nodes are the
- * ones the admin's editor writes itself (global.ts). Address, email and the
- * link to mxwr.de are blocks – their values come from the “Site” global.
+ * ones the admin's editor writes itself (global.ts). Address, contact form
+ * and the link to mxwr.de are blocks – address and link come from the
+ * “Site” global.
  */
 
 /**
  * When these texts were last changed – the “Last updated” date while the
  * page shows them straight from the code.
  */
-export const LEGAL_SEED_DATE = "2026-10-11";
+export const LEGAL_SEED_DATE = "2026-10-12";
 
 type Node = Record<string, unknown>;
 
@@ -68,7 +69,7 @@ const inlineBlock = (blockType: string, fields: Node = {}): Node => ({
 });
 
 const address = () => block("address");
-const email = () => inlineBlock("email");
+const contactForm = () => block("contactForm");
 const updated = () => inlineBlock("updated");
 const siteLink = (link: keyof SiteLinks, label: string) =>
   inlineBlock("siteLink", { link, label });
@@ -83,7 +84,7 @@ const german = () =>
     h3("Angaben gemäß § 5 DDG"),
     address(),
     h3("Kontakt"),
-    p("E-Mail: ", email()),
+    contactForm(),
     h3("Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV"),
     address(),
 
@@ -94,7 +95,9 @@ const german = () =>
     h3("Verantwortlicher"),
     p("Verantwortlich für die Verarbeitung deiner Daten ist:"),
     address(),
-    p("Du erreichst mich per E-Mail an ", email(), "."),
+    p(
+      "Du erreichst mich über das Kontaktformular im Impressum oben. Name, E-Mail-Adresse und Nachricht gehen dabei per E-Mail an mich – verschickt über Resend (siehe „E-Mails über Resend“); auf der Website wird davon nichts gespeichert. Ich nutze die Angaben nur, um dir zu antworten, und lösche die Mail, wenn die Sache erledigt ist (Art. 6 Abs. 1 lit. b und f DSGVO). Gegen Missbrauch hält der Server deine IP-Adresse höchstens zehn Minuten im Arbeitsspeicher."
+    ),
 
     h3("Hosting und Server-Logfiles"),
     p(
@@ -131,7 +134,7 @@ const german = () =>
 
     h3("E-Mails über Resend"),
     p(
-      "Die E-Mails zur Bestätigung deiner Adresse und zum Zurücksetzen deines Passworts verschicke ich über den Versanddienst Resend (Resend, Inc., USA), der sie in meinem Auftrag zustellt (Auftragsverarbeitung). Resend erhält dafür deine E-Mail-Adresse und den Inhalt der jeweiligen Mail. Dabei können Daten in die USA übermittelt werden; abgesichert ist das durch die Standardvertragsklauseln der EU-Kommission (Art. 46 Abs. 2 lit. c DSGVO). Rechtsgrundlage für den Versand ist Art. 6 Abs. 1 lit. b DSGVO."
+      "Die E-Mails zur Bestätigung deiner Adresse und zum Zurücksetzen deines Passworts – und die Nachrichten aus dem Kontaktformular – verschicke ich über den Versanddienst Resend (Resend, Inc., USA), der sie in meinem Auftrag zustellt (Auftragsverarbeitung). Resend erhält dafür deine E-Mail-Adresse und den Inhalt der jeweiligen Mail. Dabei können Daten in die USA übermittelt werden; abgesichert ist das durch die Standardvertragsklauseln der EU-Kommission (Art. 46 Abs. 2 lit. c DSGVO). Rechtsgrundlage für den Versand ist Art. 6 Abs. 1 lit. b DSGVO."
     ),
 
     h3("Cookies und Speicher auf deinem Gerät"),
@@ -163,9 +166,7 @@ const german = () =>
 
     h3("Deine Rechte"),
     p(
-      "Du hast das Recht auf Auskunft über deine Daten (Art. 15 DSGVO), auf Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen, die auf einem berechtigten Interesse beruhen (Art. 21 DSGVO). Schreib mir dafür einfach an ",
-      email(),
-      "."
+      "Du hast das Recht auf Auskunft über deine Daten (Art. 15 DSGVO), auf Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen, die auf einem berechtigten Interesse beruhen (Art. 21 DSGVO). Schreib mir dafür einfach über das Kontaktformular oben."
     ),
     p(
       "Außerdem kannst du dich bei einer Datenschutzaufsichtsbehörde beschweren, zum Beispiel bei der deines Wohnorts."
@@ -196,7 +197,7 @@ const english = () =>
     h3("Information pursuant to § 5 DDG (German Digital Services Act)"),
     address(),
     h3("Contact"),
-    p("Email: ", email()),
+    contactForm(),
     h3("Responsible for content pursuant to § 18 (2) MStV"),
     address(),
 
@@ -207,7 +208,9 @@ const english = () =>
     h3("Controller"),
     p("The controller responsible for processing your data is:"),
     address(),
-    p("You can reach me by email at ", email(), "."),
+    p(
+      "You can reach me through the contact form in the legal notice above. Your name, email address and message reach me by email – sent through Resend (see “Emails via Resend”); nothing of it is stored on the site. I use the details only to answer you and delete the mail once the matter is settled (Art. 6 (1) (b) and (f) GDPR). Against abuse the server keeps your IP address in memory for at most ten minutes."
+    ),
 
     h3("Hosting and server logs"),
     p(
@@ -244,7 +247,7 @@ const english = () =>
 
     h3("Emails via Resend"),
     p(
-      "I send the emails to confirm your address and to reset your password through the mail service Resend (Resend, Inc., USA), which delivers them on my behalf (data processing). For this, Resend receives your email address and the content of the mail. Data may be transferred to the USA in the process; this is safeguarded by the European Commission's standard contractual clauses (Art. 46 (2) (c) GDPR). Legal basis for sending: Art. 6 (1) (b) GDPR."
+      "I send the emails to confirm your address and to reset your password – and the messages from the contact form – through the mail service Resend (Resend, Inc., USA), which delivers them on my behalf (data processing). For this, Resend receives your email address and the content of the mail. Data may be transferred to the USA in the process; this is safeguarded by the European Commission's standard contractual clauses (Art. 46 (2) (c) GDPR). Legal basis for sending: Art. 6 (1) (b) GDPR."
     ),
 
     h3("Cookies and storage on your device"),
@@ -276,9 +279,7 @@ const english = () =>
 
     h3("Your rights"),
     p(
-      "You have the right of access to your data (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18), data portability (Art. 20) and to object to processing based on a legitimate interest (Art. 21 GDPR). Just write to me at ",
-      email(),
-      "."
+      "You have the right of access to your data (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18), data portability (Art. 20) and to object to processing based on a legitimate interest (Art. 21 GDPR). Just write to me through the contact form above."
     ),
     p(
       "You also have the right to lodge a complaint with a data protection supervisory authority, for example the one where you live."
