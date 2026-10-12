@@ -297,7 +297,7 @@ const de = {
       turn: "Zum Drehen ziehen",
     },
     day: {
-      empty: "Noch nichts los – wähl unten einen Stempel und tipp auf den Tag.",
+      empty: "Noch nichts los – wähl einen Stempel und tipp auf den Tag.",
       tray: "Stempel antippen, dann auf den Tag tippen",
       held: "Tipp auf den Tag – oder tunk ihn in ein Stempelkissen.",
       wheel: "Das Mausrad dreht den Stempel.",
@@ -753,7 +753,7 @@ const en: Shape<typeof de> = {
       turn: "Drag to turn it",
     },
     day: {
-      empty: "Nothing here yet – pick a stamp below and tap the day.",
+      empty: "Nothing here yet – pick a stamp and tap the day.",
       tray: "Tap a stamp, then tap the day",
       held: "Tap the day – or dip it into an ink pad.",
       wheel: "Scroll to turn the stamp.",

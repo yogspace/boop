@@ -132,3 +132,7 @@ jobs:
             # The cron jobs – idempotent, so on every deploy. Not
             # worth failing the deploy over.
             bash scripts/setup-cron.sh || echo "⚠ Cron job not installed."
+
+            # The image is built without a database: its pages carry the
+            # code's colors and texts until rendered anew with the CMS's.
+            bash scripts/refresh-pages.sh || echo "⚠ Pages not refreshed – save “Site” in the admin."

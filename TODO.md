@@ -9,14 +9,13 @@ Stand: 12.10.2026
   auf Rot ändern (Schlüssel `red`, `#ee3b33`).
 
 - **Benachrichtigungen (Web Push)** – gebaut, aber aus, bis es
-  VAPID-Schlüssel gibt (`npx web-push generate-vapid-keys`, als Secrets in
-  GitHub). Noch offen: Doku und `deploy.yml` mit den Namen, Abschnitt im
-  Datenschutztext, der Cron für die Erinnerung (`setup-cron.sh`, bewusst noch
+  VAPID-Schlüssel gibt (`npx web-push generate-vapid-keys`). Noch offen: die
+  Schlüssel als Secrets in GitHub, ihre Namen in `.env.example`, README und
+  `deploy.yml`, der Cron für die Erinnerung (`setup-cron.sh`, bewusst noch
   nicht eingetragen), und ein Test mit echtem Push auf einem Gerät.
-- **Oberflächentexte ins CMS (wie ccm)**: Global „Translations“, Felder
-  aus den Schlüsseln in `dictionaries.ts`, Seeds füllen neue Texte und
-  löschen verwaiste, Änderungen im Admin gewinnen. Texte mit Logik als
-  Vorlagen mit Platzhaltern (Einzahl/Mehrzahl). In Arbeit.
+- **Texte, die noch nicht im CMS sind**: die Mails (`accounts/emails.ts`,
+  die Einladungsmail in `calendar/invites.ts`) und das Kontaktformular – sie
+  haben eigene Text-Tabellen.
 - **Widget für Apple** (Idee): ginge nur mit einer nativen Hülle, nicht als
   PWA.
 - **Datenschutztext**: Die Vorlage im Code (`features/legal/seed-content.ts`,
@@ -63,6 +62,12 @@ Stand: 12.10.2026
 - Tagesansicht: Stempel kommt in seiner eigenen Farbe; Namensschild beim
   Hover in der Stempelauswahl.
 - Kontomenü und Sync-Notiz schließen bei Klick daneben.
+- Nach dem Deploy: im Deploy-Log „✓ Pages refreshed“ – danach zeigen die
+  Seiten die Stempelfarben und Texte aus dem CMS (vorher die aus dem Code,
+  weil das Image ohne Datenbank gebaut wird).
+- Texte im Admin unter Content → Translations: ein Feld ändern, speichern,
+  steht sofort auf der Seite; eine Vorlage mit falschem Platzhalter wird
+  abgelehnt; „Seeds → Translations“ füllt die Felder mit den Code-Texten.
 - Admin nach dem Dichtmachen durchklicken: Konten-Liste und -Seite (nur
   lesen, löschen, „Unlock login“), Statistik „Accounts“, Seeds-Seite; lokal
   mit `ADMIN_SUPPORT=1` das Warnband und die Leseansicht der Inhalte.

@@ -1,4 +1,4 @@
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 /**
  * What the pages take from the CMS, cached until it changes – one tag each.
@@ -24,6 +24,18 @@ export type CacheTag = (typeof TAGS)[keyof typeof TAGS];
  */
 const expireTags = (...tags: string[]) => {
   for (const tag of tags) revalidateTag(tag, { expire: 0 });
+};
+
+/**
+ * Every page that takes something from the CMS, rendered anew on its next
+ * request – after a deploy (next/refresh). The build has no database: its
+ * pages carry the code's own colors and texts, and a page built ahead is
+ * kept until a tag of it expires. Both ways, as a page whose CMS read failed
+ * at build time may not carry its tag.
+ */
+export const expireAll = () => {
+  expireTags(...Object.values(TAGS));
+  revalidatePath("/", "layout");
 };
 
 type HookArgs = { doc: unknown; context?: Record<string, unknown> };

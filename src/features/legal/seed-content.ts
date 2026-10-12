@@ -129,6 +129,9 @@ const german = () =>
       "Was du in Boop anlegst, wird in deinem Konto gespeichert: deine Kalender (Name und Farbe), die Stempel, die du zeichnest (Name, Form, Farbe und die Zeichnung selbst), und deine Abdrücke – also welcher Stempel an welchem Tag in welchem Kalender liegt, wo, wie groß und wie gedreht, in welcher Farbe und von wem gesetzt. Lädst du für einen Stempel eine SVG-Datei hoch, wird sie in deinem Browser in eine Zeichnung umgewandelt; die Datei selbst wird nicht übertragen. So ist alles auf jedem Gerät da, auf dem du angemeldet bist."
     ),
     p(
+      "Zu jedem Tag eines Kalenders kann eine kurze Notiz gespeichert werden. Sie ist für alle Mitglieder des Kalenders sichtbar, wird mit dem Konto gespeichert, das sie zuletzt geändert hat, und mit dem Kalender gelöscht. Löschst du dein Konto, bleiben deine Notizen in Kalendern anderer erhalten; der Bezug zu dir wird entfernt."
+    ),
+    p(
       "Einen Kalender kannst du mit anderen Boop-Konten teilen. Wer Mitglied eines Kalenders ist, sieht seinen Inhalt – die Tage und alle Abdrücke darauf, samt der Stempel, mit denen sie gemacht wurden – und die Anzeigenamen der anderen Mitglieder; ihre E-Mail-Adressen zeigt Boop niemandem. Die Zeichnung eines Stempels liegt damit auch auf den Geräten der Mitglieder. Stempel, die du für einen Kalender freigibst, können dessen Mitglieder außerdem selbst benutzen und als Datei für den 3D-Druck herunterladen. Teile einen Kalender also nur mit Menschen, die das sehen sollen. Einen Kalender, den du nicht teilst, siehst nur du."
     ),
     p(
@@ -150,6 +153,14 @@ const german = () =>
     h3("E-Mails über Resend"),
     p(
       "Die E-Mails zur Bestätigung deiner Adresse, zum Zurücksetzen deines Passworts, mit Einladungen zu Kalendern und zur Erinnerung, bevor ein lange ungenutztes Konto gelöscht wird, sowie die Nachrichten aus dem Kontaktformular verschicke ich über den Versanddienst Resend (Resend, Inc., USA), der sie in meinem Auftrag zustellt (Auftragsverarbeitung). Resend erhält dafür die beteiligten E-Mail-Adressen und den Inhalt der jeweiligen Mail. Dabei können Daten in die USA übermittelt werden; abgesichert ist das durch die Standardvertragsklauseln der EU-Kommission (Art. 46 Abs. 2 lit. c DSGVO). Rechtsgrundlage für den Versand ist Art. 6 Abs. 1 lit. b DSGVO, bei Einladungen lit. f (siehe oben)."
+    ),
+
+    h3("Benachrichtigungen"),
+    p(
+      "Wenn du sie in den Einstellungen eines Kalenders einschaltest, kann Boop dir Benachrichtigungen schicken: eine Erinnerung, wenn du heute noch nicht gestempelt hast, und eine Nachricht, wenn jemand anderes im Kalender gestempelt hat. Dafür fragt dein Browser bzw. Gerät dich zuerst um Erlaubnis. Gespeichert werden dann die Adresse, unter der dein Gerät Nachrichten empfängt, samt ihrer Schlüssel, die Zeitzone und Sprache des Geräts, deine Einstellungen je Kalender und die Uhrzeit der Erinnerung."
+    ),
+    p(
+      "Zugestellt werden die Nachrichten über den Push-Dienst des Herstellers deines Browsers bzw. Geräts (z. B. Apple, Google, Mozilla oder Microsoft). Der Inhalt – etwa „Anna hat in ‚Familie‘ gestempelt“ – geht verschlüsselt dorthin; der Dienst stellt ihn zu, kann ihn aber nicht lesen. Er sieht, dass deinem Gerät eine Nachricht zugestellt wird. Du kannst die Benachrichtigungen jederzeit in den Einstellungen eines Kalenders ausschalten oder deinem Browser die Erlaubnis entziehen; beim Abmelden und beim Löschen deines Kontos wird das Abo entfernt. Rechtsgrundlage ist deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die du jederzeit widerrufen kannst."
     ),
 
     h3("Cookies und Speicher auf deinem Gerät"),
@@ -272,6 +283,9 @@ const english = () =>
       "What you create in Boop is stored in your account: your calendars (name and color), the stamps you draw (name, shape, color and the drawing itself), and your prints – that is, which stamp sits on which day in which calendar, where, how big and turned how, in which color and placed by whom. If you upload an SVG file for a stamp, it is turned into a drawing in your browser; the file itself is not transferred. So everything is there on every device you're logged in on."
     ),
     p(
+      "A short note can be kept for each day of a calendar. It is visible to all members of the calendar, stored with the account that changed it last, and deleted with the calendar. If you delete your account, your notes in other people's calendars stay; the link to you is removed."
+    ),
+    p(
       "You can share a calendar with other Boop accounts. Whoever is a member of a calendar sees its content – the days and all the prints on them, with the stamps they were made with – and the other members' display names; Boop shows their email addresses to nobody. A stamp's drawing is therefore on the members' devices too. Stamps you share with a calendar can also be used by its members themselves, and downloaded as a file for 3D printing. So only share a calendar with people who should see it. A calendar you don't share is seen only by you."
     ),
     p(
@@ -293,6 +307,14 @@ const english = () =>
     h3("Emails via Resend"),
     p(
       "I send the emails to confirm your address, to reset your password, to invite people to calendars and to remind you before a long unused account is deleted, as well as the messages from the contact form, through the mail service Resend (Resend, Inc., USA), which delivers them on my behalf (data processing). For this, Resend receives the email addresses involved and the content of the mail. Data may be transferred to the USA in the process; this is safeguarded by the European Commission's standard contractual clauses (Art. 46 (2) (c) GDPR). Legal basis for sending: Art. 6 (1) (b) GDPR, for invitations Art. 6 (1) (f) GDPR (see above)."
+    ),
+
+    h3("Notifications"),
+    p(
+      "If you switch them on in a calendar's settings, Boop can send you notifications: a reminder when you haven't stamped yet today, and a message when someone else has stamped in the calendar. Your browser or device asks for your permission first. Stored then are the address at which your device receives messages, with its keys, the device's time zone and language, your settings per calendar and the time of the reminder."
+    ),
+    p(
+      "The messages are delivered through the push service of your browser's or device's maker (e.g. Apple, Google, Mozilla or Microsoft). Their content – such as “Anna stamped in ‘Family’” – goes there encrypted; the service delivers it but can't read it. It sees that a message is delivered to your device. You can switch notifications off in a calendar's settings at any time or withdraw your browser's permission; logging out and deleting your account remove the subscription. Legal basis: your consent (Art. 6 (1) (a) GDPR), which you can withdraw at any time."
     ),
 
     h3("Cookies and storage on your device"),

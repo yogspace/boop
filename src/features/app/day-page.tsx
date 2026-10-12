@@ -566,7 +566,9 @@ export const DayPage = ({
           the calendar's own paper (`PAPER`, in the shades the app's frame
           hands down): pale in its color, the dots its pencil's. */}
         <div
-          className="scribble rounded-[27px] p-[3px] @lg:col-start-1 @lg:row-span-2 @lg:row-start-1 @lg:w-[clamp(16rem,calc(100dvh_-_23rem),calc(100cqw_-_15rem))]"
+          // Not stretched to the column beside it (`self-start`): the frame
+          // hugs the square page, however tall the inks and the tray are.
+          className="scribble rounded-[27px] p-[3px] @lg:col-start-1 @lg:row-span-2 @lg:row-start-1 @lg:w-[clamp(16rem,calc(100dvh_-_23rem),calc(100cqw_-_15rem))] @lg:self-start"
           style={PAPER as CSSProperties}
           {...showHand}
         >
