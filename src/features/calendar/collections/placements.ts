@@ -23,7 +23,10 @@ export const Placements: CollectionConfig = {
     description: "Stamps placed on a calendar's days.",
   },
   // The two ways they're asked for: a calendar's day, and what changed.
-  indexes: [{ fields: ["calendar", "date"] }, { fields: ["calendar", "updatedAt"] }],
+  indexes: [
+    { fields: ["calendar", "date"] },
+    { fields: ["calendar", "updatedAt"] },
+  ],
   fields: [
     idField,
     {
@@ -37,8 +40,7 @@ export const Placements: CollectionConfig = {
       name: "date",
       type: "text",
       required: true,
-      validate: (value: unknown) =>
-        isDayKey(value) || "A day like 2026-10-11.",
+      validate: (value: unknown) => isDayKey(value) || "A day like 2026-10-11.",
     },
     {
       name: "stamp",

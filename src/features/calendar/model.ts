@@ -33,6 +33,16 @@ export const isColorName = (value: unknown): value is ColorName =>
   typeof value === "string" && value in COLORS;
 
 /**
+ * The stamp's body: a round or a square stamp. The doodle is drawn onto it
+ * and stands out of it – embossed – when the stamp is shown in 3D.
+ */
+export const SHAPES = ["circle", "square"] as const;
+export type StampShape = (typeof SHAPES)[number];
+
+export const isShape = (value: unknown): value is StampShape =>
+  typeof value === "string" && (SHAPES as readonly string[]).includes(value);
+
+/**
  * A doodle: strokes of points in a unit square (0–1 both ways), so it draws
  * at any size. `w` is the line width relative to the square's side. Points
  * are flat pairs – [x0, y0, x1, y1, …] – rounded to 3 decimals.
@@ -51,9 +61,7 @@ export const isDayKey = (value: unknown): value is DayKey => {
     return false;
   }
   const date = new Date(`${value}T00:00:00Z`);
-  return (
-    !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value)
-  );
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
 };
 
 /** Today on this device, as a day key. */
@@ -78,6 +86,7 @@ export type CalendarDoc = Synced & {
 export type StampDoc = Synced & {
   name: string;
   color: ColorName;
+  shape: StampShape;
   drawing: Drawing | null;
   owner: string;
   /** Shared with this calendar's members – or null: the owner's own. */

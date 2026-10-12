@@ -48,8 +48,7 @@ const TEXT = {
       title: "Almost there",
       body: "Lovely to have you. Just confirm your email address – then you're ready to start stamping.",
       button: "Confirm address",
-      footnote:
-        "You didn't sign up for Boop? Then simply ignore this mail.",
+      footnote: "You didn't sign up for Boop? Then simply ignore this mail.",
     },
     reset: {
       subject: "A new password for Boop",
@@ -65,7 +64,13 @@ const TEXT = {
 export const verifySubject = (user: unknown) =>
   TEXT[localeOf(user)].verify.subject;
 
-export const verifyHtml = ({ token, user }: { token: string; user: unknown }) => {
+export const verifyHtml = ({
+  token,
+  user,
+}: {
+  token: string;
+  user: unknown;
+}) => {
   const locale = localeOf(user);
   const t = TEXT[locale].verify;
   return mailLayout({
@@ -84,7 +89,13 @@ export const verifyHtml = ({ token, user }: { token: string; user: unknown }) =>
 export const resetSubject = (user: unknown) =>
   TEXT[localeOf(user)].reset.subject;
 
-export const resetHtml = ({ token, user }: { token?: string; user?: unknown }) => {
+export const resetHtml = ({
+  token,
+  user,
+}: {
+  token?: string;
+  user?: unknown;
+}) => {
   const locale = localeOf(user);
   const t = TEXT[locale].reset;
   return mailLayout({

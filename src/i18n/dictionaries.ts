@@ -286,8 +286,7 @@ const en: Shape<Dictionary> = {
       forgot: "Forgot your password?",
       wrong: "Email or password don't match.",
       unverified: "Please confirm your email address first – check your inbox.",
-      locked:
-        "Too many tries. Wait a few minutes or reset your password.",
+      locked: "Too many tries. Wait a few minutes or reset your password.",
     },
     register: {
       title: "Create account",

@@ -1,6 +1,19 @@
 @import "tailwindcss";
 
 /*
+ * Telma (Indian Type Foundry, ITF Free Font License) – the variable font,
+ * self-hosted. Fetched by scripts/prepare.mjs into public/fonts/, never in
+ * git; without it the system font applies.
+ */
+@font-face {
+  font-family: "Telma";
+  src: url("/fonts/Telma-Variable.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
  * Boop's look: warm paper, ink lines, one flat color per stamp. Shapes have
  * a 2px ink outline and a hard offset shadow – like stickers on paper.
  * The colors match features/calendar/model.ts (COLORS).
@@ -20,8 +33,8 @@
   --color-grape: #8b6cf6;
   --color-pink: #ff6fae;
 
-  --font-sans: var(--font-nunito), ui-rounded, system-ui, sans-serif;
-  --font-doodle: var(--font-gaegu), var(--font-nunito), cursive;
+  --font-sans: "Telma", ui-rounded, system-ui, sans-serif;
+  --font-doodle: "Telma", ui-rounded, system-ui, sans-serif;
 
   --shadow-sticker: 3px 3px 0 0 var(--color-ink);
   --shadow-sticker-sm: 2px 2px 0 0 var(--color-ink);
@@ -79,7 +92,9 @@
     *,
     *::before,
     *::after {
+      /* biome-ignore lint/complexity/noImportantStyles: reduced motion must win over every animation class */
       animation-duration: 1ms !important;
+      /* biome-ignore lint/complexity/noImportantStyles: same as above */
       transition-duration: 1ms !important;
     }
   }

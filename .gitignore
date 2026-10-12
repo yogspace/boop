@@ -26,3 +26,7 @@ media/
 
 # Local previews with real data (scripts/preview-*.ts)
 preview/
+
+# Font (ITF Free Font License): fetched by scripts/prepare.mjs, must not
+# be redistributed – so not in the (public) repo.
+public/fonts/

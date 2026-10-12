@@ -1,6 +1,7 @@
 "use client";
 
 import { type PointerEvent, useMemo, useRef, useState } from "react";
+import type { Snapshot } from "valtio";
 import { trackEvent } from "@/features/analytics/client";
 import type { DayKey, StampDoc } from "@/features/calendar/model";
 import { StampSvg } from "@/features/calendar/stamp-svg";
@@ -29,7 +30,7 @@ export const DaySheet = ({
   calendar: string;
   date: DayKey;
   locale: Locale;
-  stamps: StampDoc[];
+  stamps: readonly Snapshot<StampDoc>[];
   onClose: () => void;
 }) => {
   const t = dictionaryOf(locale);
@@ -136,6 +137,7 @@ export const DaySheet = ({
                   className="pointer-events-none h-auto w-full"
                   color={stamp?.color ?? "ink"}
                   drawing={stamp?.drawing ?? null}
+                  shape={stamp?.shape}
                 />
               </button>
             </div>
@@ -170,7 +172,12 @@ export const DaySheet = ({
                 onClick={() => boopIt(s.id)}
                 type="button"
               >
-                <StampSvg className="h-full w-full" color={s.color} drawing={s.drawing} />
+                <StampSvg
+                  className="h-full w-full"
+                  color={s.color}
+                  drawing={s.drawing}
+                  shape={s.shape}
+                />
               </button>
             ))}
           </div>

@@ -18,7 +18,8 @@ const BUTTON =
 const VARIANTS = {
   primary: "bg-coral text-ink",
   plain: "bg-card text-ink",
-  quiet: "border-transparent bg-transparent shadow-none underline-offset-4 hover:underline",
+  quiet:
+    "border-transparent bg-transparent shadow-none underline-offset-4 hover:underline",
 } as const;
 
 type Variant = keyof typeof VARIANTS;

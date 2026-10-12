@@ -1,5 +1,5 @@
 import type { CollectionConfig } from "payload";
-import { adminOnly } from "@/access";
+import { adminOnly, isAdmin } from "@/access";
 
 /**
  * The admins – the logins of the CMS. Nobody else gets in: the people using
@@ -9,7 +9,7 @@ export const Users: CollectionConfig = {
   slug: "users",
   labels: { singular: "Admin", plural: "Admins" },
   access: {
-    admin: adminOnly,
+    admin: ({ req }) => isAdmin(req),
     create: adminOnly,
     read: adminOnly,
     update: adminOnly,

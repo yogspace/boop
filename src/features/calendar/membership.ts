@@ -69,6 +69,6 @@ export const calendarById = async (
     req,
   });
   if (!doc) return null;
-  const row = toRow(doc as Record<string, unknown>);
+  const row = toRow(doc as unknown as Record<string, unknown>);
   return row.deleted ? null : row;
 };

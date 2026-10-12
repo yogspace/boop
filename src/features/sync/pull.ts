@@ -5,6 +5,7 @@ import type {
   ColorName,
   PlacementDoc,
   StampDoc,
+  StampShape,
 } from "@/features/calendar/model";
 import type { Person, SyncResponse, SyncType } from "./protocol";
 
@@ -38,6 +39,7 @@ const toStamp = (doc: Doc): StampDoc => ({
   id: String(doc.id),
   name: String(doc.name ?? ""),
   color: (doc.color as ColorName) ?? "ink",
+  shape: (doc.shape as StampShape) ?? "circle",
   drawing: (doc.drawing as StampDoc["drawing"]) ?? null,
   owner: idOf(doc.owner) ?? "",
   calendar: idOf(doc.calendar),
@@ -98,7 +100,7 @@ export const pull = async (
         overrideAccess: true,
         req,
       })
-    ).docs as Doc[];
+    ).docs as unknown as Doc[];
 
   // All of the account's calendars, deleted ones included (as markers).
   const rows = await find("calendars", { members: { equals: me } });
@@ -130,10 +132,7 @@ export const pull = async (
       await find("stamps", {
         and: [
           {
-            or: [
-              { owner: { equals: me } },
-              { calendar: { in: knownIds } },
-            ],
+            or: [{ owner: { equals: me } }, { calendar: { in: knownIds } }],
           },
           after ? changed : alive,
         ],
@@ -210,10 +209,7 @@ export const pull = async (
       (id): id is string => Boolean(id)
     );
     if (visible.length) {
-      add(
-        stamps,
-        (await find("stamps", { id: { in: visible } })).map(toStamp)
-      );
+      add(stamps, (await find("stamps", { id: { in: visible } })).map(toStamp));
     }
   }
 

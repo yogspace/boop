@@ -4,6 +4,7 @@ import {
   cleanDrawing,
   isColorName,
   isDayKey,
+  isShape,
   unit,
 } from "@/features/calendar/model";
 import type { Change, SyncType } from "./protocol";
@@ -183,6 +184,7 @@ const applyStamp = async (
   const fields = {
     name: text(data.name, 40),
     color: isColorName(data.color) ? data.color : undefined,
+    shape: isShape(data.shape) ? data.shape : undefined,
     drawing: "drawing" in data ? cleanDrawing(data.drawing) : undefined,
     calendar,
   };
@@ -191,6 +193,7 @@ const applyStamp = async (
       ...defined(fields),
       name: fields.name ?? "",
       color: fields.color ?? "ink",
+      shape: fields.shape ?? "circle",
       owner: ctx.me,
       deleted: false,
     });
@@ -261,7 +264,9 @@ const canUseStamp = async (ctx: ApplyContext, id: string) => {
   })) as Doc | null;
   if (!stamp || stamp.deleted) return false;
   const shared = idOf(stamp.calendar);
-  return idOf(stamp.owner) === ctx.me || Boolean(shared && ctx.mine.has(shared));
+  return (
+    idOf(stamp.owner) === ctx.me || Boolean(shared && ctx.mine.has(shared))
+  );
 };
 
 /**

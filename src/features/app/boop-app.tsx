@@ -118,7 +118,11 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
           <span className="hidden text-muted text-sm sm:inline">
             {boop.me?.name}
           </span>
-          <Button className="px-3 py-1.5 text-sm" onClick={onLogout} variant="plain">
+          <Button
+            className="px-3 py-1.5 text-sm"
+            onClick={onLogout}
+            variant="plain"
+          >
             {t.app.logout}
           </Button>
         </div>
@@ -176,7 +180,8 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
                     const name = window
                       .prompt(t.app.newCalendarName, calendar.name)
                       ?.trim();
-                    if (name) void renameCalendar(calendar.id, name.slice(0, 60));
+                    if (name)
+                      void renameCalendar(calendar.id, name.slice(0, 60));
                   }}
                   variant="plain"
                 >
@@ -221,6 +226,7 @@ export const BoopApp = ({ locale }: { locale: Locale }) => {
                   className="h-full w-full"
                   color={s.color}
                   drawing={s.drawing}
+                  shape={s.shape}
                   title={s.name || undefined}
                 />
               </li>
@@ -267,4 +273,3 @@ const Centered = ({ children }: { children: React.ReactNode }) => (
     {children}
   </div>
 );
-

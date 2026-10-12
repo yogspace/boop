@@ -1,7 +1,11 @@
 "use client";
 
 import { proxy, useSnapshot } from "valtio";
-import { fetchMe, type Me, logout as logoutRequest } from "@/features/accounts/client";
+import {
+  fetchMe,
+  logout as logoutRequest,
+  type Me,
+} from "@/features/accounts/client";
 import type {
   CalendarDoc,
   ColorName,
@@ -9,6 +13,7 @@ import type {
   Drawing,
   PlacementDoc,
   StampDoc,
+  StampShape,
 } from "@/features/calendar/model";
 import type {
   Change,
@@ -91,17 +96,25 @@ let started = false;
 export const start = async () => {
   if (started) return;
   started = true;
-  const [calendars, stamps, placements, entries, me, people, savedSince, savedKnown] =
-    await Promise.all([
-      getAll<CalendarDoc>("calendars"),
-      getAll<StampDoc>("stamps"),
-      getAll<PlacementDoc>("placements"),
-      getAll<OutboxEntry>("outbox"),
-      getMeta<Me>("me"),
-      getMeta<Record<string, string>>("people"),
-      getMeta<string>("since"),
-      getMeta<string[]>("known"),
-    ]);
+  const [
+    calendars,
+    stamps,
+    placements,
+    entries,
+    me,
+    people,
+    savedSince,
+    savedKnown,
+  ] = await Promise.all([
+    getAll<CalendarDoc>("calendars"),
+    getAll<StampDoc>("stamps"),
+    getAll<PlacementDoc>("placements"),
+    getAll<OutboxEntry>("outbox"),
+    getMeta<Me>("me"),
+    getMeta<Record<string, string>>("people"),
+    getMeta<string>("since"),
+    getMeta<string[]>("known"),
+  ]);
   outbox = entries.sort((a, b) => a.seq - b.seq);
   since = savedSince ?? null;
   known = savedKnown ?? [];
@@ -207,9 +220,7 @@ const keep = async <T extends { id: string; deleted: boolean }>(
   if (doc.deleted) delete docs[doc.id];
   else docs[doc.id] = doc;
   await write([
-    doc.deleted
-      ? { store: kind, delete: doc.id }
-      : { store: kind, put: doc },
+    doc.deleted ? { store: kind, delete: doc.id } : { store: kind, put: doc },
   ]);
 };
 
@@ -260,6 +271,7 @@ export const deleteCalendar = async (id: string) => {
 export const createStamp = async (stamp: {
   name: string;
   color: ColorName;
+  shape: StampShape;
   drawing: Drawing;
   calendar: string | null;
 }) => {
@@ -409,7 +421,9 @@ export const sync = async (): Promise<void> => {
         const sent = new Set(batch.map((entry) => entry.seq));
         outbox = outbox.filter((entry) => !sent.has(entry.seq));
         inFlight.clear();
-        await write(batch.map((entry) => ({ store: "outbox", delete: entry.seq })));
+        await write(
+          batch.map((entry) => ({ store: "outbox", delete: entry.seq }))
+        );
         await merge(result);
         const stillMissing = missingStamps();
         const progress = need.some((id) => !stillMissing.includes(id));

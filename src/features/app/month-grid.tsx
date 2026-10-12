@@ -91,7 +91,6 @@ export const MonthGrid = ({
           </div>
         ))}
         {Array.from({ length: offset }, (_, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: empty cells
           <div key={`gap-${i}`} />
         ))}
         {Array.from({ length }, (_, i) => {
@@ -119,6 +118,7 @@ export const MonthGrid = ({
                       color={stamp?.color ?? "ink"}
                       drawing={stamp?.drawing ?? null}
                       key={p.id}
+                      shape={stamp?.shape}
                     />
                   );
                 })}

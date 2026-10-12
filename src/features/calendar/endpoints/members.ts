@@ -84,7 +84,11 @@ export const removeMember: Endpoint = {
     const who = String(req.routeParams?.accountId);
     const mine = calendar?.owner === String(me.id);
     // The owner removes anyone but themselves; a member removes themselves.
-    if (!calendar || who === calendar.owner || !(mine || who === String(me.id))) {
+    if (
+      !calendar ||
+      who === calendar.owner ||
+      !(mine || who === String(me.id))
+    ) {
       return Response.json({ error: "Not allowed." }, { status: 403 });
     }
     if (calendar.members.includes(who)) {

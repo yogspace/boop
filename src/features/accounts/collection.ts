@@ -62,9 +62,9 @@ const protectAccount: CollectionBeforeChangeHook = ({
   req,
 }) => {
   if (isAdmin(req)) return data;
-  const next = { ...data };
-  if (operation === "create") next._verified = false;
-  else delete next._verified;
+  // Only a new account gets the field (as false); a change never touches it.
+  const { _verified, ...rest } = data;
+  const next = operation === "create" ? { ...rest, _verified: false } : rest;
   if (
     operation === "update" &&
     typeof next.email === "string" &&
@@ -132,15 +132,14 @@ const removeData: CollectionBeforeDeleteHook = async ({ id, req }) => {
   }
 
   const joined = await find("calendars", {
-    and: [
-      { members: { equals: account } },
-      { owner: { not_equals: account } },
-    ],
+    and: [{ members: { equals: account } }, { owner: { not_equals: account } }],
   });
   for (const calendar of joined.docs) {
     const members = ((calendar.members ?? []) as unknown[])
       .map((m) =>
-        typeof m === "object" && m ? String((m as { id: unknown }).id) : String(m)
+        typeof m === "object" && m
+          ? String((m as { id: unknown }).id)
+          : String(m)
       )
       .filter((m) => m !== account);
     await payload.update({

@@ -19,7 +19,7 @@ const INK = "#1f1d2b";
 const MUTED = "#6b6878";
 const BUTTON = "#ff7a59";
 const FONT =
-  "'Nunito', ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', sans-serif";
+  "ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', sans-serif";
 
 export const mailLayout = ({
   lang,
