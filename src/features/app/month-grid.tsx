@@ -119,68 +119,74 @@ export const MonthGrid = ({
           </div>
         ))}
       </div>
+      {/* The ruled table stays as it is from month to month (drawing its
+          lines is the costly part) – only the days in it are swapped. */}
       <div
-        className="scribble-grid grid animate-fade grid-cols-7 rounded-2xl [--shade:2]"
-        key={`${month.year}-${month.month}`}
+        className="scribble-grid rounded-2xl [--shade:2]"
         style={{ "--rows": rows } as CSSProperties}
       >
-        {Array.from({ length: offset }, (_, i) => (
-          <div key={`gap-${i}`} />
-        ))}
-        {Array.from({ length }, (_, i) => {
-          const date = key(month.year, month.month, i + 1);
-          const day = byDay.get(date) ?? [];
-          const isToday = date === today;
-          return (
-            <button
-              aria-current={isToday ? "date" : undefined}
-              className={DAY}
-              key={date}
-              onClick={() => onDay(date)}
-              type="button"
-            >
-              <span
-                className={cn(
-                  "font-black text-[11px] leading-none sm:text-sm",
-                  // The blob reaches over the number's line – the prints
-                  // below keep their room.
-                  isToday &&
-                    "scribble scribble-sm scribble-ink -my-[0.4em] -ml-[0.3em] flex h-[2.1em] w-[2.1em] shrink-0 items-center justify-center self-start rounded-full"
-                )}
+        <div
+          className="grid animate-fade grid-cols-7"
+          key={`${month.year}-${month.month}`}
+        >
+          {Array.from({ length: offset }, (_, i) => (
+            <div key={`gap-${i}`} />
+          ))}
+          {Array.from({ length }, (_, i) => {
+            const date = key(month.year, month.month, i + 1);
+            const day = byDay.get(date) ?? [];
+            const isToday = date === today;
+            return (
+              <button
+                aria-current={isToday ? "date" : undefined}
+                className={DAY}
+                key={date}
+                onClick={() => onDay(date)}
+                type="button"
               >
-                {i + 1}
-              </span>
-              {/* One print has the day to itself; more share it. The rows
-                  take what room there is – a day stays square. */}
-              <span
-                className={cn(
-                  "grid min-h-0 flex-1 auto-rows-fr place-items-center",
-                  day.length === 1 ? "grid-cols-1" : "grid-cols-2"
-                )}
-              >
-                {day.slice(0, 4).map((p, n) => {
-                  const stamp = stamps[p.stamp];
-                  return (
-                    <StampSvg
-                      className="h-[90%] w-[90%] mix-blend-multiply"
-                      color={p.ink ?? stamp?.color ?? "ink"}
-                      drawing={stamp?.drawing ?? null}
-                      key={p.id}
-                      print
-                      seed={seedOf(p.id)}
-                      shape={stamp?.shape}
-                      title={
-                        n === 3 && day.length > 4
-                          ? `+${day.length - 3}`
-                          : undefined
-                      }
-                    />
-                  );
-                })}
-              </span>
-            </button>
-          );
-        })}
+                <span
+                  className={cn(
+                    "font-black text-[11px] leading-none sm:text-sm",
+                    // The blob reaches over the number's line – the prints
+                    // below keep their room.
+                    isToday &&
+                      "scribble scribble-sm scribble-ink -my-[0.4em] -ml-[0.3em] flex h-[2.1em] w-[2.1em] shrink-0 items-center justify-center self-start rounded-full"
+                  )}
+                >
+                  {i + 1}
+                </span>
+                {/* One print has the day to itself; more share it. The rows
+                    take what room there is – a day stays square. */}
+                <span
+                  className={cn(
+                    "grid min-h-0 flex-1 auto-rows-fr place-items-center",
+                    day.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                  )}
+                >
+                  {day.slice(0, 4).map((p, n) => {
+                    const stamp = stamps[p.stamp];
+                    return (
+                      <StampSvg
+                        className="h-[90%] w-[90%] mix-blend-multiply"
+                        color={p.ink ?? stamp?.color ?? "ink"}
+                        drawing={stamp?.drawing ?? null}
+                        key={p.id}
+                        print
+                        seed={seedOf(p.id)}
+                        shape={stamp?.shape}
+                        title={
+                          n === 3 && day.length > 4
+                            ? `+${day.length - 3}`
+                            : undefined
+                        }
+                      />
+                    );
+                  })}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

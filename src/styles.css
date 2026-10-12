@@ -264,6 +264,14 @@
  * no overflow-hidden on or tightly around one, and scrollers pad their
  * inside. And don't let it scroll away: frame the box, scroll an inner one
  * (features/app/sheet.tsx).
+ *
+ * What it costs: the filter works on every pixel of the box, each time the
+ * frame is painted – and Safari paints it again whenever anything on it
+ * changes (a caret blinking in a field on a card: the whole card's frame).
+ * So a frame lives on a layer of its own, painted once and kept; only the
+ * small ones (scribble-sm) don't – they are cheap to redraw. Measured in
+ * Safari's engine: a sheet-sized frame with something changing on it runs
+ * at 14 frames a second without the layer, at 60 with it.
  */
 @utility scribble {
   position: relative;
@@ -280,6 +288,7 @@
     background: var(--scribble-fill, var(--color-card));
     filter: var(--scribble-seed, var(--scribble-a));
     pointer-events: none;
+    will-change: var(--scribble-layer, transform);
   }
 
   &:nth-child(3n + 2)::before {
@@ -309,10 +318,18 @@
 @utility scribble-ink {
   --scribble-fill: var(--color-ink);
   color: var(--color-card);
+
+  &::before {
+    display: block;
+  }
 }
 
 @utility scribble-soft {
   --scribble-fill: var(--color-soft);
+
+  &::before {
+    display: block;
+  }
 }
 
 @utility scribble-clear {
@@ -321,6 +338,11 @@
 
 @utility scribble-bare {
   --scribble-width: 0px;
+
+  /* No line and no fill: nothing to draw – until a fill comes (hover:…). */
+  &:where(.scribble-clear)::before {
+    display: none;
+  }
 }
 
 @utility scribble-dashed {
@@ -339,6 +361,7 @@
   --scribble-a: url(#scribble-s1);
   --scribble-b: url(#scribble-s2);
   --scribble-c: url(#scribble-s3);
+  --scribble-layer: auto;
 }
 
 @utility scribble-seed-1 {
@@ -372,18 +395,22 @@
  *                       --scribble-width, 2px)
  *   scribble-underline  a marker line under the text it is on (its ::after) –
  *                       for one line of text; also hover:scribble-underline
- *   scribble-grid       a marker-ruled table over a CSS grid of equal cells:
+ *   scribble-grid       a marker-ruled table over a box of equal cells:
  *                       --cols (7) and --rows of them, a frame around, and –
- *                       with --shade: n – the last n columns hatched
+ *                       with --shade: n – the last n columns hatched. The
+ *                       lines lie over the cells (its ::after); keep the box
+ *                       itself in place and swap what is in it, so they are
+ *                       drawn only once (features/app/month-grid.tsx).
  *   boil                the element itself boils (a doodle: `boil`,
- *                       `group-hover:boil`) – a small thing, never a panel
+ *                       `group-hover:boil`; with `scribble-sm` when it is
+ *                       small) – never a panel
  */
 @utility scribble-rule {
   display: block;
   height: 12px;
   background: linear-gradient(currentColor, currentColor) center / 100%
     var(--scribble-width, 2px) no-repeat;
-  filter: var(--scribble-seed, url(#scribble-s1));
+  filter: var(--scribble-seed, url(#scribble-h1));
 }
 
 @utility scribble-underline {
@@ -398,7 +425,7 @@
     height: 0.5em;
     background: linear-gradient(currentColor, currentColor) center / 100%
       var(--scribble-width, 3px) no-repeat;
-    filter: var(--scribble-seed, url(#scribble-s2));
+    filter: var(--scribble-seed, url(#scribble-h2));
     pointer-events: none;
   }
 }
@@ -407,36 +434,39 @@
   position: relative;
   isolation: isolate;
 
-  /* The paper and the hatching – under the cells. */
   &::before,
   &::after {
     content: "";
     position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    filter: var(--scribble-seed, var(--scribble-a));
     pointer-events: none;
   }
 
+  /* The hatching – under the cells, so it never crosses a print. */
   &::before {
+    inset-block: 0;
+    right: 0;
     z-index: -1;
-    background:
-      repeating-linear-gradient(
-        -56deg,
-        var(--color-line) 0 1.5px,
-        transparent 1.5px 7px
-      )
-      right / calc(100% * var(--shade, 0) / var(--cols, 7)) 100% no-repeat,
-      var(--color-card);
+    width: calc(100% * var(--shade, 0) / var(--cols, 7));
+    border-top-right-radius: inherit;
+    border-bottom-right-radius: inherit;
+    background: repeating-linear-gradient(
+      -56deg,
+      var(--color-line) 0 1.5px,
+      transparent 1.5px 7px
+    );
+    filter: var(--scribble-c);
   }
 
   /*
    * The lines – over the cells, so whatever a cell shows stays inside them.
-   * The same box and wobble as the hatching: they move as one drawing.
+   * On a layer of their own (see `scribble`): a hover on a day must not
+   * redraw the whole table.
    */
   &::after {
+    inset: 0;
     z-index: 1;
     border: var(--scribble-width, 3px) solid var(--color-ink);
+    border-radius: inherit;
     background:
       repeating-linear-gradient(
         to right,
@@ -453,6 +483,8 @@
           calc(100% / var(--rows, 5))
       );
     background-origin: border-box;
+    filter: var(--scribble-seed, var(--scribble-a));
+    will-change: transform;
   }
 }
 

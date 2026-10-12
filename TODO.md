@@ -4,14 +4,23 @@ Stand: 12.10.2026
 
 ## Wünsche (als Nächstes)
 
-- **3D-Stempel im Cartoon-Stil** (wie Adventure Time): flache Farbflächen
-  statt Glanz, dazu eine schwarze Kontur. Machbar – ein Probelauf mit
-  Toon-Shading (`MeshToonMaterial`, zwei Tonstufen) und Kontur
-  (`OutlineEffect` aus three.js) lief in WebKit. Noch zu tun: Kontur dicker,
-  Schatten flacher, Kontur auch an den Kanten des Reliefs. Betrifft die
-  Materialien in `src/features/stickers/build.ts` und alle Stellen, die
-  rendern (`render.ts`, `sticker-view.tsx`, `stamp-hand.tsx`). Passt zum
-  Scribble-Look der Seite.
+- **3D-Stempel im Cartoon-Stil rendern** – nur die 3D-Elemente, nicht die
+  Seite. Gemeint ist der „gezeichnete“ Look von 3D-Renderfiltern (Referenz:
+  3D-Szenen mit Tuschelinien, nur als Stilvorlage): ganz flache Farben ohne
+  Glanz und Verlauf, dazu kräftige schwarze Linien – am Umriss UND innen,
+  zwischen den Teilen (Griff, Block, Gummi) und an den Kanten des Reliefs –,
+  leicht unruhig wie von Hand gezogen.
+  - Zwei Probeläufe in WebKit (außerhalb des Repos): flache Farben gehen
+    sofort (unbeleuchtetes Material). Die einfache Kontur über aufgeblasene
+    Rückseiten (`OutlineEffect`) reicht nicht: dünn ist sie zu zaghaft, dick
+    franst sie am Relief aus und verdoppelt Linien.
+  - Richtiger Weg: die Linien im Bild finden statt am Modell – ein zweiter
+    Durchgang, der Kanten aus Tiefe, Flächenrichtung und Teil-Kennung zieht
+    (Kantenfilter) und als gleichmäßig dicke Tuschelinie über die flachen
+    Farben legt; dann leicht verwackeln (wie die Scribble-Rahmen).
+  - Betrifft alles, was Stempel rendert: Bilder (`render.ts`), die Ansicht
+    im Editor (`sticker-view.tsx`), den Stempel am Cursor
+    (`stamp-hand.tsx`); die Materialien kommen aus `build.ts`.
 - **Rahmenmuster wählbar** (Bordüre): statt nur dem glatten Rand ein Muster,
   z. B. gestrichelt, gepunktet, Wellen, Zacken, doppelte Linie. Im Editor
   auswählen; gilt für Zeichnung, Abdruck und den erhabenen Rand am
