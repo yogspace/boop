@@ -6,12 +6,11 @@ import { Link } from "@/features/transitions/link";
 import { isLocale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 
-/**
- * Only the languages built ahead ([locale]/layout.tsx) – any other is a 404,
- * never rendered. Set here, not on the language's frame: there it would also
- * close the app's calendar addresses, which render on demand.
- */
-export const dynamicParams = false;
+// No `dynamicParams = false`: a page whose cache tag was expired (saving
+// “Site” or the legal text in the admin – lib/cache.ts) has to be rendered
+// again on demand, and with it Next answers 404 instead. Another language
+// than the built ones never gets here: the proxy sends it to one, and the
+// language's frame ([locale]/layout.tsx) says notFound().
 
 /** The public pages' frame: logo and the ways in on top, the footer below. */
 const SiteLayout = async ({
