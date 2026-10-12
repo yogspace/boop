@@ -78,7 +78,7 @@ Web Push (`features/push`), off until the server has VAPID keys. Per account and
 - **The service worker:** `public/sw.js` loads `public/sw-push.js` (shows a message, opens the calendar when tapped, renews a subscription the browser replaced).
 - **The reminder:** `/next/cron/push-reminder` every 15 minutes (`scripts/setup-cron.sh`, only installed when both keys are there; `?dry=1` counts only).
 
-**Switching it on:** `npx web-push generate-vapid-keys`, then in the repository: variable `VAPID_PUBLIC_KEY`, secret `VAPID_PRIVATE_KEY`, optional variable `VAPID_SUBJECT` (`mailto:…`); deploy. Keep the keys: new ones silence every device subscribed with the old ones.
+**Switching it on:** `npx web-push generate-vapid-keys`, then in the repository: `VAPID_PUBLIC_KEY` (a variable or a secret – it's public either way), secret `VAPID_PRIVATE_KEY`, optional variable `VAPID_SUBJECT` (`mailto:…`); deploy. Keep the keys: new ones silence every device subscribed with the old ones.
 
 ## Access
 
@@ -132,7 +132,7 @@ Boop uses **Satoshi** (Indian Type Foundry, ITF Free Font License) as a self-hos
 
 `make deploy` merges `development` into `main` and pushes; the pipeline (`.github/workflows/deploy.yml`) then runs lint, types and tests, builds the image and deploys it to `/opt/apps/boop` on the server.
 
-Repository **variables** (public): `NEXT_PUBLIC_SERVER_URL`, `MAIL_FROM`, optional `GOOGLE_SITE_VERIFICATION`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`.
+Repository **variables** (public): `NEXT_PUBLIC_SERVER_URL`, `MAIL_FROM`, optional `GOOGLE_SITE_VERIFICATION`, `VAPID_PUBLIC_KEY` (or as a secret), `VAPID_SUBJECT`.
 Repository **secrets**: `HETZNER_HOST`, `HETZNER_USER`, `HETZNER_SSH_KEY`, `PAYLOAD_SECRET`, `RESEND_API_KEY`, `CRON_SECRET`, `MAIL_STATS_RECIPIENT`, `MAIL_CONTACT_RECIPIENT`, optional `PAYLOAD_ADMIN_EMAIL`/`PAYLOAD_ADMIN_PASSWORD` (first admin), optional `VAPID_PRIVATE_KEY` (notifications).
 
 The server's `.env` is rewritten from them on every deploy. The crons (`scripts/setup-cron.sh`, installed by the deploy; log: `journalctl -t boop-cron`): daily the statistics report (`/next/cron/stats-digest`) and the cleanup (`/next/cron/cleanup` – expired invitations, unconfirmed sign-ups, unused accounts, dead calendar feeds; see Access), and every 15 minutes the notifications' reminder when the VAPID keys are set (see Notifications). The cleanup answers with counts only; `?dry=1` shows what it would do without doing it.

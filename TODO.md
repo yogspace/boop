@@ -11,9 +11,9 @@ Stand: 12.10.2026
 - **Benachrichtigungen (Web Push) einschalten** – im Code fertig, aus bis es
   Schlüssel gibt:
   1. `npx web-push generate-vapid-keys`
-  2. In GitHub (Settings → Secrets and variables → Actions): Variable
-     `VAPID_PUBLIC_KEY`, Secret `VAPID_PRIVATE_KEY`, optional Variable
-     `VAPID_SUBJECT` (z. B. `mailto:…`).
+  2. ✓ In GitHub angelegt: `VAPID_PUBLIC_KEY` und `VAPID_PRIVATE_KEY` (beide
+     als Secret – der Deploy liest den öffentlichen als Variable oder Secret).
+     Optional noch die Variable `VAPID_SUBJECT` (z. B. `mailto:…`).
   3. Deployen – der Deploy schreibt sie in die `.env` und trägt den Cron für
      die Erinnerung ein (alle 15 Minuten).
   4. Auf einem Gerät testen: Kalender-Einstellungen → „Benachrichtigungen
