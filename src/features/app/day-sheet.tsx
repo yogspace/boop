@@ -9,8 +9,8 @@ import {
   useState,
 } from "react";
 import type { Snapshot } from "valtio";
-import { Circle, Sparkle } from "@/components/doodles";
-import { Button } from "@/components/ui";
+import { Sparkle } from "@/components/doodles";
+import { BADGE, Button, ROUND_BUTTON } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import {
   type ColorName,
@@ -36,6 +36,7 @@ import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { newId } from "@/lib/id";
+import { InkBlot } from "./ink-blot";
 import { Sheet } from "./sheet";
 
 type Stamp = Snapshot<StampDoc>;
@@ -97,17 +98,6 @@ const wheelTurn = (event: WheelEvent) => {
   const px = Math.abs(delta) * (event.deltaMode === 1 ? 33 : 1);
   return Math.sign(delta) * Math.min(12, 0.38 * px ** 0.6);
 };
-
-/**
- * An ink blot, drawn by hand a few times over (40 × 40) – the inks take
- * turns, so no two neighbors are the same blot.
- */
-const BLOTS = [
-  "M20 3c6-1 12 2 15 8 3 5 3 12-1 17-4 6-10 9-17 8-6-1-11-5-13-11C2 18 4 10 9 6c3-2 7-3 11-3Z",
-  "M18 4c7-2 15 1 18 7 2 5 1 9-1 14-2 6-6 11-13 12-7 1-14-2-17-8C2 23 3 15 6 10c3-4 7-5 12-6Z",
-  "M21 4c5 0 10 2 13 6 4 5 4 11 2 16-2 5-6 9-11 10-3 1-5 0-8 0-6-1-11-4-13-10-2-5-1-12 3-16 4-4 9-6 14-6Z",
-  "M19 3c6 0 11 3 14 7 3 5 5 10 3 16-2 6-8 10-14 11-6 0-12-2-15-7C4 25 3 19 5 13 7 7 13 3 19 3Z",
-];
 
 /** An ink blot giving way under the stamp. */
 const squash = (blot: HTMLElement) => {
@@ -461,9 +451,7 @@ export const DaySheet = ({
         <span className="flex items-center gap-2">
           {title}
           {date === todayKey() && (
-            <span className="rounded-full border-2 border-ink bg-sun px-2 py-0.5 font-black text-xs">
-              {t.app.today}
-            </span>
+            <span className={cn(BADGE, "scribble-ink")}>{t.app.today}</span>
           )}
         </span>
       }
@@ -475,148 +463,159 @@ export const DaySheet = ({
         onPointerLeave={letGo}
         onPointerMove={carry}
       >
-        <div
-          className={cn(
-            "relative aspect-square w-full touch-none select-none overflow-hidden rounded-3xl border-2 border-ink bg-card bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]",
-            // The preview marks the spot – no arrow on top of it.
-            inHand && "cursor-none"
-          )}
-          onPointerDown={stampHere}
-          ref={page}
-        >
-          {placements.length === 0 && (
-            <p className="pointer-events-none absolute inset-0 flex animate-fade items-center justify-center p-10 text-center font-bold text-muted">
-              {t.app.day.empty}
-            </p>
-          )}
-          {placements.map((p) => {
-            const stamp = boop.stamps[p.stamp];
-            const here = drag?.id === p.id ? drag : p;
-            const inked = p.ink ?? stamp?.color ?? "red";
-            return (
-              <div
-                className={cn(
-                  "absolute",
-                  glide === p.id && "transition-[left,top] duration-300"
-                )}
-                key={p.id}
-                onTransitionEnd={() => setGlide(null)}
-                style={{
-                  width: `${printOf(stamp) * 100}%`,
-                  left: `${here.x * 100}%`,
-                  top: `${here.y * 100}%`,
-                  transform: `translate(-50%, -50%) rotate(${p.rotation}deg) scale(${p.scale})`,
-                  zIndex: drag?.id === p.id ? 1000 : p.z,
-                }}
-              >
-                <button
-                  aria-label={stamp?.name || t.app.day.print}
-                  aria-pressed={picked === p.id}
+        {/* A sheet of dotted paper, drawn round with the marker – the frame
+            outside, the page inside it clipping the prints at its edge. */}
+        <div className="scribble rounded-[27px] p-[3px]">
+          <div
+            className={cn(
+              "relative aspect-square w-full touch-none select-none overflow-hidden rounded-3xl bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]",
+              // The preview marks the spot – no arrow on top of it.
+              inHand && "cursor-none"
+            )}
+            onPointerDown={stampHere}
+            ref={page}
+          >
+            {placements.length === 0 && (
+              <p className="pointer-events-none absolute inset-0 flex animate-fade items-center justify-center p-10 text-center font-bold text-muted">
+                {t.app.day.empty}
+              </p>
+            )}
+            {placements.map((p) => {
+              const stamp = boop.stamps[p.stamp];
+              const here = drag?.id === p.id ? drag : p;
+              const inked = p.ink ?? stamp?.color ?? "red";
+              return (
+                <div
                   className={cn(
-                    "relative block w-full rounded-2xl mix-blend-multiply",
-                    // With a stamp in hand the page is for stamping.
-                    inHand
-                      ? "pointer-events-none"
-                      : "cursor-grab active:cursor-grabbing",
-                    !old.has(p.id) && "animate-ink",
-                    picked === p.id &&
-                      "bg-violet-soft outline-2 outline-violet outline-dashed"
+                    "absolute",
+                    glide === p.id && "transition-[left,top] duration-300"
                   )}
-                  onPointerDown={(event) => {
-                    const at = onPage(event.clientX, event.clientY);
-                    if (!at) return;
-                    event.currentTarget.setPointerCapture(event.pointerId);
-                    setDrag({
-                      id: p.id,
-                      x: p.x,
-                      y: p.y,
-                      grab: { x: at.x - p.x, y: at.y - p.y },
-                      from: { x: event.clientX, y: event.clientY },
-                      moved: false,
-                    });
+                  key={p.id}
+                  onTransitionEnd={() => setGlide(null)}
+                  style={{
+                    width: `${printOf(stamp) * 100}%`,
+                    left: `${here.x * 100}%`,
+                    top: `${here.y * 100}%`,
+                    transform: `translate(-50%, -50%) rotate(${p.rotation}deg) scale(${p.scale})`,
+                    zIndex: drag?.id === p.id ? 1000 : p.z,
                   }}
-                  onPointerMove={(event) => {
-                    if (drag?.id !== p.id) return;
-                    const far =
-                      Math.hypot(
-                        event.clientX - drag.from.x,
-                        event.clientY - drag.from.y
-                      ) >= DRAG;
-                    const at = onPage(event.clientX, event.clientY);
-                    if (!(at && (drag.moved || far))) return;
-                    setDrag({
-                      ...drag,
-                      x: within(at.x - drag.grab.x),
-                      y: within(at.y - drag.grab.y),
-                      moved: true,
-                    });
-                  }}
-                  onPointerUp={() => {
-                    if (drag?.id !== p.id) return;
-                    if (drag.moved) {
-                      const top = Math.max(...placements.map((q) => q.z)) + 1;
-                      note({ kind: "move", id: p.id, x: p.x, y: p.y, z: p.z });
-                      void movePlacement(p.id, {
-                        x: drag.x,
-                        y: drag.y,
-                        ...(p.z < top - 1 && { z: top }),
-                      });
-                    } else setPicked(picked === p.id ? null : p.id);
-                    setDrag(null);
-                  }}
-                  type="button"
                 >
-                  <StampSvg
-                    className="pointer-events-none h-auto w-full"
-                    color={inked}
-                    drawing={stamp?.drawing ?? null}
-                    print
-                    seed={seedOf(p.id)}
-                    shape={stamp?.shape}
-                  />
-                  {stamp?.drawing?.special && (
-                    // In the print's blend, so its white falls on ink only.
-                    <Glitter
+                  <button
+                    aria-label={stamp?.name || t.app.day.print}
+                    aria-pressed={picked === p.id}
+                    className={cn(
+                      "relative block w-full rounded-2xl mix-blend-multiply",
+                      // With a stamp in hand the page is for stamping.
+                      inHand
+                        ? "pointer-events-none"
+                        : "cursor-grab active:cursor-grabbing",
+                      !old.has(p.id) && "animate-ink",
+                      // Picked: a dashed marker line round it.
+                      picked === p.id &&
+                        "scribble scribble-sm scribble-thin scribble-dashed scribble-clear [--scribble-inset:-5px]"
+                    )}
+                    onPointerDown={(event) => {
+                      const at = onPage(event.clientX, event.clientY);
+                      if (!at) return;
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                      setDrag({
+                        id: p.id,
+                        x: p.x,
+                        y: p.y,
+                        grab: { x: at.x - p.x, y: at.y - p.y },
+                        from: { x: event.clientX, y: event.clientY },
+                        moved: false,
+                      });
+                    }}
+                    onPointerMove={(event) => {
+                      if (drag?.id !== p.id) return;
+                      const far =
+                        Math.hypot(
+                          event.clientX - drag.from.x,
+                          event.clientY - drag.from.y
+                        ) >= DRAG;
+                      const at = onPage(event.clientX, event.clientY);
+                      if (!(at && (drag.moved || far))) return;
+                      setDrag({
+                        ...drag,
+                        x: within(at.x - drag.grab.x),
+                        y: within(at.y - drag.grab.y),
+                        moved: true,
+                      });
+                    }}
+                    onPointerUp={() => {
+                      if (drag?.id !== p.id) return;
+                      if (drag.moved) {
+                        const top = Math.max(...placements.map((q) => q.z)) + 1;
+                        note({
+                          kind: "move",
+                          id: p.id,
+                          x: p.x,
+                          y: p.y,
+                          z: p.z,
+                        });
+                        void movePlacement(p.id, {
+                          x: drag.x,
+                          y: drag.y,
+                          ...(p.z < top - 1 && { z: top }),
+                        });
+                      } else setPicked(picked === p.id ? null : p.id);
+                      setDrag(null);
+                    }}
+                    type="button"
+                  >
+                    <StampSvg
+                      className="pointer-events-none h-auto w-full"
                       color={inked}
-                      drawing={stamp.drawing}
+                      drawing={stamp?.drawing ?? null}
+                      print
                       seed={seedOf(p.id)}
-                      shape={stamp.shape}
+                      shape={stamp?.shape}
                     />
-                  )}
-                </button>
-              </div>
-            );
-          })}
-          {inHand && (
-            // The next print, faintly: where and how the stamp will leave
-            // it. Moved by preview(), so no style of React's is in its way.
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute top-0 left-0 aspect-square mix-blend-multiply will-change-transform"
-              ref={ghost}
-              style={{ width: `${size * 100}%`, zIndex: 2000 }}
-            >
-              <div className="relative opacity-0 transition-[rotate,opacity] duration-150 ease-out">
-                <StampSvg
-                  className="h-auto w-full"
-                  color={ink}
-                  drawing={inHand.drawing}
-                  print
-                  seed={seedOf(next)}
-                  shape={inHand.shape}
-                />
-                {inHand.drawing?.special && (
-                  <Glitter
+                    {stamp?.drawing?.special && (
+                      // In the print's blend, so its white falls on ink only.
+                      <Glitter
+                        color={inked}
+                        drawing={stamp.drawing}
+                        seed={seedOf(p.id)}
+                        shape={stamp.shape}
+                      />
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+            {inHand && (
+              // The next print, faintly: where and how the stamp will leave
+              // it. Moved by preview(), so no style of React's is in its way.
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute top-0 left-0 aspect-square mix-blend-multiply will-change-transform"
+                ref={ghost}
+                style={{ width: `${size * 100}%`, zIndex: 2000 }}
+              >
+                <div className="relative opacity-0 transition-[rotate,opacity] duration-150 ease-out">
+                  <StampSvg
+                    className="h-auto w-full"
                     color={ink}
                     drawing={inHand.drawing}
+                    print
                     seed={seedOf(next)}
                     shape={inHand.shape}
-                    still
                   />
-                )}
+                  {inHand.drawing?.special && (
+                    <Glitter
+                      color={ink}
+                      drawing={inHand.drawing}
+                      seed={seedOf(next)}
+                      shape={inHand.shape}
+                      still
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <fieldset className="min-w-0">
@@ -643,24 +642,7 @@ export const DaySheet = ({
                 onPointerDown={dipInto(c)}
                 type="button"
               >
-                <svg
-                  aria-hidden="true"
-                  className="h-9 w-9"
-                  fill={hex}
-                  // Each lies a little differently.
-                  style={{ rotate: `${(i * 67) % 360}deg` }}
-                  viewBox="0 0 40 40"
-                >
-                  <path d={BLOTS[i % BLOTS.length]} />
-                </svg>
-                {ink === c && (
-                  // The one in use: ringed with a marker.
-                  <Circle
-                    className="pointer-events-none absolute -top-1 -left-1 h-13 w-13 animate-fade text-ink [&_path]:[vector-effect:non-scaling-stroke]"
-                    preserveAspectRatio="none"
-                    strokeWidth={2.5}
-                  />
-                )}
+                <InkBlot hex={hex} index={i} on={ink === c} />
               </button>
             ))}
           </div>
@@ -678,23 +660,20 @@ export const DaySheet = ({
             </span>
           )}
         </p>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-3">
           {inHand && (
             // Turning without a wheel – a pair, apart from undo's arrow.
-            <div className="flex rounded-full border-2 border-ink bg-violet-soft">
+            <div className="flex gap-1">
               {(
                 [
-                  [-STEP, t.app.day.turnLeft, "rounded-l-full", ""],
+                  [-STEP, t.app.day.turnLeft, ""],
                   // The same arrow, the other way round.
-                  [STEP, t.app.day.turnRight, "rounded-r-full", "-scale-x-100"],
+                  [STEP, t.app.day.turnRight, "-scale-x-100"],
                 ] as const
-              ).map(([degrees, label, end, flip]) => (
+              ).map(([degrees, label, flip]) => (
                 <button
                   aria-label={label}
-                  className={cn(
-                    "flex h-8 w-9 items-center justify-center transition hover:bg-violet/20 active:bg-violet/35",
-                    end
-                  )}
+                  className={ROUND_BUTTON}
                   key={degrees}
                   onClick={() => turnBy(degrees)}
                   title={label}
@@ -733,7 +712,7 @@ export const DaySheet = ({
           )}
           <button
             aria-label={t.app.day.undo}
-            className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-ink bg-card shadow-sticker-sm transition hover:-rotate-12 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none"
+            className={ROUND_BUTTON}
             disabled={!undoable}
             onClick={undo}
             title={t.app.day.undo}
@@ -760,17 +739,18 @@ export const DaySheet = ({
         <p className="text-muted text-sm">{t.app.noStamps}</p>
       ) : (
         // Room all round inside the scroller (it clips both ways): a stamp
-        // can lift, turn and wear its badge without losing a corner.
-        <div className="-m-3 flex gap-2 overflow-x-auto p-3">
+        // can lift, turn and wear its badge and focus ring without losing a
+        // corner. The one in hand: lifted, its line drawn thick.
+        <div className="-m-4 flex gap-2.5 overflow-x-auto p-4">
           {stamps.map((s) => (
             <button
               aria-label={s.name || t.app.day.print}
               aria-pressed={held === s.id}
               className={cn(
-                "relative h-20 w-20 shrink-0 rounded-3xl border-2 border-ink bg-soft p-1 transition",
+                "scribble scribble-thin relative h-20 w-20 shrink-0 rounded-3xl p-1 transition-transform duration-150 ease-out",
                 held === s.id
-                  ? "-translate-y-1.5 bg-violet-soft shadow-sticker ring-4 ring-violet/30"
-                  : "hover:-rotate-6 hover:bg-violet-soft active:scale-90"
+                  ? "scribble-bold -translate-y-1.5"
+                  : "hover:-rotate-6 hover:scribble-boil active:scale-90"
               )}
               key={s.id}
               onClick={(event) => {
@@ -793,8 +773,16 @@ export const DaySheet = ({
                 <Sparkle className="pointer-events-none absolute top-1 right-1 h-3.5 w-3.5 text-ink" />
               )}
               {held === s.id && (
-                <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 animate-fade whitespace-nowrap rounded-full border-2 border-ink bg-sun px-1.5 font-black text-[9px] leading-4">
-                  {t.app.day.inHand}
+                // (A frame is `relative` – the badge goes in a box that isn't.)
+                <span className="absolute -bottom-3 left-1/2 flex -translate-x-1/2 animate-fade">
+                  <span
+                    className={cn(
+                      BADGE,
+                      "scribble-ink whitespace-nowrap px-1.5 text-[10px]"
+                    )}
+                  >
+                    {t.app.day.inHand}
+                  </span>
                 </span>
               )}
             </button>

@@ -134,6 +134,29 @@ export const Field = ({
 );
 
 /**
+ * A box to tick – a little scribbled square, the tick drawn into it with the
+ * marker, reaching out of it. The browser's own checkbox stays underneath,
+ * see-through, for the keyboard, screen readers and the label around it.
+ */
+export const Checkbox = ({
+  className,
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "type">) => (
+  <span className={cn("relative flex h-5 w-5 shrink-0", className)}>
+    <input
+      className="peer absolute -inset-1 m-0 cursor-pointer appearance-none rounded-md outline-none disabled:cursor-default"
+      type="checkbox"
+      {...props}
+    />
+    <span
+      aria-hidden="true"
+      className="scribble scribble-sm scribble-thin pointer-events-none h-full w-full rounded-md transition-transform duration-150 peer-hover:-rotate-6 peer-active:scale-90 peer-disabled:opacity-40 peer-focus-visible:outline-3 peer-focus-visible:outline-ink peer-focus-visible:outline-offset-4 peer-focus-visible:outline-dashed"
+    />
+    <Check className="pointer-events-none absolute -top-1.5 -right-1.5 h-7 w-7 scale-50 opacity-0 transition duration-150 peer-checked:scale-100 peer-checked:opacity-100" />
+  </span>
+);
+
+/**
  * A message under a form. Trouble gets a thick frame and an exclamation
  * mark, success a tick, anything else a soft grey note – told apart without
  * color.
