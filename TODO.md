@@ -33,8 +33,6 @@ Stand: 12.10.2026
   (bestehende ändern geht schon).
 - **Scribble-Redesign ausrollen** auf Tagesansicht, Stempel-Editor und
   Stempel-Detail.
-- **Aufräumen**: die alte „press“-Pose (`render.ts`, `pose()` in
-  `build.ts`), sobald die Tagesansicht nur noch den Live-Stempel nutzt.
 
 ## Noch selbst prüfen
 

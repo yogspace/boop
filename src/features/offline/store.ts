@@ -120,10 +120,13 @@ export const start = async () => {
   since = savedSince ?? null;
   known = savedKnown ?? [];
   const online = navigator.onLine;
+  // Kept by an app from before, a stamp still names its one `calendar` –
+  // from here on it has `sharedWith`, on the device too.
+  const old = stamps.filter((stamp) => "calendar" in stamp);
+  await write(old.map((stamp) => ({ store: "stamps", put: stampDoc(stamp) })));
   set({
     online,
     calendars: byId(calendars),
-    // Kept by an app from before, a stamp still names its one `calendar`.
     stamps: byId(stamps.map(stampDoc)),
     placements: byId(placements),
     people: people ?? {},
