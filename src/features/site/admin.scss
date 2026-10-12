@@ -38,22 +38,23 @@
   &::-webkit-color-swatch {
     border: 3px solid var(--theme-elevation-0);
     border-radius: 50%;
-    box-shadow: 0 0 0 1px var(--theme-elevation-150);
+    box-shadow: 0 0 0 1px var(--theme-elevation-250);
   }
 
   &::-moz-color-swatch {
     border: 3px solid var(--theme-elevation-0);
     border-radius: 50%;
-    box-shadow: 0 0 0 1px var(--theme-elevation-150);
+    box-shadow: 0 0 0 1px var(--theme-elevation-250);
   }
 }
 
-// A stamp in the color, the ways the app shows one. The app's parts come
-// without their Tailwind classes here, so everything they need is set below –
-// in the app's own colors (styles.css), light also in the dark admin: that
-// is how the app looks.
+// A stamp in the color, the ways the app shows one – on a sheet as the
+// app's: its own colors (styles.css), light also in the dark admin. The
+// app's parts come without their Tailwind classes here, so everything they
+// need is set below.
 .stamp-color-preview {
   --scp-ink: #1d1b3a;
+  --scp-muted: #6e6a8f;
   --scp-card: #ffffff;
   --scp-soft: #efeaff;
   --scp-line: #e6e0fb;
@@ -61,8 +62,14 @@
 
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem 1.25rem;
+  gap: 0.75rem 1.25rem;
+  width: fit-content;
+  max-width: 100%;
   margin-top: 0.75rem;
+  padding: 1rem 1.25rem 0.75rem;
+  background: var(--scp-card);
+  border: 1px solid var(--scp-line);
+  border-radius: 1.25rem;
 
   figure {
     display: grid;
@@ -73,7 +80,7 @@
 
   figcaption {
     font-size: 0.8rem;
-    color: var(--theme-elevation-650);
+    color: var(--scp-muted);
   }
 }
 
@@ -150,11 +157,12 @@
   align-items: center;
   gap: 0.55rem;
 
+  // Ringed, so a dark color shows in the dark admin too.
   i {
     width: 1rem;
     height: 1rem;
     border-radius: 50%;
-    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.15);
+    box-shadow: 0 0 0 1px var(--theme-elevation-250);
   }
 
   small {

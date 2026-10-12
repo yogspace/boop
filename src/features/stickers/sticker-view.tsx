@@ -32,7 +32,7 @@ const VIEW_BOX = 1.04;
 /** How it shows itself: the face tilted towards you, block and knob behind. */
 const SHOWCASE: [number, number, number] = [0.85, 0.55, -0.12];
 /** Its width then, of the box's – it has room to turn every way. */
-const SIZE = 0.6;
+const SIZE = 0.62;
 /** Kept off the box's edge at any angle (radians of the view). */
 const MARGIN = 0.02;
 /** The face-on beat before it turns (ms). */
@@ -101,8 +101,8 @@ export const StickerView = ({
       }
       const sticker = buildSticker(THREE, stamp);
       scene.add(sticker);
-      const reach = reachOf(THREE, sticker);
-      console.log('DEBUG reach', reach);
+      const ball = ballOf(THREE, sticker);
+      console.log("DEBUG ball", JSON.stringify(ball));
 
       const canvas = renderer.domElement;
       canvas.style.display = "block";
@@ -129,7 +129,7 @@ export const StickerView = ({
         const half = Math.atan(Math.tan(HALF_FOV) * narrow);
         return Math.min(
           SIZE * VIEW * narrow,
-          (DISTANCE * Math.sin(half - MARGIN)) / reach
+          (DISTANCE * Math.sin(half - MARGIN)) / ball.radius
         );
       };
 
@@ -260,7 +260,8 @@ export const StickerView = ({
         if (fresh) first = now;
         // Seconds since the last frame – never a leap (a slow frame, a tab
         // coming back).
-        const dt = last < 0 ? 0 : Math.min(0.05, Math.max(0, now - last) / 1000);
+        const dt =
+          last < 0 ? 0 : Math.min(0.05, Math.max(0, now - last) / 1000);
         last = now;
         const time = (now - first) / 1000;
         if (now - first >= HOLD) {
@@ -280,7 +281,7 @@ export const StickerView = ({
         }
         const s0 = flat();
         sticker.scale.setScalar(s0 + (fitted() - s0) * grow);
-        pivot(sticker, grow);
+        pivot(sticker, grow * ball.pivot);
         sticker.quaternion.copy(turn);
         sticker.position.y = calm * 0.012 * Math.sin(time * 1.5);
         renderer.render(scene, camera);
@@ -326,20 +327,43 @@ export const StickerView = ({
   );
 };
 
-/** How far the stamp reaches from what it turns around (at pivot 1, unscaled). */
-const reachOf = (THREE: typeof Three, sticker: Three.Object3D) => {
-  pivot(sticker, 1);
+/**
+ * The smallest ball around a point on its axis that holds the whole stamp –
+ * knob and all. Turning around its middle, the stamp stays inside the box at
+ * every angle, as large as can be, and sits in the middle of it. Returns
+ * that middle as a `pivot()` amount, and the radius (unscaled).
+ */
+const ballOf = (THREE: typeof Three, sticker: Three.Object3D) => {
+  pivot(sticker, 0);
   sticker.updateMatrixWorld(true);
+  // Its profile: how far it reaches sideways (squared), slice by slice from
+  // the face (z = 0) back to the knob's end.
+  const SLICES = 96;
+  const half: number = sticker.userData.half || 0.5;
+  const wide = new Float32Array(SLICES + 1);
   const point = new THREE.Vector3();
-  let reach = 0.5;
   sticker.traverse((child) => {
     const mesh = child as Three.Mesh;
     const position = mesh.isMesh && mesh.geometry.getAttribute("position");
     if (!position) return;
     for (let i = 0; i < position.count; i++) {
       point.fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld);
-      reach = Math.max(reach, point.length());
+      const slice = Math.round(
+        Math.min(1, Math.max(0, -point.z / (2 * half))) * SLICES
+      );
+      wide[slice] = Math.max(wide[slice], point.x ** 2 + point.y ** 2);
     }
   });
-  return reach;
+  let best = { pivot: 1, radius: Number.POSITIVE_INFINITY };
+  for (let n = 0; n <= 100; n++) {
+    const middle = (n / 100) * half;
+    let radius = 0;
+    for (let i = 0; i <= SLICES; i++) {
+      const depth = (i / SLICES) * 2 * half;
+      radius = Math.max(radius, wide[i] + (depth - middle) ** 2);
+    }
+    if (radius < best.radius) best = { pivot: n / 100, radius };
+  }
+  // A slice's thickness on top – nothing sticks out.
+  return { pivot: best.pivot, radius: Math.sqrt(best.radius) + half / SLICES };
 };

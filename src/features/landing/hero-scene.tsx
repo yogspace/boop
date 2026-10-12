@@ -30,7 +30,7 @@ const PRINTS: Record<number, string[]> = {
 const FLOATING = [
   {
     key: "heart",
-    className: "-top-6 -left-4 w-24 sm:w-28",
+    className: "-top-6 -left-2 w-24 sm:-left-4 sm:w-28",
     tilt: -8,
     delay: 0,
     depth: 1,
@@ -44,14 +44,14 @@ const FLOATING = [
   },
   {
     key: "flower",
-    className: "-bottom-8 -left-6 w-20 sm:w-24",
+    className: "-bottom-8 -left-2 w-20 sm:-left-6 sm:w-24",
     tilt: 5,
     delay: 1.6,
     depth: 0.75,
   },
   {
     key: "smile",
-    className: "right-[-1.5rem] bottom-10 w-24 sm:w-28",
+    className: "-right-2 bottom-10 w-24 sm:-right-6 sm:w-28",
     tilt: -5,
     delay: 0.4,
     depth: 0.9,
