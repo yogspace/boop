@@ -22,16 +22,16 @@ import { checkPlaceholders, type Placeholders, template } from "./template";
  *   offline.
  * - On the server – a server component, a layout, `generateMetadata`, a
  *   route, a mail, a notification: `await getDictionary(locale)`
- *   (features/translations/get-texts.ts). Nothing has put the CMS's texts
- *   in use there, so `dictionaryOf` would give the code's.
+ *   (features/translations/get-texts.ts). No provider renders there first –
+ *   `dictionaryOf` alone could still give the code's.
  * - A component drawn on both sides (components/site-footer.tsx) calls
  *   `dictionaryOf` – on the server under a component that awaited
  *   `getDictionary` for that language, which puts them in use there too.
  *
  * HOW TO WRITE ONE
  *
- * - A plain text is a string. A list is an array – as long here as it is
- *   in the CMS.
+ * - A plain text is a string. A list is an array; the CMS has one field per
+ *   entry, as many as here.
  * - A text with something in it – a name, a number, one wording for one and
  *   another for many – is a `template` (template.ts): written with
  *   placeholders, “Hallo {name}!”, so it can be edited in the CMS. In

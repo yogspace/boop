@@ -63,6 +63,12 @@ Stand: 12.10.2026
 - Tagesansicht: Stempel kommt in seiner eigenen Farbe; Namensschild beim
   Hover in der Stempelauswahl.
 - Kontomenü und Sync-Notiz schließen bei Klick daneben.
+- iPhone: Kalender-Reiter und Stempel-Ablage scrollen nur waagrecht, ohne
+  Scrollleiste, mit Fade; über dem Blatt scrollt Wischen die Seite, solange
+  kein Stempel in der Hand ist; einen Abdruck erst antippen, dann ziehen;
+  der kleine 3D-Stempel verschwindet nach dem Druck von selbst; die
+  Hintergrundfarbe blendet beim Kalenderwechsel weich über.
+- Jahresansicht per Tastatur: ein Tab-Stopp, Pfeiltasten Tag/Monat, Enter.
 - iCal (alles braucht Server und echte Apps): Abo-Adresse in den
   Kalender-Einstellungen erzeugen, in Apple Kalender und Google Kalender
   abonnieren (`webcal://` auf iPhone/Android), „.ics herunterladen“; nach
@@ -105,9 +111,4 @@ Stand: 12.10.2026
 
 ## Ideen am Rand
 
-- phone safari: kalender bar (wo die kalender sind und ich neue hinzufügen kann: scrollt sowohl auf x als auch auf y achse?. die stempel auswahl leiste genauso.
-- phone: wenn ich über die heute/stempel canvas stelle scrolle (per touch) scrollt es nicht.
-- phone: sobald ich 1x einen stempel gewählt und gestempelt habe, bleibt der mini 3d stempel fixed an meinem fenster kleben, bis ich hard reloade.
-- kein schöner farbenfade des hintergrundes bei kalenderwechsel (auf handy).
-- stempelscrollbereich auch ohne scrollbar, mit fade.
 - gefährlich, was ich alles im cms sehen und verändern kann an persönlichen daten. wie machen wir das am besten?
