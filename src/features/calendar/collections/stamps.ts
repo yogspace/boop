@@ -1,7 +1,8 @@
 import type { CollectionConfig } from "payload";
 import { adminOnly } from "@/access";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
-import { COLOR_NAMES, SHAPES } from "../model";
+import { colorField } from "../color-field";
+import { SHAPES } from "../model";
 
 /**
  * The stamps people drew – one color each, a doodle as strokes (model.ts).
@@ -31,13 +32,7 @@ export const Stamps: CollectionConfig = {
   fields: [
     idField,
     { name: "name", type: "text", maxLength: 40 },
-    {
-      name: "color",
-      type: "select",
-      required: true,
-      defaultValue: "ink",
-      options: COLOR_NAMES,
-    },
+    colorField("color", "ink"),
     {
       // The stamp's body the doodle is drawn on.
       name: "shape",

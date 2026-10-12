@@ -2,12 +2,12 @@ import type { PayloadRequest, Where } from "payload";
 import { idOf } from "@/features/calendar/membership";
 import {
   type CalendarDoc,
-  type ColorName,
   type PlacementDoc,
   type StampDoc,
   type StampShape,
   sharedWithOf,
 } from "@/features/calendar/model";
+import { DEFAULT_PALETTE, isColorKey } from "@/features/calendar/palette";
 import { sharedWithAny } from "./apply";
 import type { Person, SyncResponse, SyncType } from "./protocol";
 
@@ -24,10 +24,19 @@ type Doc = Record<string, unknown>;
 const iso = (value: unknown) =>
   value ? new Date(String(value)).toISOString() : new Date(0).toISOString();
 
+/**
+ * A color as it is stored – its key, whether the CMS has that color right
+ * now or not: the device's palette decides how it shows (a key it lacks, in
+ * its first color – palette.ts). One without any (there should be none)
+ * goes out as the code's first.
+ */
+const colorOf = (doc: Doc) =>
+  isColorKey(doc.color) ? doc.color : DEFAULT_PALETTE[0].key;
+
 const toCalendar = (doc: Doc): CalendarDoc => ({
   id: String(doc.id),
   name: String(doc.name ?? ""),
-  color: (doc.color as ColorName) ?? "coral",
+  color: colorOf(doc),
   owner: idOf(doc.owner) ?? "",
   members: Array.isArray(doc.members)
     ? doc.members.map(idOf).filter((id): id is string => Boolean(id))
@@ -40,7 +49,7 @@ const toCalendar = (doc: Doc): CalendarDoc => ({
 const toStamp = (doc: Doc): StampDoc => ({
   id: String(doc.id),
   name: String(doc.name ?? ""),
-  color: (doc.color as ColorName) ?? "ink",
+  color: colorOf(doc),
   shape: (doc.shape as StampShape) ?? "circle",
   drawing: (doc.drawing as StampDoc["drawing"]) ?? null,
   owner: idOf(doc.owner) ?? "",
@@ -59,7 +68,7 @@ const toPlacement = (doc: Doc): PlacementDoc => ({
   rotation: Number(doc.rotation ?? 0),
   scale: Number(doc.scale ?? 1),
   z: Number(doc.z ?? 0),
-  ink: (doc.ink as ColorName | null) ?? null,
+  ink: isColorKey(doc.ink) ? doc.ink : null,
   placedBy: idOf(doc.placedBy) ?? "",
   changedAt: iso(doc.changedAt),
   deleted: Boolean(doc.deleted),

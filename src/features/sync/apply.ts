@@ -2,12 +2,13 @@ import type { PayloadRequest, Where } from "payload";
 import { idOf } from "@/features/calendar/membership";
 import {
   cleanDrawing,
-  isColorName,
   isDayKey,
   isShape,
   sharedWithOf,
   unit,
 } from "@/features/calendar/model";
+import { isColorKey } from "@/features/calendar/palette";
+import { defaultColor } from "@/features/site/stamp-colors";
 import type { Change, SyncType } from "./protocol";
 
 /**
@@ -25,6 +26,10 @@ import type { Change, SyncType } from "./protocol";
  *
  * A change older than the server's copy is no error: the later one wins,
  * and the device gets the server's copy back.
+ *
+ * A color is a stamp color's key – taken by its form alone (`isColorKey`),
+ * not by what the CMS has right now: a device may be ahead of or behind the
+ * palette, and what is stored must outlive a color taken out of it.
  */
 
 export const COLLECTION = {
@@ -146,12 +151,12 @@ const applyCalendar = async (
 ): Promise<Outcome> => {
   const fields = {
     name: text(data.name, 60),
-    color: isColorName(data.color) ? data.color : undefined,
+    color: isColorKey(data.color) ? data.color : undefined,
   };
   if (!existing) {
     await write({
       name: fields.name || "Boop",
-      color: fields.color ?? "coral",
+      color: fields.color ?? (await defaultColor(ctx.req, "coral")),
       owner: ctx.me,
       members: [ctx.me],
       personal: false,
@@ -193,7 +198,7 @@ const applyStamp = async (
   ];
   const fields = {
     name: text(data.name, 40),
-    color: isColorName(data.color) ? data.color : undefined,
+    color: isColorKey(data.color) ? data.color : undefined,
     shape: isShape(data.shape) ? data.shape : undefined,
     drawing: "drawing" in data ? cleanDrawing(data.drawing) : undefined,
     sharedWith,
@@ -202,7 +207,7 @@ const applyStamp = async (
     await write({
       ...defined(fields),
       name: fields.name ?? "",
-      color: fields.color ?? "ink",
+      color: fields.color ?? (await defaultColor(ctx.req, "ink")),
       shape: fields.shape ?? "circle",
       owner: ctx.me,
       deleted: false,
@@ -250,7 +255,7 @@ const applyPlacement = async (
     rotation: number(data.rotation, -3600, 3600),
     scale: number(data.scale, 0.2, 4),
     z: number(data.z, 0, 1_000_000),
-    ink: isColorName(data.ink) ? data.ink : undefined,
+    ink: isColorKey(data.ink) ? data.ink : undefined,
   };
   if (!existing) {
     const calendar = String(data.calendar ?? "");

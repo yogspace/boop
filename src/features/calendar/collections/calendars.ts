@@ -1,9 +1,9 @@
 import type { CollectionConfig } from "payload";
 import { adminOnly } from "@/access";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
+import { colorField } from "../color-field";
 import { addMember, removeMember } from "../endpoints/members";
 import { inviteEndpoints } from "../invites";
-import { COLOR_NAMES } from "../model";
 
 /**
  * Calendars. Each belongs to its owner; the members (the owner among them)
@@ -31,13 +31,7 @@ export const Calendars: CollectionConfig = {
   fields: [
     idField,
     { name: "name", type: "text", required: true, maxLength: 60 },
-    {
-      name: "color",
-      type: "select",
-      required: true,
-      defaultValue: "coral",
-      options: COLOR_NAMES,
-    },
+    colorField("color", "coral"),
     {
       name: "owner",
       type: "relationship",
