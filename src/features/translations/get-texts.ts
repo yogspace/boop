@@ -65,9 +65,9 @@ export const getTexts = async (): Promise<Texts> => {
 
 /**
  * A language's texts on the server – a server component, a layout,
- * `generateMetadata`, a route, a notification: the CMS's where it has
- * them. Also puts them in use for what calls `dictionaryOf` on the server
- * afterwards (components/site-footer.tsx under the site's frame).
+ * `generateMetadata`, a route, a mail, a notification: the CMS's where it
+ * has them. Also puts them in use for what calls `dictionaryOf` on the
+ * server afterwards (components/site-footer.tsx under the site's frame).
  */
 export const getDictionary = async (locale: Locale): Promise<Dictionary> => {
   setTexts(await getTexts());

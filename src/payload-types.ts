@@ -2191,6 +2191,170 @@ export interface Translation {
       many?: string | null;
     };
   };
+  contact?: {
+    /**
+     * DE: Eine Frage, ein Wunsch oder ein Fehler, über den du gestolpert bist? Schreib mir einfach – ich antworte dir per E-Mail.  ·  EN: A question, a wish or a bug you stumbled over? Just write to me – I'll answer by email.
+     */
+    intro?: string | null;
+    /**
+     * DE: Dein Name  ·  EN: Your name
+     */
+    name?: string | null;
+    /**
+     * DE: Deine E-Mail-Adresse  ·  EN: Your email address
+     */
+    email?: string | null;
+    /**
+     * DE: Deine Nachricht  ·  EN: Your message
+     */
+    message?: string | null;
+    /**
+     * DE: Nachricht senden  ·  EN: Send message
+     */
+    send?: string | null;
+    /**
+     * DE: Wird gesendet …  ·  EN: Sending …
+     */
+    sending?: string | null;
+    /**
+     * DE: Danke für deine Nachricht! Ich melde mich, so schnell ich kann.  ·  EN: Thanks for your message! I'll get back to you as soon as I can.
+     */
+    sent?: string | null;
+    /**
+     * DE: Bitte gib deinen Namen, eine gültige E-Mail-Adresse und eine Nachricht an.  ·  EN: Please fill in your name, a valid email address and a message.
+     */
+    invalid?: string | null;
+    /**
+     * DE: Das waren gerade ein paar Nachrichten zu viel. Versuch es in ein paar Minuten noch einmal.  ·  EN: That was a few messages too many just now. Please try again in a few minutes.
+     */
+    tooMany?: string | null;
+    /**
+     * DE: Du bist offline – zum Senden brauchst du eine Verbindung.  ·  EN: You're offline – sending needs a connection.
+     */
+    offline?: string | null;
+    /**
+     * DE: Das hat leider nicht geklappt. Versuch es bitte später noch einmal.  ·  EN: Sorry, that didn't work. Please try again later.
+     */
+    failed?: string | null;
+  };
+  mail?: {
+    verify?: {
+      /**
+       * DE: Bestätige deine Adresse für Boop  ·  EN: Confirm your address for Boop
+       */
+      subject?: string | null;
+      hello?: {
+        /**
+         * DE: Hallo {name}!  ·  EN: Hi {name}!  ·  Keeps {name}
+         */
+        named?: string | null;
+        /**
+         * DE: Hallo!  ·  EN: Hi!
+         */
+        unnamed?: string | null;
+      };
+      /**
+       * DE: Fast geschafft  ·  EN: Almost there
+       */
+      title?: string | null;
+      /**
+       * DE: Schön, dass du da bist. Bestätige noch kurz deine E-Mail-Adresse – dann kannst du loslegen und stempeln.  ·  EN: Lovely to have you. Just confirm your email address – then you're ready to start stamping.
+       */
+      body?: string | null;
+      /**
+       * DE: Adresse bestätigen  ·  EN: Confirm address
+       */
+      button?: string | null;
+      /**
+       * DE: Du hast dich nicht bei Boop angemeldet? Dann ignoriere diese Mail einfach – ohne Bestätigung löschen wir die Anmeldung nach {days} Tagen.  ·  EN: You didn't sign up for Boop? Then simply ignore this mail – without confirmation we delete the sign-up after {days} days.  ·  May use {days}
+       */
+      footnote?: string | null;
+    };
+    reset?: {
+      /**
+       * DE: Ein neues Passwort für Boop  ·  EN: A new password for Boop
+       */
+      subject?: string | null;
+      /**
+       * DE: Neues Passwort  ·  EN: New password
+       */
+      title?: string | null;
+      /**
+       * DE: Jemand – hoffentlich du – möchte das Passwort für dein Boop-Konto ändern. Der Link gilt {hours} Stunde.  ·  EN: Someone – hopefully you – wants to change the password of your Boop account. The link is valid for {hours} hour.  ·  May use {hours}
+       */
+      body?: string | null;
+      /**
+       * DE: Neues Passwort wählen  ·  EN: Choose a new password
+       */
+      button?: string | null;
+      /**
+       * DE: Das warst du nicht? Dann bleibt alles, wie es ist – dein Passwort ändert sich nur über den Link.  ·  EN: Wasn't you? Then nothing changes – your password only changes through the link.
+       */
+      footnote?: string | null;
+    };
+    inactive?: {
+      /**
+       * DE: Wir vermissen dich bei Boop  ·  EN: We miss you at Boop
+       */
+      subject?: string | null;
+      hello?: {
+        /**
+         * DE: Hallo {name}!  ·  EN: Hi {name}!  ·  Keeps {name}
+         */
+        named?: string | null;
+        /**
+         * DE: Hallo!  ·  EN: Hi!
+         */
+        unnamed?: string | null;
+      };
+      /**
+       * DE: Lange nicht gesehen  ·  EN: Long time no see
+       */
+      title?: string | null;
+      /**
+       * DE: Wir haben dich lange nicht bei Boop gesehen. In {days} Tagen, ab dem {date}, löschen wir dein Konto – samt deinen Kalendern und Stempeln.  ·  EN: We haven't seen you at Boop for a long time. In {days} days, from {date}, we'll delete your account – with your calendars and stamps.  ·  Keeps {date}  ·  May use {days}
+       */
+      body?: string | null;
+      /**
+       * DE: Einmal anmelden genügt, dann bleibt alles, wie es ist.  ·  EN: Logging in once is enough, and everything stays as it is.
+       */
+      stay?: string | null;
+      /**
+       * DE: Zu Boop  ·  EN: Open Boop
+       */
+      button?: string | null;
+      /**
+       * DE: Du magst Boop nicht mehr nutzen? Dann musst du nichts tun. Deine Daten kannst du vorher in der App unter „Konto“ herunterladen.  ·  EN: Don't want to use Boop anymore? Then you don't need to do anything. You can download your data first in the app under “Account”.
+       */
+      footnote?: string | null;
+    };
+    invite?: {
+      /**
+       * DE: {from} lädt dich zu Boop ein  ·  EN: {from} invites you to Boop  ·  Keeps {from}
+       */
+      subject?: string | null;
+      /**
+       * DE: Du bist eingeladen!  ·  EN: You're invited!
+       */
+      title?: string | null;
+      /**
+       * DE: {from} möchte den Kalender „{calendar}“ mit dir teilen. Boop ist ein Stempelkalender: Ihr malt eure eigenen Stempel und stempelt eure Tage – zusammen.  ·  EN: {from} would like to share the calendar “{calendar}” with you. Boop is a stamp calendar: you draw your own stamps and stamp your days – together.  ·  Keeps {from}, {calendar}
+       */
+      body?: string | null;
+      /**
+       * DE: Die Einladung gilt {days} Tage.  ·  EN: The invitation is valid for {days} days.  ·  May use {days}
+       */
+      valid?: string | null;
+      /**
+       * DE: Einladung ansehen  ·  EN: See the invitation
+       */
+      button?: string | null;
+      /**
+       * DE: Du kennst die Person nicht? Dann ignoriere diese Mail einfach – ohne Konto passiert nichts.  ·  EN: Don't know them? Then simply ignore this mail – nothing happens without an account.
+       */
+      footnote?: string | null;
+    };
+  };
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2746,6 +2910,75 @@ export interface TranslationsSelect<T extends boolean = true> {
           | {
               one?: T;
               many?: T;
+            };
+      };
+  contact?:
+    | T
+    | {
+        intro?: T;
+        name?: T;
+        email?: T;
+        message?: T;
+        send?: T;
+        sending?: T;
+        sent?: T;
+        invalid?: T;
+        tooMany?: T;
+        offline?: T;
+        failed?: T;
+      };
+  mail?:
+    | T
+    | {
+        verify?:
+          | T
+          | {
+              subject?: T;
+              hello?:
+                | T
+                | {
+                    named?: T;
+                    unnamed?: T;
+                  };
+              title?: T;
+              body?: T;
+              button?: T;
+              footnote?: T;
+            };
+        reset?:
+          | T
+          | {
+              subject?: T;
+              title?: T;
+              body?: T;
+              button?: T;
+              footnote?: T;
+            };
+        inactive?:
+          | T
+          | {
+              subject?: T;
+              hello?:
+                | T
+                | {
+                    named?: T;
+                    unnamed?: T;
+                  };
+              title?: T;
+              body?: T;
+              stay?: T;
+              button?: T;
+              footnote?: T;
+            };
+        invite?:
+          | T
+          | {
+              subject?: T;
+              title?: T;
+              body?: T;
+              valid?: T;
+              button?: T;
+              footnote?: T;
             };
       };
   updatedAt?: T;

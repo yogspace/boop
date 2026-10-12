@@ -17,8 +17,12 @@ import { cn } from "@/lib/cn";
  * them say the step.
  */
 
-/** How each slip lies – none straight; pointed at, it straightens. */
-const SLIP_TILTS = ["-rotate-2", "rotate-1", "-rotate-1"];
+/**
+ * How each slip lies – none straight; pointed at, it straightens. Only side
+ * by side: on a phone a slip is as wide as the screen, and tilted its frame
+ * would reach past the edge (the page would scroll sideways a little).
+ */
+const SLIP_TILTS = ["sm:-rotate-2", "sm:rotate-1", "sm:-rotate-1"];
 /** … and its number, set on its corner with a bit of a swing. */
 const NUMBER_TILTS = ["-rotate-12", "rotate-6", "-rotate-6"];
 

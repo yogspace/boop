@@ -7,21 +7,26 @@ import { dictionaryOf } from "../../i18n/dictionaries";
  * in test/push/rules.test.ts. The server's parts (stamped.ts, reminder.ts,
  * endpoints.ts) ask the database and hand them what it said.
  *
- * - Every account has two switches per calendar: the evening's reminder
- *   and “someone else stamped here”. Both are on until switched off – only
- *   what is off is kept (`PushSettingsDoc.calendars`).
+ * - Every account has three switches per calendar: the evening's reminder
+ *   and “someone else stamped here”, on until switched off, and “someone
+ *   else changed something”, off until switched on – it would be loud.
+ *   Only what differs is kept (`PushSettingsDoc.calendars`).
  * - A device (`SubscriptionRow`) hears only as long as the login it was
  *   switched on in lasts: logged out, it is quiet.
  * - The reminder comes once a day per device, at the account's time on the
  *   device's clock – naming the calendars still without a print of its own.
+ * - Changes are someone's notes, moved or removed prints, a new name, who
+ *   came or went (`noteChanges`, `placementChanges`, `calendarChanges`),
+ *   bundled per person and calendar (`createBundle`).
  */
 
-/** A calendar's two switches, for one account. */
-export type Switches = { reminder: boolean; stamped: boolean };
+/** A calendar's three switches, for one account. */
+export type Switches = { reminder: boolean; stamped: boolean; changed: boolean };
 
 export const DEFAULT_SWITCHES: Readonly<Switches> = {
   reminder: true,
   stamped: true,
+  changed: false,
 };
 
 /** The reminder's time when none is set – on the device's clock. */
@@ -42,6 +47,13 @@ export const DEFAULT_TIME_ZONE = "Europe/Berlin";
  */
 export const STAMPED_WINDOW_MS = 10 * 60 * 1000;
 
+/**
+ * Changes of one person in one calendar: at most one notification per
+ * window – and the first waits this long for the rest of its sync.
+ */
+export const CHANGED_WINDOW_MS = 10 * 60 * 1000;
+export const CHANGED_GATHER_MS = 5 * 1000;
+
 /** The account's settings as stored (collections.ts) – none: all default. */
 export type PushSettingsDoc = {
   reminderAt?: string | null;
@@ -50,6 +62,7 @@ export type PushSettingsDoc = {
         calendar?: unknown;
         reminder?: boolean | null;
         stamped?: boolean | null;
+        changed?: boolean | null;
       }[]
     | null;
 };
@@ -179,27 +192,34 @@ export const entriesOf = (
       calendar,
       reminder: entry.reminder !== false,
       stamped: entry.stamped !== false,
+      // Kept from before there was this switch: off.
+      changed: entry.changed === true,
     });
   }
   return [...byCalendar.values()];
 };
 
-/** An account's switches for a calendar – on, unless switched off. */
+/** An account's switches for a calendar – as by default, unless switched. */
 export const switchesOf = (
   settings: PushSettingsDoc | null | undefined,
   calendar: string
 ): Switches => {
   const entry = entriesOf(settings).find((e) => e.calendar === calendar);
   return entry
-    ? { reminder: entry.reminder, stamped: entry.stamped }
+    ? { reminder: entry.reminder, stamped: entry.stamped, changed: entry.changed }
     : { ...DEFAULT_SWITCHES };
 };
+
+const isDefault = (switches: Switches) =>
+  (Object.keys(DEFAULT_SWITCHES) as (keyof Switches)[]).every(
+    (key) => switches[key] === DEFAULT_SWITCHES[key]
+  );
 
 /**
  * The entries after a switch: the one calendar's changed, those of
  * calendars the account is no longer in dropped (deleted, left – nobody
  * tells the settings, so they tidy up whenever written), and one that is
- * all on again goes: that is the default.
+ * back to the defaults goes.
  */
 export const withSwitch = (
   settings: PushSettingsDoc | null | undefined,
@@ -213,9 +233,10 @@ export const withSwitch = (
       calendar: change.calendar,
       reminder: change.reminder ?? now.reminder,
       stamped: change.stamped ?? now.stamped,
+      changed: change.changed ?? now.changed,
     };
     const rest = entries.filter((e) => e.calendar !== change.calendar);
-    return next.reminder && next.stamped ? rest : [...rest, next];
+    return isDefault(next) ? rest : [...rest, next];
   }
   return entries;
 };
@@ -274,22 +295,10 @@ export const loginLasts = (
   });
 };
 
-/**
- * Who hears that someone stamped in a calendar: the devices of its other
- * members – never the stamper's own, also not their other devices – whose
- * account has the switch on, and whose login lasts.
- */
-export const stampedTargets = ({
-  calendar,
-  members,
-  by,
-  devices,
-  settings,
-  sessions,
-  now,
-}: {
+type Audience = {
   calendar: string;
   members: readonly string[];
+  /** Who did it. */
   by: string;
   devices: readonly SubscriptionRow[];
   /** The members' settings, by account. */
@@ -297,13 +306,40 @@ export const stampedTargets = ({
   /** The members' logins, by account. */
   sessions: Record<string, readonly Session[] | undefined>;
   now: Date;
-}): SubscriptionRow[] =>
+};
+
+/** The other members' devices with this switch on, whose login lasts. */
+const wanting = (
+  { calendar, members, by, devices, settings, sessions, now }: Audience,
+  key: "stamped" | "changed"
+) =>
   devices.filter(
     (device) =>
       device.account !== by &&
       members.includes(device.account) &&
-      switchesOf(settings[device.account], calendar).stamped &&
+      switchesOf(settings[device.account], calendar)[key] &&
       loginLasts(device, sessions[device.account], now)
+  );
+
+/**
+ * Who hears that someone stamped in a calendar: the devices of its other
+ * members – never the stamper's own, also not their other devices – whose
+ * account has the switch on, and whose login lasts.
+ */
+export const stampedTargets = (audience: Audience): SubscriptionRow[] =>
+  wanting(audience, "stamped");
+
+/**
+ * Who hears that someone changed something: the same, with the third
+ * switch – and never whom it is about (`aboutOf`): one who came in knows,
+ * one taken out is out.
+ */
+export const changedTargets = ({
+  about,
+  ...audience
+}: Audience & { about: readonly string[] }): SubscriptionRow[] =>
+  wanting(audience, "changed").filter(
+    (device) => !about.includes(device.account)
   );
 
 /**

@@ -226,6 +226,8 @@ export const Accounts: CollectionConfig = {
   slug: "accounts",
   labels: { singular: "Account", plural: "Accounts" },
   auth: {
+    // The mails' words come from the CMS (emails.ts) – async, which Payload
+    // allows for subject and HTML alike: it awaits both before sending.
     verify: {
       generateEmailSubject: ({ user }) => verifySubject(user),
       generateEmailHTML: verifyHtml,

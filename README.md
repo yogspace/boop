@@ -107,7 +107,7 @@ In the admin under **Translations**, German and English (locale switch at the to
 - **Reading:** client components call `dictionaryOf(locale)` – the layout hands the CMS's texts to `TextsProvider`, which puts them in use while rendering, on the server and in the browser. Server components, `generateMetadata`, routes and notifications `await getDictionary(locale)` (`features/translations/get-texts.ts`; cached with the tag `texts`).
 - **Size:** a page carries only the CMS's texts that differ from the code's (the code's are in its scripts anyway) – of both languages, since the app switches without loading anew. Unchanged: nothing; everything rewritten in both languages: about 35 KB in the HTML (10 KB gzipped).
 
-Not here (yet): the mails' texts (`features/accounts/emails.ts`, the invitation in `features/calendar/invites.ts`) and the contact form's – they have their own tables in the code.
+The mails (`mail.*` – confirming the address, a new password, the warning before an unused account goes, the invitation; read with `getDictionary` as each is made) and the contact form (`contact`) belong to them too – only the contact form's mail to the operator stays German in the code.
 
 ## Development
 

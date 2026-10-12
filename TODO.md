@@ -8,23 +8,16 @@ Stand: 12.10.2026
   schon gespeichert hat, hat dort noch „Tinte“ als erste Farbe – von Hand
   auf Rot ändern (Schlüssel `red`, `#ee3b33`).
 
-- **Benachrichtigungen (Web Push) einschalten** – im Code fertig, aus bis es
-  Schlüssel gibt:
-  1. `npx web-push generate-vapid-keys`
-  2. ✓ In GitHub angelegt: `VAPID_PUBLIC_KEY` und `VAPID_PRIVATE_KEY` (beide
-     als Secret – der Deploy liest den öffentlichen als Variable oder Secret).
-     Optional noch die Variable `VAPID_SUBJECT` (z. B. `mailto:…`).
-  3. Deployen – der Deploy schreibt sie in die `.env` und trägt den Cron für
-     die Erinnerung ein (alle 15 Minuten).
-  4. Auf einem Gerät testen: Kalender-Einstellungen → „Benachrichtigungen
+- **Benachrichtigungen (Web Push)** – live: Schlüssel in GitHub, deployt,
+  Cron für die Erinnerung eingetragen (alle 15 Minuten). Optional noch die
+  Variable `VAPID_SUBJECT` (z. B. `mailto:…`). Fehlt nur noch:
+  Auf einem Gerät testen: Kalender-Einstellungen → „Benachrichtigungen
      einschalten“ (iPhone: nur in der installierten App), zweites Konto
      stempelt → Nachricht; Erinnerung zur eingestellten Uhrzeit.
   Schlüssel nicht wechseln: neue Schlüssel machen alle bisherigen Abos stumm.
 - **Texte, die noch nicht im CMS sind**: die Mails (`accounts/emails.ts`,
   die Einladungsmail in `calendar/invites.ts`) und das Kontaktformular – sie
   haben eigene Text-Tabellen.
-- **Widget für Apple** (Idee): ginge nur mit einer nativen Hülle, nicht als
-  PWA.
 - **Datenschutztext**: Die Vorlage im Code (`features/legal/seed-content.ts`,
   DE + EN) ist auf dem Stand der App. Der Live-Text liegt im CMS und muss
   nachgezogen werden – von Hand oder über die Seeds-Seite mit „Replace“

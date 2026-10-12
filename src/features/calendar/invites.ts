@@ -8,6 +8,7 @@ import type {
 import { hiddenUnlessSupport, sealed } from "@/access";
 import { sessionAccount } from "@/features/accounts/session";
 import { nudgeCalendars } from "@/features/sync/live";
+import { getDictionary } from "@/features/translations/get-texts";
 import { isLocale, type Locale } from "@/i18n/config";
 import { mailLayout } from "@/lib/mail-layout";
 import { serverUrl } from "@/lib/server-url";
@@ -242,33 +243,11 @@ export const joinInvitedCalendars = async (
   await sweepInvites(req.payload);
 };
 
-const TEXT = {
-  de: {
-    subject: (from: string) => `${from} lädt dich zu Boop ein`,
-    title: "Du bist eingeladen!",
-    body: (from: string, calendar: string) =>
-      `${from} möchte den Kalender „${calendar}“ mit dir teilen. Boop ist ein Stempelkalender: Ihr malt eure eigenen Stempel und stempelt eure Tage – zusammen.`,
-    valid: `Die Einladung gilt ${INVITE_DAYS} Tage.`,
-    button: "Einladung ansehen",
-    footnote:
-      "Du kennst die Person nicht? Dann ignoriere diese Mail einfach – ohne Konto passiert nichts.",
-  },
-  en: {
-    subject: (from: string) => `${from} invites you to Boop`,
-    title: "You're invited!",
-    body: (from: string, calendar: string) =>
-      `${from} would like to share the calendar “${calendar}” with you. Boop is a stamp calendar: you draw your own stamps and stamp your days – together.`,
-    valid: `The invitation is valid for ${INVITE_DAYS} days.`,
-    button: "See the invitation",
-    footnote:
-      "Don't know them? Then simply ignore this mail – nothing happens without an account.",
-  },
-} as const;
-
 /**
  * Invites an address (without an account) to a calendar: one invitation per
  * address and calendar – a new one replaces it, with a new deadline – and
- * the mail, which names that deadline.
+ * the mail, which names that deadline. The mail is in the sender's language,
+ * its words the CMS's where it has them (`mail.invite`, i18n/dictionaries.ts).
  */
 export const invite = async (
   req: PayloadRequest,
@@ -314,16 +293,16 @@ export const invite = async (
   });
 
   const locale: Locale = isLocale(from.locale) ? from.locale : "de";
-  const t = TEXT[locale];
-  const name = await calendarName(req, calendar);
+  const t = (await getDictionary(locale)).mail.invite;
+  const body = t.body(from.name, await calendarName(req, calendar));
   await req.payload.sendEmail({
     to: email,
     subject: t.subject(from.name || "Boop"),
     html: mailLayout({
       lang: locale,
-      preheader: t.body(from.name, name),
+      preheader: body,
       title: t.title,
-      paragraphs: [t.body(from.name, name), t.valid],
+      paragraphs: [body, t.valid],
       button: {
         label: t.button,
         url: `${serverUrl()}/${locale}/invite?token=${token}`,

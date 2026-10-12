@@ -117,7 +117,8 @@ const tendUnused = async (
       // (no RESEND_API_KEY) nobody is warned – and so nobody deleted.
       warn: async (account) => {
         const seen = new Date(String(account.lastSeenAt)).getTime();
-        const mail = inactiveMail({
+        // In the account's language, the CMS's words (emails.ts).
+        const mail = await inactiveMail({
           user: account,
           deleteFrom: new Date(
             Math.max(deleteFrom(seen), now + WARNING_DAYS * 86_400_000)

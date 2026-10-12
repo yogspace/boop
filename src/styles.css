@@ -190,6 +190,13 @@
 
   body {
     min-height: 100dvh;
+    /*
+     * Never sideways: whatever reaches past the screen's edge – a tilted
+     * frame, a wobbling line – is cut there instead of making the page
+     * scroll a little (iOS lets it). `clip`, not `hidden`: no scroll
+     * container, so nothing sticky or fixed changes.
+     */
+    overflow-x: clip;
     font-family: var(--font-sans);
     font-weight: 500;
     -webkit-font-smoothing: antialiased;
