@@ -22,6 +22,7 @@ import { Legal } from "@/features/legal/global";
 import { Site } from "@/features/site/global";
 import { syncEndpoint } from "@/features/sync/endpoint";
 import { LOCALES } from "@/i18n/config";
+import { devMailAdapter } from "@/lib/dev-mail";
 import { mailSender } from "@/lib/mail";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -98,15 +99,14 @@ export default buildConfig({
     defaultLocale: "de",
     fallback: true,
   },
-  // Without a Resend key, Payload writes the mails to the console – enough
-  // to click the links locally.
-  ...(process.env.RESEND_API_KEY && {
-    email: resendAdapter({
-      apiKey: process.env.RESEND_API_KEY,
-      defaultFromAddress: sender.address,
-      defaultFromName: sender.name,
-    }),
-  }),
+  // Without a Resend key (locally) the mails' links go to the server log.
+  email: process.env.RESEND_API_KEY
+    ? resendAdapter({
+        apiKey: process.env.RESEND_API_KEY,
+        defaultFromAddress: sender.address,
+        defaultFromName: sender.name,
+      })
+    : devMailAdapter(),
   db: mongooseAdapter({
     url: process.env.DATABASE_URL ?? "",
     connectOptions: {
