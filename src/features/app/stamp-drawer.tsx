@@ -15,13 +15,16 @@ import { importSvg } from "@/features/calendar/import-svg";
 import {
   type ColorName,
   type Fill,
+  RIMS,
+  type RimPattern,
   SHAPES,
   type StampShape,
   type Stroke,
 } from "@/features/calendar/model";
 import { knownKey } from "@/features/calendar/palette";
 import { usePalette } from "@/features/calendar/palette-provider";
-import { ShapeOutline, StampSvg } from "@/features/calendar/stamp-svg";
+import { rimLine } from "@/features/calendar/outline";
+import { Glitter, ShapeOutline, StampSvg } from "@/features/calendar/stamp-svg";
 import { createStamp } from "@/features/offline/store";
 import { STAGE, StickerView } from "@/features/stickers/sticker-view";
 import type { Locale } from "@/i18n/config";
@@ -108,6 +111,9 @@ export const StampDrawer = ({
   const [refused, setRefused] = useState(false);
   // Prints the other way round: the face in ink, the doodle cut out.
   const [inverted, setInverted] = useState(false);
+  // The rim's pattern (none: plain), and whether it is for the big days.
+  const [rim, setRim] = useState<RimPattern | undefined>(undefined);
+  const [special, setSpecial] = useState(false);
   const [shape, setShape] = useState<StampShape>("circle");
   // Its color: one of the stamp colors – the one picked as long as the
   // palette has it; else, and to begin with, “grape” or the palette's first.
@@ -134,8 +140,8 @@ export const StampDrawer = ({
   }, []);
 
   const doodle = useMemo(
-    () => ({ strokes, fills, inverted }),
-    [strokes, fills, inverted]
+    () => ({ strokes, fills, inverted, rim, special }),
+    [strokes, fills, inverted, rim, special]
   );
   const sticker = useMemo(
     () => ({ shape, color, drawing: doodle }),
@@ -245,6 +251,8 @@ export const StampDrawer = ({
           strokes,
           ...(fills.length > 0 && { fills }),
           ...(inverted && { inverted: true as const }),
+          ...(rim && { rim }),
+          ...(special && { special: true as const }),
         },
         sharedWith: shared && calendar ? [calendar] : [],
       });
@@ -426,6 +434,42 @@ export const StampDrawer = ({
               />
             ))}
           </fieldset>
+          {/* The rim's patterns, each on the shape picked – seven in a row. */}
+          <fieldset className="mx-auto grid w-full max-w-72 grid-cols-7 gap-1.5">
+            <legend className="sr-only">{t.app.draw.rim}</legend>
+            {[undefined, ...RIMS].map((r) => {
+              const line = rimLine(shape, r, { scale: 3.5 });
+              return (
+                <button
+                  aria-label={t.app.draw.rims[r ?? "plain"]}
+                  aria-pressed={rim === r}
+                  className={cn(
+                    "flex aspect-square w-full items-center justify-center rounded-xl border-2 border-ink p-1 transition",
+                    rim === r ? "bg-ink text-white" : "bg-card hover:bg-soft"
+                  )}
+                  key={r ?? "plain"}
+                  onClick={() => setRim(r)}
+                  title={t.app.draw.rims[r ?? "plain"]}
+                  type="button"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="w-full"
+                    viewBox="-0.08 -0.08 1.16 1.16"
+                  >
+                    <path
+                      d={line.d}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap={line.cap}
+                      strokeLinejoin="round"
+                      strokeWidth={line.width}
+                    />
+                  </svg>
+                </button>
+              );
+            })}
+          </fieldset>
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
             <label className="flex items-center gap-2 font-medium text-sm">
               <input
@@ -435,6 +479,15 @@ export const StampDrawer = ({
                 type="checkbox"
               />
               {t.app.draw.inverted}
+            </label>
+            <label className="flex items-center gap-2 font-medium text-sm">
+              <input
+                checked={special}
+                className="h-5 w-5 accent-ink"
+                onChange={(event) => setSpecial(event.target.checked)}
+                type="checkbox"
+              />
+              {t.app.draw.special}
             </label>
             <Button
               onClick={() => file.current?.click()}

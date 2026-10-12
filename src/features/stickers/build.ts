@@ -2,9 +2,10 @@ import type * as Three from "three";
 import {
   type ColorName,
   FACE,
+  type RimPattern,
   type StampShape,
 } from "@/features/calendar/model";
-import { outlinePoints } from "@/features/calendar/outline";
+import { outlinePoints, rimLine } from "@/features/calendar/outline";
 import { hexOf } from "@/features/calendar/palette";
 
 /**
@@ -34,6 +35,10 @@ export type StickerInput = {
       readonly rule?: "evenodd";
     }[];
     readonly inverted?: boolean;
+    /** The rim's pattern – none: plain (outline.ts `rimLine`). */
+    readonly rim?: RimPattern;
+    /** A stamp for the big days – it glitters. */
+    readonly special?: boolean;
   } | null;
 };
 
@@ -170,9 +175,10 @@ const tracePath = (
 
 /**
  * The face's relief, exactly as the drawing shows it (stamp-svg.tsx): the
- * rim along the outline and the doodle – the same smoothing – clipped to
- * it. An inverted stamp is the other way round: the whole face stands, the
- * doodle is cut into it. Mirrored for printing: a real stamp's face reads
+ * rim along the outline (or its pattern – the same lines, rimLine) and the
+ * doodle – the same smoothing – clipped to it. An inverted stamp is the
+ * other way round: the whole face stands, the doodle and the rim's pattern
+ * are cut into it. Mirrored for printing: a real stamp's face reads
  * the other way round.
  */
 const faceMap = (input: StickerInput, mirror: boolean) =>
@@ -182,12 +188,23 @@ const faceMap = (input: StickerInput, mirror: boolean) =>
       ctx.scale(-1, 1);
     }
     const inverted = Boolean(input.drawing?.inverted);
+    const pattern = input.drawing?.rim;
     // The rim: everything outside its inner edge – or all of it.
-    ctx.fillRect(0, 0, 1, 1);
-    if (!inverted) {
+    if (inverted || !pattern) ctx.fillRect(0, 0, 1, 1);
+    if (!(inverted || pattern)) {
       ctx.fillStyle = "#000";
       tracePath(ctx, input.shape, -FACE.rim / 2);
       ctx.fill();
+    }
+    if (pattern) {
+      // A patterned one: just its pattern – or that cut into the face.
+      const rim = rimLine(input.shape, pattern, { cut: inverted });
+      ctx.save();
+      ctx.strokeStyle = inverted ? "#000" : "#fff";
+      ctx.lineWidth = rim.width;
+      ctx.lineCap = rim.cap;
+      ctx.stroke(new Path2D(rim.d));
+      ctx.restore();
     }
     // The doodle stands out of the ground – or is cut into the face.
     ctx.fillStyle = inverted ? "#000" : "#fff";

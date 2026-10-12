@@ -1,4 +1,5 @@
-import { useId } from "react";
+import { useId, useMemo } from "react";
+import { cn } from "@/lib/cn";
 import {
   type ColorName,
   FACE,
@@ -272,17 +273,20 @@ export const StampSvg = ({
       {print ? (
         // The print: what stands raised on the rubber – the rim and the
         // doodle – in ink; the face around them stays bare. Inverted: the
-        // whole face, less the doodle.
+        // whole face, less the doodle (and the rim's pattern).
         <g filter={`url(#${id}-ink)`} opacity={0.9}>
           <g mask={cut}>
             <g transform="scale(100)">
               <ShapeOutline
                 fill={inverted ? ink : "none"}
                 shape={shape}
-                stroke={ink}
-                strokeDasharray={drawn || inverted ? undefined : "0.06 0.06"}
+                stroke={rim && !inverted ? "none" : ink}
+                strokeDasharray={
+                  drawn || inverted || rim ? undefined : "0.06 0.06"
+                }
                 strokeWidth={FACE.rim}
               />
+              {rim && !inverted && <RimPath line={rim} stroke={ink} />}
               {!inverted && doodle}
             </g>
           </g>
@@ -300,17 +304,186 @@ export const StampSvg = ({
               <ShapeOutline
                 fill={inverted ? ink : filled ? pale : "none"}
                 shape={shape}
-                stroke={ink}
+                // Under a patterned rim the ground reaches as far as the
+                // plain one would – the rubber's edge.
+                stroke={rim && !inverted ? (filled ? pale : "none") : ink}
                 strokeDasharray={
-                  drawn || filled || inverted ? undefined : "0.06 0.06"
+                  drawn || filled || inverted || rim ? undefined : "0.06 0.06"
                 }
                 strokeWidth={FACE.rim}
               />
+              {rim && !inverted && (
+                <RimPath line={rim} stroke={ink} style={fade} />
+              )}
               {!inverted && doodle}
             </g>
           </g>
         </>
       )}
     </svg>
+  );
+};
+
+/** Numbers that look random but come again for the same seed. */
+const random = (seed: number) => {
+  let state = Math.imul(seed + 1, 2654435761) >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+type Spot = { x: number; y: number; size: number; delay: number };
+
+/**
+ * Where a print glitters: on its ink – the doodle's lines and areas, the rim,
+ * an inverted face anywhere – a few sparkles kept apart, glints between
+ * them. Every print its own (seed).
+ */
+const glitterOf = (
+  drawing: ReadonlyDrawing,
+  shape: StampShape,
+  seed: number,
+  still: boolean
+) => {
+  const next = random(seed);
+  const rim = outlinePoints(shape, 0, 48);
+  const doodle: [number, number][] = [];
+  if (drawing.inverted) {
+    // Anywhere on the face – most of it is ink.
+    for (let i = 0; i < 48; i++) {
+      const [x, y] = rim[Math.floor(next() * rim.length)];
+      const f = 0.9 * Math.sqrt(next());
+      doodle.push([0.5 + (x - 0.5) * f, 0.5 + (y - 0.5) * f]);
+    }
+  } else {
+    const rings = [
+      ...drawing.strokes.map((stroke) => stroke.p),
+      ...(drawing.fills ?? []).flatMap((fill) => fill.p),
+    ];
+    for (const p of rings) {
+      for (let i = 0; i + 1 < p.length; i += 2) doodle.push([p[i], p[i + 1]]);
+    }
+  }
+  const taken: Spot[] = [];
+  /** A spot on the ink this far from the others – or the farthest tried. */
+  const pick = (size: number, apart: number) => {
+    let best: [number, number] = [0.5, 0.5];
+    let room = -1;
+    for (let i = 0; i < 16; i++) {
+      const pool = doodle.length && next() < 0.7 ? doodle : rim;
+      const [x, y] = pool[Math.floor(next() * pool.length)];
+      const near = Math.min(
+        Infinity,
+        ...taken.map((s) => Math.hypot(s.x - x, s.y - y))
+      );
+      if (near > room) {
+        best = [x, y];
+        room = near;
+      }
+      if (near >= apart) break;
+    }
+    const spot = { x: best[0], y: best[1], size, delay: next() };
+    taken.push(spot);
+    return spot;
+  };
+  const sparkles = Array.from({ length: still ? 2 : 4 }, (_, i) =>
+    pick(0.2 - i * 0.025 - next() * 0.02, 0.3)
+  );
+  const glints = Array.from({ length: still ? 0 : 5 }, () =>
+    pick(0.03 + next() * 0.015, 0.14)
+  );
+  return { sparkles, glints, sheen: next() };
+};
+
+/** A four-point sparkle, slim – in a 24 × 24 box. */
+const SPARKLE =
+  "M12 1.5c.8 6.3 3.4 9.7 10.5 10.5-7.1.8-9.7 4.2-10.5 10.5-.8-6.3-3.4-9.7-10.5-10.5 7.1-.8 9.7-4.2 10.5-10.5Z";
+
+/** A unit length on the face as a share of the print's box (its view box). */
+const share = (unit: number) => `${((unit * 100 + 2) / 1.04).toFixed(2)}%`;
+const across = (unit: number) => `${((unit * 100) / 1.04).toFixed(2)}%`;
+
+/**
+ * The glitter on a special stamp's print – laid over it (StampSvg print) in
+ * the same square box, inside whatever multiplies the print onto the page:
+ * then white shows only where there is ink. Sparkles, outlined in a dark
+ * shade of the ink, twinkle out of step – white on the ink, a drawn spark
+ * on the paper – with small glints between them, and now and then a sheen
+ * runs over the ink. `still`: a few sparkles, nothing moving (small prints
+ * by the dozen – the month). Nothing moves for reduced motion either.
+ *
+ * Plain HTML that only changes opacity and transform: the browser moves it
+ * on its own, and the print below (its ink filter) is never drawn again.
+ */
+export const Glitter = ({
+  drawing,
+  color,
+  shape = "circle",
+  seed = 7,
+  still = false,
+  className,
+}: {
+  drawing: ReadonlyDrawing;
+  color: ColorName;
+  shape?: StampShape;
+  seed?: number;
+  still?: boolean;
+  className?: string;
+}) => {
+  const { sparkles, glints, sheen } = useMemo(
+    () => glitterOf(drawing, shape, seed, still),
+    [drawing, shape, seed, still]
+  );
+  const line = `color-mix(in srgb, ${hexOf(color)} 40%, #141414)`;
+  const twinkle = still ? "" : "animate-twinkle motion-reduce:animate-none";
+  const place = (spot: Spot, duration: number) => ({
+    left: share(spot.x - spot.size / 2),
+    top: share(spot.y - spot.size / 2),
+    width: across(spot.size),
+    height: across(spot.size),
+    animationDelay: `${(-spot.delay * duration).toFixed(2)}s`,
+    animationDuration: `${duration.toFixed(2)}s`,
+  });
+  return (
+    <span
+      aria-hidden="true"
+      className={cn("pointer-events-none absolute inset-0", className)}
+    >
+      {!still && (
+        <span className="absolute inset-0 overflow-hidden motion-reduce:hidden">
+          <span
+            className="absolute inset-0 animate-sheen bg-[linear-gradient(105deg,transparent_32%,rgb(255_255_255/0.55)_50%,transparent_68%)]"
+            style={{ animationDelay: `${(-sheen * 5).toFixed(2)}s` }}
+          />
+        </span>
+      )}
+      {glints.map((spot, i) => (
+        <span
+          className={cn("absolute rounded-full bg-white", twinkle)}
+          key={`glint-${i}`}
+          style={place(spot, 1.9 + spot.delay)}
+        />
+      ))}
+      {sparkles.map((spot, i) => (
+        <svg
+          className={cn("absolute overflow-visible", twinkle)}
+          key={`sparkle-${i}`}
+          style={place(spot, 2.4 + spot.delay)}
+          viewBox="0 0 24 24"
+        >
+          <path
+            d={SPARKLE}
+            fill="white"
+            stroke={line}
+            strokeLinejoin="round"
+            strokeWidth={1.4}
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+      ))}
+    </span>
   );
 };

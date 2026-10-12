@@ -72,6 +72,39 @@
   --animate-fade: fade 240ms ease-out both;
   --animate-pulse-dot: pulse-dot 1.2s ease-in-out infinite;
   --animate-press-dip: press-dip 360ms cubic-bezier(0.3, 0.7, 0.4, 1);
+  --animate-twinkle: twinkle 2.6s ease-in-out infinite both;
+  --animate-sheen: sheen 5s ease-in-out infinite both;
+
+  /* A sparkle on a special print: it flashes up, turning, and goes. */
+  @keyframes twinkle {
+    0%,
+    100% {
+      transform: scale(0.2) rotate(-30deg);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    35% {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+    }
+    62% {
+      transform: scale(0.2) rotate(25deg);
+      opacity: 0;
+    }
+  }
+
+  /* Light running over a special print's ink, now and then. */
+  @keyframes sheen {
+    0% {
+      transform: translateX(-100%);
+    }
+    30%,
+    100% {
+      transform: translateX(100%);
+    }
+  }
 
   @keyframes boop {
     0% {

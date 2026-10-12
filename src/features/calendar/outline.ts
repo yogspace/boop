@@ -178,20 +178,19 @@ export type RimLine = { d: string; width: number; cap: "round" | "butt" };
  * dashes, dots or waves repeat at, how far they swing out and back
  * (`swing`), and where along the outline their middle runs (`at`, like
  * `grow`). Every one stays inside the rubber's edge – the outline grown by
- * half a plain rim (FACE.rim / 2) – and reaches no further into the face
- * than twice that.
+ * half a plain rim (FACE.rim / 2) – and reaches at most 0.05 into the face.
  */
 const PATTERN: Record<
   RimPattern,
   { width: number; period: number; swing: number; at: number }
 > = {
-  dashed: { width: 0.03, period: 0.12, swing: 0, at: 0 },
-  dotted: { width: 0.034, period: 0.07, swing: 0, at: 0 },
-  wave: { width: 0.022, period: 0.12, swing: 0.011, at: -0.004 },
-  zigzag: { width: 0.02, period: 0.09, swing: 0.012, at: -0.004 },
-  scallop: { width: 0.02, period: 0.13, swing: 0.019, at: -0.012 },
+  dashed: { width: 0.034, period: 0.12, swing: 0, at: -0.001 },
+  dotted: { width: 0.036, period: 0.075, swing: 0, at: -0.001 },
+  wave: { width: 0.028, period: 0.12, swing: 0.012, at: -0.008 },
+  zigzag: { width: 0.026, period: 0.1, swing: 0.013, at: -0.008 },
+  scallop: { width: 0.026, period: 0.15, swing: 0.021, at: -0.016 },
   // Two lines – `swing` apart from the middle each way.
-  double: { width: 0.014, period: 0, swing: 0.014, at: -0.003 },
+  double: { width: 0.018, period: 0, swing: 0.017, at: -0.008 },
 };
 
 /** How much of a dash's period it covers – the rest, less its ends, is gap. */

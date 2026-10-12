@@ -1,9 +1,43 @@
-import type { CollectionConfig } from "payload";
+import type { CollectionAfterChangeHook, CollectionConfig } from "payload";
 import { adminOnly } from "@/access";
+import { unshare } from "@/features/sync/apply";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
+import { nudge, nudgeCalendars } from "@/features/sync/live";
 import { colorField } from "../color-field";
 import { addMember, removeMember } from "../endpoints/members";
 import { inviteEndpoints } from "../invites";
+import { idOf } from "../membership";
+
+const memberIds = (doc: unknown): string[] => {
+  const members = (doc as { members?: unknown } | null)?.members;
+  return Array.isArray(members)
+    ? members.map(idOf).filter((id): id is string => Boolean(id))
+    : [];
+};
+
+/**
+ * Members taken out here in the admin take their stamps along, as through
+ * the member endpoint (members.ts): none stays shared with the calendar.
+ * The sync and the endpoints do that themselves – their writes come with
+ * `context.sync` and are left alone.
+ */
+const unshareLeavers: CollectionAfterChangeHook = async ({
+  doc,
+  previousDoc,
+  operation,
+  context,
+  req,
+}) => {
+  if (operation !== "update" || context.sync) return doc;
+  const now = new Set(memberIds(doc));
+  const gone = memberIds(previousDoc).filter((id) => !now.has(id));
+  if (!gone.length) return doc;
+  const calendar = String(doc.id);
+  for (const account of gone) await unshare(req, calendar, account);
+  nudge(gone);
+  await nudgeCalendars(req, [calendar]);
+  return doc;
+};
 
 /**
  * Calendars. Each belongs to its owner; the members (the owner among them)
@@ -78,6 +112,7 @@ export const Calendars: CollectionConfig = {
           : { ...data, members: [...ids, owner] };
       },
     ],
+    afterChange: [unshareLeavers],
   },
   endpoints: [addMember, removeMember, ...inviteEndpoints],
 };

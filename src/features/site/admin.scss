@@ -53,11 +53,11 @@
 // app's parts come without their Tailwind classes here, so everything they
 // need is set below.
 .stamp-color-preview {
-  --scp-ink: #1d1b3a;
-  --scp-muted: #6e6a8f;
+  --scp-ink: #141414;
+  --scp-muted: #6b6b6b;
   --scp-card: #ffffff;
-  --scp-soft: #efeaff;
-  --scp-line: #e6e0fb;
+  --scp-soft: #f2f2ef;
+  --scp-line: #d9d9d6;
   --scp-dots: radial-gradient(var(--scp-line) 1.3px, transparent 1.3px) 0 0 / 18px 18px;
 
   display: flex;
@@ -141,7 +141,7 @@
   }
 
   > img {
-    filter: drop-shadow(0 6px 6px rgb(29 27 58 / 0.18));
+    filter: drop-shadow(0 6px 6px rgb(20 20 20 / 0.18));
   }
 
   > svg {
