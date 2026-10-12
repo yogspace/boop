@@ -29,7 +29,11 @@ const SiteLayout = async ({
   const t = await getDictionary(locale);
   const site = await getSite();
   return (
-    <div className="flex min-h-dvh flex-col">
+    // Never sideways: a drawn line may wobble past its box (scribble-draw
+    // gives it room) – at the screen's edge it is cut here, rather than
+    // letting the page scroll a little (iOS does). On the frame, not on
+    // <html>/<body>: there `clip` only stops the finger, not the page.
+    <div className="flex min-h-dvh flex-col overflow-x-clip">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
         <Link aria-label={t.nav.home} href={`/${locale}`}>
           <Logo className="text-[32px]" />

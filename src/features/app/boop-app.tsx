@@ -366,7 +366,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
         (`useGround`): pencil and soft fills are set for that (`GROUND`) –
         here, not around the sheets, which stay white. */}
       <div
-        className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-6 px-4 sm:px-6"
+        className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-6 overflow-x-clip px-4 sm:px-6"
         style={color ? (GROUND as CSSProperties) : undefined}
       >
         <header className="flex items-center justify-between gap-4 py-5">
