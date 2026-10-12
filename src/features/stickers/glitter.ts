@@ -60,7 +60,9 @@ float star(vec2 p, float r) {
 void main() {
   // The star's points on the axes, as wide as the quad leaves room for.
   float step = length(fwidth(vUv)) * 0.7071;
-  float width = line * 0.8;
+  // Its outline as the stamp's, a little finer – and on a tiny one finer
+  // still, or the ink would swallow it.
+  float width = min(line * 0.8, 0.2 / step);
   float r = 1.0 - (width * 0.5 + 1.0) * step;
   float d = (star(vUv, r) + 0.04) / step;
   float outer = clamp(0.5 - (d - width * 0.5), 0.0, 1.0);
