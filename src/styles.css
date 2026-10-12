@@ -14,19 +14,30 @@
 }
 
 /*
- * Boop's look: candy colors on a lilac-white, deep ink outlines, hard offset
- * shadows – like stickers. Stamps are glossy 3D stickers; what they leave on
- * a day is an ink print. The stamp colors match features/calendar/model.ts
- * (COLORS).
+ * Boop's look: black marker on white paper. Everything that frames, labels
+ * or decorates is scribbled line art in one ink – wobbly frames (the
+ * `scribble` utilities below), doodles (components/doodles.tsx), underlines.
+ * The ONLY color and gloss on a page are the stamps – glossy 3D stickers –
+ * and the ink prints they leave. So: no tinted surfaces, no colored chips,
+ * no shadows; a state shows as a filled frame, a thicker line, a scribble
+ * around it.
  */
 @theme {
-  --color-bg: #f5f2ff;
+  /* Paper and marker. */
+  --color-bg: #ffffff;
   --color-card: #ffffff;
-  --color-ink: #1d1b3a;
-  --color-muted: #6e6a8f;
-  --color-line: #e6e0fb;
-  --color-soft: #efeaff;
+  --color-ink: #141414;
+  /* Pencil – secondary text (5.3:1 on paper). */
+  --color-muted: #6b6b6b;
+  /* A light pencil line: dotted paper, hatching. */
+  --color-line: #d9d9d6;
+  /* Paper grey – the one second tone, for a soft fill. */
+  --color-soft: #f2f2ef;
 
+  /*
+   * Stamp inks – content, never chrome: what a stamp, a print or a
+   * calendar's dot wears (features/calendar/palette.ts).
+   */
   --color-violet: #7c5cff;
   --color-pink: #ff5fae;
   --color-sky: #3fa9ff;
@@ -35,18 +46,22 @@
   --color-coral: #ff8159;
   --color-grape: #7c5cff;
 
-  --color-violet-soft: #ece6ff;
-  --color-pink-soft: #ffe4f2;
-  --color-sky-soft: #def1ff;
-  --color-mint-soft: #d9f8ec;
-  --color-sun-soft: #fff4cc;
-  --color-coral-soft: #ffe7de;
+  /*
+   * From the candy look, kept only until the last places using them are
+   * redrawn (day-sheet, stamp-drawer, stamp-sheet): the tints are paper
+   * grey, the hard shadows are none. Don't use in new code.
+   */
+  --color-violet-soft: #f2f2ef;
+  --color-pink-soft: #f2f2ef;
+  --color-sky-soft: #f2f2ef;
+  --color-mint-soft: #f2f2ef;
+  --color-sun-soft: #f2f2ef;
+  --color-coral-soft: #f2f2ef;
+  --shadow-sticker: 0 0 #0000;
+  --shadow-sticker-sm: 0 0 #0000;
+  --shadow-sticker-lg: 0 0 #0000;
 
   --font-sans: "Satoshi", ui-rounded, system-ui, sans-serif;
-
-  --shadow-sticker: 4px 4px 0 0 var(--color-ink);
-  --shadow-sticker-sm: 2px 2px 0 0 var(--color-ink);
-  --shadow-sticker-lg: 6px 6px 0 0 var(--color-ink);
 
   --animate-boop: boop 460ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   --animate-pop-in: pop-in 480ms cubic-bezier(0.25, 0.8, 0.35, 1) both;
@@ -183,27 +198,8 @@
     font-family: var(--font-sans);
     font-weight: 500;
     -webkit-font-smoothing: antialiased;
-    /* Candy blobs and a dot grid – fixed, behind everything. */
-    background:
-      radial-gradient(
-        40rem 30rem at 0% 0%,
-        color-mix(in srgb, var(--color-pink) 18%, transparent),
-        transparent 70%
-      ),
-      radial-gradient(
-        36rem 28rem at 100% 8%,
-        color-mix(in srgb, var(--color-sky) 18%, transparent),
-        transparent 70%
-      ),
-      radial-gradient(
-        44rem 32rem at 55% 100%,
-        color-mix(in srgb, var(--color-mint) 16%, transparent),
-        transparent 70%
-      ),
-      radial-gradient(var(--color-line) 1.3px, transparent 1.3px) 0 0 / 22px
-      22px,
-      var(--color-bg);
-    background-attachment: fixed;
+    /* Plain paper – nothing behind the drawing. */
+    background: var(--color-bg);
   }
 
   h1,
@@ -213,9 +209,15 @@
     letter-spacing: -0.035em;
   }
 
+  /* The keyboard's place: a dashed marker line (a scribbled one on frames). */
   :focus-visible {
-    outline: 3px solid var(--color-violet);
-    outline-offset: 2px;
+    outline: 3px dashed var(--color-ink);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: var(--color-ink);
+    color: var(--color-card);
   }
 }
 

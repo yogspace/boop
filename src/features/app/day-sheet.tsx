@@ -362,11 +362,10 @@ export const DaySheet = ({
     trackEvent("stamp-placed");
   };
 
-  // Over the page and the ink pads the stamp in hand follows the pointer –
-  // held higher below the page, so the pad under it stays in view – and on
-  // the page the preview goes along. A finger doesn't hover: there the
-  // stamp goes where it is tapped, and the preview only shows once it is
-  // turned (where it was last tapped).
+  // Over the page and the ink pads the stamp in hand follows the pointer,
+  // and on the page the preview goes along. A finger doesn't hover: there
+  // the stamp goes where it is tapped, and the preview only shows once it
+  // is turned (where it was last tapped).
   const carry = (event: PointerEvent<HTMLElement>) => {
     if (!inHand || event.pointerType === "touch") return;
     const at = onPage(event.clientX, event.clientY);
@@ -375,7 +374,7 @@ export const DaySheet = ({
     if (inside) aim.current = { ...at, on: true };
     else aim.current.on = false;
     preview();
-    hand.current?.point(event.clientX, event.clientY, at.y > 1);
+    hand.current?.point(event.clientX, event.clientY);
   };
   const letGo = (event: PointerEvent<HTMLElement>) => {
     if (event.pointerType === "touch") return;
@@ -422,7 +421,7 @@ export const DaySheet = ({
         chooseInk(color, false);
         squash(pad);
       };
-      hand.current.press(event.clientX, event.clientY, soak, true);
+      hand.current.press(event.clientX, event.clientY, soak);
     };
 
   return (

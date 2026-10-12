@@ -23,20 +23,18 @@ import {
 export const STAGE =
   "relative aspect-square w-full rounded-3xl bg-soft bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]";
 
-/** What the stage's camera sees of the plane through the middle (fov 30°, 3 away). */
-const DISTANCE = 3;
-const HALF_FOV = Math.PI / 12;
-const VIEW = 2 * DISTANCE * Math.tan(HALF_FOV);
 /** The drawing's view box: the unit square and a little beyond (its rim). */
 const VIEW_BOX = 1.04;
 /** How it shows itself: the face tilted towards you, block and knob behind. */
 const SHOWCASE: [number, number, number] = [0.85, 0.55, -0.12];
-/** Its width then, of the box's – it has room to turn every way. */
+/** How wide its face is then, of the box – with room to turn every way. */
 const SIZE = 0.62;
 /** Kept off the box's edge at any angle (radians of the view). */
 const MARGIN = 0.02;
 /** The face-on beat before it turns (ms). */
 const HOLD = 200;
+/** Once it has rested this long (s), it begins to sway. */
+const REST = 1.6;
 /** Turning by hand: radians per pixel dragged. */
 const DRAG = 0.01;
 
@@ -47,15 +45,21 @@ const spring = (frequency: number, ratio: number) => ({
 });
 /** Turning to show itself – it overshoots a little. */
 const REVEAL = spring(8, 0.55);
-/** Growing out of the drawing: shrinking into the room, the turn's center moving to the middle. */
+/**
+ * Growing out of the drawing: shrinking into the room, while what it turns
+ * around moves from the face to its middle.
+ */
 const GROW = spring(10, 0.7);
 /** Swinging back after it was turned by hand – softer. */
 const BACK = spring(6, 0.65);
+/** … and without swinging past, where less motion is asked for. */
 const STILL = spring(6, 1);
 /** Slowing down while spinning freely (per second). */
 const FRICTION = 1.8;
-/** Below this speed (rad/s) the spring takes hold again. */
+/** Below this speed (rad/s) the spring takes hold again – within `CATCH_IN` s. */
 const CATCH = 2.5;
+const CATCH_IN = 0.5;
+/** No flick spins it faster (rad/s). */
 const MAX_SPIN = 18;
 
 export const StickerView = ({
@@ -114,6 +118,10 @@ export const StickerView = ({
       // Sizes – as laid out, not as a sheet still rising may scale them:
       // face-on, one unit is as wide as in the drawing; shown, the whole
       // stamp – knob and all – fits at any angle.
+      // What the camera sees of the plane the stamp turns in.
+      const distance = camera.position.length();
+      const fov = THREE.MathUtils.degToRad(camera.fov / 2);
+      const view = 2 * distance * Math.tan(fov);
       let width = 1;
       let height = 1;
       const resize = (w: number, h: number) => {
@@ -124,13 +132,13 @@ export const StickerView = ({
         camera.updateProjectionMatrix();
       };
       resize(box.clientWidth, box.clientHeight);
-      const flat = () => (VIEW * (width - 2 * padding())) / VIEW_BOX / height;
+      const flat = () => (view * (width - 2 * padding())) / VIEW_BOX / height;
       const fitted = () => {
         const narrow = Math.min(1, width / height);
-        const half = Math.atan(Math.tan(HALF_FOV) * narrow);
+        const half = Math.atan(Math.tan(fov) * narrow);
         return Math.min(
-          SIZE * VIEW * narrow,
-          (DISTANCE * Math.sin(half - MARGIN)) / ball.radius
+          SIZE * view * narrow,
+          (distance * Math.sin(half - MARGIN)) / ball.radius
         );
       };
 
@@ -171,6 +179,7 @@ export const StickerView = ({
       const sway = new THREE.Quaternion();
       const error = new THREE.Quaternion();
       const step = new THREE.Quaternion();
+      const nod = new THREE.Quaternion();
       const axis = new THREE.Vector3();
       const X = new THREE.Vector3(1, 0, 0);
       const Y = new THREE.Vector3(0, 1, 0);
@@ -196,7 +205,7 @@ export const StickerView = ({
           turn.premultiply(step).normalize();
         }
         // Slowed down, the spring catches it again.
-        if (grip < 1 && speed < CATCH) grip = Math.min(1, grip + h / 0.5);
+        if (grip < 1 && speed < CATCH) grip = Math.min(1, grip + h / CATCH_IN);
       };
 
       // Turning by hand – like a trackball, both ways; it follows the finger.
@@ -226,9 +235,12 @@ export const StickerView = ({
         turn.premultiply(step).normalize();
         drag.ax += dy * DRAG;
         drag.ay += dx * DRAG;
-        drag.trail.push({ t: event.timeStamp, x: drag.ax, y: drag.ay });
-        while (drag.trail.length > 2 && event.timeStamp - drag.trail[0].t > 120)
-          drag.trail.shift();
+        // Only the last moments count for the flick.
+        const { trail } = drag;
+        trail.push({ t: event.timeStamp, x: drag.ax, y: drag.ay });
+        while (trail.length > 2 && event.timeStamp - trail[0].t > 120) {
+          trail.shift();
+        }
       };
       const up = (event: PointerEvent) => {
         if (!drag || event.pointerId !== drag.id) return;
@@ -269,14 +281,14 @@ export const StickerView = ({
         const time = (now - first) / 1000;
         if (now - first >= HOLD) {
           // The sway: the target drifts a little, the spring follows.
-          const resting = !reduced && !drag && grip === 1 && time > 1.6;
+          const resting = !reduced && !drag && grip === 1 && time > REST;
           calm +=
             ((resting ? 1 : 0) - calm) *
             (1 - Math.exp(-dt * (resting ? 0.9 : 4)));
           sway
             .setFromAxisAngle(Y, calm * 0.08 * Math.sin(time * 0.8))
             .multiply(
-              step.setFromAxisAngle(X, calm * 0.04 * Math.sin(time * 1.1 + 1))
+              nod.setFromAxisAngle(X, calm * 0.04 * Math.sin(time * 1.1 + 1))
             );
           target.copy(showcase).premultiply(sway);
           const n = Math.ceil(dt * 240);
@@ -343,9 +355,9 @@ const ballOf = (THREE: typeof Three, sticker: Three.Object3D) => {
   sticker.updateMatrixWorld(true);
   // Its profile: how far it reaches sideways (squared), slice by slice from
   // the face (z = 0) back to the knob's end.
-  const SLICES = 96;
-  const half: number = sticker.userData.half || 0.5;
-  const wide = new Float32Array(SLICES + 1);
+  const SLICE = 0.01;
+  const wide = new Float32Array(256);
+  let deep = 0;
   const point = new THREE.Vector3();
   sticker.traverse((child) => {
     const mesh = child as Three.Mesh;
@@ -353,22 +365,25 @@ const ballOf = (THREE: typeof Three, sticker: Three.Object3D) => {
     if (!position) return;
     for (let i = 0; i < position.count; i++) {
       point.fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld);
-      const slice = Math.round(
-        Math.min(1, Math.max(0, -point.z / (2 * half))) * SLICES
+      const slice = Math.min(
+        wide.length - 1,
+        Math.max(0, Math.round(-point.z / SLICE))
       );
       wide[slice] = Math.max(wide[slice], point.x ** 2 + point.y ** 2);
+      deep = Math.max(deep, slice);
     }
   });
-  let best = { pivot: 1, radius: Number.POSITIVE_INFINITY };
+  // Tried along the axis, from the face to the stamp's middle (`pivot()`).
+  const half: number = sticker.userData.half ?? 0;
+  let best = { pivot: 0, radius: Number.POSITIVE_INFINITY };
   for (let n = 0; n <= 100; n++) {
     const middle = (n / 100) * half;
     let radius = 0;
-    for (let i = 0; i <= SLICES; i++) {
-      const depth = (i / SLICES) * 2 * half;
-      radius = Math.max(radius, wide[i] + (depth - middle) ** 2);
+    for (let i = 0; i <= deep; i++) {
+      radius = Math.max(radius, wide[i] + (i * SLICE - middle) ** 2);
     }
     if (radius < best.radius) best = { pivot: n / 100, radius };
   }
-  // A slice's thickness on top – nothing sticks out.
-  return { pivot: best.pivot, radius: Math.sqrt(best.radius) + half / SLICES };
+  // Half a slice on top – nothing sticks out.
+  return { pivot: best.pivot, radius: Math.sqrt(best.radius) + SLICE / 2 };
 };

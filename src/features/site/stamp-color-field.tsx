@@ -27,9 +27,12 @@ const FALLBACK = DEFAULT_PALETTE[0].hex;
  */
 const literal = (hex: string) => hex as ColorName;
 
-/** An ink pad's surface – as the day sheet's (features/app/day-sheet.tsx). */
-const padOf = (hex: string) =>
-  `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${hex} 55%, white) 0 18%, ${hex} 45%, color-mix(in srgb, ${hex} 70%, black))`;
+/**
+ * A blot of ink (40 × 40) – flat, a little uneven, like the inks to dip a
+ * stamp into on a day (features/app/day-sheet.tsx).
+ */
+const BLOT =
+  "M20.5 3C27 2.2 34.5 6 36.6 13.2 38.6 20 36.4 28.6 30.4 33.2 24.6 37.6 15.6 38.2 9.4 33.8 3.4 29.6 1.2 21 4 14 6.6 7.6 13.4 3.8 20.5 3Z";
 
 /** Whether an element has come into view – a closed row's never does. */
 const useSeen = (ref: RefObject<Element | null>) => {
@@ -59,7 +62,8 @@ const useRested = <T,>(value: T, ms = 250) => {
 
 /**
  * A stamp in the color, the ways the app shows one: being drawn, printed on
- * a day, as an ink pad, and in 3D – lying in the tray and coming down.
+ * a day, as the ink to dip into, and in 3D – lying in the tray and coming
+ * down.
  */
 const StampColorPreview = ({ color }: { color: string }) => {
   const box = useRef<HTMLDivElement>(null);
@@ -97,9 +101,11 @@ const StampColorPreview = ({ color }: { color: string }) => {
       </figure>
       <figure>
         <span className="scp-box">
-          <i className="scp-pad" style={{ background: padOf(color) }} />
+          <svg aria-hidden="true" className="scp-blot" viewBox="0 0 40 40">
+            <path d={BLOT} fill={color} />
+          </svg>
         </span>
-        <figcaption>Ink pad</figcaption>
+        <figcaption>Ink</figcaption>
       </figure>
       <figure>
         <span className="scp-box">

@@ -247,14 +247,15 @@ export const StampDrawer = ({
             "flex h-11 items-center justify-between gap-2"
           )}
         >
-          <fieldset className="flex min-w-0 gap-1.5">
+          {/* Five in a row – narrower where the phone is. */}
+          <fieldset className="grid max-w-56 min-w-0 flex-1 grid-cols-5 gap-1.5">
             <legend className="sr-only">{t.app.draw.shape}</legend>
             {SHAPES.map((s) => (
               <button
                 aria-label={t.app.draw.shapes[s]}
                 aria-pressed={shape === s}
                 className={cn(
-                  "flex aspect-square w-10 min-w-0 shrink items-center justify-center rounded-xl border-2 border-ink p-1.5 transition",
+                  "flex aspect-square w-full items-center justify-center rounded-xl border-2 border-ink p-1.5 transition",
                   shape === s ? "bg-ink text-white" : "bg-card hover:bg-soft"
                 )}
                 key={s}
@@ -264,7 +265,7 @@ export const StampDrawer = ({
               >
                 <svg
                   aria-hidden="true"
-                  className="h-full w-full"
+                  className="w-full"
                   viewBox="-0.05 -0.05 1.1 1.1"
                 >
                   <ShapeOutline

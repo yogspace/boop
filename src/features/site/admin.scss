@@ -119,13 +119,11 @@
   rotate: -6deg;
 }
 
-// An ink pad (day-sheet.tsx) – its surface comes inline, in the color.
-.scp-pad {
-  width: 2.75rem;
+// The ink to dip into (day-sheet.tsx): a flat blot, filled in the color.
+.scp-blot {
+  display: block;
+  width: 2.5rem;
   height: 2.5rem;
-  border: 2px solid var(--scp-ink);
-  border-radius: 1rem;
-  box-shadow: 2px 2px 0 0 var(--scp-ink);
 }
 
 // The stamp in 3D (sticker.tsx): its picture, or the drawing without WebGL.

@@ -27,11 +27,8 @@ import {
  */
 
 export type StampHandle = {
-  /**
-   * The pointer is here (client px) – the stamp hovers over it. `high`:
-   * held higher, so something small under it (an ink pad) stays in view.
-   */
-  point: (x: number, y: number, high?: boolean) => void;
+  /** The pointer is here (client px) – the stamp hovers over it. */
+  point: (x: number, y: number) => void;
   /** The pointer went elsewhere – the stamp goes too. */
   hide: () => void;
   /**
@@ -40,7 +37,7 @@ export type StampHandle = {
    * until it is pointed elsewhere. A press still on its way down when the
    * next one comes lands right away – every press touches.
    */
-  press: (x: number, y: number, contact: () => void, high?: boolean) => void;
+  press: (x: number, y: number, contact: () => void) => void;
   /**
    * Turned like a print with this `rotation` (degrees, clockwise) – it spins
    * there the shortest way round.
@@ -57,13 +54,11 @@ const TIP = Math.PI / 2 + 0.42;
  */
 const FACING = Math.PI;
 /**
- * How high it hovers over the paper, along its axis – in print widths. And
- * held high: clear of what the pointer is on.
+ * How high it hovers over the paper, along its axis – in print widths. Well
+ * clear of it: what the pointer is on stays in view under the stamp – the
+ * preview of the print on the page, an ink pad.
  */
-const HOVER = 0.3;
-const HIGH = 0.8;
-/** How quickly it changes between the two (per second). */
-const RAISE = 12;
+const HOVER = 0.75;
 /** Coming into view, it drops in from this much higher. */
 const DROP = 0.22;
 /** What it swings around: a point up its body, where the fingers are. */
@@ -74,9 +69,9 @@ const ANCHOR = 0.62;
 /** The camera's distance – the look of the other views. */
 const DISTANCE = 3;
 /** A press (ms): down, on the paper, up again. */
-const DOWN = 130;
+const DOWN = 140;
 const TOUCH = 70;
-const UP = 230;
+const UP = 240;
 /** How much shorter it gets while it touches. */
 const SQUASH = 0.09;
 /** Leaning into the way it is carried: radians per print width a second. */
@@ -209,9 +204,7 @@ const createHand = () => {
   let spin = 0;
   let spinSpeed = 0;
   let spinTo = 0;
-  // How high it is held, where that is heading, and how high it is now.
-  let hover = HOVER;
-  let hoverTo = HOVER;
+  // How high it is right now.
   let lift = HOVER;
   // Wanted on screen, how much of it is there (0–1), when it is to go.
   let shown = false;
@@ -358,7 +351,7 @@ const createHand = () => {
     // Turned as its print will lie – and, carried, a little with the lean.
     sticker.rotation.z = FACING + spin + pose.lean * TWIST;
     // The shadow tightens and darkens as the stamp comes down.
-    const height = clamp(pose.lift / HIGH, 0, 1.2);
+    const height = clamp(pose.lift / HOVER, 0, 1.2);
     shadow.scale.setScalar(0.78 + 0.42 * height);
     shadow.material.opacity = 0.55 - 0.36 * Math.min(height, 1);
     renderer.render(scene, camera);
@@ -379,13 +372,9 @@ const createHand = () => {
     else if (presence < goal) presence = Math.min(1, presence + dt / FADE_IN);
     else if (presence > goal) presence = Math.max(0, presence - dt / FADE_OUT);
 
-    // Held higher or lower – no jump between the two.
-    if (calm) hover = hoverTo;
-    else hover += (hoverTo - hover) * (1 - Math.exp(-RAISE * dt));
-
     // A press: down (faster and faster, straightening), on the paper
     // (squashed), up again (a little too far, and back).
-    let height = hover;
+    let height = HOVER;
     let squash = 0;
     let straight = 0;
     let pull = 0;
@@ -409,7 +398,7 @@ const createHand = () => {
           squash = SQUASH * Math.sin((Math.PI * (t - down)) / TOUCH);
           onPaper = true;
         } else if (t < down + TOUCH + UP) {
-          height = hover * bounce((t - down - TOUCH) / UP);
+          height = HOVER * bounce((t - down - TOUCH) / UP);
         } else press = null;
       }
     }
@@ -443,7 +432,6 @@ const createHand = () => {
       Boolean(press) ||
       hideAt > 0 ||
       presence !== goal ||
-      Math.abs(hover - hoverTo) > 0.002 ||
       Math.abs(x - px) + Math.abs(y - py) > 0.3 ||
       Math.abs(vx) + Math.abs(vy) > 2 ||
       Math.abs(lean) + Math.abs(nod) > 0.001 ||
@@ -474,15 +462,11 @@ const createHand = () => {
   };
 
   return {
-    point: (toX: number, toY: number, high = false) => {
+    point: (toX: number, toY: number) => {
       px = toX;
       py = toY;
-      hoverTo = high ? HIGH : HOVER;
       hideAt = 0;
-      if (!shown && presence < 0.05 && !press) {
-        jump();
-        hover = hoverTo;
-      }
+      if (!shown && presence < 0.05 && !press) jump();
       shown = true;
       wake();
     },
@@ -493,7 +477,7 @@ const createHand = () => {
       wake();
     },
 
-    press: (toX: number, toY: number, contact: () => void, high = false) => {
+    press: (toX: number, toY: number, contact: () => void) => {
       if (!view?.sticker) {
         contact();
         return;
@@ -502,7 +486,6 @@ const createHand = () => {
       const hidden = presence < 0.05;
       px = toX;
       py = toY;
-      hoverTo = high ? HIGH : HOVER;
       shown = true;
       hideAt = 0;
       if (still?.matches) {
@@ -512,15 +495,12 @@ const createHand = () => {
         wake();
         return;
       }
-      if (hidden) {
-        jump();
-        hover = hoverTo;
-      }
+      if (hidden) jump();
       press = {
         x: toX,
         y: toY,
         start: performance.now(),
-        from: hidden ? hover + DROP : Math.max(lift, 0.02),
+        from: hidden ? HOVER + DROP : Math.max(lift, 0.02),
         contact,
       };
       wake();
