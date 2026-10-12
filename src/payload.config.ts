@@ -88,6 +88,7 @@ export default buildConfig({
     PageViews,
     Actions,
   ],
+  // Analytics last – its own group, at the very bottom.
   globals: [Site, Legal, Analytics],
   endpoints: [syncEndpoint, liveEndpoint, seedEndpoint],
   // The admin's login cookie, `boop-token` – the app has its own

@@ -27,7 +27,7 @@ export const Analytics: GlobalConfig = {
     update: adminOnly,
   },
   admin: {
-    group: "Settings",
+    group: "Analytics",
     description:
       "Anonymous page views and actions (no IP, nothing stored on visitors' devices), and accounts as totals only. The time range in the sidebar applies to every section.",
   },
