@@ -3,7 +3,7 @@
  * route that stores them, the admin and the mail report. Import-free, so the
  * browser can use it too.
  */
-export const ACTIONS = {
+const ACTIONS = {
   "account-created": { en: "Accounts created", de: "Konten angelegt" },
   "account-verified": { en: "Accounts verified", de: "Konten bestätigt" },
   login: { en: "Logins", de: "Anmeldungen" },

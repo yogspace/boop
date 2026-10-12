@@ -131,13 +131,11 @@ const de = {
     loading: "Boop lädt …",
     hello: (name: string) => (name ? `Hallo ${name}!` : "Hallo!"),
     lead: "Welcher Tag bekommt heute einen Boop?",
-    online: "Online",
     offline: "Offline – wir gleichen ab, sobald du wieder Netz hast",
     syncing: "Gleiche ab …",
     pending: (n: number) =>
       n === 1 ? "1 Änderung wartet" : `${n} Änderungen warten`,
     synced: "Alles abgeglichen",
-    notLoggedIn: "Bitte melde dich an.",
     offlineNoAccount:
       "Du bist offline. Melde dich einmal mit Verbindung an – danach klappt Boop auch ohne Netz.",
     calendars: "Kalender",
@@ -219,7 +217,6 @@ const de = {
       inHand: "In der Hand",
       remove: "Abdruck entfernen",
       undo: "Rückgängig",
-      close: "Fertig",
       print: "Abdruck",
       ink: "Stempelkissen",
     },
@@ -397,13 +394,11 @@ const en: Shape<Dictionary> = {
     loading: "Boop is loading …",
     hello: (name: string) => (name ? `Hi ${name}!` : "Hi!"),
     lead: "Which day gets a boop today?",
-    online: "Online",
     offline: "Offline – we'll sync once you're back online",
     syncing: "Syncing …",
     pending: (n: number) =>
       n === 1 ? "1 change waiting" : `${n} changes waiting`,
     synced: "All synced",
-    notLoggedIn: "Please log in.",
     offlineNoAccount:
       "You're offline. Log in once with a connection – after that Boop works offline too.",
     calendars: "Calendars",
@@ -485,7 +480,6 @@ const en: Shape<Dictionary> = {
       inHand: "In your hand",
       remove: "Remove print",
       undo: "Undo",
-      close: "Done",
       print: "Print",
       ink: "Ink pad",
     },

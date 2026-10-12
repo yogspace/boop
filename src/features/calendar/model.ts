@@ -83,7 +83,7 @@ export const RIMS = [
 ] as const;
 export type RimPattern = (typeof RIMS)[number];
 
-export const isRim = (value: unknown): value is RimPattern =>
+const isRim = (value: unknown): value is RimPattern =>
   typeof value === "string" && (RIMS as readonly string[]).includes(value);
 
 /**

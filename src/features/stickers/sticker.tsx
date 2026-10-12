@@ -19,7 +19,7 @@ type Picture = {
  * The stamp's picture – null until rendered. One rendered before shows from
  * the first paint; a new one keeps the old in place until it's there.
  */
-export const useStickerImage = (
+const useStickerImage = (
   input: StickerInput | null,
   kind: Pose = "face"
 ) => {

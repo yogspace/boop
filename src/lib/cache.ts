@@ -20,7 +20,7 @@ export type CacheTag = (typeof TAGS)[keyof typeof TAGS];
  * one, but throws outside server actions – Payload's hooks run in its REST
  * route handler.)
  */
-export const expireTags = (...tags: string[]) => {
+const expireTags = (...tags: string[]) => {
   for (const tag of tags) revalidateTag(tag, { expire: 0 });
 };
 

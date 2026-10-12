@@ -77,7 +77,7 @@ const docs = async <T>(url: string): Promise<T[]> => {
 const select = (fields: string[]) =>
   fields.map((field) => `select[${field}]=true`).join("&");
 
-export const reloadAnalytics = (): Promise<void> => {
+const reloadAnalytics = (): Promise<void> => {
   if (inflight) return inflight;
   inflight = (async () => {
     const since = encodeURIComponent(

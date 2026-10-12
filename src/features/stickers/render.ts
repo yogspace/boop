@@ -70,7 +70,7 @@ let queue: Promise<unknown> = Promise.resolve();
  * A short fingerprint of what the stamp looks like – the whole drawing goes
  * in (strokes, filled areas, whatever it holds).
  */
-export const stickerKey = (input: StickerInput, kind: Pose = "face") => {
+const stickerKey = (input: StickerInput, kind: Pose = "face") => {
   let hash = 0;
   // By the color it shows in, not its name – the CMS may change it.
   const text = `${kind}|${input.shape}|${hexOf(input.color)}|${JSON.stringify(input.drawing)}`;

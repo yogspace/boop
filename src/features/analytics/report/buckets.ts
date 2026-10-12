@@ -19,7 +19,7 @@ const partsFormat = new Intl.DateTimeFormat("de-DE", {
 });
 
 /** A moment's calendar parts in Berlin – “Mo”, “09”, “10”, “2026”, “13”. */
-export const berlin = (t: number) => {
+const berlin = (t: number) => {
   const parts = Object.fromEntries(
     partsFormat.formatToParts(new Date(t)).map((p) => [p.type, p.value])
   );

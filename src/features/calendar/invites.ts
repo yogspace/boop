@@ -15,7 +15,7 @@ import { calendarById, idOf } from "./membership";
  * Invitations go once used, or after 30 days.
  */
 
-export const INVITE_DAYS = 30;
+const INVITE_DAYS = 30;
 
 type InviteRow = {
   id: string;

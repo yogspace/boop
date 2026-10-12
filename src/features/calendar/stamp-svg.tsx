@@ -42,7 +42,7 @@ export const strokePath = (p: readonly number[]) => {
 };
 
 /** The SVG path of one filled area – each of its outlines, closed. */
-export const fillPath = (fill: ReadonlyFill) =>
+const fillPath = (fill: ReadonlyFill) =>
   fill.p
     // Less than three points enclose nothing.
     .filter((ring) => ring.length >= 6)

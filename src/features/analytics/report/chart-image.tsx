@@ -14,7 +14,7 @@ export const CHART_ID = "views-chart";
 
 /** Size as shown in the mail – drawn at twice it. */
 export const CHART_W = 880;
-export const CHART_H = 220;
+const CHART_H = 220;
 /** The phone's own, narrower one – the wide one would shrink to unreadable. */
 export const PHONE_W = 360;
 export const PHONE_H = 200;
@@ -253,7 +253,7 @@ const svgPng = async (svg: string, w: number, h: number) => {
 
 /** Size of a figure's course in its tile, as shown. */
 export const SPARK_W = 260;
-export const SPARK_H = 34;
+const SPARK_H = 34;
 
 /**
  * A figure's course as the admin draws it: a quiet line, the last value as

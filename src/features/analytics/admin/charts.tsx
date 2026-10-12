@@ -21,7 +21,7 @@ import { fmt, INK, LINE, MUTED, percent, TEXT } from "./parts";
 // ─── Basics ──────────────────────────────────────────────────────────────────
 
 /** An element's width, followed as it changes. */
-export const useWidth = <T extends HTMLElement>() => {
+const useWidth = <T extends HTMLElement>() => {
   const ref = useRef<T>(null);
   const [width, setWidth] = useState(0);
   useEffect(() => {

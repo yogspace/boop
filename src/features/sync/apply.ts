@@ -34,7 +34,7 @@ import type { Change, SyncType } from "./protocol";
  * (calendar/color-field.ts).
  */
 
-export const COLLECTION = {
+const COLLECTION = {
   calendar: "calendars",
   stamp: "stamps",
   placement: "placements",
@@ -57,7 +57,7 @@ const no = (reason: string): Outcome => ({ ok: false, reason });
 type Doc = Record<string, unknown>;
 
 /** A time from a device – none in the future (a clock running ahead). */
-export const deviceTime = (value: unknown, now = Date.now()): Date | null => {
+const deviceTime = (value: unknown, now = Date.now()): Date | null => {
   if (typeof value !== "string") return null;
   const time = new Date(value);
   if (Number.isNaN(time.getTime())) return null;

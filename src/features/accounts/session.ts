@@ -18,7 +18,7 @@ import { joinInvitedCalendars } from "@/features/calendar/invites";
  * the app calls finds its account with `sessionAccount(req)`.
  */
 
-export const SESSION_COOKIE = "boop-session";
+const SESSION_COOKIE = "boop-session";
 const ADMIN_COOKIE = "boop-token";
 
 export type SessionAccount = {

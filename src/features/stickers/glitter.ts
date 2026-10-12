@@ -74,7 +74,7 @@ void main() {
 `;
 
 /** Whether a stamp glitters – read with care, the field may not be there. */
-export const isSpecial = (input: StickerInput) =>
+const isSpecial = (input: StickerInput) =>
   (input.drawing as { special?: unknown } | null)?.special === true;
 
 /** Adds the sparkles to a stamp (from buildSticker) – if it is special. */
