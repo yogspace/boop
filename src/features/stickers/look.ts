@@ -14,9 +14,9 @@ import { createSwing, spring } from "./swing";
 /**
  * A stamp's picture looking at the pointer. While the pointer is over it –
  * or over what it is a part of: a button, a link, a card – or the keyboard's
- * focus is there, the stamp turns its face that way, live in 3D, on a
- * spring. Left alone it swings back to how its picture shows it, and is
- * that picture again.
+ * focus is there, the stamp turns its face to you, a little towards the
+ * pointer, live in 3D, on a spring. Left alone it swings back to how its
+ * picture shows it, and is that picture again.
  *
  * No WebGL canvas of its own for that: it is drawn in the studio (render.ts
  * – the one the pictures come from), frame by frame, and every frame copied
@@ -36,8 +36,8 @@ import { createSwing, spring } from "./swing";
 export type Looks = "hover" | "always" | "never";
 
 /**
- * How far it turns its face to the pointer at most (rad) – from how its
- * picture shows it, so block and knob stay in view: a nod, not a turn away.
+ * How far it turns from you to the pointer at most (rad) – a nod, not a
+ * turn away: the face never gets squeezed thin.
  */
 const MOST = 0.3;
 /**
@@ -48,8 +48,6 @@ const REACH: Record<Exclude<Looks, "never">, number> = {
   hover: 0.5,
   always: 2.2,
 };
-/** Looked at by keyboard: it raises its face to you this much (rad). */
-const AHEAD = 0.2;
 /** Turning to the pointer: a little past it, and back. */
 const TO = spring(11, 0.5);
 /** Swinging back to rest – softer. */
@@ -179,24 +177,18 @@ const release = (looker: Looker) => {
 const looking = new Set<Looker>();
 let swing: ReturnType<typeof createSwing> | null = null;
 let across: Three.Vector3 | null = null;
-let nod: Three.Quaternion | null = null;
 let frame = 0;
 let last = 0;
 
 /**
- * Where it is to face: as in its picture – and from there a little towards
- * the pointer, or up to you.
+ * Where it is to face: you – face-on – and from there a little towards the
+ * pointer; left alone, as in its picture.
  */
 const face = ({ aim, host, reach }: Looker, live: Live) => {
   const { target } = live;
-  target.copy(live.rest);
-  if (!(aim && across && nod)) return target;
-  // By keyboard: what tips it forward a little undone.
-  if (aim === "ahead") {
-    return target.premultiply(
-      nod.setFromAxisAngle(across.set(1, 0, 0), -AHEAD)
-    );
-  }
+  if (!aim) return target.copy(live.rest);
+  target.identity();
+  if (aim === "ahead" || !across) return target;
   const box = host.getBoundingClientRect();
   const dx = aim.x - (box.left + box.width / 2);
   const dy = aim.y - (box.top + box.height / 2);
@@ -205,11 +197,9 @@ const face = ({ aim, host, reach }: Looker, live: Live) => {
   if (far < 0.01 || !(size > 0)) return target;
   // Tipped about the line across the way to the pointer.
   const off = far / size;
-  return target.premultiply(
-    nod.setFromAxisAngle(
-      across.set(dy / far, dx / far, 0),
-      (MOST * off) / Math.hypot(1, off)
-    )
+  return target.setFromAxisAngle(
+    across.set(dy / far, dx / far, 0),
+    (MOST * off) / Math.hypot(1, off)
   );
 };
 
@@ -350,7 +340,6 @@ const open = async (looker: Looker) => {
     const { THREE } = studio;
     swing ??= createSwing(THREE);
     across ??= new THREE.Vector3();
-    nod ??= new THREE.Quaternion();
     const rest = sticker.quaternion.clone();
     const live: Live = {
       studio,

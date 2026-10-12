@@ -2,10 +2,13 @@ import type { ReactNode } from "react";
 import { LocaleSwitch } from "@/components/locale-switch";
 import { SiteFooter } from "@/components/site-footer";
 import { LinkButton, Logo } from "@/components/ui";
+import { AccountButton } from "@/features/accounts/account-button";
+import { ONLY_SIGNED_IN, ONLY_SIGNED_OUT } from "@/features/accounts/signed-in";
 import { getSite } from "@/features/site/get-site";
 import { Link } from "@/features/transitions/link";
 import { isLocale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
+import { cn } from "@/lib/cn";
 
 // No `dynamicParams = false`: a page whose cache tag was expired (saving
 // “Site” or the legal text in the admin – lib/cache.ts) has to be rendered
@@ -33,16 +36,34 @@ const SiteLayout = async ({
         </Link>
         <nav className="flex items-center gap-2">
           <LocaleSwitch className="mr-1" locale={locale} />
-          <LinkButton href={`/${locale}/login`} size="sm" variant="ghost">
+          {/* Logged in on this device: the way into the app instead. */}
+          <LinkButton
+            className={ONLY_SIGNED_OUT}
+            href={`/${locale}/login`}
+            size="sm"
+            variant="ghost"
+          >
             {t.nav.login}
           </LinkButton>
           <LinkButton
-            className="max-sm:hidden"
+            className={cn("max-sm:hidden", ONLY_SIGNED_OUT)}
             href={`/${locale}/register`}
             size="sm"
           >
             {t.nav.register}
           </LinkButton>
+          {/* On a phone the bar is full – there it is in the account's menu.
+              (A box of its own: “logged in” would outweigh `max-sm:hidden`.) */}
+          <span className="max-sm:hidden">
+            <LinkButton
+              className={ONLY_SIGNED_IN}
+              href={`/${locale}/app`}
+              size="sm"
+            >
+              {t.nav.openApp}
+            </LinkButton>
+          </span>
+          <AccountButton locale={locale} />
         </nav>
       </header>
       <main className="flex-1">{children}</main>

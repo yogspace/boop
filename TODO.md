@@ -60,6 +60,13 @@ Stand: 12.10.2026
 - Tagesansicht: Stempel kommt in seiner eigenen Farbe; Namensschild beim
   Hover in der Stempelauswahl.
 - Kontomenü und Sync-Notiz schließen bei Klick daneben.
+- Startseite eingeloggt: „Zur App“ statt Anmelden/Registrieren und der
+  Konto-Kreis mit Menü (auch Abmelden) – ohne Flackern beim Laden; nach dem
+  Abmelden wieder die Anmelde-Knöpfe. Wer schon vor diesem Stand angemeldet
+  war, bekommt den Hinweis beim nächsten Öffnen der App.
+- Automatisches Löschen: vor dem ersten echten Lauf einmal
+  `/next/cron/cleanup?dry=1` aufrufen – der erste Lauf löscht unbestätigte
+  Konten, die älter als 30 Tage sind.
 
 ## Ideen am Rand
 

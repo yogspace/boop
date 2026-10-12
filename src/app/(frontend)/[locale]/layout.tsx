@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { MotionProvider } from "@/components/motion";
 import { ScribbleDefs } from "@/components/scribble-defs";
+import { SIGNED_IN_SCRIPT } from "@/features/accounts/signed-in";
 import { PageViewTracker } from "@/features/analytics/page-view-tracker";
 import { PaletteProvider } from "@/features/calendar/palette-provider";
 import { ServiceWorker } from "@/features/pwa/service-worker";
@@ -72,8 +73,14 @@ const LocaleLayout = async ({
   // paint, and offline too (the service worker keeps the page).
   const { stampColors } = await getSite();
   return (
-    <html lang={locale}>
+    // `data-in` is set by the script below, before React – not a mismatch.
+    <html lang={locale} suppressHydrationWarning>
       <head>
+        {/* Logged in on this device? Marked before the first paint. */}
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant line of our own
+          dangerouslySetInnerHTML={{ __html: SIGNED_IN_SCRIPT }}
+        />
         {/* The one font, self-hosted (styles.css) – early, so text doesn't jump. */}
         <link
           as="font"

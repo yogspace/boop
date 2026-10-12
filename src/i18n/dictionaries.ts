@@ -28,6 +28,8 @@ const de = {
     login: "Anmelden",
     register: "Konto erstellen",
     openApp: "Zur App",
+    logoutInApp:
+      "Ein paar Änderungen sind noch nicht abgeglichen – melde dich in der App ab.",
     legal: "Impressum & Datenschutz",
     home: "Boop – Startseite",
   },
@@ -376,6 +378,7 @@ const en: Shape<Dictionary> = {
     login: "Log in",
     register: "Create account",
     openApp: "Open the app",
+    logoutInApp: "A few changes aren't synced yet – log out in the app.",
     legal: "Imprint & privacy",
     home: "Boop – home",
   },

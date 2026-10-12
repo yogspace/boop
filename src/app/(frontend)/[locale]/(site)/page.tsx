@@ -8,6 +8,7 @@ import {
   Underline,
 } from "@/components/doodles";
 import { LinkButton } from "@/components/ui";
+import { ONLY_SIGNED_IN, ONLY_SIGNED_OUT } from "@/features/accounts/signed-in";
 import {
   DemoSticker,
   HeroScene,
@@ -92,11 +93,28 @@ const Home = async ({ params }: Props) => {
             {t.landing.lead}
           </p>
           <div className="flex flex-wrap gap-3">
-            <LinkButton href={`/${locale}/register`} size="lg">
+            {/* Logged in on this device: straight into the app. */}
+            <LinkButton
+              className={ONLY_SIGNED_OUT}
+              href={`/${locale}/register`}
+              size="lg"
+            >
               {t.landing.cta}
             </LinkButton>
-            <LinkButton href={`/${locale}/app`} size="lg" variant="plain">
+            <LinkButton
+              className={ONLY_SIGNED_OUT}
+              href={`/${locale}/app`}
+              size="lg"
+              variant="plain"
+            >
               {t.landing.ctaApp}
+            </LinkButton>
+            <LinkButton
+              className={ONLY_SIGNED_IN}
+              href={`/${locale}/app`}
+              size="lg"
+            >
+              {t.nav.openApp}
             </LinkButton>
           </div>
         </div>
@@ -160,8 +178,19 @@ const Home = async ({ params }: Props) => {
         </h2>
         <span className="relative mt-8 inline-block">
           <Ticks className="absolute -top-6 -right-7 h-6 w-10 rotate-[32deg]" />
-          <LinkButton href={`/${locale}/register`} size="lg">
+          <LinkButton
+            className={ONLY_SIGNED_OUT}
+            href={`/${locale}/register`}
+            size="lg"
+          >
             {t.landing.cta}
+          </LinkButton>
+          <LinkButton
+            className={ONLY_SIGNED_IN}
+            href={`/${locale}/app`}
+            size="lg"
+          >
+            {t.nav.openApp}
           </LinkButton>
         </span>
       </section>

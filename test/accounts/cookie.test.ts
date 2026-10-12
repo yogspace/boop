@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   loginCookies,
   logoutCookies,
+  missingSignedIn,
   REMEMBER_SECONDS,
   SESSION_COOKIE,
   SESSION_ONLY_COOKIE,
   SESSION_ONLY_SECONDS,
+  SIGNED_IN_COOKIE,
   sessionOnlyOver,
 } from "../../src/features/accounts/cookie";
 
@@ -31,7 +33,7 @@ describe("the login cookies", () => {
   it("go with the browser without it – no date on either", () => {
     expect(SESSION_ONLY_SECONDS).toBe(24 * 60 * 60);
     const cookies = loginCookies("token", null);
-    expect(cookies).toHaveLength(2);
+    expect(cookies).toHaveLength(3);
     for (const cookie of cookies) {
       expect(cookie).not.toMatch(/expires|max-age/i);
     }
@@ -53,9 +55,26 @@ describe("the login cookies", () => {
     expect(sign.join()).not.toContain("token");
   });
 
-  it("are both taken away at logout", () => {
+  it("say “logged in” to the page – as long as the login, holding nothing", () => {
+    for (const expires of [until, null]) {
+      const hint = parts(
+        named(loginCookies("token", expires), SIGNED_IN_COOKIE)
+      );
+      expect(hint).toContain(`${SIGNED_IN_COOKIE}=1`);
+      expect(hint).not.toContain("HttpOnly");
+      expect(hint.join()).not.toContain("token");
+      if (expires) expect(hint).toContain(`Expires=${expires.toUTCString()}`);
+      else expect(hint.join()).not.toMatch(/expires/i);
+    }
+  });
+
+  it("are all taken away at logout", () => {
     const cookies = logoutCookies();
-    for (const name of [SESSION_COOKIE, SESSION_ONLY_COOKIE]) {
+    for (const name of [
+      SESSION_COOKIE,
+      SESSION_ONLY_COOKIE,
+      SIGNED_IN_COOKIE,
+    ]) {
       const cookie = parts(named(cookies, name));
       expect(cookie).toContain(`${name}=`);
       expect(cookie).toContain(`Expires=${new Date(0).toUTCString()}`);
@@ -82,5 +101,23 @@ describe("a login for one browser session", () => {
     expect(sessionOnlyOver({ since, sign: true, now: since + 24 * HOUR })).toBe(
       true
     );
+  });
+});
+
+describe("the hint for a login from before it", () => {
+  it("is not set again while it is there", () => {
+    expect(missingSignedIn(`a=1; ${SIGNED_IN_COOKIE}=1`)).toBeNull();
+  });
+
+  it("goes with the browser for a login of one session", () => {
+    const hint = missingSignedIn(`${SESSION_ONLY_COOKIE}=1`) ?? "";
+    expect(hint).toContain(`${SIGNED_IN_COOKIE}=1`);
+    expect(hint).not.toMatch(/expires/i);
+  });
+
+  it("lasts a login's full life otherwise", () => {
+    const hint = missingSignedIn(null) ?? "";
+    expect(hint).toContain(`${SIGNED_IN_COOKIE}=1`);
+    expect(hint).toMatch(/Expires=/);
   });
 });

@@ -11,6 +11,8 @@
  * - A **placement** is a stamp put on a day of a calendar: where, turned and
  *   scaled how, stacked in which order. The day itself is no document – it is
  *   the placements with its date.
+ * - A **note** is what happened on a day of a calendar, in a few words – one
+ *   per day at most, written by all its members (note.ts).
  *
  * Every one carries `changedAt` (when it was last changed, on the device that
  * changed it – the later change wins) and `deleted` (removed, kept as a
@@ -176,6 +178,28 @@ export type PlacementDoc = Synced & {
   /** The ink it was stamped with – null on old prints: the stamp's color. */
   ink: ColorName | null;
   placedBy: string;
+};
+
+/**
+ * A stretch of a note's text, bold and/or underlined – or neither. Never a
+ * line break inside: those part the lines.
+ */
+export type NoteRun = { text: string; b?: true; u?: true };
+
+/**
+ * What a note says: its lines, each of runs. No HTML – a structure checked
+ * on the server and again before it shows, drawn by the app itself
+ * (note.ts).
+ */
+export type NoteContent = { v: 1; lines: NoteRun[][] };
+
+export type NoteDoc = Synced & {
+  calendar: string;
+  date: DayKey;
+  /** None only on a marker – emptied, it is deleted. */
+  content: NoteContent | null;
+  /** Who wrote last – none on a marker. */
+  editedBy: string;
 };
 
 /**

@@ -18,6 +18,16 @@ export const SESSION_COOKIE = "boop-session";
  */
 export const SESSION_ONLY_COOKIE = "boop-session-only";
 
+/**
+ * Beside every login, with its life: a cookie the page can see, holding
+ * nothing but “someone is logged in here”. The public pages are the same
+ * for everyone (built ahead, kept offline) – by it they show the way into
+ * the app instead of the ways to log in, before the first paint
+ * ([locale]/layout.tsx). Only a hint: whoever follows it and isn't logged
+ * in after all lands at the login, as before.
+ */
+export const SIGNED_IN_COOKIE = "boop-in";
+
 /** “Stay logged in” – the collection's `tokenExpiration`. */
 export const REMEMBER_SECONDS = 60 * 60 * 24 * 30;
 
@@ -70,14 +80,44 @@ export const expired = (name: string) =>
  */
 export const loginCookies = (token: string, expires: Date | null) =>
   expires
-    ? [cookie(SESSION_COOKIE, token, { expires }), expired(SESSION_ONLY_COOKIE)]
+    ? [
+        cookie(SESSION_COOKIE, token, { expires }),
+        expired(SESSION_ONLY_COOKIE),
+        signedIn(expires),
+      ]
     : [
         cookie(SESSION_COOKIE, token),
         cookie(SESSION_ONLY_COOKIE, "1", { visible: true }),
+        signedIn(null),
       ];
 
-/** The cookies of a logout: both gone. */
+/** The hint that someone is logged in – as long as that login (or none). */
+export const signedIn = (expires: Date | null) =>
+  cookie(SIGNED_IN_COOKIE, "1", {
+    visible: true,
+    expires: expires ?? undefined,
+  });
+
+/** The cookies of a logout: all gone. */
 export const logoutCookies = () => [
   expired(SESSION_COOKIE),
   expired(SESSION_ONLY_COOKIE),
+  expired(SIGNED_IN_COOKIE),
 ];
+
+/**
+ * The hint for a login from before it existed – set by a sync that finds it
+ * missing: for one browser session if the login is one (its sign is there),
+ * else for a login's full life (it may end sooner – a hint only).
+ */
+export const missingSignedIn = (cookieHeader: string | null) => {
+  const names = (cookieHeader ?? "")
+    .split(";")
+    .map((part) => part.trim().split("=")[0]);
+  if (names.includes(SIGNED_IN_COOKIE)) return null;
+  return signedIn(
+    names.includes(SESSION_ONLY_COOKIE)
+      ? null
+      : new Date(Date.now() + REMEMBER_SECONDS * 1000)
+  );
+};

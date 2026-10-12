@@ -1,4 +1,9 @@
 import type { Endpoint } from "payload";
+import {
+  expired,
+  missingSignedIn,
+  SIGNED_IN_COOKIE,
+} from "@/features/accounts/cookie";
 import { noteSeen } from "@/features/accounts/seen";
 import { sessionAccount } from "@/features/accounts/session";
 import { calendarsOf } from "@/features/calendar/membership";
@@ -47,7 +52,11 @@ export const syncEndpoint: Endpoint = {
   handler: async (req) => {
     const account = await sessionAccount(req);
     if (!account) {
-      return Response.json({ error: "Not logged in." }, { status: 401 });
+      // Not logged in (any more): the public pages' hint goes too.
+      return Response.json(
+        { error: "Not logged in." },
+        { status: 401, headers: { "Set-Cookie": expired(SIGNED_IN_COOKIE) } }
+      );
     }
     const me = String(account.id);
     if (tooMany(me)) {
@@ -158,6 +167,11 @@ export const syncEndpoint: Endpoint = {
       need: ids(body.need),
       touched,
     });
-    return Response.json({ ...result, rejected } satisfies SyncResponse);
+    // A login from before the public pages' hint gets it now (cookie.ts).
+    const hint = missingSignedIn(req.headers.get("cookie"));
+    return Response.json(
+      { ...result, rejected } satisfies SyncResponse,
+      hint ? { headers: { "Set-Cookie": hint } } : undefined
+    );
   },
 };
