@@ -21,7 +21,11 @@ import { dictionaryOf } from "../../i18n/dictionaries";
  */
 
 /** A calendar's three switches, for one account. */
-export type Switches = { reminder: boolean; stamped: boolean; changed: boolean };
+export type Switches = {
+  reminder: boolean;
+  stamped: boolean;
+  changed: boolean;
+};
 
 export const DEFAULT_SWITCHES: Readonly<Switches> = {
   reminder: true,
@@ -206,7 +210,11 @@ export const switchesOf = (
 ): Switches => {
   const entry = entriesOf(settings).find((e) => e.calendar === calendar);
   return entry
-    ? { reminder: entry.reminder, stamped: entry.stamped, changed: entry.changed }
+    ? {
+        reminder: entry.reminder,
+        stamped: entry.stamped,
+        changed: entry.changed,
+      }
     : { ...DEFAULT_SWITCHES };
 };
 
@@ -486,7 +494,9 @@ export const distinctChanges = (changes: readonly CalendarChange[]) => {
 
 /** Whom changes are about – they don't hear of them. */
 export const aboutOf = (changes: readonly CalendarChange[]) => [
-  ...new Set(changes.flatMap((change) => ("who" in change ? [change.who] : []))),
+  ...new Set(
+    changes.flatMap((change) => ("who" in change ? [change.who] : []))
+  ),
 ];
 
 /**
@@ -524,7 +534,12 @@ export const createBundle = (windowMs: number, gatherMs: number) => {
       const window = windows.get(key);
       if (!window) {
         const due = now + gatherMs;
-        windows.set(key, { since: now, changes: [change], told: new Set(), due });
+        windows.set(key, {
+          since: now,
+          changes: [change],
+          told: new Set(),
+          due,
+        });
         return due;
       }
       window.changes = distinctChanges([...window.changes, change]);

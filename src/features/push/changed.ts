@@ -4,9 +4,9 @@ import { LOCALES } from "@/i18n/config";
 import { devicesOf, peopleOf, settingsOf } from "./read";
 import {
   aboutOf,
+  type CalendarChange,
   CHANGED_GATHER_MS,
   CHANGED_WINDOW_MS,
-  type CalendarChange,
   calendarChanges,
   changedMessage,
   changedTargets,

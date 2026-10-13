@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   aboutOf,
+  type CalendarChange,
   CHANGED_GATHER_MS,
   CHANGED_WINDOW_MS,
-  type CalendarChange,
   calendarChanges,
   calendarUrl,
   changedMessage,
@@ -436,6 +436,319 @@ describe("what a notification says", () => {
       "url",
     ]);
     expect(JSON.stringify(message)).not.toContain(ANNA);
+  });
+});
+
+describe("what counts as a change", () => {
+  const lines = (text: string) => [[{ text }]];
+
+  it("a note written, rewritten or emptied – the same words again: no", () => {
+    const note = { calendar: FAMILY, content: lines("Zoo"), deleted: false };
+    expect(
+      noteChanges({ operation: "create", doc: note, previous: {}, by: ANNA })
+    ).toEqual([{ kind: "note" }]);
+    expect(
+      noteChanges({
+        operation: "update",
+        doc: { ...note, content: lines("Zoo mit Oma") },
+        previous: note,
+        by: ANNA,
+      })
+    ).toEqual([{ kind: "note" }]);
+    expect(
+      noteChanges({ operation: "update", doc: note, previous: note, by: ANNA })
+    ).toEqual([]);
+    const emptied = { calendar: FAMILY, content: null, deleted: true };
+    expect(
+      noteChanges({
+        operation: "update",
+        doc: emptied,
+        previous: note,
+        by: ANNA,
+      })
+    ).toEqual([{ kind: "noteDeleted" }]);
+    // Written again on an emptied day.
+    expect(
+      noteChanges({
+        operation: "update",
+        doc: note,
+        previous: emptied,
+        by: ANNA,
+      })
+    ).toEqual([{ kind: "note" }]);
+  });
+
+  const print = {
+    calendar: FAMILY,
+    date: "2026-10-12",
+    x: 0.5,
+    y: 0.5,
+    rotation: 0,
+    scale: 1,
+    z: 1,
+    ink: "coral",
+    deleted: false,
+  };
+
+  it("a print moved, turned or taken off – not one placed", () => {
+    const update = (doc: Record<string, unknown>, previous = print) =>
+      placementChanges({ operation: "update", doc, previous, by: ANNA });
+    expect(update({ ...print, x: 0.7, z: 2 })).toEqual([{ kind: "moved" }]);
+    expect(update({ ...print, rotation: 45 })).toEqual([{ kind: "moved" }]);
+    expect(update({ ...print, deleted: true })).toEqual([
+      { kind: "unstamped" },
+    ]);
+    expect(update(print)).toEqual([]);
+    // Taken off twice is once.
+    expect(update(print, { ...print, deleted: true })).toEqual([]);
+    expect(
+      placementChanges({
+        operation: "create",
+        doc: print,
+        previous: {},
+        by: ANNA,
+      })
+    ).toEqual([]);
+  });
+
+  const calendar = {
+    id: FAMILY,
+    name: "Familie",
+    color: "coral",
+    owner: ANNA,
+    members: [ANNA, BEN],
+    deleted: false,
+  };
+  const update = (doc: Record<string, unknown>, by = ANNA) =>
+    calendarChanges({ operation: "update", doc, previous: calendar, by });
+
+  it("a calendar renamed – its color is no news", () => {
+    expect(update({ ...calendar, name: "Familie Weber" })).toEqual([
+      { kind: "renamed", from: "Familie" },
+    ]);
+    expect(update({ ...calendar, color: "mint" })).toEqual([]);
+    expect(update({ ...calendar, name: "Weg", deleted: true })).toEqual([]);
+  });
+
+  it("someone in, gone by themselves, or taken out", () => {
+    expect(update({ ...calendar, members: [ANNA, BEN, CARL] })).toEqual([
+      { kind: "joined", who: CARL },
+    ]);
+    // Populated, too.
+    expect(
+      update({ ...calendar, members: [{ id: ANNA }, { id: BEN }, { id: ME }] })
+    ).toEqual([{ kind: "joined", who: ME }]);
+    expect(update({ ...calendar, members: [ANNA] }, BEN)).toEqual([
+      { kind: "left", who: BEN },
+    ]);
+    expect(update({ ...calendar, members: [ANNA] }, ANNA)).toEqual([
+      { kind: "removed", who: BEN },
+    ]);
+  });
+});
+
+describe("who hears that someone changed something", () => {
+  const members = [ME, ANNA, BEN];
+  const on = (...calendars: string[]) => ({
+    calendars: calendars.map((calendar) => ({ calendar, changed: true })),
+  });
+  const devices = [
+    device("my-phone", ME),
+    device("anna-phone", ANNA),
+    device("anna-old", ANNA, { session: "logged-out" }),
+    device("ben-phone", BEN),
+  ];
+  const sessions = {
+    [ME]: loggedIn(ME),
+    [ANNA]: loggedIn(ANNA),
+    [BEN]: loggedIn(BEN),
+  };
+  const targets = (more: Partial<Parameters<typeof changedTargets>[0]> = {}) =>
+    changedTargets({
+      calendar: FAMILY,
+      members,
+      by: ME,
+      about: [],
+      devices,
+      settings: { [ANNA]: on(FAMILY), [BEN]: on(FAMILY) },
+      sessions,
+      now: EVENING,
+      ...more,
+    }).map((d) => d.id);
+
+  it("is nobody unless they switched it on – it's off by default", () => {
+    expect(targets({ settings: {} })).toEqual([]);
+    expect(targets({ settings: { [ANNA]: on(SPORT) } })).toEqual([]);
+    expect(targets({ settings: { [BEN]: on(FAMILY) } })).toEqual(["ben-phone"]);
+  });
+
+  it("is never the one who did it – none of their devices", () => {
+    expect(
+      targets({ settings: { [ME]: on(FAMILY), [ANNA]: on(FAMILY) } })
+    ).toEqual(["anna-phone"]);
+  });
+
+  it("is never whom it is about – one taken out hears nothing of it", () => {
+    const removed: CalendarChange[] = [{ kind: "removed", who: BEN }];
+    // Even were Ben still listed as a member.
+    expect(targets({ about: aboutOf(removed) })).toEqual(["anna-phone"]);
+    expect(targets({ members: [ME, ANNA] })).toEqual(["anna-phone"]);
+  });
+});
+
+describe("bundling changes", () => {
+  const KEY = `${FAMILY}:${ANNA}`;
+  const START = 1_000_000;
+  const note: CalendarChange = { kind: "note" };
+  const moved: CalendarChange = { kind: "moved" };
+
+  it("tells the first a moment later – with the rest of its sync", () => {
+    const bundle = createBundle(CHANGED_WINDOW_MS, CHANGED_GATHER_MS);
+    expect(bundle.add(KEY, note, START)).toBe(START + CHANGED_GATHER_MS);
+    // Same sync: joins it, nothing more to schedule.
+    expect(bundle.add(KEY, moved, START + 10)).toBeNull();
+    expect(bundle.take(KEY, START + CHANGED_GATHER_MS)).toEqual([note, moved]);
+  });
+
+  it("lets more of the same pass quietly within the window", () => {
+    const bundle = createBundle(CHANGED_WINDOW_MS, CHANGED_GATHER_MS);
+    bundle.add(KEY, note, START);
+    const told = START + CHANGED_GATHER_MS;
+    expect(bundle.take(KEY, told)).toEqual([note]);
+    expect(bundle.add(KEY, note, told + 60_000)).toBeNull();
+    expect(bundle.take(KEY, told + 60_000)).toBeNull();
+    // Once the window is over: news again.
+    const later = told + CHANGED_WINDOW_MS;
+    expect(bundle.add(KEY, note, later)).toBe(later + CHANGED_GATHER_MS);
+  });
+
+  it("tells something new at the window's end – all of it, once", () => {
+    const bundle = createBundle(CHANGED_WINDOW_MS, CHANGED_GATHER_MS);
+    bundle.add(KEY, note, START);
+    const told = START + CHANGED_GATHER_MS;
+    bundle.take(KEY, told);
+    expect(bundle.add(KEY, moved, told + 60_000)).toBe(
+      told + CHANGED_WINDOW_MS
+    );
+    // Already waiting – nothing more to schedule.
+    expect(bundle.add(KEY, { kind: "unstamped" }, told + 120_000)).toBeNull();
+    expect(bundle.take(KEY, told + CHANGED_WINDOW_MS)).toEqual([
+      note,
+      moved,
+      { kind: "unstamped" },
+    ]);
+  });
+
+  it("is one per person and calendar", () => {
+    const bundle = createBundle(CHANGED_WINDOW_MS, CHANGED_GATHER_MS);
+    bundle.add(KEY, note, START);
+    expect(bundle.add(`${FAMILY}:${BEN}`, note, START)).not.toBeNull();
+    expect(bundle.add(`${SPORT}:${ANNA}`, note, START)).not.toBeNull();
+  });
+
+  it("counts each person who came in as news of their own", () => {
+    const bundle = createBundle(CHANGED_WINDOW_MS, CHANGED_GATHER_MS);
+    bundle.add(KEY, { kind: "joined", who: BEN }, START);
+    const told = START + CHANGED_GATHER_MS;
+    bundle.take(KEY, told);
+    expect(
+      bundle.add(KEY, { kind: "joined", who: BEN }, told + 1000)
+    ).toBeNull();
+    expect(
+      bundle.add(KEY, { kind: "joined", who: CARL }, told + 2000)
+    ).not.toBeNull();
+  });
+});
+
+describe("what a change says", () => {
+  const familie = { id: FAMILY, name: "Familie" };
+  const say = (
+    changes: CalendarChange[],
+    locale: "de" | "en" = "de",
+    calendar = familie
+  ) =>
+    changedMessage(locale, {
+      name: "Anna",
+      calendar,
+      changes,
+      people: { [BEN]: "Ben" },
+    })?.body;
+
+  it("names what was done, in the device's language", () => {
+    expect(say([{ kind: "note" }])).toBe(
+      "Anna hat in „Familie“ eine Notiz geschrieben."
+    );
+    expect(say([{ kind: "noteDeleted" }])).toBe(
+      "Anna hat in „Familie“ eine Notiz gelöscht."
+    );
+    expect(say([{ kind: "moved" }])).toBe(
+      "Anna hat in „Familie“ Abdrücke verschoben."
+    );
+    expect(say([{ kind: "unstamped" }])).toBe(
+      "Anna hat in „Familie“ Abdrücke entfernt."
+    );
+    expect(
+      say([{ kind: "renamed", from: "Familie" }], "de", {
+        id: FAMILY,
+        name: "Familie Weber",
+      })
+    ).toBe("Anna hat „Familie“ in „Familie Weber“ umbenannt.");
+    expect(say([{ kind: "note" }], "en", { id: FAMILY, name: "Family" })).toBe(
+      "Anna wrote a note in “Family”."
+    );
+  });
+
+  it("names who came or went", () => {
+    expect(say([{ kind: "joined", who: BEN }])).toBe(
+      "Ben ist jetzt in „Familie“ dabei."
+    );
+    expect(say([{ kind: "left", who: BEN }])).toBe(
+      "Ben hat „Familie“ verlassen."
+    );
+    expect(say([{ kind: "removed", who: BEN }])).toBe(
+      "Ben ist nicht mehr in „Familie“ dabei."
+    );
+    expect(say([{ kind: "joined", who: CARL }], "en")).toBe(
+      "Someone is in “Familie” now."
+    );
+  });
+
+  it("says “a few things” for more than one", () => {
+    expect(say([{ kind: "note" }, { kind: "moved" }])).toBe(
+      "Anna hat in „Familie“ einiges geändert."
+    );
+    expect(
+      say([
+        { kind: "joined", who: BEN },
+        { kind: "joined", who: CARL },
+      ])
+    ).toBe("Anna hat in „Familie“ einiges geändert.");
+    // The same twice is one.
+    expect(say([{ kind: "note" }, { kind: "note" }])).toBe(
+      "Anna hat in „Familie“ eine Notiz geschrieben."
+    );
+  });
+
+  it("says nothing of a name changed and back", () => {
+    expect(say([{ kind: "renamed", from: "Familie" }])).toBeUndefined();
+    expect(say([{ kind: "renamed", from: "Familie" }, { kind: "note" }])).toBe(
+      "Anna hat in „Familie“ eine Notiz geschrieben."
+    );
+  });
+
+  it("leads to the calendar, replaces the one before, carries no ids", () => {
+    const message = changedMessage("de", {
+      name: "Anna",
+      calendar: familie,
+      changes: [{ kind: "joined", who: BEN }],
+      people: { [BEN]: "Ben" },
+    });
+    expect(message).toMatchObject({
+      title: "Boop!",
+      url: `/de/app/${FAMILY}`,
+      tag: `changed-${FAMILY}`,
+    });
+    expect(JSON.stringify(message)).not.toContain(BEN);
   });
 });
 
