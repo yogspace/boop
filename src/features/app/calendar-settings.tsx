@@ -278,7 +278,12 @@ const DeleteCalendar = ({
 
   if (step === "rest") {
     return (
-      <Button onClick={() => setStep("ask")} size="sm" variant="ghost">
+      <Button
+        className="self-start"
+        onClick={() => setStep("ask")}
+        size="sm"
+        variant="danger"
+      >
         {t.app.deleteCalendar}
       </Button>
     );

@@ -34,6 +34,11 @@
   --color-line: #d9d9d6;
   /* Paper grey – the one second tone, for a soft fill. */
   --color-soft: #f2f2ef;
+  /*
+   * The one warning: a button whose press deletes something for good
+   * (“danger”, components/ui.tsx). White on it 5.6:1.
+   */
+  --color-danger: #c81e1e;
 
   /*
    * No stamp colors here: they are content, never chrome – what a stamp, a
@@ -261,6 +266,7 @@
  *   scribble             the frame: a 3px ink line, filled paper-white
  *   scribble-ink         filled with ink, its text paper-white – “on”, primary
  *   scribble-soft        filled paper grey
+ *   scribble-danger      filled warning red, its text paper-white – deletes
  *   scribble-clear       not filled – what is behind shows
  *   scribble-bare        no line, only the fill (with scribble-clear: nothing,
  *                        until e.g. hover:scribble-soft puts a blob behind)
@@ -357,6 +363,15 @@
 
 @utility scribble-ink {
   --scribble-fill: var(--color-ink);
+  color: var(--color-card);
+
+  &::before {
+    display: block;
+  }
+}
+
+@utility scribble-danger {
+  --scribble-fill: var(--color-danger);
   color: var(--color-card);
 
   &::before {

@@ -34,8 +34,8 @@ const VARIANTS = {
   /** The quiet one: bare words, a soft blob behind them when hovered. */
   ghost:
     "scribble-bare scribble-clear hover:scribble-soft hover:translate-y-0 hover:rotate-0",
-  /** Something goes for good – filled like the main thing; the words say it. */
-  danger: "scribble-ink",
+  /** Something goes for good – a warning red, its words paper-white. */
+  danger: "scribble-danger",
 } as const;
 
 const SIZES = {

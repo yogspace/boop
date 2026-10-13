@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Check, Cross, Dot } from "@/components/doodles";
 import { Button } from "@/components/ui";
 import { sync, useBoop } from "@/features/offline/store";
@@ -11,7 +12,7 @@ import { dictionaryOf } from "@/i18n/dictionaries";
  * (boop-app.tsx), not in the bar: there it was louder than it deserves. The
  * bar keeps only a sign on the account's button when there is something to
  * say (`SyncMark`); the menu says it in words, with a button to sync now
- * (`SyncStatus`).
+ * (`SyncStatus`). The sign shares the button with the invitations waiting.
  */
 
 const useSyncState = (locale: Locale) => {
@@ -28,28 +29,54 @@ const useSyncState = (locale: Locale) => {
   return { t, online, pending, state, label };
 };
 
+/** A change on its way for a moment is no news – only one that stays. */
+const STAYS_MS = 5000;
+
 /**
- * On the account's button, at its edge: how many changes wait (a number),
- * or a cross while offline – nothing while all is in sync. The words are
- * read out as they change.
+ * On the account's button, at its edges: how many invitations wait (a
+ * number, on top) – and below, a cross while offline, or a dot when changes
+ * have waited a while (each change waits a moment before it goes: a sign
+ * for that would blink at every print). Nothing while all is well. The
+ * words are read out as they change.
  */
 export const SyncMark = ({ locale }: { locale: Locale }) => {
-  const { online, pending, state, label } = useSyncState(locale);
+  const { t, online, pending, label } = useSyncState(locale);
+  const { invitations } = useBoop();
+  const waiting = online && pending > 0;
+  const [stays, setStays] = useState(false);
+  useEffect(() => {
+    if (!waiting) {
+      setStays(false);
+      return;
+    }
+    const timer = setTimeout(() => setStays(true), STAYS_MS);
+    return () => clearTimeout(timer);
+  }, [waiting]);
+  const invited = invitations.length;
+  const said = [
+    invited > 0 && t.app.invitations.count(invited),
+    (!online || stays) && label,
+  ].filter(Boolean);
   return (
     <>
+      {invited > 0 && (
+        <span className="absolute -top-1.5 -right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-ink px-1 font-black text-[10px] text-white leading-none ring-2 ring-card">
+          {invited > 9 ? "9+" : invited}
+        </span>
+      )}
       {!online ? (
-        <span className="absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-ink text-white ring-2 ring-card">
+        <span className="absolute -right-1.5 -bottom-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-ink text-white ring-2 ring-card">
           <Cross className="h-2.5 w-2.5" />
         </span>
       ) : (
-        pending > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-ink px-1 font-black text-[10px] text-white leading-none ring-2 ring-card">
-            {pending > 99 ? "99+" : pending}
+        stays && (
+          <span className="absolute -right-1 -bottom-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-card">
+            <Dot className="h-2.5 w-2.5 animate-pulse-dot" />
           </span>
         )
       )}
       <span aria-live="polite" className="sr-only">
-        {state === "synced" ? "" : label}
+        {said.join(", ")}
       </span>
     </>
   );

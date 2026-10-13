@@ -216,7 +216,12 @@ export const AccountSheet = ({
           </div>
         </form>
       ) : (
-        <Button onClick={() => setSure(true)} size="sm" variant="ghost">
+        <Button
+          className="self-start"
+          onClick={() => setSure(true)}
+          size="sm"
+          variant="danger"
+        >
           {text.delete}
         </Button>
       )}

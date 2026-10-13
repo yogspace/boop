@@ -83,6 +83,9 @@ Stand: 13.10.2026
 - Startseite: „So einfach geht's“ als drei Zettel mit Bildgeschichte
   (Desktop nebeneinander, Phone untereinander); Sprachwechsel dort behält
   jetzt den Login-Zustand.
+- Konto-Kreis: Zahl oben = offene Einladungen (auch am „Konto“-Knopf im
+  Menü); unten ein Punkt erst, wenn Änderungen länger als 5 s warten, ein
+  Kreuz ohne Netz. „Kalender löschen“ / „Konto löschen“ sind rot.
 - Sync-Stand jetzt im Kontomenü (mit „Jetzt abgleichen“); am Konto-Kreis
   nur eine Zahl, wenn etwas wartet, bzw. ein Kreuz ohne Netz.
 - Einladung zwischen zwei Konten (lief nie gegen echtes Payload): Popup

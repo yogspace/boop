@@ -426,6 +426,10 @@ const de = {
     // (features/app/invitations.tsx).
     invitations: {
       title: "Einladungen",
+      count: template(
+        { one: "1 Einladung", many: "{n} Einladungen" },
+        (say) => (n: number) => (n === 1 ? say.one() : say.many({ n }))
+      ),
       popupTitle: "Du bist eingeladen!",
       text: template(
         {
@@ -1141,6 +1145,7 @@ const en: Shape<typeof de> = {
     },
     invitations: {
       title: "Invitations",
+      count: { one: "1 invitation", many: "{n} invitations" },
       popupTitle: "You're invited!",
       text: {
         named: "{from} invites you to “{calendar}”.",
