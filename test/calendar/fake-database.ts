@@ -64,8 +64,12 @@ export const fakeDatabase = () => {
   };
   const passwords = new Map<string, string>();
   const sent: { to: string; subject: string; html: string }[] = [];
-  const updates: { collection: string; id: string; data: Doc; context: unknown }[] =
-    [];
+  const updates: {
+    collection: string;
+    id: string;
+    data: Doc;
+    context: unknown;
+  }[] = [];
   let next = 1;
   const stamp = () => new Date(Date.now()).toISOString();
 
@@ -89,11 +93,23 @@ export const fakeDatabase = () => {
         totalDocs: all.length,
       };
     },
-    findByID: async ({ collection, id }: { collection: string; id: string }) => {
+    findByID: async ({
+      collection,
+      id,
+    }: {
+      collection: string;
+      id: string;
+    }) => {
       const doc = db[collection].get(String(id));
       return doc ? { ...doc } : null;
     },
-    count: async ({ collection, where }: { collection: string; where?: Where }) => ({
+    count: async ({
+      collection,
+      where,
+    }: {
+      collection: string;
+      where?: Where;
+    }) => ({
       totalDocs: found(collection, where).length,
     }),
     create: async ({ collection, data }: { collection: string; data: Doc }) => {
@@ -114,7 +130,11 @@ export const fakeDatabase = () => {
       data: Doc;
       context?: unknown;
     }) => {
-      const doc = { ...db[collection].get(String(id)), ...data, updatedAt: stamp() };
+      const doc = {
+        ...db[collection].get(String(id)),
+        ...data,
+        updatedAt: stamp(),
+      };
       db[collection].set(String(id), doc);
       updates.push({ collection, id: String(id), data, context });
       return { ...doc };

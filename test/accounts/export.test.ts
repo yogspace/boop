@@ -143,6 +143,30 @@ const invites = [
     createdAt: "2026-10-10T10:00:00.000Z",
     expiresAt: "2026-10-24T10:00:00.000Z",
   },
+  // To the account's address – one open, one over.
+  {
+    id: "inv-to-me",
+    email: "max@example.com",
+    calendar: "cal-garden",
+    invitedBy: ANNA,
+    token: "to-me-token-secret",
+    createdAt: "2026-10-11T10:00:00.000Z",
+    expiresAt: "2026-10-25T10:00:00.000Z",
+  },
+  {
+    id: "inv-to-me-over",
+    email: "max@example.com",
+    calendar: "cal-garden",
+    invitedBy: ANNA,
+    token: "to-me-old-token-secret",
+    createdAt: "2026-09-01T10:00:00.000Z",
+    expiresAt: "2026-09-15T10:00:00.000Z",
+  },
+];
+
+/** The calendars it is invited to – for their names. */
+const invitingCalendars = [
+  { id: "cal-garden", name: "Annas Garten", owner: ANNA, members: [ANNA] },
 ];
 
 const notes = [
@@ -232,6 +256,7 @@ const data = accountExport({
   placements,
   notes,
   invites,
+  invitingCalendars,
   pushSettings,
   pushDevices,
   calendarFeeds,
@@ -408,6 +433,21 @@ describe("the account's data as a file", () => {
     ]);
   });
 
+  it("lists the open invitations to its address – which calendar, from whom, until when", () => {
+    expect(data.invitedTo).toEqual([
+      {
+        calendar: { id: "cal-garden", name: "Annas Garten" },
+        from: { id: ANNA, name: "Anna" },
+        sentAt: "2026-10-11T10:00:00.000Z",
+        expiresAt: "2026-10-25T10:00:00.000Z",
+      },
+    ]);
+    // Not the ones it sent among them – nor these among those.
+    expect(data.invites.map((invite) => invite.email)).toEqual([
+      "neu@example.com",
+    ]);
+  });
+
   it("tells nothing about others but their names", () => {
     // Not their addresses, their doodles, their prints or invitations.
     for (const theirs of [
@@ -418,6 +458,7 @@ describe("the account's data as a file", () => {
       "note-annas",
       "Annas Notiz",
       "inv-annas",
+      "inv-to-me",
       "cal-foreign",
       "Geheim",
     ]) {
@@ -467,7 +508,8 @@ describe("the account's data as a file", () => {
       fresh.placements,
       fresh.notes,
       fresh.invites,
-    ]).toEqual([[], [], [], [], [], []]);
+      fresh.invitedTo,
+    ]).toEqual([[], [], [], [], [], [], []]);
     expect(fresh.notifications).toEqual({
       reminderAt: "20:00",
       invited: true,

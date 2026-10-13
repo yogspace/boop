@@ -58,9 +58,7 @@ vi.mock("@/features/calendar/endpoints/invitations", () =>
 vi.mock("@/features/calendar/membership", () =>
   real["@/features/calendar/membership"]()
 );
-vi.mock("@/features/calendar/model", () =>
-  real["@/features/calendar/model"]()
-);
+vi.mock("@/features/calendar/model", () => real["@/features/calendar/model"]());
 vi.mock("@/features/calendar/note", () => real["@/features/calendar/note"]());
 vi.mock("@/features/calendar/palette", () =>
   real["@/features/calendar/palette"]()
@@ -314,13 +312,18 @@ describe("the invitations in the sync", () => {
   it("never brings a token or an address – nor anything else of the calendar", async () => {
     await invite(ANNA, "ben@example.com");
     await invite(ANNA, "nobody@example.com");
-    const told = JSON.stringify(await synced(BEN));
+    const sync = await synced(BEN);
+    const told = JSON.stringify(sync);
     for (const doc of fake.db.invites.values()) {
       expect(told).not.toContain(String(doc.token));
     }
-    expect(told).not.toMatch(/token|@/);
-    expect(told).not.toContain(CARL);
-    expect((await synced(BEN)).calendarIds).toEqual([]);
+    expect(JSON.stringify(sync.invitations)).not.toMatch(/token|@/);
+    // Its own address it knows; nobody else's – the sender's neither.
+    for (const theirs of ["anna@", "nobody@", "carl@", CARL]) {
+      expect(told).not.toContain(theirs);
+    }
+    expect(sync.calendarIds).toEqual([]);
+    expect(sync.calendars).toEqual([]);
   });
 
   it("goes by the confirmed address – not one still waiting for its link", async () => {
@@ -352,7 +355,10 @@ describe("the invitations in the sync", () => {
       members: [ANNA],
       deleted: true,
     });
-    putInvitation("d".repeat(24), { email: "ben@example.com", calendar: "gone" });
+    putInvitation("d".repeat(24), {
+      email: "ben@example.com",
+      calendar: "gone",
+    });
     fake.put("calendars", {
       id: "in",
       name: "Drin",
