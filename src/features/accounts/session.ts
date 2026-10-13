@@ -6,7 +6,6 @@ import {
   logoutOperation,
   type PayloadRequest,
 } from "payload";
-import { joinInvitedCalendars } from "@/features/calendar/invites";
 import { nudge } from "@/features/sync/live";
 import { rateLimit } from "@/lib/rate-limit";
 import {
@@ -276,12 +275,9 @@ export const sessionEndpoints: Endpoint[] = [
           },
         });
         if (!result.token) throw new Error("No token.");
-        if (result.user) {
-          // There – not unused (retention.ts).
-          await noteSeen(req, result.user);
-          // Invitations to this address become memberships now.
-          await joinInvitedCalendars(req, result.user).catch(() => undefined);
-        }
+        // There – not unused (retention.ts). Invitations to its address
+        // wait in the app for a yes (calendar/endpoints/invitations.ts).
+        if (result.user) await noteSeen(req, result.user);
         // “Stay logged in” – unless the form says no (a page from before
         // says nothing): then only until the browser closes.
         const cookies =
@@ -480,11 +476,6 @@ export const sessionEndpoints: Endpoint[] = [
             { status: status[confirmed.reason] }
           );
         }
-        // Invitations to the new address become memberships now, as at a
-        // login.
-        await joinInvitedCalendars(req, confirmed.account).catch(
-          () => undefined
-        );
         // The address it had hears of it – should this not have been the
         // account's own doing.
         if (confirmed.was) {
@@ -494,7 +485,8 @@ export const sessionEndpoints: Endpoint[] = [
             emailChangedMail({ user: confirmed.account })
           );
         }
-        // Every open app of the account syncs – and shows the new address.
+        // Every open app of the account syncs – and shows the new address,
+        // and the invitations to it, each waiting for a yes.
         nudge([confirmed.account.id]);
         return respond(req, { ok: true });
       } catch (error) {

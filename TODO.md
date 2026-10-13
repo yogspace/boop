@@ -99,6 +99,11 @@ Stand: 13.10.2026
   jetzt den Login-Zustand.
 - Sync-Stand jetzt im Kontomenü (mit „Jetzt abgleichen“); am Konto-Kreis
   nur eine Zahl, wenn etwas wartet, bzw. ein Kreuz ohne Netz.
+- Adressen für Offenes (mit dem echten Router, iPhone-Wischgeste zurück):
+  `/de/app/familie/monat/2026-10-13` (Tag), `…/einstellungen`, `…/teilen`,
+  `…/konto`, `…/neuer-stempel`. Zurück schließt, Vor öffnet wieder, ein
+  Link öffnet direkt. Achtung: Zurück im Editor „Neuer Stempel“ verwirft
+  die Zeichnung ohne Nachfrage (wie das X).
 - Heute-, Monats- und Jahresansicht mit dem echten Router: Umschalter,
   Adresse `/de/app/{kalender}/{heute|monat|jahr}`, Zurück/Vor, alte
   Id-Adressen, Reload; offline eine noch nie geöffnete Adresse.

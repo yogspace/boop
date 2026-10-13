@@ -22,17 +22,20 @@ import {
 import { calendarById, idOf } from "./membership";
 
 /**
- * Inviting someone who has no account yet: the address gets a mail with a
- * link. Whoever opens it and logs in (or signs up) joins the calendar – and
- * logging in with the invited address joins all its calendars anyway.
+ * Inviting someone to a calendar, by their address – with an account or
+ * without, nobody is in before saying yes. The address gets a mail with a
+ * link; whoever opens it and logs in (or signs up, or is logged in
+ * already) joins the calendar: following the link is the yes. An account
+ * with that address – a confirmed one – sees the invitation in the app as
+ * well, and takes it up or turns it down there (endpoints/invitations.ts).
  *
- * Invitations go once used – or after INVITE_DAYS (invite-expiry.ts), as
- * the mail says: one that is over is refused (the page says so) and swept
- * away – whenever someone invites or logs in, and by the cleanup cron
- * (/next/cron/cleanup).
+ * Invitations go once answered or taken back – or after INVITE_DAYS
+ * (invite-expiry.ts), as the mail says: one that is over is refused (the
+ * page says so) and swept away – whenever someone invites, and by the
+ * cleanup cron (/next/cron/cleanup).
  */
 
-type InviteRow = {
+export type InviteRow = {
   id: string;
   email: string;
   calendar: string;
@@ -43,7 +46,7 @@ type InviteRow = {
   expiresAt: unknown;
 };
 
-const row = (doc: Record<string, unknown>): InviteRow => ({
+export const row = (doc: Record<string, unknown>): InviteRow => ({
   id: String(doc.id),
   email: String(doc.email ?? ""),
   calendar: idOf(doc.calendar) ?? "",
@@ -77,7 +80,7 @@ export const Invites: CollectionConfig = {
     group: "Calendars",
     useAsTitle: "email",
     defaultColumns: ["email", "calendar", "invitedBy", "expiresAt"],
-    description: `Invitations to calendars for addresses without an account. Gone once used or after ${INVITE_DAYS} days.`,
+    description: `Invitations to calendars, by address – with an account or without. Gone once answered or taken back, or after ${INVITE_DAYS} days.`,
   },
   fields: [
     { name: "email", type: "email", required: true, index: true },
@@ -139,7 +142,7 @@ export const Invites: CollectionConfig = {
         if (!invite)
           return Response.json({ error: "Not found." }, { status: 404 });
         if (inviteExpired(invite)) return gone();
-        const joined = await join(req, invite, String(account.id));
+        const joined = await join(req, invite, account);
         return joined
           ? Response.json({ calendar: invite.calendar })
           : Response.json({ error: "Not found." }, { status: 404 });
@@ -191,29 +194,49 @@ const calendarName = async (req: PayloadRequest, id: string) => {
   return String((doc as { name?: string } | null)?.name ?? "");
 };
 
-/** The account joins the invitation's calendar; the invitation goes. */
-const join = async (
+/**
+ * The account joins the invitation's calendar; the invitation goes – and so
+ * does any other to this calendar for the account's own address: it is in
+ * now, and its owner sees nobody waiting. False when the calendar is gone.
+ */
+export const join = async (
   req: PayloadRequest,
   invite: InviteRow,
-  account: string
+  account: { id: string | number; email?: string }
 ) => {
+  const id = String(account.id);
   const calendar = await calendarById(req, invite.calendar);
+  const email = account.email?.trim().toLowerCase();
   await req.payload.delete({
     collection: "invites",
-    id: invite.id,
+    where: {
+      or: [
+        { id: { equals: invite.id } },
+        ...(email
+          ? [
+              {
+                and: [
+                  { email: { equals: email } },
+                  { calendar: { equals: invite.calendar } },
+                ],
+              },
+            ]
+          : []),
+      ],
+    },
     overrideAccess: true,
   });
   if (!calendar) return false;
-  if (!calendar.members.includes(account)) {
+  if (!calendar.members.includes(id)) {
     await req.payload.update({
       collection: "calendars",
       id: calendar.id,
       data: {
-        members: [...calendar.members, account],
+        members: [...calendar.members, id],
         changedAt: new Date().toISOString(),
       },
       // Who came in is who did it – the others hear of it (features/push).
-      context: { sync: true, by: account },
+      context: { sync: true, by: id },
       overrideAccess: true,
     });
     await nudgeCalendars(req, [calendar.id]);
@@ -222,33 +245,12 @@ const join = async (
 };
 
 /**
- * At login: every open invitation to this address is taken up – and, while
- * at it, the ones that are over (anyone's) are swept away.
- */
-export const joinInvitedCalendars = async (
-  req: PayloadRequest,
-  account: { id: string | number; email?: string }
-) => {
-  if (!account.email) return;
-  const { docs } = await req.payload.find({
-    collection: "invites",
-    where: { email: { equals: account.email.toLowerCase() } },
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-  });
-  for (const doc of docs) {
-    const invite = row(doc as unknown as Record<string, unknown>);
-    if (!inviteExpired(invite)) await join(req, invite, String(account.id));
-  }
-  await sweepInvites(req.payload);
-};
-
-/**
- * Invites an address (without an account) to a calendar: one invitation per
- * address and calendar – a new one replaces it, with a new deadline – and
- * the mail, which names that deadline. The mail is in the sender's language,
- * its words the CMS's where it has them (`mail.invite`, i18n/dictionaries.ts).
+ * Invites an address to a calendar: one invitation per address and
+ * calendar – a new one replaces it, with a new deadline – and the mail,
+ * which names that deadline. The mail is in the sender's language, its
+ * words the CMS's where it has them (`mail.invite`, i18n/dictionaries.ts).
+ * Whether the address is an account's is the caller's business
+ * (endpoints/members.ts): the row and the mail are the same either way.
  */
 export const invite = async (
   req: PayloadRequest,

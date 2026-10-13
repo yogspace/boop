@@ -1,3 +1,4 @@
+import { STRONG_LENGTH } from "../features/accounts/password-strength";
 import {
   EMAIL_CHANGE_HOURS,
   UNVERIFIED_DAYS,
@@ -108,6 +109,25 @@ const de = {
     password: "Passwort",
     newPassword: "Neues Passwort",
     passwordHint: "Mindestens 8 Zeichen.",
+    // Under a new password that is easy to guess: why, then the tip. A
+    // warning, no rule – it can be sent all the same (accounts/
+    // password-strength.ts).
+    weakPassword: {
+      personal:
+        "Dein Name oder deine Adresse steckt darin – darauf kommt man schnell.",
+      boop: "„Boop“ ist bei Boop das Erste, was jemand probiert.",
+      pattern:
+        "Folgen und Wiederholungen wie „1234“ oder „aaaa“ sind schnell erraten.",
+      digits: "Nur Ziffern oder ein Datum sind schnell erraten.",
+      common:
+        "Das gehört zu den Passwörtern, die zuerst probiert werden – auch mit Ziffern dahinter.",
+      short: template(
+        "Recht kurz – unter {min} Zeichen ist ein Passwort schnell erraten.",
+        (say) => say({ min: STRONG_LENGTH }),
+        { optional: ["min"] }
+      ),
+      tip: "Drei, vier zufällige Wörter sind lang und gut zu merken.",
+    },
     working: "Einen Moment …",
     failed: "Das hat nicht geklappt. Versuch es bitte noch einmal.",
     offline: "Du bist offline – dafür brauchst du eine Verbindung.",
@@ -241,6 +261,9 @@ const de = {
       (say) => (name: string) => say({ name })
     ),
     noCalendar: "Noch kein Kalender – leg einen an, dann geht's los.",
+    // The calendar every account starts with – named in the account's
+    // language as it is made (calendar/membership.ts).
+    firstCalendar: "Mein Kalender",
     stamps: "Deine Stempel",
     noStamps: "Noch keine Stempel – mal deinen ersten!",
     newStamp: "Neuer Stempel",
@@ -820,6 +843,17 @@ const en: Shape<typeof de> = {
     password: "Password",
     newPassword: "New password",
     passwordHint: "At least 8 characters.",
+    weakPassword: {
+      personal: "Your name or address is in it – that's an easy guess.",
+      boop: "“Boop” is the first thing anyone tries at Boop.",
+      pattern: "Runs and repeats like “1234” or “aaaa” are quick to guess.",
+      digits: "Digits alone or a date are quick to guess.",
+      common:
+        "That's one of the passwords tried first – even with digits added.",
+      short:
+        "Rather short – under {min} characters a password is quick to guess.",
+      tip: "Three or four random words are long and easy to remember.",
+    },
     working: "One moment …",
     failed: "That didn't work. Please try again.",
     offline: "You're offline – this needs a connection.",
@@ -925,6 +959,7 @@ const en: Shape<typeof de> = {
     deleteCalendarConfirm:
       "Delete “{name}” with all its stamps? This can't be undone.",
     noCalendar: "No calendar yet – make one to get going.",
+    firstCalendar: "My calendar",
     stamps: "Your stamps",
     noStamps: "No stamps yet – draw your first one!",
     newStamp: "New stamp",

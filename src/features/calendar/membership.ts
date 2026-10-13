@@ -1,5 +1,6 @@
 import type { PayloadRequest } from "payload";
 import { localeOf } from "@/features/accounts/emails";
+import { getDictionary } from "@/features/translations/get-texts";
 import { newId } from "@/lib/id";
 
 /**
@@ -76,18 +77,20 @@ export const calendarById = async (
 /**
  * A first calendar for an account, made at sign-up – a calendar like any
  * other: it can go, and then the account may have none. In the calendars'
- * default color (color-field.ts).
+ * default color (color-field.ts), named in the account's language – the
+ * CMS's word where it has one (`app.firstCalendar`).
  */
 export const createFirstCalendar = async (
   req: PayloadRequest,
   account: { id: string | number; locale?: unknown }
 ) => {
   const id = String(account.id);
+  const { app } = await getDictionary(localeOf(account));
   await req.payload.create({
     collection: "calendars",
     data: {
       id: newId(),
-      name: localeOf(account) === "de" ? "Mein Kalender" : "My calendar",
+      name: app.firstCalendar,
       owner: id,
       members: [id],
       deleted: false,

@@ -1,5 +1,6 @@
 import type { PayloadRequest, Where } from "payload";
 import { pendingEmailOf } from "@/features/accounts/retention";
+import { invitationsOf } from "@/features/calendar/endpoints/invitations";
 import { idOf } from "@/features/calendar/membership";
 import {
   type CalendarDoc,
@@ -319,6 +320,9 @@ export const pull = async (
     id: String(doc.id),
     name: String((doc as Doc).name ?? ""),
   }));
+  // Invitations to the account's own address – the one it logs in with,
+  // confirmed (a new one waiting for its link is none of its yet).
+  const invitations = await invitationsOf(req, { id: me, email: self.email });
 
   return {
     now,
@@ -349,5 +353,6 @@ export const pull = async (
     shared,
     placements: [...placements.values()],
     notes: [...notes.values()],
+    invitations,
   };
 };

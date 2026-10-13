@@ -16,6 +16,7 @@ import { Actions } from "@/features/analytics/collections/actions";
 import { PageViews } from "@/features/analytics/collections/page-views";
 import { Analytics } from "@/features/analytics/global";
 import { Calendars } from "@/features/calendar/collections/calendars";
+import { invitationEndpoints } from "@/features/calendar/endpoints/invitations";
 import { Notes } from "@/features/calendar/collections/notes";
 import { Placements } from "@/features/calendar/collections/placements";
 import { Stamps } from "@/features/calendar/collections/stamps";
@@ -116,6 +117,7 @@ export default buildConfig({
   endpoints: [
     syncEndpoint,
     liveEndpoint,
+    ...invitationEndpoints,
     ...pushEndpoints,
     ...icalEndpoints,
     seedEndpoint,

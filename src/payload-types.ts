@@ -367,7 +367,7 @@ export interface Note {
   createdAt: string;
 }
 /**
- * Invitations to calendars for addresses without an account. Gone once used or after 14 days.
+ * Invitations to calendars, by address – with an account or without. Gone once answered or taken back, or after 14 days.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "invites".
@@ -1086,6 +1086,36 @@ export interface Translation {
      * DE: Mindestens 8 Zeichen.  ·  EN: At least 8 characters.
      */
     passwordHint?: string | null;
+    weakPassword?: {
+      /**
+       * DE: Dein Name oder deine Adresse steckt darin – darauf kommt man schnell.  ·  EN: Your name or address is in it – that's an easy guess.
+       */
+      personal?: string | null;
+      /**
+       * DE: „Boop“ ist bei Boop das Erste, was jemand probiert.  ·  EN: “Boop” is the first thing anyone tries at Boop.
+       */
+      boop?: string | null;
+      /**
+       * DE: Folgen und Wiederholungen wie „1234“ oder „aaaa“ sind schnell erraten.  ·  EN: Runs and repeats like “1234” or “aaaa” are quick to guess.
+       */
+      pattern?: string | null;
+      /**
+       * DE: Nur Ziffern oder ein Datum sind schnell erraten.  ·  EN: Digits alone or a date are quick to guess.
+       */
+      digits?: string | null;
+      /**
+       * DE: Das gehört zu den Passwörtern, die zuerst probiert werden – auch mit Ziffern dahinter.  ·  EN: That's one of the passwords tried first – even with digits added.
+       */
+      common?: string | null;
+      /**
+       * DE: Recht kurz – unter {min} Zeichen ist ein Passwort schnell erraten.  ·  EN: Rather short – under {min} characters a password is quick to guess.  ·  May use {min}
+       */
+      short?: string | null;
+      /**
+       * DE: Drei, vier zufällige Wörter sind lang und gut zu merken.  ·  EN: Three or four random words are long and easy to remember.
+       */
+      tip?: string | null;
+    };
     /**
      * DE: Einen Moment …  ·  EN: One moment …
      */
@@ -1406,6 +1436,10 @@ export interface Translation {
      * DE: Noch kein Kalender – leg einen an, dann geht's los.  ·  EN: No calendar yet – make one to get going.
      */
     noCalendar?: string | null;
+    /**
+     * DE: Mein Kalender  ·  EN: Mein Kalender
+     */
+    firstCalendar?: string | null;
     /**
      * DE: Deine Stempel  ·  EN: Your stamps
      */
@@ -2822,6 +2856,17 @@ export interface TranslationsSelect<T extends boolean = true> {
         password?: T;
         newPassword?: T;
         passwordHint?: T;
+        weakPassword?:
+          | T
+          | {
+              personal?: T;
+              boop?: T;
+              pattern?: T;
+              digits?: T;
+              common?: T;
+              short?: T;
+              tip?: T;
+            };
         working?: T;
         failed?: T;
         offline?: T;
@@ -2944,6 +2989,7 @@ export interface TranslationsSelect<T extends boolean = true> {
         deleteCalendar?: T;
         deleteCalendarConfirm?: T;
         noCalendar?: T;
+        firstCalendar?: T;
         stamps?: T;
         noStamps?: T;
         newStamp?: T;

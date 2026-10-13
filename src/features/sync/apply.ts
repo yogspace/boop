@@ -397,11 +397,11 @@ export const unshare = async (
 };
 
 /**
- * A deleted calendar keeps only its marker: its placements and notes go for
- * good, and no stamp is shared with it any more.
+ * A deleted calendar keeps only its marker: its placements, notes and open
+ * invitations go for good, and no stamp is shared with it any more.
  */
 export const purgeCalendar = async (req: PayloadRequest, id: string) => {
-  for (const collection of ["placements", "notes"] as const) {
+  for (const collection of ["placements", "notes", "invites"] as const) {
     await req.payload.delete({
       collection,
       where: { calendar: { equals: id } },

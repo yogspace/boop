@@ -8,9 +8,9 @@ import { invite } from "../invites";
 import { calendarById } from "../membership";
 
 /**
- * Sharing a calendar: its owner adds someone by their email address – or,
- * without an account, invites them by mail (invites.ts) – and removes
- * members again; a member can leave – any calendar, the last one too. The
+ * Sharing a calendar: its owner invites someone by their email address
+ * (invites.ts) – nobody is in before saying yes – and removes members
+ * again; a member can leave – any calendar, the last one too. The
  * calendar's `changedAt` moves on, so every member's devices learn of it at
  * the next sync.
  *
@@ -19,10 +19,14 @@ import { calendarById } from "../membership";
  *
  *   POST   /api/calendars/:id/members            { email }
  *   DELETE /api/calendars/:id/members/:accountId
+ *
+ * Inviting answers the same whatever the address is – an account's, none,
+ * or a member's already: nobody finds out from here which addresses have
+ * an account.
  */
 
-// Looking people up by address is limited, so it can't be used to probe
-// which addresses have an account.
+// Each invitation sends a mail – a few dozen an hour per account, so
+// nobody's inbox is filled from here.
 const tooMany = rateLimit({ limit: 30, windowMs: 60 * 60 * 1000 });
 
 /** `by`: who did it – the others hear of it (features/push). */
@@ -64,20 +68,22 @@ export const addMember: Endpoint = {
       return Response.json({ error: "No email address." }, { status: 400 });
     }
 
-    // Only verified accounts – an address nobody confirmed is no person yet.
+    // Whose address it is – a confirmed account's only: an address nobody
+    // confirmed is no person yet.
     const { docs } = await req.payload.find({
       collection: "accounts",
       where: {
         and: [{ email: { equals: email } }, { _verified: { equals: true } }],
       },
-      select: { name: true },
+      select: { email: true },
       limit: 1,
       depth: 0,
       overrideAccess: true,
       req,
     });
-    const person = docs[0];
-    if (!person) {
+    const person = docs[0] ? String(docs[0].id) : null;
+    // In it already: nothing to invite to – and answered all the same.
+    if (!(person && calendar.members.includes(person))) {
       const from = (await req.payload.findByID({
         collection: "accounts",
         id: me.id,
@@ -94,24 +100,19 @@ export const addMember: Endpoint = {
           locale: from.locale ?? "de",
         },
       });
-      return Response.json({ added: false, invited: true });
+      if (person) {
+        // An account: its open apps show the invitation at once (sync/
+        // live.ts), and its devices hear of it, unless it would rather not
+        // (features/push) – sent after this has answered.
+        nudge([person]);
+        notifyInvited(req.payload, {
+          calendar: calendar.id,
+          who: person,
+          by: String(me.id),
+        });
+      }
     }
-    const id = String(person.id);
-    if (!calendar.members.includes(id)) {
-      await touch(req, calendar.id, [...calendar.members, id], String(me.id));
-      await nudgeCalendars(req, [calendar.id]);
-      // New in it: they hear so on their devices, unless they'd rather not
-      // (features/push) – sent after this has answered.
-      notifyInvited(req.payload, {
-        calendar: calendar.id,
-        who: id,
-        by: String(me.id),
-      });
-    }
-    return Response.json({
-      added: true,
-      person: { id, name: (person as { name?: string }).name ?? "" },
-    });
+    return Response.json({ invited: true });
   },
 };
 

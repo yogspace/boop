@@ -1,5 +1,6 @@
 import type {
   CalendarDoc,
+  ColorName,
   NoteDoc,
   PlacementDoc,
   StampDoc,
@@ -35,6 +36,12 @@ import type {
  * price of keeping it simple; a day's few lines rarely meet that way. An
  * emptied note is deleted – and may be written again, unlike anything else.
  *
+ * Invitations to the account (`invitations`) come along whole, every time:
+ * the open ones to its confirmed address, as the app shows them – to take
+ * up or turn down through their own endpoints (calendar/endpoints/
+ * invitations.ts). A server from before sends none; the app then keeps
+ * what it has.
+ *
  * An app from before (it stays cached on a phone for a while) still sends a
  * stamp's `calendar` (one, or null) instead of `sharedWith` – taken as
  * that; see apply.ts. It knows nothing of notes: it sends none, and leaves
@@ -66,6 +73,23 @@ export type SyncRequest = {
 
 export type Person = { id: string; name: string };
 
+/**
+ * An invitation to the account, as far as the app sees it: the calendar's
+ * name and color, who invites by name, until when. Nothing else of the
+ * calendar before the yes – and never the invitation's token or anyone's
+ * address.
+ */
+export type InvitationDoc = {
+  id: string;
+  /** The calendar's name. */
+  calendar: string;
+  color: ColorName;
+  /** Who invites, by name – "" for an account that is gone. */
+  from: string;
+  /** Until when it can be taken up (ISO). */
+  expiresAt: string;
+};
+
 export type SyncResponse = {
   /** Send it as `since` next time. */
   now: string;
@@ -90,6 +114,8 @@ export type SyncResponse = {
   shared: string[];
   placements: PlacementDoc[];
   notes: NoteDoc[];
+  /** The open invitations to the account, oldest first – all of them. */
+  invitations?: InvitationDoc[];
   /** Changes the server refused – the device takes the server's copy. */
   rejected: { type: SyncType; id: string; reason: string }[];
 };
