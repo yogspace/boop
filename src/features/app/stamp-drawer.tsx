@@ -178,7 +178,10 @@ export const StampDrawer = ({
   calendar: string | null;
   locale: Locale;
   onClose: () => void;
-  /** Told whether something is drawn – the browser's back asks then too. */
+  /**
+   * Told whether the browser's back should ask: something is drawn, and
+   * the question isn't out yet.
+   */
   onDrawn?: (drawn: boolean) => void;
   /** Counts up when the browser's back wants to leave: it asks. */
   ask?: number;
@@ -562,31 +565,36 @@ export const StampDrawer = ({
   };
 
   // Something drawn: closing would throw it away, so it asks first – the X,
-  // Escape, and the browser's back (`ask`). Asked, they take the question
-  // back again.
+  // Escape, and the browser's back (`ask`). Asked, closing once more is the
+  // answer: away with it.
   const drawn = strokes.length > 0 || fills.length > 0;
   const [leaving, setLeaving] = useState(false);
   const question = useRef<HTMLDivElement>(null);
-  useEffect(() => onDrawn?.(drawn), [drawn, onDrawn]);
+  // The browser's back asks only once: asked, it goes like the X.
+  useEffect(() => onDrawn?.(drawn && !leaving), [drawn, leaving, onDrawn]);
   useEffect(() => () => onDrawn?.(false), [onDrawn]);
-  // Only what counts up while it is open – not what it found at the start.
-  const askedBefore = useRef(ask);
-  useEffect(() => {
-    if (ask !== askedBefore.current) setLeaving(true);
-  }, [ask]);
   useEffect(() => {
     if (leaving) question.current?.scrollIntoView({ block: "nearest" });
   }, [leaving]);
-  const close = () => {
-    if (leaving) setLeaving(false);
-    else if (drawn) setLeaving(true);
-    else onClose();
-  };
   /** Gone for good – saved, or thrown away. */
   const leave = () => {
     onDrawn?.(false);
     onClose();
   };
+  const close = () => {
+    if (drawn && !leaving) setLeaving(true);
+    else leave();
+  };
+  // The browser's back is a close like the others – counted up while open
+  // (not what it found at the start), it reaches the latest `close`.
+  const closing = useRef(close);
+  closing.current = close;
+  const askedBefore = useRef(ask);
+  useEffect(() => {
+    if (ask === askedBefore.current) return;
+    askedBefore.current = ask;
+    closing.current();
+  }, [ask]);
 
   const onSave = async () => {
     setError(false);

@@ -407,23 +407,28 @@ export const MonthGrid = ({
 
   return (
     <div>
+      {/* Nothing in this row changes size from month to month: on a phone
+          the year has a line of its own under the month, always – a name
+          that wraps only sometimes would make everything beside it jump. */}
       <div className="mb-4 flex items-center justify-between gap-2">
         <m.h2
           animate={{ opacity: 1, x: 0, rotate: 0 }}
-          className="origin-left text-3xl leading-none"
+          className="min-w-0 origin-left text-2xl leading-none max-[379px]:text-xl sm:text-3xl"
           initial={{ opacity: 0, x: dir * 18, rotate: dir * -2 }}
           key={index}
           transition={SPRING.bouncy}
         >
           {t.app.months[month.month]}{" "}
-          <span className="font-bold text-muted">{month.year}</span>
+          <span className="block font-bold text-lg text-muted sm:inline sm:text-3xl">
+            {month.year}
+          </span>
         </m.h2>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-1.5 sm:gap-2">
           {!thisMonth && (
             <button
               className={cn(
                 buttonClass({ variant: "plain", size: "sm" }),
-                "h-10"
+                "h-10 whitespace-nowrap max-sm:px-3"
               )}
               onClick={() =>
                 onMonth({ year: now.getFullYear(), month: now.getMonth() })
