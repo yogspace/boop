@@ -24,7 +24,7 @@
  */
 
 /** From this many characters on, length alone is no reason for a word. */
-export const STRONG_LENGTH = 10;
+export const STRONG_LENGTH = 8;
 
 export type Weakness =
   | "personal"

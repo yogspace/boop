@@ -34,10 +34,10 @@ describe("a new password", () => {
   });
 
   it(`is short under ${STRONG_LENGTH} characters`, () => {
-    expect(STRONG_LENGTH).toBe(10);
-    const short = ["", "Wurstbrot", "Q!w2E#r4", "Mx7&kd"];
+    expect(STRONG_LENGTH).toBe(8);
+    const short = ["", "Wurstbr", "Q!w2E#r", "Mx7&kd"];
     expect(all(short)).toEqual(each(short, "short"));
-    expect(reasonOf("Wurstbrote")).toBe("ok");
+    expect(reasonOf("Wurstbrot")).toBe("ok");
   });
 
   it("is common when on the list – capitals, ends and stand-ins no way out", () => {
