@@ -337,311 +337,332 @@ export const StampDrawer = ({
   };
 
   return (
-    <Sheet onClose={onClose} title={draws ? t.app.draw.title : t.app.draw.done}>
-      <div className="grid">
-        <div
-          className={cn(
-            layer(draws),
-            "flex h-11 items-center justify-between gap-2"
-          )}
-        >
-          {/* Five in a row – narrower where the phone is. */}
-          <fieldset className="grid max-w-56 min-w-0 flex-1 grid-cols-5 gap-1.5">
-            <legend className="sr-only">{t.app.draw.shape}</legend>
-            {SHAPES.map((s) => (
-              <button
-                aria-label={t.app.draw.shapes[s]}
-                aria-pressed={shape === s}
-                className={cn(TILE, "p-1.5")}
-                key={s}
-                onClick={() => setShape(s)}
-                title={t.app.draw.shapes[s]}
-                type="button"
-              >
-                <svg
-                  aria-hidden="true"
-                  className="w-full"
-                  viewBox="-0.05 -0.05 1.1 1.1"
-                >
-                  <ShapeOutline
-                    fill="none"
-                    shape={s}
-                    stroke="currentColor"
-                    strokeWidth="0.1"
-                  />
-                </svg>
-              </button>
-            ))}
-          </fieldset>
-        </div>
-        <div
-          className={cn(
-            layer(!draws),
-            "flex h-11 items-center justify-between gap-2"
-          )}
-        >
-          <Button
-            className="shrink-0"
-            onClick={toDrawing}
-            size="sm"
-            variant="plain"
-          >
-            <ArrowLeft className="h-4 w-4" /> {t.app.draw.back}
-          </Button>
-          <p className="min-w-0 text-right font-medium text-muted text-sm leading-tight">
-            {t.app.draw.turn}
-          </p>
-        </div>
-      </div>
-
-      {/* The stage stays where it is: the drawing, then the stamp over it. */}
-      <div
-        aria-label={draws ? t.app.draw.hint : t.app.draw.turn}
-        className={cn(STAGE, "touch-none", draws && "cursor-crosshair")}
-        onPointerCancel={draws ? stop : undefined}
-        onPointerDown={draws ? onDown : undefined}
-        onPointerLeave={draws ? stop : undefined}
-        onPointerMove={draws ? onMove : undefined}
-        onPointerUp={draws ? stop : undefined}
-        ref={area}
-        role="application"
-      >
-        <StampSvg
-          className={cn(
-            "pointer-events-none absolute inset-3 h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] transition-opacity duration-300",
-            !draws && shown && "opacity-0"
-          )}
-          color={color}
-          drawing={doodle}
-          filled
-          shape={shape}
-        />
-        {draws && special && !empty && (
-          // A taste of what its prints will do.
-          <span className="pointer-events-none absolute inset-3 animate-fade">
-            <Glitter
-              color={color}
-              drawing={doodle}
-              shape={shape}
-              sheen={false}
-            />
-          </span>
-        )}
-        {draws && empty && (
-          <p
+    <Sheet
+      className="md:max-w-3xl"
+      onClose={onClose}
+      title={draws ? t.app.draw.title : t.app.draw.done}
+    >
+      {/* On a phone one under the other. Wider, side by side – the stage on
+          the left, everything to set beside it – so nothing needs scrolling. */}
+      <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_19.5rem] md:items-start md:gap-x-6">
+        <div className="grid md:col-start-2 md:row-start-1">
+          <div
             className={cn(
-              "pointer-events-none absolute inset-0 flex animate-fade items-center justify-center font-bold",
-              // On an inverted stamp's inked face.
-              inverted ? "text-white" : "text-muted"
+              layer(draws),
+              "flex h-11 items-center justify-between gap-2"
             )}
           >
-            {t.app.draw.hint}
-          </p>
-        )}
-        {draws && refused && (
-          // On the stage, where the picture would have come – nothing moves.
-          <div className="pointer-events-none absolute inset-x-3 bottom-3 text-center">
-            <Notice tone="error">{t.app.draw.uploadFailed}</Notice>
-          </div>
-        )}
-        <AnimatePresence>
-          {!draws && made && (
-            // Right over the drawing – its first frame looks just like it,
-            // and so does its last.
-            <StickerView
-              className="absolute inset-0"
-              flyBack
-              inset={INSET}
-              key={view}
-              onShown={() => setShown(true)}
-              stamp={made}
-            />
-          )}
-        </AnimatePresence>
-        {!draws && (
-          <>
-            <Sparkle className="pointer-events-none absolute -top-3 -left-2 h-7 w-7 animate-boop text-ink [animation-delay:700ms]" />
-            <Sparkle className="pointer-events-none absolute -right-2 -bottom-2 h-5 w-5 animate-boop text-ink [animation-delay:850ms]" />
-          </>
-        )}
-      </div>
-
-      <div className="grid">
-        <div
-          className={cn(layer(draws), "flex flex-col justify-between gap-3")}
-        >
-          {/* Right under the drawing: how thick the pen is, and the steps
-              back and forth. */}
-          <div className="flex items-center justify-between gap-2">
-            <fieldset className="flex gap-1.5">
-              <legend className="sr-only">{t.app.draw.width}</legend>
-              {(Object.keys(WIDTHS) as Width[]).map((w) => (
+            {/* Five in a row – narrower where the phone is. */}
+            <fieldset className="grid max-w-56 min-w-0 flex-1 grid-cols-5 gap-1.5">
+              <legend className="sr-only">{t.app.draw.shape}</legend>
+              {SHAPES.map((s) => (
                 <button
-                  aria-label={t.app.draw.widths[w]}
-                  aria-pressed={width === w}
-                  className={cn(TILE, "w-10")}
-                  key={w}
-                  onClick={() => setWidth(w)}
-                  title={t.app.draw.widths[w]}
-                  type="button"
-                >
-                  {/* The pen's tip, as big as it draws on a 160px stamp. */}
-                  <svg aria-hidden="true" className="w-full" viewBox="0 0 1 1">
-                    <circle
-                      cx="0.5"
-                      cy="0.5"
-                      fill="currentColor"
-                      r={WIDTHS[w] * 2.4}
-                    />
-                  </svg>
-                </button>
-              ))}
-            </fieldset>
-            <div className="flex shrink-0 gap-0.5">
-              {[
-                {
-                  label: t.app.draw.undo,
-                  sign: UNDO,
-                  off: !history.past.length,
-                  go: () => setHistory(back),
-                },
-                {
-                  label: t.app.draw.redo,
-                  sign: REDO,
-                  off: !history.future.length,
-                  go: () => setHistory(forward),
-                },
-                { label: t.app.draw.clear, sign: BIN, off: empty, go: clear },
-              ].map(({ label, sign, off, go }) => (
-                <Button
-                  aria-label={label}
-                  className="px-2.5"
-                  disabled={off}
-                  key={label}
-                  onClick={go}
-                  size="sm"
-                  title={label}
-                  variant="ghost"
-                >
-                  <Sign className="h-5 w-5" d={sign} />
-                </Button>
-              ))}
-            </div>
-          </div>
-          {/* Blots of the stamp colors, the one picked ringed – like the
-              day's stamp pads. */}
-          <fieldset className="flex flex-wrap items-center justify-center gap-1">
-            <legend className="sr-only">{t.app.draw.color}</legend>
-            {palette.map(({ key: c, hex, name: names }, i) => (
-              <button
-                aria-label={names[locale]}
-                aria-pressed={color === c}
-                className={cn(
-                  "relative flex h-10 w-10 items-center justify-center rounded-full transition-transform",
-                  color === c ? "scale-110" : "hover:-rotate-6 hover:scale-110"
-                )}
-                key={c}
-                onClick={() => setColor(c)}
-                type="button"
-              >
-                <InkBlot hex={hex} index={i} on={color === c} />
-              </button>
-            ))}
-          </fieldset>
-          {/* The rim's patterns, each on the shape picked – seven in a row. */}
-          <fieldset className="mx-auto grid w-full max-w-72 grid-cols-7 gap-1.5">
-            <legend className="sr-only">{t.app.draw.rim}</legend>
-            {[undefined, ...RIMS].map((r) => {
-              // The pattern bigger, so it shows on a button – its line a
-              // little finer than that.
-              const line = rimLine(shape, r, { scale: 3.5 });
-              return (
-                <button
-                  aria-label={t.app.draw.rims[r ?? "plain"]}
-                  aria-pressed={rim === r}
-                  className={cn(TILE, "p-1")}
-                  key={r ?? "plain"}
-                  onClick={() => setRim(r)}
-                  title={t.app.draw.rims[r ?? "plain"]}
+                  aria-label={t.app.draw.shapes[s]}
+                  aria-pressed={shape === s}
+                  className={cn(TILE, "p-1.5")}
+                  key={s}
+                  onClick={() => setShape(s)}
+                  title={t.app.draw.shapes[s]}
                   type="button"
                 >
                   <svg
                     aria-hidden="true"
                     className="w-full"
-                    viewBox="-0.08 -0.08 1.16 1.16"
+                    viewBox="-0.05 -0.05 1.1 1.1"
                   >
-                    <path
-                      d={line.d}
+                    <ShapeOutline
                       fill="none"
+                      shape={s}
                       stroke="currentColor"
-                      strokeLinecap={line.cap}
-                      strokeLinejoin="round"
-                      strokeWidth={line.width * 0.85}
+                      strokeWidth="0.1"
                     />
                   </svg>
                 </button>
-              );
-            })}
-          </fieldset>
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-            <Checkbox
-              checked={inverted}
-              onChange={(event) => setInverted(event.target.checked)}
-            >
-              {t.app.draw.inverted}
-            </Checkbox>
-            <Checkbox
-              checked={special}
-              onChange={(event) => setSpecial(event.target.checked)}
-            >
-              {t.app.draw.special}
-            </Checkbox>
-            <Button
-              onClick={() => file.current?.click()}
-              size="sm"
-              variant="ghost"
-            >
-              <Sign className="h-4 w-4" d={UPLOAD} /> {t.app.draw.upload}
-            </Button>
-            <input
-              accept=".svg,image/svg+xml"
-              hidden
-              onChange={onUpload}
-              ref={file}
-              type="file"
-            />
+              ))}
+            </fieldset>
           </div>
-          <Button
-            className="w-full"
-            disabled={empty}
-            onClick={toStamp}
-            size="lg"
+          <div
+            className={cn(
+              layer(!draws),
+              "flex h-11 items-center justify-between gap-2"
+            )}
           >
-            {t.app.draw.make3d} <Sparkle className="h-5 w-5" />
-          </Button>
-        </div>
-        <div
-          className={cn(layer(!draws), "flex flex-col justify-between gap-4")}
-        >
-          <Field
-            label={t.app.draw.name}
-            maxLength={40}
-            onChange={(event) => setName(event.target.value)}
-            placeholder={t.app.draw.namePlaceholder}
-            value={name}
-          />
-          {calendar && (
-            <Checkbox
-              checked={shared}
-              onChange={(event) => setShared(event.target.checked)}
+            <Button
+              className="shrink-0"
+              onClick={toDrawing}
+              size="sm"
+              variant="plain"
             >
-              {t.app.draw.shared}
-            </Checkbox>
+              <ArrowLeft className="h-4 w-4" /> {t.app.draw.back}
+            </Button>
+            <p className="min-w-0 text-right font-medium text-muted text-sm leading-tight">
+              {t.app.draw.turn}
+            </p>
+          </div>
+        </div>
+
+        {/* The stage stays where it is: the drawing, then the stamp over it. */}
+        <div
+          aria-label={draws ? t.app.draw.hint : t.app.draw.turn}
+          className={cn(
+            STAGE,
+            "touch-none md:col-start-1 md:row-span-2 md:row-start-1",
+            draws && "cursor-crosshair"
           )}
-          {error && <Notice tone="error">{t.auth.failed}</Notice>}
-          <Button className="w-full" onClick={onSave} size="lg">
-            {t.app.draw.save}
-          </Button>
+          onPointerCancel={draws ? stop : undefined}
+          onPointerDown={draws ? onDown : undefined}
+          onPointerLeave={draws ? stop : undefined}
+          onPointerMove={draws ? onMove : undefined}
+          onPointerUp={draws ? stop : undefined}
+          ref={area}
+          role="application"
+        >
+          <StampSvg
+            className={cn(
+              "pointer-events-none absolute inset-3 h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] transition-opacity duration-300",
+              !draws && shown && "opacity-0"
+            )}
+            color={color}
+            drawing={doodle}
+            filled
+            shape={shape}
+          />
+          {draws && special && !empty && (
+            // A taste of what its prints will do.
+            <span className="pointer-events-none absolute inset-3 animate-fade">
+              <Glitter
+                color={color}
+                drawing={doodle}
+                shape={shape}
+                sheen={false}
+              />
+            </span>
+          )}
+          {draws && empty && (
+            <p
+              className={cn(
+                "pointer-events-none absolute inset-0 flex animate-fade items-center justify-center font-bold",
+                // On an inverted stamp's inked face.
+                inverted ? "text-white" : "text-muted"
+              )}
+            >
+              {t.app.draw.hint}
+            </p>
+          )}
+          {draws && refused && (
+            // On the stage, where the picture would have come – nothing moves.
+            <div className="pointer-events-none absolute inset-x-3 bottom-3 text-center">
+              <Notice tone="error">{t.app.draw.uploadFailed}</Notice>
+            </div>
+          )}
+          <AnimatePresence>
+            {!draws && made && (
+              // Right over the drawing – its first frame looks just like it,
+              // and so does its last.
+              <StickerView
+                className="absolute inset-0"
+                flyBack
+                inset={INSET}
+                key={view}
+                onShown={() => setShown(true)}
+                stamp={made}
+              />
+            )}
+          </AnimatePresence>
+          {!draws && (
+            <>
+              <Sparkle className="pointer-events-none absolute -top-3 -left-2 h-7 w-7 animate-boop text-ink [animation-delay:700ms]" />
+              <Sparkle className="pointer-events-none absolute -right-2 -bottom-2 h-5 w-5 animate-boop text-ink [animation-delay:850ms]" />
+            </>
+          )}
+        </div>
+
+        <div className="grid md:col-start-2 md:row-start-2">
+          <div
+            className={cn(layer(draws), "flex flex-col justify-between gap-3")}
+          >
+            {/* Right under the drawing: how thick the pen is, and the steps
+              back and forth. */}
+            <div className="flex items-center justify-between gap-2">
+              <fieldset className="flex gap-1.5">
+                <legend className="sr-only">{t.app.draw.width}</legend>
+                {(Object.keys(WIDTHS) as Width[]).map((w) => (
+                  <button
+                    aria-label={t.app.draw.widths[w]}
+                    aria-pressed={width === w}
+                    className={cn(TILE, "w-10")}
+                    key={w}
+                    onClick={() => setWidth(w)}
+                    title={t.app.draw.widths[w]}
+                    type="button"
+                  >
+                    {/* The pen's tip, as big as it draws on a 160px stamp. */}
+                    <svg
+                      aria-hidden="true"
+                      className="w-full"
+                      viewBox="0 0 1 1"
+                    >
+                      <circle
+                        cx="0.5"
+                        cy="0.5"
+                        fill="currentColor"
+                        r={WIDTHS[w] * 2.4}
+                      />
+                    </svg>
+                  </button>
+                ))}
+              </fieldset>
+              <div className="flex shrink-0 gap-0.5">
+                {[
+                  {
+                    label: t.app.draw.undo,
+                    sign: UNDO,
+                    off: !history.past.length,
+                    go: () => setHistory(back),
+                  },
+                  {
+                    label: t.app.draw.redo,
+                    sign: REDO,
+                    off: !history.future.length,
+                    go: () => setHistory(forward),
+                  },
+                  { label: t.app.draw.clear, sign: BIN, off: empty, go: clear },
+                ].map(({ label, sign, off, go }) => (
+                  <Button
+                    aria-label={label}
+                    className="px-2.5"
+                    disabled={off}
+                    key={label}
+                    onClick={go}
+                    size="sm"
+                    title={label}
+                    variant="ghost"
+                  >
+                    <Sign className="h-5 w-5" d={sign} />
+                  </Button>
+                ))}
+              </div>
+            </div>
+            {/* Blots of the stamp colors, the one picked ringed – like the
+              day's stamp pads. */}
+            <fieldset className="flex flex-wrap items-center justify-center gap-1">
+              <legend className="sr-only">{t.app.draw.color}</legend>
+              {palette.map(({ key: c, hex, name: names }, i) => (
+                <button
+                  aria-label={names[locale]}
+                  aria-pressed={color === c}
+                  className={cn(
+                    "relative flex h-10 w-10 items-center justify-center rounded-full transition-transform",
+                    color === c
+                      ? "scale-110"
+                      : "hover:-rotate-6 hover:scale-110"
+                  )}
+                  key={c}
+                  onClick={() => setColor(c)}
+                  type="button"
+                >
+                  <InkBlot hex={hex} index={i} on={color === c} />
+                </button>
+              ))}
+            </fieldset>
+            {/* The rim's patterns, each on the shape picked – seven in a row. */}
+            <fieldset className="mx-auto grid w-full max-w-72 grid-cols-7 gap-1.5">
+              <legend className="sr-only">{t.app.draw.rim}</legend>
+              {[undefined, ...RIMS].map((r) => {
+                // The pattern bigger, so it shows on a button – its line a
+                // little finer than that.
+                const line = rimLine(shape, r, { scale: 3.5 });
+                return (
+                  <button
+                    aria-label={t.app.draw.rims[r ?? "plain"]}
+                    aria-pressed={rim === r}
+                    className={cn(TILE, "p-1")}
+                    key={r ?? "plain"}
+                    onClick={() => setRim(r)}
+                    title={t.app.draw.rims[r ?? "plain"]}
+                    type="button"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      className="w-full"
+                      viewBox="-0.08 -0.08 1.16 1.16"
+                    >
+                      <path
+                        d={line.d}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeLinecap={line.cap}
+                        strokeLinejoin="round"
+                        strokeWidth={line.width * 0.85}
+                      />
+                    </svg>
+                  </button>
+                );
+              })}
+            </fieldset>
+            {/* The two boxes in one line – on a phone too. */}
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
+              <Checkbox
+                checked={inverted}
+                onChange={(event) => setInverted(event.target.checked)}
+              >
+                {t.app.draw.inverted}
+              </Checkbox>
+              <Checkbox
+                checked={special}
+                onChange={(event) => setSpecial(event.target.checked)}
+              >
+                {t.app.draw.special}
+              </Checkbox>
+            </div>
+            <div className="flex justify-center">
+              <Button
+                onClick={() => file.current?.click()}
+                size="sm"
+                variant="ghost"
+              >
+                <Sign className="h-4 w-4" d={UPLOAD} /> {t.app.draw.upload}
+              </Button>
+              <input
+                accept=".svg,image/svg+xml"
+                hidden
+                onChange={onUpload}
+                ref={file}
+                type="file"
+              />
+            </div>
+            <Button
+              className="w-full"
+              disabled={empty}
+              onClick={toStamp}
+              size="lg"
+            >
+              {t.app.draw.make3d} <Sparkle className="h-5 w-5" />
+            </Button>
+          </div>
+          <div
+            className={cn(layer(!draws), "flex flex-col justify-between gap-4")}
+          >
+            <Field
+              label={t.app.draw.name}
+              maxLength={40}
+              onChange={(event) => setName(event.target.value)}
+              placeholder={t.app.draw.namePlaceholder}
+              value={name}
+            />
+            {calendar && (
+              <Checkbox
+                checked={shared}
+                onChange={(event) => setShared(event.target.checked)}
+              >
+                {t.app.draw.shared}
+              </Checkbox>
+            )}
+            {error && <Notice tone="error">{t.auth.failed}</Notice>}
+            <Button className="w-full" onClick={onSave} size="lg">
+              {t.app.draw.save}
+            </Button>
+          </div>
         </div>
       </div>
     </Sheet>

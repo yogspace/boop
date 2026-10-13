@@ -275,8 +275,8 @@ const de = {
       width: "Strichstärke",
       widths: { thin: "Fein", medium: "Mittel", thick: "Dick" },
       upload: "SVG hochladen",
-      inverted: "Invertiert (ausgeschnitten)",
-      special: "Special – größer & glitzert",
+      inverted: "Invertiert",
+      special: "Special – glitzert",
       rim: "Rahmen",
       rims: {
         plain: "Glatt",
@@ -861,8 +861,8 @@ const en: Shape<typeof de> = {
       width: "Line width",
       widths: { thin: "Thin", medium: "Medium", thick: "Thick" },
       upload: "Upload SVG",
-      inverted: "Inverted (cut out)",
-      special: "Special – bigger & sparkly",
+      inverted: "Inverted",
+      special: "Special – sparkly",
       rim: "Rim",
       rims: {
         plain: "Plain",
