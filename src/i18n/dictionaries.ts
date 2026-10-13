@@ -399,15 +399,14 @@ const de = {
     },
     share: {
       title: "Teilen",
-      text: "Lade Leute per E-Mail ein. Ohne Boop-Konto bekommen sie eine Einladung.",
+      text: "Lade Leute per E-Mail ein – dabei sind sie, sobald sie Ja sagen.",
       email: "E-Mail-Adresse",
       add: "Einladen",
-      added: template(
-        "{name} ist jetzt dabei.",
-        (say) => (name: string) => say({ name })
-      ),
+      // The answer to inviting is the same for every address (calendar/
+      // endpoints/members.ts) – only one's own is caught before.
+      yourself: "Das ist deine eigene Adresse.",
       invited: template(
-        "Einladung an {email} verschickt – sie gilt {days} Tage. Sobald es ein Konto gibt, ist die Person dabei.",
+        "Einladung an {email} verschickt – sie gilt {days} Tage. Sagt die Person Ja, ist sie dabei.",
         (say) => (email: string) => say({ email, days: INVITE_DAYS }),
         { optional: ["days"] }
       ),
@@ -423,6 +422,37 @@ const de = {
         (say) => (owner: string) => say({ owner })
       ),
       leaveYes: "Ja, verlassen",
+    },
+    // Invitations to the account – a popup, and a list in the account sheet
+    // (features/app/invitations.tsx).
+    invitations: {
+      title: "Einladungen",
+      popupTitle: "Du bist eingeladen!",
+      text: template(
+        {
+          named: "{from} lädt dich zu „{calendar}“ ein.",
+          unnamed: "Du bist zu „{calendar}“ eingeladen.",
+        },
+        (say) => (from: string, calendar: string) =>
+          from ? say.named({ from, calendar }) : say.unnamed({ calendar })
+      ),
+      until: template(
+        "Gilt bis zum {date} Uhr.",
+        (say) => (date: string) => say({ date })
+      ),
+      accept: "Annehmen",
+      decline: "Ablehnen",
+      later: "Später",
+      close: "Schließen",
+      offline: "Zum Antworten brauchst du eine Verbindung.",
+      joined: template(
+        "Du bist jetzt bei „{calendar}“ dabei.",
+        (say) => (calendar: string) => say({ calendar })
+      ),
+      gone: template(
+        "Die Einladung zu „{calendar}“ gilt nicht mehr – vielleicht wurde sie zurückgezogen.",
+        (say) => (calendar: string) => say({ calendar })
+      ),
     },
     save: "Speichern",
     settings: {
@@ -776,7 +806,7 @@ const de = {
       ),
       button: "Einladung ansehen",
       footnote:
-        "Du kennst die Person nicht? Dann ignoriere diese Mail einfach – ohne Konto passiert nichts.",
+        "Du kennst die Person nicht? Dann ignoriere diese Mail einfach – ohne dein Ja passiert nichts.",
     },
   },
 };
@@ -1094,12 +1124,12 @@ const en: Shape<typeof de> = {
     },
     share: {
       title: "Share",
-      text: "Invite people by email. Without a Boop account they get an invitation.",
+      text: "Invite people by email – they're in once they say yes.",
       email: "Email address",
       add: "Invite",
-      added: "{name} is in now.",
+      yourself: "That's your own address.",
       invited:
-        "Invitation sent to {email} – it's valid for {days} days. They're in once they have an account.",
+        "Invitation sent to {email} – it's valid for {days} days. They're in once they say yes.",
       invitesTitle: "Invited",
       revoke: "Take back",
       notFound: "That didn't work.",
@@ -1110,6 +1140,22 @@ const en: Shape<typeof de> = {
       leaveAsk:
         "Really leave? You won't see it any more – you only get back in if {owner} invites you again.",
       leaveYes: "Yes, leave",
+    },
+    invitations: {
+      title: "Invitations",
+      popupTitle: "You're invited!",
+      text: {
+        named: "{from} invites you to “{calendar}”.",
+        unnamed: "You're invited to “{calendar}”.",
+      },
+      until: "Valid until {date}.",
+      accept: "Accept",
+      decline: "Decline",
+      later: "Later",
+      close: "Close",
+      offline: "Answering needs a connection.",
+      joined: "You're in “{calendar}” now.",
+      gone: "The invitation to “{calendar}” isn't valid anymore – it may have been taken back.",
     },
     save: "Save",
     settings: {
@@ -1337,7 +1383,7 @@ const en: Shape<typeof de> = {
       valid: "The invitation is valid for {days} days.",
       button: "See the invitation",
       footnote:
-        "Don't know them? Then simply ignore this mail – nothing happens without an account.",
+        "Don't know them? Then simply ignore this mail – nothing happens unless you say yes.",
     },
   },
 };

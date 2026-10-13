@@ -1634,6 +1634,22 @@ export interface Translation {
        */
       clear?: string | null;
       /**
+       * DE: Zeichnung verwerfen?  ·  EN: Throw the drawing away?
+       */
+      leaveTitle?: string | null;
+      /**
+       * DE: Was du gezeichnet hast, ist dann weg.  ·  EN: What you've drawn will be gone.
+       */
+      leaveText?: string | null;
+      /**
+       * DE: Weiter malen  ·  EN: Keep drawing
+       */
+      leaveStay?: string | null;
+      /**
+       * DE: Verwerfen  ·  EN: Throw away
+       */
+      leaveGo?: string | null;
+      /**
        * DE: Werkzeuge  ·  EN: Tools
        */
       tools?: string | null;
@@ -3055,6 +3071,10 @@ export interface TranslationsSelect<T extends boolean = true> {
               undo?: T;
               redo?: T;
               clear?: T;
+              leaveTitle?: T;
+              leaveText?: T;
+              leaveStay?: T;
+              leaveGo?: T;
               tools?: T;
               pen?: T;
               eraser?: T;

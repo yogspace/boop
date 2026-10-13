@@ -569,8 +569,10 @@ export const StampDrawer = ({
   const question = useRef<HTMLDivElement>(null);
   useEffect(() => onDrawn?.(drawn), [drawn, onDrawn]);
   useEffect(() => () => onDrawn?.(false), [onDrawn]);
+  // Only what counts up while it is open – not what it found at the start.
+  const askedBefore = useRef(ask);
   useEffect(() => {
-    if (ask) setLeaving(true);
+    if (ask !== askedBefore.current) setLeaving(true);
   }, [ask]);
   useEffect(() => {
     if (leaving) question.current?.scrollIntoView({ block: "nearest" });
@@ -620,10 +622,10 @@ export const StampDrawer = ({
           thick frame and an exclamation mark. */}
       {leaving && (
         <div
+          aria-labelledby="leave-title"
           className="scribble scribble-bold flex animate-fade flex-col gap-3 rounded-2xl p-4"
           ref={question}
           role="alertdialog"
-          aria-labelledby="leave-title"
         >
           <p className="flex items-start gap-2.5 font-bold" id="leave-title">
             <Bang className="h-6 w-6 shrink-0" />

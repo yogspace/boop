@@ -171,6 +171,13 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     return { year: now.getFullYear(), month: now.getMonth() };
   });
   const [drawing, setDrawing] = useState(false);
+  // Something drawn in the new stamp's editor: the browser's back doesn't
+  // throw it away – it stays, and the editor asks (`ask` counts up).
+  const drawn = useRef(false);
+  const [askLeave, setAskLeave] = useState(0);
+  const noteDrawn = useRef((now: boolean) => {
+    drawn.current = now;
+  }).current;
   // Whose share sheet, whose settings are open – by id: should that calendar
   // go meanwhile (deleted, or someone took the account out), its sheet goes
   // too, rather than turn into another calendar's.
@@ -337,6 +344,15 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   useEffect(() => {
     const onPop = () => {
       const next = asked();
+      if (drawn.current) {
+        // Back from the editor with something drawn: forward again to its
+        // entry, and the question – and nothing else on the way back.
+        if (next.panel !== "draw") {
+          window.history.go(1);
+          setAskLeave((n) => n + 1);
+        }
+        return;
+      }
       setShown(next);
       setDay(next.day);
       if (next.day) setMonth(monthOf(next.day));
@@ -849,12 +865,14 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
       <AnimatePresence>
         {drawing && (
           <StampDrawer
+            ask={askLeave}
             calendar={
               calendar && calendar.members.length > 1 ? calendar.id : null
             }
             key="drawer"
             locale={locale}
             onClose={closeStep(() => setDrawing(false))}
+            onDrawn={noteDrawn}
           />
         )}
       </AnimatePresence>
