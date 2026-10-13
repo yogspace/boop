@@ -4,15 +4,10 @@ Stand: 13.10.2026
 
 ## Offen
 
-- **Nachziehen nach Mail-Wechsel, Kästchen und Einladungs-Push**:
-  - Datenschutztext (`features/legal/seed-content.ts`): Adresse in der App
-    ändern, die Kästchen „Admin“ / „Nie löschen“, ausstehende Adresse im
-    Export, Einladungs-Nachricht samt Abschalten im Konto. Einladungen:
-    Nicht mehr „sofort hinzugefügt“ / „tritt beim Anmelden bei“ – jede
-    Einladung geht per Mail raus, mit Konto auch in der App und per Push;
-    dabei erst nach dem Ja, Ablehnen löscht sie. Export: offene
-    Einladungen an dich (`invitedTo`).
-  - Neue Texte: im CMS einmal Seeds → Translations.
+- **Nach dem Deploy im CMS**: Seeds → Translations (neue Texte) und
+  Seeds → „Imprint & privacy“ mit „Replace“ – die Vorlage beschreibt jetzt
+  Einladungen mit Zustimmung, Adresse ändern, „Admin“ / „Nie löschen“,
+  Einladungs-Push und den Export samt Einladungen an dich.
 - **Benachrichtigungen (Web Push)** – live: Schlüssel in GitHub, deployt,
   Cron für die Erinnerung eingetragen (alle 15 Minuten). Optional noch die
   Variable `VAPID_SUBJECT` (z. B. `mailto:…`). Fehlt nur noch:
@@ -20,10 +15,6 @@ Stand: 13.10.2026
      einschalten“ (iPhone: nur in der installierten App), zweites Konto
      stempelt → Nachricht; Erinnerung zur eingestellten Uhrzeit.
   Schlüssel nicht wechseln: neue Schlüssel machen alle bisherigen Abos stumm.
-- **Datenschutztext**: Die Vorlage im Code (`features/legal/seed-content.ts`,
-  DE + EN) ist auf dem Stand der App. Der Live-Text liegt im CMS und muss
-  nachgezogen werden – von Hand oder über die Seeds-Seite mit „Replace“
-  (überschreibt eigene Änderungen im CMS).
 - **Rechtlich gegenlesen lassen**:
   - Einladungsmails an Leute ohne Konto (Werbesatz über Boop in der Mail).
   - Resend: AV-Vertrag, Drittland-Grundlage, deren Log-Fristen.
