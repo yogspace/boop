@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import { Bang, Dot, Mail } from "@/components/doodles";
-import { Button, Field, Notice } from "@/components/ui";
+import { Button, buttonClass, Field, Notice } from "@/components/ui";
 import {
   cancelEmailChange,
   deleteAccount,
@@ -16,6 +16,7 @@ import { sync, useBoop } from "@/features/offline/store";
 import { Link } from "@/features/transitions/link";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
+import { cn } from "@/lib/cn";
 import { NameForm } from "./dialogs";
 import { Sheet } from "./sheet";
 
@@ -23,7 +24,9 @@ import { Sheet } from "./sheet";
  * One's own account – opened from the account's menu (boop-app.tsx): its
  * name, its address (`Address`), what is stored about it, and the ways out
  * (the data as a file, deleting it). All need a connection: the server has
- * the data, and the last word.
+ * the data, and the last word. Where an admin ticked the account's box in
+ * the CMS, a link leads there – a shortcut and no more: the CMS asks for
+ * its own login.
  *
  * Deleting asks twice: first what goes with the account, spelled out, then
  * the password – an open app on a table is not enough.
@@ -112,6 +115,20 @@ export const AccountSheet = ({
         />
         {nameError && <Notice tone="error">{nameError}</Notice>}
         <Address locale={locale} />
+        {/* In a tab of its own: the app stays open, with what waits in it. */}
+        {me?.admin && (
+          <a
+            className={cn(
+              buttonClass({ variant: "plain", size: "sm" }),
+              "self-start"
+            )}
+            href="/admin"
+            rel="noopener"
+            target="_blank"
+          >
+            {text.cms}
+          </a>
+        )}
       </div>
       <p className="font-medium text-muted text-sm">
         {text.stored}{" "}
