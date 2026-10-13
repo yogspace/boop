@@ -6,8 +6,6 @@ Stand: 13.10.2026
 
 - **Einladungen in der App** (als Nächstes): Popup und Liste im Konto mit
   Annehmen/Ablehnen; wer ein Konto hat, ist erst nach dem Ja Mitglied.
-- **Warnung bei unsicheren Passwörtern** (nach dem nächsten Deploy): beim
-  Registrieren und beim neuen Passwort.
 - **Nachziehen nach Mail-Wechsel, Kästchen und Einladungs-Push**:
   - Datenschutztext (`features/legal/seed-content.ts`): Adresse in der App
     ändern, die Kästchen „Admin“ / „Nie löschen“, ausstehende Adresse im
@@ -20,9 +18,6 @@ Stand: 13.10.2026
      einschalten“ (iPhone: nur in der installierten App), zweites Konto
      stempelt → Nachricht; Erinnerung zur eingestellten Uhrzeit.
   Schlüssel nicht wechseln: neue Schlüssel machen alle bisherigen Abos stumm.
-- **Ein Text noch fest im Code**: „Mein Kalender“ / „My calendar“ (der
-  erste Kalender bei der Anmeldung, `calendar/membership.ts`). Die Mail an
-  den Betreiber (Kontaktformular, Statistikbericht) bleibt bewusst deutsch.
 - **Datenschutztext**: Die Vorlage im Code (`features/legal/seed-content.ts`,
   DE + EN) ist auf dem Stand der App. Der Live-Text liegt im CMS und muss
   nachgezogen werden – von Hand oder über die Seeds-Seite mit „Replace“
@@ -99,11 +94,13 @@ Stand: 13.10.2026
   jetzt den Login-Zustand.
 - Sync-Stand jetzt im Kontomenü (mit „Jetzt abgleichen“); am Konto-Kreis
   nur eine Zahl, wenn etwas wartet, bzw. ein Kreuz ohne Netz.
+- Passwort-Warnung beim Registrieren und Zurücksetzen: erscheint kurz
+  nach dem Tippen (z. B. „Passwort123!“), verschwindet bei einem langen.
 - Adressen für Offenes (mit dem echten Router, iPhone-Wischgeste zurück):
   `/de/app/familie/monat/2026-10-13` (Tag), `…/einstellungen`, `…/teilen`,
   `…/konto`, `…/neuer-stempel`. Zurück schließt, Vor öffnet wieder, ein
-  Link öffnet direkt. Achtung: Zurück im Editor „Neuer Stempel“ verwirft
-  die Zeichnung ohne Nachfrage (wie das X).
+  Link öffnet direkt. Im Editor „Neuer Stempel“ mit etwas Gezeichnetem
+  fragt Zurück (auch Wischen), X und Escape erst „Zeichnung verwerfen?“.
 - Heute-, Monats- und Jahresansicht mit dem echten Router: Umschalter,
   Adresse `/de/app/{kalender}/{heute|monat|jahr}`, Zurück/Vor, alte
   Id-Adressen, Reload; offline eine noch nie geöffnete Adresse.
@@ -164,4 +161,4 @@ Stand: 13.10.2026
 ## Ideen am Rand
 
 refactor. manche files haben > 700 zeilen!
-die stempel in der monats/jahresansicht etwas chaotischer machen bzw. lustiger:)
+die stempel in der monats/jahresansicht etwas chaotischer machen bzw. lustiger hihi
