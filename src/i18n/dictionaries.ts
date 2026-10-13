@@ -194,7 +194,8 @@ const de = {
     // The link in the mail to a new address (accounts/email-change.ts).
     changeEmail: {
       title: "Neue Adresse bestätigen",
-      working: "Wir bestätigen deine neue Adresse …",
+      text: "Ein Klick noch – dann meldest du dich bei Boop mit deiner neuen Adresse an.",
+      submit: "Jetzt bestätigen",
       done: "Geschafft – ab jetzt meldest du dich mit deiner neuen Adresse an.",
       failed:
         "Der Link ist abgelaufen oder wurde schon benutzt. Vielleicht ist deine Adresse schon geändert? Sonst fordere in der App unter „Konto“ einfach einen neuen an.",
@@ -449,11 +450,21 @@ const de = {
       alone: "Geht, sobald jemand mit in diesem Kalender ist.",
       time: "Erinnerung um",
       timeHint: "Für alle deine Kalender – in der Uhrzeit deines Geräts.",
+      // The account's own switch, in its sheet – and a word there when this
+      // device hears nothing.
+      invited: "Wenn mich jemand zu einem Kalender hinzufügt",
+      deviceOff:
+        "Auf diesem Gerät sind Benachrichtigungen aus. Einschalten kannst du sie in den Einstellungen eines Kalenders.",
       // What the notifications say – in the device's language.
       someone: "Jemand",
       stampedTitle: "Boop!",
       stampedBody: template(
         "{name} hat in „{calendar}“ gestempelt.",
+        (say) => (name: string, calendar: string) => say({ name, calendar })
+      ),
+      invitedTitle: "Boop!",
+      invitedBody: template(
+        "{name} hat dich zu „{calendar}“ hinzugefügt.",
         (say) => (name: string, calendar: string) => say({ name, calendar })
       ),
       changedTitle: "Boop!",
@@ -580,6 +591,8 @@ const de = {
         (say) => (pending: string, email: string) => say({ pending, email })
       ),
       emailCancel: "Doch nicht ändern",
+      // Only where an admin ticked the account's box in the CMS.
+      cms: "CMS öffnen",
       stored:
         "Bei Boop liegen dein Name, deine E-Mail-Adresse und was du anlegst: Kalender, Stempel, Abdrücke und Notizen – und, wenn du sie einschaltest, deine Geräte für Benachrichtigungen.",
       privacy: "Mehr im Datenschutz",
@@ -873,7 +886,8 @@ const en: Shape<typeof de> = {
     },
     changeEmail: {
       title: "Confirm new address",
-      working: "Confirming your new address …",
+      text: "One more click – then you log in to Boop with your new address.",
+      submit: "Confirm now",
       done: "Done – from now on you log in with your new address.",
       failed:
         "The link has expired or was already used. Maybe your address is changed already? Otherwise simply ask for a new one in the app under “Account”.",
@@ -1097,9 +1111,14 @@ const en: Shape<typeof de> = {
       alone: "Works once someone else is in this calendar.",
       time: "Reminder at",
       timeHint: "For all your calendars – on your device's clock.",
+      invited: "When someone adds me to a calendar",
+      deviceOff:
+        "Notifications are off on this device. You can turn them on in a calendar's settings.",
       someone: "Someone",
       stampedTitle: "Boop!",
       stampedBody: "{name} stamped in “{calendar}”.",
+      invitedTitle: "Boop!",
+      invitedBody: "{name} added you to “{calendar}”.",
       changedTitle: "Boop!",
       changedBody: {
         note: "{name} wrote a note in “{calendar}”.",
@@ -1174,6 +1193,7 @@ const en: Shape<typeof de> = {
       emailPending:
         "We've sent a mail to {pending}. Until you confirm, {email} stays your address.",
       emailCancel: "Don't change it",
+      cms: "Open CMS",
       stored:
         "Boop keeps your name, your email address and what you make: calendars, stamps, prints and notes – and, once you turn them on, your devices for notifications.",
       privacy: "More in the privacy notes",

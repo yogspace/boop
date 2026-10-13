@@ -79,9 +79,13 @@ export const loadPush = async () => {
   return known;
 };
 
-export const savePush = async (
-  patch: { reminderAt: string } | ({ calendar: string } & Partial<Switches>)
-) => {
+/** One change: the reminder's time, the account's own switch, or a calendar's. */
+export type PushPatch =
+  | { reminderAt: string }
+  | { invited: boolean }
+  | ({ calendar: string } & Partial<Switches>);
+
+export const savePush = async (patch: PushPatch) => {
   known = await api<PushState>("/settings", {
     method: "PATCH",
     body: JSON.stringify(patch),

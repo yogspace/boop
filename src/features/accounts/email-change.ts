@@ -16,7 +16,9 @@ import {
  * address. Opening its link is the confirmation: the address becomes the
  * account's, what was noted goes, and the link with it. Until then – and if
  * nobody ever opens it – the old address stays: it logs in, it gets the
- * mails.
+ * mails. From then on it gets none, and a link for a new password still on
+ * its way there is dead: a mailbox one no longer trusts is a reason to
+ * change the address.
  *
  * Nobody learns here whether an address already has an account. One that
  * does is noted like any other and answered the same – only no mail goes
@@ -169,7 +171,8 @@ export type Confirmed =
  * Redeems the token of a link: the address noted with it becomes the
  * account's, and what was noted goes – in one write that asks for the token
  * once more, so of two opening the link at the same moment one finds it
- * gone. The old address counts until that write.
+ * gone. The old address counts until that write; with it goes a link for a
+ * new password sent there (Payload's `resetPasswordToken`).
  */
 export const confirmEmailChange = async (
   payload: Payload,
@@ -181,6 +184,7 @@ export const confirmEmailChange = async (
   const account = await payload.db.findOne<Row>({
     collection: ACCOUNTS,
     where: noted,
+    select: { email: true, pendingEmail: true, pendingEmailExpiresAt: true },
   });
   if (!account) return { ok: false, reason: "invalid" };
   const email = pendingEmailOf(account, now);
@@ -205,7 +209,13 @@ export const confirmEmailChange = async (
     changed = (await payload.db.updateOne({
       collection: ACCOUNTS,
       where: mine,
-      data: { email, ...nothing() },
+      data: {
+        email,
+        ...nothing(),
+        resetPasswordToken: null,
+        resetPasswordExpiration: null,
+      },
+      select: { name: true, locale: true },
     })) as Row | null;
   } catch (error) {
     // Taken in this very moment – the database allows one account per

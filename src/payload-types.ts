@@ -147,7 +147,7 @@ export interface User {
   collection: 'users';
 }
 /**
- * People using Boop – to look up and to help, not to edit: nothing of an account can be changed here, only the account deleted or its login unlocked. Deleting an account removes its calendars, its stamps and what it placed elsewhere. Sign-ups never confirmed go after 30 days; accounts unused for 24 months after a warning mail.
+ * People using Boop – to look up and to help, not to edit: of an account only the two boxes “Admin” and “Never delete” can be changed here; besides that an account can be deleted or its login unlocked. Deleting an account removes its calendars, its stamps and what it placed elsewhere. Sign-ups never confirmed go after 30 days; accounts unused for 24 months after a warning mail – unless “Never delete” is ticked.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "accounts".
@@ -156,6 +156,15 @@ export interface Account {
   id: string;
   name: string;
   locale: 'de' | 'en';
+  password?: string | null;
+  /**
+   * Shows this person a link “Open CMS” in the app's account sheet. Only a shortcut – it gives no rights: the CMS still asks for its own login (Users), and an account never gets into it.
+   */
+  admin?: boolean | null;
+  /**
+   * Keeps this account out of the daily cleanup: no warning mail and no deletion for not using it (24 months), none for an address never confirmed (30 days). The person can still delete the account in the app.
+   */
+  neverDelete?: boolean | null;
   /**
    * Last login or sync – once a day at most. Unused for 24 months, the account is deleted, after a mail 30 days ahead.
    */
@@ -192,7 +201,6 @@ export interface Account {
         expiresAt: string;
       }[]
     | null;
-  password?: string | null;
   collection: 'accounts';
 }
 /**
@@ -221,7 +229,7 @@ export interface PushSubscription {
   createdAt: string;
 }
 /**
- * What an account wants to hear of. A calendar not listed is as by default: the reminder and “someone else stamped” on, “someone else changed something” off.
+ * What an account wants to hear of. “Someone added me to a calendar” is on until switched off. A calendar not listed is as by default: the reminder and “someone else stamped” on, “someone else changed something” off.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "push-settings".
@@ -230,6 +238,7 @@ export interface PushSetting {
   id: string;
   account: string | Account;
   reminderAt: string;
+  invited?: boolean | null;
   calendars?:
     | {
         calendar: string | Calendar;
@@ -577,6 +586,9 @@ export interface UsersSelect<T extends boolean = true> {
 export interface AccountsSelect<T extends boolean = true> {
   name?: T;
   locale?: T;
+  password?: T;
+  admin?: T;
+  neverDelete?: T;
   lastSeenAt?: T;
   deletionWarnedAt?: T;
   pendingEmail?: T;
@@ -630,6 +642,7 @@ export interface PushSubscriptionsSelect<T extends boolean = true> {
 export interface PushSettingsSelect<T extends boolean = true> {
   account?: T;
   reminderAt?: T;
+  invited?: T;
   calendars?:
     | T
     | {
@@ -1258,9 +1271,13 @@ export interface Translation {
        */
       title?: string | null;
       /**
-       * DE: Wir bestätigen deine neue Adresse …  ·  EN: Confirming your new address …
+       * DE: Ein Klick noch – dann meldest du dich bei Boop mit deiner neuen Adresse an.  ·  EN: One more click – then you log in to Boop with your new address.
        */
-      working?: string | null;
+      text?: string | null;
+      /**
+       * DE: Jetzt bestätigen  ·  EN: Confirm now
+       */
+      submit?: string | null;
       /**
        * DE: Geschafft – ab jetzt meldest du dich mit deiner neuen Adresse an.  ·  EN: Done – from now on you log in with your new address.
        */
@@ -2050,6 +2067,14 @@ export interface Translation {
        */
       timeHint?: string | null;
       /**
+       * DE: Wenn mich jemand zu einem Kalender hinzufügt  ·  EN: When someone adds me to a calendar
+       */
+      invited?: string | null;
+      /**
+       * DE: Auf diesem Gerät sind Benachrichtigungen aus. Einschalten kannst du sie in den Einstellungen eines Kalenders.  ·  EN: Notifications are off on this device. You can turn them on in a calendar's settings.
+       */
+      deviceOff?: string | null;
+      /**
        * DE: Jemand  ·  EN: Someone
        */
       someone?: string | null;
@@ -2061,6 +2086,14 @@ export interface Translation {
        * DE: {name} hat in „{calendar}“ gestempelt.  ·  EN: {name} stamped in “{calendar}”.  ·  Keeps {name}, {calendar}
        */
       stampedBody?: string | null;
+      /**
+       * DE: Boop!  ·  EN: Boop!
+       */
+      invitedTitle?: string | null;
+      /**
+       * DE: {name} hat dich zu „{calendar}“ hinzugefügt.  ·  EN: {name} added you to “{calendar}”.  ·  Keeps {name}, {calendar}
+       */
+      invitedBody?: string | null;
       /**
        * DE: Boop!  ·  EN: Boop!
        */
@@ -2303,6 +2336,10 @@ export interface Translation {
        * DE: Doch nicht ändern  ·  EN: Don't change it
        */
       emailCancel?: string | null;
+      /**
+       * DE: CMS öffnen  ·  EN: Open CMS
+       */
+      cms?: string | null;
       /**
        * DE: Bei Boop liegen dein Name, deine E-Mail-Adresse und was du anlegst: Kalender, Stempel, Abdrücke und Notizen – und, wenn du sie einschaltest, deine Geräte für Benachrichtigungen.  ·  EN: Boop keeps your name, your email address and what you make: calendars, stamps, prints and notes – and, once you turn them on, your devices for notifications.
        */
@@ -2856,7 +2893,8 @@ export interface TranslationsSelect<T extends boolean = true> {
           | T
           | {
               title?: T;
-              working?: T;
+              text?: T;
+              submit?: T;
               done?: T;
               failed?: T;
               taken?: T;
@@ -3124,9 +3162,13 @@ export interface TranslationsSelect<T extends boolean = true> {
               alone?: T;
               time?: T;
               timeHint?: T;
+              invited?: T;
+              deviceOff?: T;
               someone?: T;
               stampedTitle?: T;
               stampedBody?: T;
+              invitedTitle?: T;
+              invitedBody?: T;
               changedTitle?: T;
               changedBody?:
                 | T
@@ -3205,6 +3247,7 @@ export interface TranslationsSelect<T extends boolean = true> {
               emailInvalid?: T;
               emailPending?: T;
               emailCancel?: T;
+              cms?: T;
               stored?: T;
               privacy?: T;
               exportTitle?: T;

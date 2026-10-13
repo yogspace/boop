@@ -6,7 +6,7 @@ import {
   type CollectionBeforeOperationHook,
   type CollectionConfig,
 } from "payload";
-import { adminOnly, isAdmin, nobody, visitors } from "@/access";
+import { adminOnly, isAdmin, visitors } from "@/access";
 import { createFirstCalendar } from "@/features/calendar/membership";
 import { purgeCalendar } from "@/features/sync/apply";
 import { LOCALES } from "@/i18n/config";
@@ -37,15 +37,62 @@ import { sessionEndpoints } from "./session";
  * cleanup.ts).
  *
  * An account sees and changes itself through the app's own endpoints
- * (session.ts) – its name, its language, its address, its end; over REST
- * nobody changes an account. The admin looks accounts up to help – address,
- * name, the dates – deletes one and unlocks a login, and that is all: no
+ * (session.ts) – its name, its language, its address, its end. The admin
+ * looks accounts up to help – address, name, the dates – deletes one,
+ * unlocks a login and ticks two boxes (`ADMIN_BOXES`), and that is all: no
  * new name, no new address, no new password, and so no way in as someone
- * else.
+ * else. The boxes are the admin's alone – an account never sets them.
  */
 
 // Sign-ups per IP – enough for a family behind one router, not for a bot.
 const tooManySignups = rateLimit({ limit: 10, windowMs: 60 * 60 * 1000 });
+
+/**
+ * The two boxes an admin ticks on an account – all the CMS can change of
+ * one:
+ *
+ * - `admin`: the app shows this account a link to the CMS (account-sheet.
+ *   tsx). A shortcut, not a right: the CMS has logins of its own (`users`),
+ *   an account never gets into it, and nothing in src/access looks at the
+ *   box. It is told to the account itself (`me`), to no one else.
+ * - `neverDelete`: the daily cleanup leaves the account alone – no warning,
+ *   no deletion, confirmed address or not (retention.ts). The account can
+ *   still delete itself.
+ */
+const ADMIN_BOXES = ["admin", "neverDelete"] as const;
+
+/**
+ * What an admin's change of an account may hold: the two boxes. Everything
+ * else is dropped before Payload looks at it – as early as this, because
+ * Payload takes a new password straight from the data: it is no field, so
+ * no field's access holds it back, and by the time the hooks of a change
+ * run (`protectAccount`) it is already on its way to being hashed. With a
+ * new password an admin could log in as that person and read what is sealed
+ * (src/access). So that one is not dropped quietly but refused.
+ *
+ * Every update goes through here, one account's or many at once – from the
+ * admin's pages and over REST alike.
+ */
+const onlyTheBoxes: CollectionBeforeOperationHook = ({
+  args,
+  operation,
+  req,
+}) => {
+  if (operation !== "update" || !isAdmin(req)) return;
+  const data = (args.data ?? {}) as Record<string, unknown>;
+  if (data.password) {
+    throw new APIError("An account's password can't be changed here.", 403);
+  }
+  return {
+    ...args,
+    data: Object.fromEntries(
+      ADMIN_BOXES.filter((box) => typeof data[box] === "boolean").map((box) => [
+        box,
+        data[box],
+      ])
+    ),
+  };
+};
 
 const limitSignups: CollectionBeforeOperationHook = ({ operation, req }) => {
   if (operation !== "create" || isAdmin(req)) return;
@@ -66,10 +113,26 @@ const protectAccount: CollectionBeforeChangeHook = ({
   data,
   operation,
   originalDoc,
+  req,
 }) => {
   // Only a new account gets the field (as false); a change never touches it.
-  const { _verified, ...rest } = data;
-  const next = operation === "create" ? { ...rest, _verified: false } : rest;
+  // The admin's boxes likewise: unticked on a new account, and in a change
+  // only an admin's count – whichever way the change came, the app's own
+  // endpoints too.
+  const { _verified, admin, neverDelete, ...rest } = data;
+  const boxes = isAdmin(req)
+    ? {
+        ...(typeof admin === "boolean" && { admin }),
+        ...(typeof neverDelete === "boolean" && { neverDelete }),
+        // Kept for good: a warning that it will go is taken back with the
+        // tick – unticked one day, the account is warned anew.
+        ...(neverDelete === true && { deletionWarnedAt: null }),
+      }
+    : {};
+  const next =
+    operation === "create"
+      ? { ...rest, _verified: false, admin: false, neverDelete: false }
+      : { ...rest, ...boxes };
   if (
     operation === "update" &&
     typeof next.email === "string" &&
@@ -263,10 +326,11 @@ export const Accounts: CollectionConfig = {
     // The admin's list. The app asks through its own endpoints (session.ts),
     // which need none of these.
     read: adminOnly,
-    // Nobody over REST – the admin neither: a new address or password would
-    // be a way in as that person. The app changes name and language through
-    // PATCH /me, and only those.
-    update: nobody,
+    // The admin – for the two boxes, and nothing else gets through
+    // (`onlyTheBoxes`): a new address or password would be a way in as that
+    // person. The app changes name and language through PATCH /me, and only
+    // those; its address through a link sent to the new one.
+    update: adminOnly,
     // The admin – with everything in it (`removeData`). The app deletes
     // through DELETE /me, which asks for the password once more.
     delete: adminOnly,
@@ -277,7 +341,7 @@ export const Accounts: CollectionConfig = {
     group: "People",
     useAsTitle: "email",
     defaultColumns: ["name", "email", "_verified", "lastSeenAt", "createdAt"],
-    description: `People using Boop – to look up and to help, not to edit: nothing of an account can be changed here, only the account deleted or its login unlocked. Deleting an account removes its calendars, its stamps and what it placed elsewhere. Sign-ups never confirmed go after ${UNVERIFIED_DAYS} days; accounts unused for ${INACTIVE_MONTHS} months after a warning mail.`,
+    description: `People using Boop – to look up and to help, not to edit: of an account only the two boxes “Admin” and “Never delete” can be changed here; besides that an account can be deleted or its login unlocked. Deleting an account removes its calendars, its stamps and what it placed elsewhere. Sign-ups never confirmed go after ${UNVERIFIED_DAYS} days; accounts unused for ${INACTIVE_MONTHS} months after a warning mail – unless “Never delete” is ticked.`,
     components: {
       edit: {
         beforeDocumentControls: [
@@ -287,7 +351,15 @@ export const Accounts: CollectionConfig = {
     },
   },
   fields: [
-    { name: "name", type: "text", required: true, maxLength: 40 },
+    // Name and language are the account's own – changed through PATCH /me,
+    // which writes past these rules; in the admin they are to read.
+    {
+      name: "name",
+      type: "text",
+      required: true,
+      maxLength: 40,
+      access: { update: () => false },
+    },
     {
       // The language of the app and of the mails.
       name: "locale",
@@ -295,6 +367,45 @@ export const Accounts: CollectionConfig = {
       required: true,
       defaultValue: "de",
       options: [...LOCALES],
+      access: { update: () => false },
+    },
+    // Two of Payload's own for a login, named here only to close them for
+    // a change (Payload merges this into its field): the address – a new
+    // one comes by a link (email-change.ts) – and the password. That one is
+    // no stored field: Payload hashes it and keeps the hash. Naming it lets
+    // the admin's page hide “change password”, and the rule holds a new one
+    // back a second time (`onlyTheBoxes` is the first). Signing up still
+    // sets one – creating stays open.
+    { name: "email", type: "email", access: { update: () => false } },
+    {
+      name: "password",
+      type: "text",
+      hidden: true,
+      access: { update: () => false },
+    },
+    // The admin's two boxes (`ADMIN_BOXES`) – set in the admin alone, never
+    // at sign-up and never by the account.
+    {
+      name: "admin",
+      type: "checkbox",
+      defaultValue: false,
+      access: { create: () => false, update: ({ req }) => isAdmin(req) },
+      admin: {
+        position: "sidebar",
+        description:
+          "Shows this person a link “Open CMS” in the app's account sheet. Only a shortcut – it gives no rights: the CMS still asks for its own login (Users), and an account never gets into it.",
+      },
+    },
+    {
+      name: "neverDelete",
+      label: "Never delete",
+      type: "checkbox",
+      defaultValue: false,
+      access: { create: () => false, update: ({ req }) => isAdmin(req) },
+      admin: {
+        position: "sidebar",
+        description: `Keeps this account out of the daily cleanup: no warning mail and no deletion for not using it (${INACTIVE_MONTHS} months), none for an address never confirmed (${UNVERIFIED_DAYS} days). The person can still delete the account in the app.`,
+      },
     },
     // When it was last there, and when it was warned it will go for not
     // being there (retention.ts) – written by the server alone: at a login,
@@ -367,7 +478,7 @@ export const Accounts: CollectionConfig = {
   // Login, logout, “me”, new password – into the app's own cookie.
   endpoints: sessionEndpoints,
   hooks: {
-    beforeOperation: [limitSignups],
+    beforeOperation: [limitSignups, onlyTheBoxes],
     beforeChange: [protectAccount],
     afterChange: [addFirstCalendar],
     beforeDelete: [removeData],

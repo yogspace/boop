@@ -69,8 +69,17 @@ export type Person = { id: string; name: string };
 export type SyncResponse = {
   /** Send it as `since` next time. */
   now: string;
-  /** `pendingEmail`: a new address waiting for its confirmation, if any. */
-  me: Person & { email: string; locale: string; pendingEmail?: string | null };
+  /**
+   * `pendingEmail`: a new address waiting for its confirmation, if any.
+   * `admin`: the app shows a link to the CMS – no right (accounts/
+   * collection.ts).
+   */
+  me: Person & {
+    email: string;
+    locale: string;
+    pendingEmail?: string | null;
+    admin?: boolean;
+  };
   /** All calendars the account belongs to – anything else goes. */
   calendarIds: string[];
   /** The members of those calendars, by name. */

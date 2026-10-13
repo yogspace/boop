@@ -238,6 +238,9 @@ const publicAccount = (user: Record<string, unknown>) => ({
   locale: user.locale ?? "de",
   // A new address still waiting for its confirmation – never its token.
   pendingEmail: pendingEmailOf(user),
+  // The admin's box: the app shows a link to the CMS, nothing more
+  // (collection.ts). No right hangs on it – here neither.
+  admin: user.admin === true,
 });
 
 /**
@@ -422,6 +425,8 @@ export const sessionEndpoints: Endpoint[] = [
             newEmailMail({ token: asked.token, user: account })
           );
         }
+        // The account's other devices show it waiting, too (sync/live.ts).
+        nudge([String(account.id)]);
         return respond(req, {
           user: {
             ...publicAccount(account as unknown as Record<string, unknown>),
@@ -443,6 +448,7 @@ export const sessionEndpoints: Endpoint[] = [
         return respond(req, { error: "Not logged in." }, { status: 401 });
       try {
         await dropEmailChange(req.payload, account.id);
+        nudge([String(account.id)]);
         return respond(req, {
           user: {
             ...publicAccount(account as unknown as Record<string, unknown>),
@@ -487,6 +493,8 @@ export const sessionEndpoints: Endpoint[] = [
             emailChangedMail({ user: confirmed.account })
           );
         }
+        // Every open app of the account syncs – and shows the new address.
+        nudge([confirmed.account.id]);
         return respond(req, { ok: true });
       } catch (error) {
         return failure(req, error);

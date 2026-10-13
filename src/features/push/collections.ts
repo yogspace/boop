@@ -15,10 +15,11 @@ import {
  *   its push service takes messages for it, the keys to encrypt them with,
  *   its clock's zone and language. Tied to the login it was switched on in
  *   (rules.ts, `loginLasts`).
- * - `push-settings`: what an account wants to hear of – its reminder's time
- *   and, per calendar, the switches it flipped. One per account, apart
- *   from the account itself: the app reads and writes it through its own
- *   endpoints (endpoints.ts), and nothing of it rides along with the login.
+ * - `push-settings`: what an account wants to hear of – its reminder's time,
+ *   whether to hear when someone adds it to a calendar and, per calendar,
+ *   the switches it flipped. One per account, apart from the account
+ *   itself: the app reads and writes it through its own endpoints
+ *   (endpoints.ts), and nothing of it rides along with the login.
  *
  * Both go with the account (accounts/collection.ts, `removeData`) and are
  * in its export (accounts/export.ts). The app goes through endpoints.ts;
@@ -130,9 +131,9 @@ export const PushSettings: CollectionConfig = {
     hidden: hiddenUnlessSupport,
     group: "People",
     useAsTitle: "reminderAt",
-    defaultColumns: ["account", "reminderAt", "updatedAt"],
+    defaultColumns: ["account", "reminderAt", "invited", "updatedAt"],
     description:
-      "What an account wants to hear of. A calendar not listed is as by default: the reminder and “someone else stamped” on, “someone else changed something” off.",
+      "What an account wants to hear of. “Someone added me to a calendar” is on until switched off. A calendar not listed is as by default: the reminder and “someone else stamped” on, “someone else changed something” off.",
   },
   fields: [
     {
@@ -152,6 +153,14 @@ export const PushSettings: CollectionConfig = {
       validate: (value: unknown) =>
         cleanReminderAt(value) === value ||
         `A time like 20:00 – ${LATEST_REMINDER_AT} at the latest.`,
+    },
+    {
+      // “Someone added me to a calendar” – the account's own, for all of
+      // them. On until switched off: only an off is kept (rules.ts,
+      // `withInvited`), and whatever else is there reads as on – here too.
+      name: "invited",
+      type: "checkbox",
+      hooks: { afterRead: [({ value }) => value !== false] },
     },
     {
       // Only calendars with a switch not as by default – kept tidy whenever

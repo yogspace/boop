@@ -7,18 +7,9 @@ import type { CalendarDoc } from "@/features/calendar/model";
 import { useBoop } from "@/features/offline/store";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
-import {
-  type Device,
-  deviceState,
-  knownPush,
-  loadPush,
-  refreshPush,
-  savePush,
-  turnOff,
-  turnOn,
-} from "./client";
-import type { PushState } from "./endpoints";
+import { refreshPush, turnOff, turnOn } from "./client";
 import { DEFAULT_SWITCHES, type Switches } from "./rules";
+import { usePush } from "./use-push";
 
 /**
  * A calendar's notifications, under “Just for you” in its settings: first
@@ -43,32 +34,12 @@ export const NotificationSettings = ({
   const t = dictionaryOf(locale).app.push;
   const { online, me } = useBoop();
   const account = me?.id;
-  const [state, setState] = useState<PushState | null>(knownPush);
-  const [device, setDevice] = useState<Device | null>(null);
+  const { state, device, setDevice, failed, setFailed, save } =
+    usePush(online);
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
   // The time while it is being picked – kept when the picker lets go.
   const [time, setTime] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  useEffect(() => {
-    let live = true;
-    void deviceState().then((next) => live && setDevice(next));
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!online) return;
-    let live = true;
-    loadPush()
-      .then((next) => live && setState(next))
-      .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, [online]);
 
   // On here: the server hears so again – the login, zone and language now.
   const publicKey = state?.publicKey;
@@ -77,7 +48,7 @@ export const NotificationSettings = ({
     void refreshPush(locale, publicKey, account).then(
       (next) => next && setDevice(next)
     );
-  }, [device, publicKey, online, locale, account]);
+  }, [device, publicKey, online, locale, account, setDevice]);
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
@@ -111,24 +82,17 @@ export const NotificationSettings = ({
   const disable = () => attempt(async () => setDevice(await turnOff()));
 
   /** A switch flips at once – and back, should the server say no. */
-  const flip = async (patch: Partial<Switches>) => {
-    if (!state) return;
-    const before = state;
-    setFailed(false);
-    setState({
-      ...state,
+  const flip = (patch: Partial<Switches>) =>
+    save({ calendar: calendar.id, ...patch }, (now) => ({
+      ...now,
       calendars: {
-        ...state.calendars,
-        [calendar.id]: { ...switches, ...patch },
+        ...now.calendars,
+        [calendar.id]: {
+          ...(now.calendars[calendar.id] ?? DEFAULT_SWITCHES),
+          ...patch,
+        },
       },
-    });
-    try {
-      setState(await savePush({ calendar: calendar.id, ...patch }));
-    } catch {
-      setState(before);
-      setFailed(true);
-    }
-  };
+    }));
 
   const keepTime = async (value: string) => {
     clearTimeout(timer.current);
@@ -136,11 +100,7 @@ export const NotificationSettings = ({
       setTime(null);
       return;
     }
-    try {
-      setState(await savePush({ reminderAt: value }));
-    } catch {
-      setFailed(true);
-    }
+    await save({ reminderAt: value }, (now) => ({ ...now, reminderAt: value }));
     setTime(null);
   };
 

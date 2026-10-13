@@ -298,6 +298,7 @@ export const pull = async (
             locale: true,
             pendingEmail: true,
             pendingEmailExpiresAt: true,
+            admin: true,
           },
           depth: 0,
           pagination: false,
@@ -329,6 +330,9 @@ export const pull = async (
       // A new address it asked for and hasn't confirmed yet (accounts/
       // email-change.ts) – the account sheet says so.
       pendingEmail: pendingEmailOf(self),
+      // Its own box only – what an admin ticked for it, to show a link to
+      // the CMS. Nobody else's goes out.
+      admin: self.admin === true,
     },
     calendarIds,
     people,

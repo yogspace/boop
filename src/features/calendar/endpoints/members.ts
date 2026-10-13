@@ -1,5 +1,6 @@
 import type { Endpoint, PayloadRequest } from "payload";
 import { sessionAccount } from "@/features/accounts/session";
+import { notifyInvited } from "@/features/push/invited";
 import { unshare } from "@/features/sync/apply";
 import { nudge, nudgeCalendars } from "@/features/sync/live";
 import { rateLimit } from "@/lib/rate-limit";
@@ -100,6 +101,14 @@ export const addMember: Endpoint = {
       await touch(req, calendar.id, [...calendar.members, id], String(me.id));
       await nudgeCalendars(req, [calendar.id]);
     }
+    // New in it, they hear so on their devices – whether they are, and
+    // want to, is features/push's to say. Sent after this has answered.
+    notifyInvited(req.payload, {
+      calendar: calendar.id,
+      who: id,
+      by: String(me.id),
+      before: calendar.members,
+    });
     return Response.json({
       added: true,
       person: { id, name: (person as { name?: string }).name ?? "" },

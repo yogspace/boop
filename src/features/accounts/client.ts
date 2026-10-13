@@ -17,6 +17,11 @@ export type Me = {
    * `email` counts until then. None: null (or nothing, kept from before).
    */
   pendingEmail?: string | null;
+  /**
+   * Ticked by an admin in the CMS: the account sheet shows a link there.
+   * A shortcut only – the CMS asks for its own login.
+   */
+  admin?: boolean;
 };
 
 type Result<T = undefined> =
@@ -44,6 +49,7 @@ const toMe = (user: Record<string, unknown>): Me => ({
   email: String(user.email ?? ""),
   locale: String(user.locale ?? "de"),
   pendingEmail: user.pendingEmail ? String(user.pendingEmail) : null,
+  admin: user.admin === true,
 });
 
 /**

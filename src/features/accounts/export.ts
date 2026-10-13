@@ -94,6 +94,10 @@ export const accountExport = ({
       email: String(account.email ?? ""),
       locale: String(account.locale ?? ""),
       verified: account._verified === true,
+      // The two boxes only an admin ticks (collection.ts): a link to the
+      // CMS in the app, and out of the daily cleanup.
+      admin: account.admin === true,
+      neverDelete: account.neverDelete === true,
       createdAt: when(account.createdAt),
       updatedAt: when(account.updatedAt),
       // A new address it asked for and hasn't confirmed – as it is kept,

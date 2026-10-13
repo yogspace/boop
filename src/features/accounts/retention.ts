@@ -10,6 +10,10 @@
  * - A new address nobody confirmed (email-change.ts): what was noted for it
  *   goes after EMAIL_CHANGE_HOURS – the account stays, with the address it
  *   had.
+ * - An account an admin marked “never delete” (`neverDelete`, collection.ts)
+ *   is none of the cleanup's business: not warned, not deleted – unused or
+ *   unconfirmed, for however long. Ticked is ticked. The account itself can
+ *   still delete itself in the app.
  *
  * “Being there” is noted on the account (`lastSeenAt`) at a login and
  * whenever the app talks to the server – once a day at most. An account
@@ -57,7 +61,18 @@ export type Kept = {
   _verified?: unknown;
   lastSeenAt?: unknown;
   deletionWarnedAt?: unknown;
+  /** Ticked by an admin: the cleanup leaves it alone. */
+  neverDelete?: unknown;
 };
+
+/** An admin marked it: never warned, never deleted by the cleanup. */
+export const keptForGood = (account: Kept) => account.neverDelete === true;
+
+/**
+ * The accounts the cleanup may look at, as a query – `keptForGood`'s rule:
+ * all but the marked ones (one without the field, from before, is not).
+ */
+export const notKeptForGood = { neverDelete: { not_equals: true } } as const;
 
 /** What a rule writes to an account. */
 export type SeenPatch = {
@@ -89,11 +104,13 @@ export const unverifiedBefore = (now = Date.now()) =>
 
 /**
  * A sign-up to delete: its address expressly not confirmed, and made
- * UNVERIFIED_DAYS ago or longer. Anything unclear stays.
+ * UNVERIFIED_DAYS ago or longer. Anything unclear stays – and so does one
+ * marked “never delete”.
  */
 export const unverifiedDue = (account: Kept, now = Date.now()) => {
   const made = time(account.createdAt);
   return (
+    !keptForGood(account) &&
     account._verified === false &&
     made !== null &&
     made <= unverifiedBefore(now).getTime()
@@ -166,11 +183,15 @@ export type InactivityStep =
   /** Warned, and away for all the WARNING_DAYS since: it goes. */
   | "delete";
 
-/** What the cleanup does with an account today – null: nothing. */
+/**
+ * What the cleanup does with an account today – null: nothing. Always
+ * nothing for one marked “never delete”: no note, no warning, no deletion.
+ */
 export const inactivityStep = (
   account: Kept,
   now = Date.now()
 ): InactivityStep | null => {
+  if (keptForGood(account)) return null;
   const seen = time(account.lastSeenAt);
   if (seen === null) return "note";
   const warned = time(account.deletionWarnedAt);
@@ -212,7 +233,8 @@ export type InactivityPorts<T extends Kept> = {
  *
  * - A warning counts only once its mail went out. No mail service, or it
  *   refused: the account is not warned, and so never deleted.
- * - Before an account goes it is read once more. There meanwhile? It stays.
+ * - Before an account goes it is read once more. There meanwhile – or
+ *   marked “never delete” meanwhile? It stays.
  *
  * With `dry` nothing is written, sent or deleted – it only counts.
  */

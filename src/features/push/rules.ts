@@ -4,13 +4,17 @@ import { dictionaryOf } from "../../i18n/dictionaries";
 
 /**
  * Who hears of what, and when – plain functions of their arguments, tested
- * in test/push/rules.test.ts. The server's parts (stamped.ts, reminder.ts,
- * endpoints.ts) ask the database and hand them what it said.
+ * in test/push/rules.test.ts. The server's parts (stamped.ts, changed.ts,
+ * invited.ts, reminder.ts, endpoints.ts) ask the database and hand them
+ * what it said.
  *
  * - Every account has three switches per calendar: the evening's reminder
  *   and “someone else stamped here”, on until switched off, and “someone
  *   else changed something”, off until switched on – it would be loud.
  *   Only what differs is kept (`PushSettingsDoc.calendars`).
+ * - And one of its own, for no calendar yet: “someone added me to one”, on
+ *   until switched off – kept only when off (`PushSettingsDoc.invited`).
+ *   The one added hears it, nobody else (`invitedTargets`).
  * - A device (`SubscriptionRow`) hears only as long as the login it was
  *   switched on in lasts: logged out, it is quiet.
  * - The reminder comes once a day per device, at the account's time on the
@@ -59,9 +63,17 @@ export const STAMPED_WINDOW_MS = 10 * 60 * 1000;
 export const CHANGED_WINDOW_MS = 10 * 60 * 1000;
 export const CHANGED_GATHER_MS = 5 * 1000;
 
+/**
+ * Added to one calendar, taken out and added again within this long is one
+ * notification – nobody is rung up by being put in and out.
+ */
+export const INVITED_WINDOW_MS = 10 * 60 * 1000;
+
 /** The account's settings as stored (collections.ts) – none: all default. */
 export type PushSettingsDoc = {
   reminderAt?: string | null;
+  /** “Someone added me to a calendar” – kept only when off. */
+  invited?: boolean | null;
   calendars?:
     | {
         calendar?: unknown;
@@ -250,6 +262,23 @@ export const withSwitch = (
   return entries;
 };
 
+/**
+ * The account's own switch, “someone added me to a calendar”: on until
+ * switched off – whatever is kept that is no off counts as on.
+ */
+export const invitedOf = (settings: PushSettingsDoc | null | undefined) =>
+  settings?.invited !== false;
+
+/**
+ * That switch as kept after a change – or as it was, without one. Only an
+ * off is kept: on is the default and leaves nothing (null), like a
+ * calendar's entry back at its defaults.
+ */
+export const withInvited = (
+  settings: PushSettingsDoc | null | undefined,
+  change?: boolean
+): false | null => ((change ?? invitedOf(settings)) ? null : false);
+
 // ── Devices ─────────────────────────────────────────────────────────────────
 
 /** A device as the database has it, made plain – null if it is no device. */
@@ -350,6 +379,48 @@ export const changedTargets = ({
   wanting(audience, "changed").filter(
     (device) => !about.includes(device.account)
   );
+
+/** Someone put into a calendar – who, by whom, and who was in it before. */
+export type Added = {
+  who: string;
+  /** Who did it. */
+  by: string;
+  /** The calendar's members before. */
+  before: readonly string[];
+};
+
+/**
+ * Is it news to them? Only to one new in the calendar, put there by
+ * someone else: already in, nothing happened – and whoever came in by
+ * themselves (an invitation's link) knows.
+ */
+export const wasAdded = ({ who, by, before }: Added) =>
+  who !== by && !before.includes(who);
+
+/**
+ * Who hears that they were added to a calendar: the devices of the one
+ * added (`wasAdded`) – nobody else's; the others hear of it as a change
+ * (`changedTargets`, which leaves this one out) – whose account has its
+ * switch on, and whose login lasts.
+ */
+export const invitedTargets = ({
+  devices,
+  settings,
+  sessions,
+  now,
+  ...added
+}: Added &
+  Pick<
+    Audience,
+    "devices" | "settings" | "sessions" | "now"
+  >): SubscriptionRow[] =>
+  wasAdded(added) && invitedOf(settings[added.who])
+    ? devices.filter(
+        (device) =>
+          device.account === added.who &&
+          loginLasts(device, sessions[added.who], now)
+      )
+    : [];
 
 /**
  * The calendars with an entry of the account on a day: a print of its own,
@@ -625,6 +696,23 @@ export const stampedMessage = (
     body: t.stampedBody(name.trim() || t.someone, calendar.name),
     url: calendarUrl(locale, calendar.id),
     tag: `stamped-${calendar.id}`,
+  };
+};
+
+/**
+ * “Anna added you to ‘Family’” – for the one added. A tap leads into the
+ * calendar: theirs now, there with their device's next sync.
+ */
+export const invitedMessage = (
+  locale: Locale,
+  { name, calendar }: { name: string; calendar: { id: string; name: string } },
+  t = dictionaryOf(locale).app.push
+): PushMessage => {
+  return {
+    title: t.invitedTitle,
+    body: t.invitedBody(name.trim() || t.someone, calendar.name),
+    url: calendarUrl(locale, calendar.id),
+    tag: `invited-${calendar.id}`,
   };
 };
 

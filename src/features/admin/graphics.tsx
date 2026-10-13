@@ -51,14 +51,15 @@ export const AdminLogo = () => (
 
 /**
  * On top of every page, the way back to the dashboard: the app icon's “b”
- * and dot, without its tile. It fills the little square Payload gives it;
- * the link around it says where it goes.
+ * and dot, without its tile. It fills the little square Payload gives it –
+ * so its picture is a square, too, the mark in the middle; the link around
+ * it says where it goes.
  *
  * Payload draws it into the picture of a shared admin link, too (/api/og),
  * and names the color there (`fill`) – a picture has no theme.
  */
 export const AdminIcon = ({ fill = INK }: { fill?: string }) => (
-  <svg aria-hidden="true" height="100%" viewBox="14 -3 185 191" width="100%">
+  <svg aria-hidden="true" height="100%" viewBox="11 -3 191 191" width="100%">
     <g {...MARKER} stroke={fill}>
       <path d="M34 17V168" />
       <circle cx={78} cy={124} r={44} />

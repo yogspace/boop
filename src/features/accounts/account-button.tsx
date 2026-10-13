@@ -41,8 +41,14 @@ export const AccountButton = ({ locale }: { locale: Locale }) => {
 
   const toggle = async () => {
     if (!open) {
-      const outbox = await getAll("outbox").catch(() => []);
+      // Fresh from the device's copy – a new name or address may have come
+      // since the page was opened.
+      const [outbox, found] = await Promise.all([
+        getAll("outbox").catch(() => []),
+        getMeta<Me>("me").catch(() => undefined),
+      ]);
       setWaiting(outbox.length);
+      if (found) setMe(found);
     }
     setOpen(!open);
   };

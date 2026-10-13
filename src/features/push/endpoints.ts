@@ -9,6 +9,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import {
   cleanReminderAt,
   DEFAULT_TIME_ZONE,
+  invitedOf,
   isPushEndpoint,
   isPushKey,
   isTimeZone,
@@ -16,6 +17,7 @@ import {
   reminderAtOf,
   type Switches,
   switchesOf,
+  withInvited,
   withSwitch,
 } from "./rules";
 import { pushReady, vapidPublicKey } from "./send";
@@ -28,7 +30,8 @@ import { pushReady, vapidPublicKey } from "./send";
  *   GET   /api/push              on at all? our public key, the settings
  *   POST  /api/push/subscribe    { subscription, timeZone, locale, previous? }
  *   POST  /api/push/unsubscribe  { endpoint }
- *   PATCH /api/push/settings     { reminderAt } or { calendar, reminder?, stamped?, changed? }
+ *   PATCH /api/push/settings     { reminderAt }, { invited } or
+ *                                { calendar, reminder?, stamped?, changed? }
  *
  * A device is known by its push service's address (`endpoint`): saying yes
  * again – after a new login, from another account, with another zone –
@@ -47,6 +50,8 @@ export type PushState = {
   /** Ours, for the browser's subscription. */
   publicKey: string | null;
   reminderAt: string;
+  /** “Someone added me to a calendar” – the account's own, for all of them. */
+  invited: boolean;
   /** The switches per calendar the account is in. */
   calendars: Record<string, Switches>;
 };
@@ -90,6 +95,7 @@ const stateOf = (
     enabled,
     publicKey: enabled ? vapidPublicKey() : null,
     reminderAt: reminderAtOf(doc),
+    invited: invitedOf(doc),
     calendars: Object.fromEntries(
       [...mine].map((calendar) => [calendar, switchesOf(doc, calendar)])
     ),
@@ -240,7 +246,7 @@ export const pushEndpoints: Endpoint[] = [
     },
   },
   {
-    // The reminder's time, or one calendar's switches.
+    // The reminder's time, the account's own switch, or one calendar's.
     path: "/push/settings",
     method: "patch",
     handler: async (req) => {
@@ -277,6 +283,10 @@ export const pushEndpoints: Endpoint[] = [
       }
       const data = {
         reminderAt: reminderAt ?? reminderAtOf(doc),
+        invited: withInvited(
+          doc,
+          typeof body.invited === "boolean" ? body.invited : undefined
+        ),
         calendars: withSwitch(doc, mine, change),
       };
       const saved = doc

@@ -9,6 +9,7 @@ import {
   deleteFrom,
   type InactivityTally,
   maybeInactiveBefore,
+  notKeptForGood,
   RUN_LIMIT,
   tendInactive,
   unverifiedBefore,
@@ -25,6 +26,9 @@ import { patchAccount } from "./seen";
  * an account like any other: its calendars, stamps and prints along
  * (`removeData`, collection.ts). The other half of “long unused” is
  * seen.ts: noting whenever an account is there.
+ *
+ * Accounts an admin marked “never delete” are left out of the last two
+ * altogether – not looked at, not counted, with `dry` neither.
  */
 
 type Doc = Record<string, unknown>;
@@ -38,6 +42,7 @@ const sweepUnverified = async (
     collection: "accounts",
     where: {
       and: [
+        notKeptForGood,
         { _verified: { equals: false } },
         { createdAt: { less_than_equal: unverifiedBefore(now).toISOString() } },
       ],
@@ -79,6 +84,7 @@ const tendUnused = async (
   // The ones the rules may have something to do with – they decide.
   const candidates: Where = {
     and: [
+      notKeptForGood,
       { _verified: { equals: true } },
       {
         or: [
