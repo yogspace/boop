@@ -212,7 +212,7 @@ export interface PushSubscription {
   createdAt: string;
 }
 /**
- * What an account wants to hear of. A calendar not listed has both on – the reminder and “someone else stamped”.
+ * What an account wants to hear of. A calendar not listed is as by default: the reminder and “someone else stamped” on, “someone else changed something” off.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "push-settings".
@@ -226,6 +226,7 @@ export interface PushSetting {
         calendar: string | Calendar;
         reminder?: boolean | null;
         stamped?: boolean | null;
+        changed?: boolean | null;
         id?: string | null;
       }[]
     | null;
@@ -623,6 +624,7 @@ export interface PushSettingsSelect<T extends boolean = true> {
         calendar?: T;
         reminder?: T;
         stamped?: T;
+        changed?: T;
         id?: T;
       };
   updatedAt?: T;
@@ -1914,6 +1916,14 @@ export interface Translation {
        */
       stamped?: string | null;
       /**
+       * DE: Wenn jemand anderes etwas ändert  ·  EN: When someone else changes something
+       */
+      changed?: string | null;
+      /**
+       * DE: Notizen, verschobene oder entfernte Abdrücke, ein neuer Name, wer dazukommt oder geht.  ·  EN: Notes, moved or removed prints, a new name, who joins or leaves.
+       */
+      changedHint?: string | null;
+      /**
        * DE: Erinnerung um  ·  EN: Reminder at
        */
       time?: string | null;
@@ -1933,6 +1943,48 @@ export interface Translation {
        * DE: {name} hat in „{calendar}“ gestempelt.  ·  EN: {name} stamped in “{calendar}”.  ·  Keeps {name}, {calendar}
        */
       stampedBody?: string | null;
+      /**
+       * DE: Boop!  ·  EN: Boop!
+       */
+      changedTitle?: string | null;
+      changedBody?: {
+        /**
+         * DE: {name} hat in „{calendar}“ eine Notiz geschrieben.  ·  EN: {name} wrote a note in “{calendar}”.  ·  Keeps {name}, {calendar}
+         */
+        note?: string | null;
+        /**
+         * DE: {name} hat in „{calendar}“ eine Notiz gelöscht.  ·  EN: {name} deleted a note in “{calendar}”.  ·  Keeps {name}, {calendar}
+         */
+        noteDeleted?: string | null;
+        /**
+         * DE: {name} hat in „{calendar}“ Abdrücke verschoben.  ·  EN: {name} moved prints in “{calendar}”.  ·  Keeps {name}, {calendar}
+         */
+        moved?: string | null;
+        /**
+         * DE: {name} hat in „{calendar}“ Abdrücke entfernt.  ·  EN: {name} removed prints from “{calendar}”.  ·  Keeps {name}, {calendar}
+         */
+        unstamped?: string | null;
+        /**
+         * DE: {name} hat „{from}“ in „{to}“ umbenannt.  ·  EN: {name} renamed “{from}” to “{to}”.  ·  Keeps {name}, {from}, {to}
+         */
+        renamed?: string | null;
+        /**
+         * DE: {name} ist jetzt in „{calendar}“ dabei.  ·  EN: {name} is in “{calendar}” now.  ·  Keeps {name}, {calendar}
+         */
+        joined?: string | null;
+        /**
+         * DE: {name} hat „{calendar}“ verlassen.  ·  EN: {name} left “{calendar}”.  ·  Keeps {name}, {calendar}
+         */
+        left?: string | null;
+        /**
+         * DE: {name} ist nicht mehr in „{calendar}“ dabei.  ·  EN: {name} is no longer in “{calendar}”.  ·  Keeps {name}, {calendar}
+         */
+        removed?: string | null;
+        /**
+         * DE: {name} hat in „{calendar}“ einiges geändert.  ·  EN: {name} changed a few things in “{calendar}”.  ·  Keeps {name}, {calendar}
+         */
+        several?: string | null;
+      };
       /**
        * DE: Heute schon gestempelt?  ·  EN: Stamped yet today?
        */
@@ -2820,11 +2872,27 @@ export interface TranslationsSelect<T extends boolean = true> {
               offline?: T;
               reminder?: T;
               stamped?: T;
+              changed?: T;
+              changedHint?: T;
               time?: T;
               timeHint?: T;
               someone?: T;
               stampedTitle?: T;
               stampedBody?: T;
+              changedTitle?: T;
+              changedBody?:
+                | T
+                | {
+                    note?: T;
+                    noteDeleted?: T;
+                    moved?: T;
+                    unstamped?: T;
+                    renamed?: T;
+                    joined?: T;
+                    left?: T;
+                    removed?: T;
+                    several?: T;
+                  };
               reminderTitle?: T;
               reminderBody?:
                 | T

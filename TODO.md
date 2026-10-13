@@ -15,9 +15,9 @@ Stand: 12.10.2026
      einschalten“ (iPhone: nur in der installierten App), zweites Konto
      stempelt → Nachricht; Erinnerung zur eingestellten Uhrzeit.
   Schlüssel nicht wechseln: neue Schlüssel machen alle bisherigen Abos stumm.
-- **Texte, die noch nicht im CMS sind**: die Mails (`accounts/emails.ts`,
-  die Einladungsmail in `calendar/invites.ts`) und das Kontaktformular – sie
-  haben eigene Text-Tabellen.
+- **Ein Text noch fest im Code**: „Mein Kalender“ / „My calendar“ (der
+  erste Kalender bei der Anmeldung, `calendar/membership.ts`). Die Mail an
+  den Betreiber (Kontaktformular, Statistikbericht) bleibt bewusst deutsch.
 - **Datenschutztext**: Die Vorlage im Code (`features/legal/seed-content.ts`,
   DE + EN) ist auf dem Stand der App. Der Live-Text liegt im CMS und muss
   nachgezogen werden – von Hand oder über die Seeds-Seite mit „Replace“
@@ -62,6 +62,11 @@ Stand: 12.10.2026
 - Tagesansicht: Stempel kommt in seiner eigenen Farbe; Namensschild beim
   Hover in der Stempelauswahl.
 - Kontomenü und Sync-Notiz schließen bei Klick daneben.
+- iPhone: die App lässt sich nicht mehr seitlich scrollen (die gezeichneten
+  Linien ragten am Rand bis zu 10 px über den Bildschirm – jetzt am Rahmen
+  abgeschnitten).
+- Mails mit Texten aus dem CMS: eine Mail-Vorlage unter Translations →
+  `mail.*` ändern, dann z. B. „Passwort vergessen“ auslösen und ansehen.
 - Nach dem Deploy: im Deploy-Log „✓ Pages refreshed“ – danach zeigen die
   Seiten die Stempelfarben und Texte aus dem CMS (vorher die aus dem Code,
   weil das Image ohne Datenbank gebaut wird).

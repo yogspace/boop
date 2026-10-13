@@ -1,14 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
+  aboutOf,
+  CHANGED_GATHER_MS,
+  CHANGED_WINDOW_MS,
+  type CalendarChange,
+  calendarChanges,
   calendarUrl,
+  changedMessage,
+  changedTargets,
   cleanReminderAt,
+  createBundle,
   createThrottle,
   isPushEndpoint,
   isPushKey,
   localClock,
   loginLasts,
   minutesOf,
+  noteChanges,
   openCalendars,
+  placementChanges,
   reminderAtOf,
   reminderDue,
   reminderMessage,
@@ -160,33 +170,47 @@ describe("when a reminder is due", () => {
 });
 
 describe("the switches", () => {
-  it("are both on for a calendar nothing was said about", () => {
-    expect(switchesOf(null, FAMILY)).toEqual({ reminder: true, stamped: true });
+  const DEFAULTS = { reminder: true, stamped: true, changed: false };
+
+  it("are as by default for a calendar nothing was said about", () => {
+    expect(switchesOf(null, FAMILY)).toEqual(DEFAULTS);
     expect(
       switchesOf({ calendars: [{ calendar: SPORT, reminder: false }] }, FAMILY)
-    ).toEqual({ reminder: true, stamped: true });
+    ).toEqual(DEFAULTS);
   });
 
-  it("read what was switched off – populated or not", () => {
+  it("read what was switched – populated or not", () => {
     expect(
       switchesOf(
         { calendars: [{ calendar: { id: FAMILY }, stamped: false }] },
         FAMILY
       )
-    ).toEqual({ reminder: true, stamped: false });
+    ).toEqual({ ...DEFAULTS, stamped: false });
+    expect(
+      switchesOf({ calendars: [{ calendar: FAMILY, changed: true }] }, FAMILY)
+    ).toEqual({ ...DEFAULTS, changed: true });
+  });
+
+  it("have “someone changed something” off in entries from before it", () => {
+    expect(
+      switchesOf(
+        { calendars: [{ calendar: FAMILY, reminder: false, stamped: true }] },
+        FAMILY
+      )
+    ).toEqual({ reminder: false, stamped: true, changed: false });
   });
 
   const mine = new Set([FAMILY, SPORT]);
 
-  it("keep only what is off – back on, the entry goes", () => {
+  it("keep only what differs – back to the defaults, the entry goes", () => {
     const off = withSwitch(null, mine, { calendar: FAMILY, stamped: false });
-    expect(off).toEqual([{ calendar: FAMILY, reminder: true, stamped: false }]);
+    expect(off).toEqual([{ calendar: FAMILY, ...DEFAULTS, stamped: false }]);
     const other = withSwitch({ calendars: off }, mine, {
       calendar: FAMILY,
       reminder: false,
     });
     expect(other).toEqual([
-      { calendar: FAMILY, reminder: false, stamped: false },
+      { calendar: FAMILY, reminder: false, stamped: false, changed: false },
     ]);
     const on = withSwitch({ calendars: other }, mine, {
       calendar: FAMILY,
@@ -194,6 +218,14 @@ describe("the switches", () => {
       stamped: true,
     });
     expect(on).toEqual([]);
+  });
+
+  it("keep the third switch when on, and drop it when off again", () => {
+    const on = withSwitch(null, mine, { calendar: SPORT, changed: true });
+    expect(on).toEqual([{ calendar: SPORT, ...DEFAULTS, changed: true }]);
+    expect(
+      withSwitch({ calendars: on }, mine, { calendar: SPORT, changed: false })
+    ).toEqual([]);
   });
 
   it("forget calendars the account is no longer in", () => {
@@ -204,12 +236,14 @@ describe("the switches", () => {
       ],
     };
     expect(withSwitch(before, mine)).toEqual([
-      { calendar: SPORT, reminder: false, stamped: true },
+      { calendar: SPORT, reminder: false, stamped: true, changed: false },
     ]);
     // A switch for one of them changes nothing.
     expect(
       withSwitch(before, mine, { calendar: TRIP, reminder: true })
-    ).toEqual([{ calendar: SPORT, reminder: false, stamped: true }]);
+    ).toEqual([
+      { calendar: SPORT, reminder: false, stamped: true, changed: false },
+    ]);
   });
 });
 

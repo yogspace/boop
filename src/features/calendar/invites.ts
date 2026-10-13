@@ -212,7 +212,8 @@ const join = async (
         members: [...calendar.members, account],
         changedAt: new Date().toISOString(),
       },
-      context: { sync: true },
+      // Who came in is who did it – the others hear of it (features/push).
+      context: { sync: true, by: account },
       overrideAccess: true,
     });
     await nudgeCalendars(req, [calendar.id]);
