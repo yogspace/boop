@@ -30,7 +30,9 @@ export interface Config {
     placements: Placement;
     notes: Note;
     invites: Invite;
+    cards: Card;
     'calendar-feeds': CalendarFeed;
+    gifts: Gift;
     'page-views': PageView;
     actions: Action;
     'payload-kv': PayloadKv;
@@ -49,7 +51,9 @@ export interface Config {
     placements: PlacementsSelect<false> | PlacementsSelect<true>;
     notes: NotesSelect<false> | NotesSelect<true>;
     invites: InvitesSelect<false> | InvitesSelect<true>;
+    cards: CardsSelect<false> | CardsSelect<true>;
     'calendar-feeds': CalendarFeedsSelect<false> | CalendarFeedsSelect<true>;
+    gifts: GiftsSelect<false> | GiftsSelect<true>;
     'page-views': PageViewsSelect<false> | PageViewsSelect<true>;
     actions: ActionsSelect<false> | ActionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -161,7 +165,7 @@ export interface Account {
   locale: 'de' | 'en';
   password?: string | null;
   /**
-   * Shows this person a link “Open CMS” in the app's account sheet. Only a shortcut – it gives no rights: the CMS still asks for its own login (Users), and an account never gets into it.
+   * Shows this person a link “Open CMS” in the app's account sheet, and lets them pick the stamp colors that aren't public (Site → Stamp colors) – to draw Boop's gifts. Nothing more: the CMS still asks for its own login (Users), and an account never gets into it.
    */
   admin?: boolean | null;
   /**
@@ -232,7 +236,7 @@ export interface PushSubscription {
   createdAt: string;
 }
 /**
- * What an account wants to hear of. “Someone invites me to a calendar” is on until switched off. A calendar not listed is as by default: the reminder and “someone else stamped” on, “someone else changed something” off.
+ * What an account wants to hear of. “Someone invites me to a calendar” and “Boop gives me a stamp” are on until switched off. A calendar not listed is as by default: the reminder and “someone else stamped” on, “someone else changed something” off.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "push-settings".
@@ -242,6 +246,7 @@ export interface PushSetting {
   account: string | Account;
   reminderAt: string;
   invited?: boolean | null;
+  gifts?: boolean | null;
   calendars?:
     | {
         calendar: string | Calendar;
@@ -310,6 +315,17 @@ export interface Stamp {
    * Legacy – from before a stamp could be shared with several calendars. Counts as one more of “Shared with”.
    */
   calendar?: (string | null) | Calendar;
+  /**
+   * Where it came from, when its owner didn't draw it: a card someone sent, or a gift from Boop. A copy – the owner's own stamp.
+   */
+  origin?: {
+    kind?: ('card' | 'gift') | null;
+    from?: (string | null) | Account;
+    name?: string | null;
+    message?: string | null;
+    card?: string | null;
+    gift?: string | null;
+  };
   changedAt: string;
   deleted?: boolean | null;
   updatedAt: string;
@@ -383,6 +399,32 @@ export interface Invite {
   createdAt: string;
 }
 /**
+ * Stamps sent as a card – a link with the stamp as it was then and a few words. Gone with the stamp or the giver's account; the copies taken stay.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "cards".
+ */
+export interface Card {
+  id: string;
+  stamp: string | Stamp;
+  from: string | Account;
+  name?: string | null;
+  color: string;
+  shape: 'circle' | 'square' | 'octagon' | 'triangle' | 'diamond';
+  drawing?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  message?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "calendar-feeds".
  */
@@ -392,6 +434,51 @@ export interface CalendarFeed {
   calendar: string | Calendar;
   token: string;
   lastFetchedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Stamps from Boop for everyone. Draw it in the app (an account with the “Admin” box can pick the colors that aren't public), send it as a card, paste the card's link here – then “Send to everyone”. Everyone with a confirmed address gets a copy of their own, sees it in the app and – if they want – as a notification. No mail.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gifts".
+ */
+export interface Gift {
+  id: string;
+  /**
+   * The stamp's name – each account gets it in its language (switch at the top).
+   */
+  name: string;
+  /**
+   * A few words with it, shown in the app – optional.
+   */
+  message?: string | null;
+  /**
+   * The card's link (or its id) – the stamp's shape and drawing come from it, once, when saved.
+   */
+  card: string;
+  /**
+   * Empty: the card's color.
+   */
+  color?: string | null;
+  shape?: ('circle' | 'square' | 'octagon' | 'triangle' | 'diamond') | null;
+  drawing?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * When it last went out.
+   */
+  sentAt?: string | null;
+  /**
+   * How many accounts got it – all sendings together.
+   */
+  sentTo?: number | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -427,6 +514,8 @@ export interface Action {
     | 'day-opened'
     | 'stamp-created'
     | 'stamp-placed'
+    | 'card-created'
+    | 'card-taken'
     | 'export-table'
     | 'export-image';
   path?: string | null;
@@ -495,8 +584,16 @@ export interface PayloadLockedDocument {
         value: string | Invite;
       } | null)
     | ({
+        relationTo: 'cards';
+        value: string | Card;
+      } | null)
+    | ({
         relationTo: 'calendar-feeds';
         value: string | CalendarFeed;
+      } | null)
+    | ({
+        relationTo: 'gifts';
+        value: string | Gift;
       } | null)
     | ({
         relationTo: 'page-views';
@@ -646,6 +743,7 @@ export interface PushSettingsSelect<T extends boolean = true> {
   account?: T;
   reminderAt?: T;
   invited?: T;
+  gifts?: T;
   calendars?:
     | T
     | {
@@ -687,6 +785,16 @@ export interface StampsSelect<T extends boolean = true> {
   owner?: T;
   sharedWith?: T;
   calendar?: T;
+  origin?:
+    | T
+    | {
+        kind?: T;
+        from?: T;
+        name?: T;
+        message?: T;
+        card?: T;
+        gift?: T;
+      };
   changedAt?: T;
   deleted?: T;
   updatedAt?: T;
@@ -743,6 +851,22 @@ export interface InvitesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "cards_select".
+ */
+export interface CardsSelect<T extends boolean = true> {
+  id?: T;
+  stamp?: T;
+  from?: T;
+  name?: T;
+  color?: T;
+  shape?: T;
+  drawing?: T;
+  message?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "calendar-feeds_select".
  */
 export interface CalendarFeedsSelect<T extends boolean = true> {
@@ -750,6 +874,22 @@ export interface CalendarFeedsSelect<T extends boolean = true> {
   calendar?: T;
   token?: T;
   lastFetchedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gifts_select".
+ */
+export interface GiftsSelect<T extends boolean = true> {
+  name?: T;
+  message?: T;
+  card?: T;
+  color?: T;
+  shape?: T;
+  drawing?: T;
+  sentAt?: T;
+  sentTo?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -835,7 +975,7 @@ export interface Site {
     country: string;
   };
   /**
-   * The inks to pick from – for a stamp, a calendar and the ink pads, in this order. The first one is the default – and the color of anything whose own is gone.
+   * The inks to pick from – for a stamp, a calendar and the ink pads, in this order. The first one is the default – and the color of anything whose own is gone. One that isn't public is for Boop's gifts (Content → Gifts): only accounts with the “Admin” box can pick it.
    */
   stampColors: {
     /**
@@ -850,6 +990,14 @@ export interface Site {
      * Shown when pointing at it, read out aloud – one per language (switch at the top).
      */
     name: string;
+    /**
+     * Anyone can pick it. Unticked, it is for Boop's gifts: only accounts with the “Admin” box can pick it – to draw a gift in it. Everyone sees it on what wears it.
+     */
+    public?: boolean | null;
+    /**
+     * How the rubber looks in 3D – empty: like any other.
+     */
+    finish?: ('metal' | 'glitter') | null;
     id?: string | null;
   }[];
   links: {
@@ -1991,6 +2139,16 @@ export interface Translation {
        * DE: Einladungen  ·  EN: Invitations
        */
       title?: string | null;
+      count?: {
+        /**
+         * DE: 1 Einladung  ·  EN: 1 invitation
+         */
+        one?: string | null;
+        /**
+         * DE: {n} Einladungen  ·  EN: {n} invitations  ·  Keeps {n}
+         */
+        many?: string | null;
+      };
       /**
        * DE: Du bist eingeladen!  ·  EN: You're invited!
        */
@@ -2172,6 +2330,10 @@ export interface Translation {
        */
       invited?: string | null;
       /**
+       * DE: Wenn Boop mir einen Stempel schenkt  ·  EN: When Boop gives me a stamp
+       */
+      gifts?: string | null;
+      /**
        * DE: Auf diesem Gerät sind Benachrichtigungen aus. Einschalten kannst du sie in den Einstellungen eines Kalenders.  ·  EN: Notifications are off on this device. You can turn them on in a calendar's settings.
        */
       deviceOff?: string | null;
@@ -2195,6 +2357,14 @@ export interface Translation {
        * DE: {name} lädt dich zu „{calendar}“ ein.  ·  EN: {name} invited you to “{calendar}”.  ·  Keeps {name}, {calendar}
        */
       invitedBody?: string | null;
+      /**
+       * DE: Boop!  ·  EN: Boop!
+       */
+      giftTitle?: string | null;
+      /**
+       * DE: Boop hat dir einen Stempel geschenkt: „{name}“  ·  EN: Boop gave you a stamp: “{name}”  ·  Keeps {name}
+       */
+      giftBody?: string | null;
       /**
        * DE: Boop!  ·  EN: Boop!
        */
@@ -2383,6 +2553,130 @@ export interface Translation {
        * DE: Diesen Stempel löschen? Auch seine Abdrücke verschwinden.  ·  EN: Delete this stamp? Its prints go too.
        */
       deleteConfirm?: string | null;
+      origin?: {
+        /**
+         * DE: von {name}  ·  EN: from {name}  ·  Keeps {name}
+         */
+        named?: string | null;
+        /**
+         * DE: geschenkt  ·  EN: a gift
+         */
+        unnamed?: string | null;
+      };
+      card?: {
+        /**
+         * DE: Als Karte verschicken  ·  EN: Send as a card
+         */
+        title?: string | null;
+        /**
+         * DE: Wer den Link bekommt, sieht deinen Stempel – und kann ihn mit einem Boop-Konto in die eigenen Stempel übernehmen. Deiner bleibt, wie er ist.  ·  EN: Whoever gets the link sees your stamp – and with a Boop account can take it into their own stamps. Yours stays as it is.
+         */
+        text?: string | null;
+        /**
+         * DE: Ein paar Worte dazu (optional)  ·  EN: A few words with it (optional)
+         */
+        message?: string | null;
+        /**
+         * DE: Für deine Tage am Meer …  ·  EN: For your days by the sea …
+         */
+        messagePlaceholder?: string | null;
+        /**
+         * DE: Karte erstellen  ·  EN: Make the card
+         */
+        create?: string | null;
+        /**
+         * DE: Karte teilen  ·  EN: Share the card
+         */
+        share?: string | null;
+        /**
+         * DE: Noch eine Karte  ·  EN: Another card
+         */
+        another?: string | null;
+        /**
+         * DE: Offline – Karten gibt es nur mit Verbindung.  ·  EN: Offline – cards need a connection.
+         */
+        offline?: string | null;
+        /**
+         * DE: Genug Karten für den Moment – versuch es in einer Stunde noch einmal.  ·  EN: Enough cards for now – try again in an hour.
+         */
+        tooMany?: string | null;
+        shareText?: {
+          /**
+           * DE: Ich schicke dir einen Stempel: „{name}“  ·  EN: I'm sending you a stamp: “{name}”  ·  Keeps {name}
+           */
+          named?: string | null;
+          /**
+           * DE: Ich schicke dir einen Stempel  ·  EN: I'm sending you a stamp
+           */
+          unnamed?: string | null;
+        };
+      };
+    };
+    shelf?: {
+      /**
+       * DE: Ordnen  ·  EN: Order
+       */
+      order?: string | null;
+      /**
+       * DE: Neueste zuerst  ·  EN: Newest first
+       */
+      newest?: string | null;
+      /**
+       * DE: Nach Person  ·  EN: By person
+       */
+      person?: string | null;
+      /**
+       * DE: Meine  ·  EN: Mine
+       */
+      mine?: string | null;
+      /**
+       * DE: Boop  ·  EN: Boop
+       */
+      boop?: string | null;
+      /**
+       * DE: Geschenkt  ·  EN: Gifts
+       */
+      gifted?: string | null;
+    };
+    arrival?: {
+      /**
+       * DE: Boop schenkt dir einen Stempel  ·  EN: Boop gives you a stamp
+       */
+      giftTitle?: string | null;
+      /**
+       * DE: Er gehört jetzt dir – in einer Farbe, die sonst niemand wählen kann.  ·  EN: It's yours now – in a color nobody else can pick.
+       */
+      giftText?: string | null;
+      /**
+       * DE: Angekommen!  ·  EN: It's here!
+       */
+      cardTitle?: string | null;
+      cardText?: {
+        /**
+         * DE: Der Stempel von {name} ist jetzt in deinen Stempeln.  ·  EN: The stamp from {name} is in your stamps now.  ·  Keeps {name}
+         */
+        named?: string | null;
+        /**
+         * DE: Der Stempel ist jetzt in deinen Stempeln.  ·  EN: The stamp is in your stamps now.
+         */
+        unnamed?: string | null;
+      };
+      /**
+       * DE: Karte nicht mehr da  ·  EN: Card no longer there
+       */
+      goneTitle?: string | null;
+      /**
+       * DE: Die Karte, die du vor dem Anmelden geöffnet hast, gibt es nicht mehr – ihr Stempel ließ sich nicht übernehmen.  ·  EN: The card you opened before logging in is gone – its stamp couldn't be taken.
+       */
+      goneText?: string | null;
+      /**
+       * DE: Zum Regal  ·  EN: To the shelf
+       */
+      toShelf?: string | null;
+      /**
+       * DE: Schließen  ·  EN: Close
+       */
+      close?: string | null;
     };
     /**
      * DE: Konto  ·  EN: Account
@@ -2530,6 +2824,70 @@ export interface Translation {
        */
       many?: string | null;
     };
+  };
+  card?: {
+    title?: {
+      /**
+       * DE: {name} schickt dir einen Stempel  ·  EN: {name} is sending you a stamp  ·  Keeps {name}
+       */
+      named?: string | null;
+      /**
+       * DE: Ein Stempel für dich  ·  EN: A stamp for you
+       */
+      unnamed?: string | null;
+    };
+    /**
+     * DE: Übernimm ihn in deine Stempel und boop ihn auf deine Tage – mit Boop, dem Doodle-Stempelkalender.  ·  EN: Take it into your stamps and boop it onto your days – with Boop, the doodle stamp calendar.
+     */
+    description?: string | null;
+    /**
+     * DE: In meine Stempel  ·  EN: Add to my stamps
+     */
+    take?: string | null;
+    /**
+     * DE: Schon in deinen Stempeln  ·  EN: Already in your stamps
+     */
+    taken?: string | null;
+    /**
+     * DE: Deine Karte  ·  EN: Your card
+     */
+    mine?: string | null;
+    /**
+     * DE: So sieht sie für alle aus, die den Link bekommen. Schick ihn weiter, wem du magst.  ·  EN: This is how everyone with the link sees it. Pass it on to whoever you like.
+     */
+    mineText?: string | null;
+    /**
+     * DE: Link kopieren  ·  EN: Copy link
+     */
+    copy?: string | null;
+    /**
+     * DE: Kopiert!  ·  EN: Copied!
+     */
+    copied?: string | null;
+    /**
+     * DE: Anmelden und übernehmen  ·  EN: Log in and take it
+     */
+    login?: string | null;
+    /**
+     * DE: Mit einem kostenlosen Boop-Konto übernimmst du ihn in deine Stempel und boopst ihn auf deine Tage.  ·  EN: With a free Boop account you take it into your stamps and boop it onto your days.
+     */
+    signedOut?: string | null;
+    /**
+     * DE: Diese Karte gibt es nicht (mehr)  ·  EN: This card doesn't exist (anymore)
+     */
+    goneTitle?: string | null;
+    /**
+     * DE: Vielleicht wurde der Stempel gelöscht – oder der Link ist nicht ganz vollständig. Frag einfach nach einer neuen Karte.  ·  EN: Maybe the stamp was deleted – or the link isn't quite complete. Just ask for a new card.
+     */
+    goneText?: string | null;
+    /**
+     * DE: Zu Boop  ·  EN: To Boop
+     */
+    home?: string | null;
+    /**
+     * DE: Du bist offline – die Karte kommt, sobald du wieder Netz hast.  ·  EN: You're offline – the card comes as soon as you're back online.
+     */
+    offline?: string | null;
   };
   contact?: {
     /**
@@ -2805,6 +3163,8 @@ export interface SiteSelect<T extends boolean = true> {
         key?: T;
         color?: T;
         name?: T;
+        public?: T;
+        finish?: T;
         id?: T;
       };
   links?:
@@ -3233,6 +3593,12 @@ export interface TranslationsSelect<T extends boolean = true> {
           | T
           | {
               title?: T;
+              count?:
+                | T
+                | {
+                    one?: T;
+                    many?: T;
+                  };
               popupTitle?: T;
               text?:
                 | T
@@ -3299,12 +3665,15 @@ export interface TranslationsSelect<T extends boolean = true> {
               time?: T;
               timeHint?: T;
               invited?: T;
+              gifts?: T;
               deviceOff?: T;
               someone?: T;
               stampedTitle?: T;
               stampedBody?: T;
               invitedTitle?: T;
               invitedBody?: T;
+              giftTitle?: T;
+              giftBody?: T;
               changedTitle?: T;
               changedBody?:
                 | T
@@ -3366,6 +3735,58 @@ export interface TranslationsSelect<T extends boolean = true> {
               hint?: T;
               delete?: T;
               deleteConfirm?: T;
+              origin?:
+                | T
+                | {
+                    named?: T;
+                    unnamed?: T;
+                  };
+              card?:
+                | T
+                | {
+                    title?: T;
+                    text?: T;
+                    message?: T;
+                    messagePlaceholder?: T;
+                    create?: T;
+                    share?: T;
+                    another?: T;
+                    offline?: T;
+                    tooMany?: T;
+                    shareText?:
+                      | T
+                      | {
+                          named?: T;
+                          unnamed?: T;
+                        };
+                  };
+            };
+        shelf?:
+          | T
+          | {
+              order?: T;
+              newest?: T;
+              person?: T;
+              mine?: T;
+              boop?: T;
+              gifted?: T;
+            };
+        arrival?:
+          | T
+          | {
+              giftTitle?: T;
+              giftText?: T;
+              cardTitle?: T;
+              cardText?:
+                | T
+                | {
+                    named?: T;
+                    unnamed?: T;
+                  };
+              goneTitle?: T;
+              goneText?: T;
+              toShelf?: T;
+              close?: T;
             };
         account?: T;
         accountSheet?:
@@ -3414,6 +3835,29 @@ export interface TranslationsSelect<T extends boolean = true> {
               one?: T;
               many?: T;
             };
+      };
+  card?:
+    | T
+    | {
+        title?:
+          | T
+          | {
+              named?: T;
+              unnamed?: T;
+            };
+        description?: T;
+        take?: T;
+        taken?: T;
+        mine?: T;
+        mineText?: T;
+        copy?: T;
+        copied?: T;
+        login?: T;
+        signedOut?: T;
+        goneTitle?: T;
+        goneText?: T;
+        home?: T;
+        offline?: T;
       };
   contact?:
     | T

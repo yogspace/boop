@@ -9,18 +9,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { Plus, Sparkle, Squiggle, Ticks } from "@/components/doodles";
+import { Ticks } from "@/components/doodles";
 import { LocaleSwitch } from "@/components/locale-switch";
 import { SPRING } from "@/components/motion";
 import { SiteFooter } from "@/components/site-footer";
-import {
-  BADGE,
-  Button,
-  Logo,
-  Notice,
-  PILL,
-  ROUND_BUTTON,
-} from "@/components/ui";
+import { Button, Logo, Notice, PILL, ROUND_BUTTON } from "@/components/ui";
 import { saveLocale } from "@/features/accounts/client";
 import { trackEvent } from "@/features/analytics/client";
 import {
@@ -42,7 +35,6 @@ import {
 } from "@/features/offline/store";
 import { deviceState, loadPush, refreshPush } from "@/features/push/client";
 import { SITE_DEFAULTS } from "@/features/site/defaults";
-import { Sticker } from "@/features/stickers/sticker";
 import { Link, useTransitionRouter } from "@/features/transitions/link";
 import { LOCALES, type Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
@@ -61,21 +53,27 @@ import { CalendarSettings, PersonPlus, Sliders } from "./calendar-settings";
 import { DaySheet } from "./day-sheet";
 import { CalendarSheet, ConfirmSheet } from "./dialogs";
 import { FADING, useFadingEdges } from "./fading-edges";
+import { Arrivals } from "./gifts";
 import { useGround } from "./ground";
 import { Invitations } from "./invitations";
 import { MonthGrid } from "./month-grid";
 import { NameTag } from "./name-tag";
 import { ShareSheet } from "./share-sheet";
+import {
+  byPerson,
+  keepOrder,
+  newestFirst,
+  readOrder,
+  type ShelfOrder,
+} from "./shelf";
 import { StampDrawer } from "./stamp-drawer";
 import { StampSheet } from "./stamp-sheet";
+import { SHELF_ID, StampShelf } from "./stamp-shelf";
 import { SyncMark, SyncStatus } from "./sync-badge";
 import { TodayView } from "./today-view";
 import { useDismiss } from "./use-dismiss";
 import { ViewSwitch } from "./view-switch";
 import { YearGrid } from "./year-grid";
-
-/** A stable little tilt per stamp – the shelf looks hand-placed. */
-const tilt = (id: string) => ((id.charCodeAt(0) + id.charCodeAt(5)) % 9) - 4;
 
 /**
  * Where a history entry of the app keeps the calendar it showed – by its
@@ -176,8 +174,15 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   // throw it away – it stays, and the editor asks (`ask` counts up).
   const drawn = useRef(false);
   const [askLeave, setAskLeave] = useState(0);
-  // An invitation's popup over the app (invitations.tsx).
+  // An invitation's popup over the app (invitations.tsx) – or a stamp that
+  // came to the account, greeted (gifts.tsx). One at a time.
   const [inviting, setInviting] = useState(false);
+  const [arriving, setArriving] = useState(false);
+  // The shelf's order – the device's choice (shelf.ts). Read right away:
+  // nothing of the shelf shows before the device's copy is open.
+  const [order, setOrder] = useState<ShelfOrder>(() =>
+    typeof window === "undefined" ? "newest" : readOrder()
+  );
   const noteDrawn = useRef((now: boolean) => {
     drawn.current = now;
   }).current;
@@ -304,18 +309,30 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   // once there is something to show.
   const color = calendar ? hexOf(colorOf(boop, calendar)) : null;
   useGround(boop.status === "ready" && color ? tintOf(color).bg : null);
-  // The same in every calendar: mine, then what others share with me.
+  // The same in every calendar: mine, and what others share with me – in
+  // the shelf's order (shelf.ts): the latest first, all in one, or in
+  // sections by person. The day's tray goes by it too.
+  const shelf = useMemo(() => {
+    const all = stampsOf(
+      Object.values(boop.stamps),
+      me,
+      Object.keys(boop.calendars)
+    );
+    return order === "person"
+      ? byPerson(all, me, (id) => boop.people[id] ?? "")
+      : [
+          {
+            key: "all",
+            kind: "mine" as const,
+            name: "",
+            stamps: newestFirst(all),
+          },
+        ];
+  }, [boop.stamps, boop.calendars, boop.people, me, order]);
   const myStamps = useMemo(
-    () => stampsOf(Object.values(boop.stamps), me, Object.keys(boop.calendars)),
-    [boop.stamps, boop.calendars, me]
+    () => shelf.flatMap((group) => group.stamps),
+    [shelf]
   );
-  // On the shelf someone else's stamp wears their first name – and one of
-  // mine that others may use too, two rings.
-  const nameOf = (id: string) => boop.people[id]?.split(" ")[0] || "?";
-  const whose = (s: { owner: string; sharedWith: readonly string[] }) => {
-    if (s.owner !== me) return t.app.stamp.by(nameOf(s.owner));
-    return s.sharedWith.length > 0 ? t.app.stamp.shared : "";
-  };
 
   // Whatever shows is in the address – /de/app/familie/heute (address.ts).
   // A step of one's own (another calendar, the other view) is a new entry
@@ -745,7 +762,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                     {view === "today" && (
                       <TodayView
                         calendar={calendar.id}
-                        keyboard={!(covered || inviting)}
+                        keyboard={!(covered || inviting || arriving)}
                         locale={locale}
                         stamps={myStamps}
                       />
@@ -783,79 +800,22 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
             )}
           </div>
 
-          <section className="flex flex-col gap-4 lg:sticky lg:top-6">
-            <div>
-              <h2 className="text-3xl">{t.app.stamps}</h2>
-              {/* The wave swings below its picture's edge (its troughs reach
-                past the viewBox, doodles.tsx) – so the picture may not cut
-                it off. */}
-              <Squiggle className="h-3 w-24" />
-            </div>
-            <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-3">
-              <li>
-                <button
-                  className="scribble scribble-dashed group flex aspect-square w-full flex-col items-center justify-center gap-1.5 text-balance rounded-3xl px-2 text-center font-bold text-[13px] leading-tight transition-transform duration-150 ease-out hover:-translate-y-0.5 hover:scribble-boil active:translate-y-px active:scale-[0.97]"
-                  onClick={() => {
-                    stepTo({ panel: "draw" });
-                    setDrawing(true);
-                  }}
-                  type="button"
-                >
-                  <span className="scribble scribble-sm scribble-ink flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-200 group-hover:rotate-90">
-                    <Plus className="h-5 w-5" />
-                  </span>
-                  {t.app.newStamp}
-                </button>
-              </li>
-              {myStamps.map((s) => (
-                <li
-                  className="relative"
-                  key={s.id}
-                  style={{ transform: `rotate(${tilt(s.id)}deg)` }}
-                >
-                  <NameTag
-                    id={s.id}
-                    text={[s.name, whose(s)].filter(Boolean).join(" – ")}
-                  >
-                    {({ onClick, ...anchor }) => (
-                      <button
-                        {...anchor}
-                        aria-label={[s.name || t.app.stamp.untitled, whose(s)]
-                          .filter(Boolean)
-                          .join(" – ")}
-                        className="scribble scribble-bare flex aspect-square w-full items-center justify-center rounded-3xl p-1 hover:animate-wiggle hover:scribble-soft"
-                        onClick={() => {
-                          onClick();
-                          setOpened(s.id);
-                        }}
-                        type="button"
-                      >
-                        <Sticker stamp={s} />
-                      </button>
-                    )}
-                  </NameTag>
-                  {s.drawing?.special && (
-                    // A stamp for the big days.
-                    <Sparkle className="pointer-events-none absolute top-1 right-1 h-4 w-4 text-ink" />
-                  )}
-                  {s.owner !== me ? (
-                    <span className="pointer-events-none absolute right-0 bottom-0 flex max-w-full">
-                      <span className={cn(BADGE, "min-w-0")}>
-                        <span className="truncate">{nameOf(s.owner)}</span>
-                      </span>
-                    </span>
-                  ) : (
-                    s.sharedWith.length > 0 && (
-                      <SharedSign className="pointer-events-none absolute right-1 bottom-1 h-4 w-4" />
-                    )
-                  )}
-                </li>
-              ))}
-            </ul>
-            {myStamps.length === 0 && (
-              <p className="font-medium text-muted">{t.app.noStamps}</p>
-            )}
-          </section>
+          <StampShelf
+            groups={shelf}
+            locale={locale}
+            me={me}
+            onNew={() => {
+              stepTo({ panel: "draw" });
+              setDrawing(true);
+            }}
+            onOpen={setOpened}
+            onOrder={(next) => {
+              setOrder(next);
+              keepOrder(next);
+            }}
+            order={order}
+            people={boop.people}
+          />
         </div>
 
         <SiteFooter
@@ -980,10 +940,22 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
       {/* An invitation waiting – once nothing else lies over the app; a
           yes shows the calendar. */}
       <Invitations
-        hold={covered}
+        hold={covered || arriving}
         locale={locale}
         onJoined={(id) => go(id, null)}
         onShowing={setInviting}
+      />
+      {/* A stamp that came – a gift from Boop, a card taken: greeted once,
+          by the same rules. */}
+      <Arrivals
+        hold={covered || inviting}
+        locale={locale}
+        onShelf={() =>
+          document
+            .getElementById(SHELF_ID)
+            ?.scrollIntoView({ behavior: "smooth", block: "start" })
+        }
+        onShowing={setArriving}
       />
     </div>
   );
@@ -1002,22 +974,6 @@ const Marked = ({ children }: { children: ReactNode }) => (
     />
     {children}
   </span>
-);
-
-/** Two rings, one over the other – a stamp of mine that others may use too. */
-const SharedSign = ({ className }: { className?: string }) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeWidth="2.4"
-    viewBox="0 0 24 24"
-  >
-    <circle cx="8.5" cy="12" r="5.5" />
-    <circle cx="15.5" cy="12" r="5.5" />
-  </svg>
 );
 
 const Centered = ({ children }: { children: React.ReactNode }) => (

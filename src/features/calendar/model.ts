@@ -20,6 +20,7 @@
  */
 
 // Relative, not `@/…`: the unit tests import this without the app's aliases.
+import type { StampOrigin } from "../cards/protocol";
 import { cleanAnchors, lineStroke } from "./bezier";
 
 /**
@@ -172,6 +173,12 @@ export type StampDoc = Synced & {
    * owner. Anyone but the owner learns only of the calendars they are in.
    */
   sharedWith: string[];
+  /**
+   * Where it came from, when its owner didn't draw it – a card taken, a
+   * gift from Boop (features/cards). Set by the server alone; none: drawn
+   * by its owner.
+   */
+  origin?: StampOrigin;
 };
 
 export type PlacementDoc = Synced & {
@@ -244,8 +251,12 @@ export type KeptStampDoc = Omit<StampDoc, "sharedWith"> & {
 
 /** A stamp in today's shape, whichever it was kept in. */
 export const stampDoc = (doc: KeptStampDoc): StampDoc => {
-  const { calendar: _, ...stamp } = doc;
-  return { ...stamp, sharedWith: sharedWithOf(doc) };
+  const { calendar: _, origin, ...stamp } = doc;
+  return {
+    ...stamp,
+    sharedWith: sharedWithOf(doc),
+    ...(origin && { origin }),
+  };
 };
 
 /**

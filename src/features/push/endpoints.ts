@@ -9,6 +9,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import {
   cleanReminderAt,
   DEFAULT_TIME_ZONE,
+  giftsOf,
   invitedOf,
   isPushEndpoint,
   isPushKey,
@@ -17,6 +18,7 @@ import {
   reminderAtOf,
   type Switches,
   switchesOf,
+  withGifts,
   withInvited,
   withSwitch,
 } from "./rules";
@@ -30,7 +32,7 @@ import { pushReady, vapidPublicKey } from "./send";
  *   GET   /api/push              on at all? our public key, the settings
  *   POST  /api/push/subscribe    { subscription, timeZone, locale, previous? }
  *   POST  /api/push/unsubscribe  { endpoint }
- *   PATCH /api/push/settings     { reminderAt }, { invited } or
+ *   PATCH /api/push/settings     { reminderAt }, { invited }, { gifts } or
  *                                { calendar, reminder?, stamped?, changed? }
  *
  * A device is known by its push service's address (`endpoint`): saying yes
@@ -52,6 +54,8 @@ export type PushState = {
   reminderAt: string;
   /** “Someone invites me to a calendar” – the account's own, for all of them. */
   invited: boolean;
+  /** “Boop gives me a stamp” – the account's own, too. */
+  gifts: boolean;
   /** The switches per calendar the account is in. */
   calendars: Record<string, Switches>;
 };
@@ -96,6 +100,7 @@ const stateOf = (
     publicKey: enabled ? vapidPublicKey() : null,
     reminderAt: reminderAtOf(doc),
     invited: invitedOf(doc),
+    gifts: giftsOf(doc),
     calendars: Object.fromEntries(
       [...mine].map((calendar) => [calendar, switchesOf(doc, calendar)])
     ),
@@ -286,6 +291,10 @@ export const pushEndpoints: Endpoint[] = [
         invited: withInvited(
           doc,
           typeof body.invited === "boolean" ? body.invited : undefined
+        ),
+        gifts: withGifts(
+          doc,
+          typeof body.gifts === "boolean" ? body.gifts : undefined
         ),
         calendars: withSwitch(doc, mine, change),
       };

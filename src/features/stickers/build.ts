@@ -7,8 +7,8 @@ import {
   type StampShape,
 } from "../calendar/model";
 import { outlinePoints, rimLine } from "../calendar/outline";
-import { hexOf } from "../calendar/palette";
-import { inkRubber, rgb, tint, toonMaterial } from "./ink";
+import { type Finish, getPalette, hexOf } from "../calendar/palette";
+import { inkRubber, rgb, setFinish, tint, toonMaterial } from "./ink";
 
 /**
  * A stamp in 3D – a real rubber stamp: a block in the stamp's shape (a light
@@ -16,7 +16,8 @@ import { inkRubber, rgb, tint, toonMaterial } from "./ink";
  * the rubber with the rim and the doodle standing out of it – inked, so the
  * face looks just like the drawing (FACE: the same outline, rim and lines).
  * A small plate on top carries “boop”, engraved. One unit wide. Drawn like
- * a cartoon – flat colors, ink lines (ink.ts).
+ * a cartoon – flat colors, ink lines (ink.ts); a special color's ink in its
+ * finish, metal or glitter (`finishOf`).
  *
  * Built lying on its back: the rubber face looks along +Z, its raised parts
  * at z = 0, the knob points to −Z. `pivot()` sets what it turns around,
@@ -620,10 +621,13 @@ export const buildSticker = (
   stamp.add(plate);
   const top = back - PLATE.thickness;
 
-  // The knob: neck and ball in one piece, standing on the plate.
+  // The knob: neck and ball in one piece, standing on the plate – in the
+  // stamp's own ink, finish and all.
+  const knobMaterial = toonMaterial(THREE, "knob", knob);
+  setFinish(knobMaterial, finishOf(input.color));
   const handle = new THREE.Mesh(
     turnedSolid(THREE, knobProfile(), KNOB.steps),
-    toonMaterial(THREE, "knob", knob)
+    knobMaterial
   );
   handle.position.z = top;
   stamp.add(handle);
@@ -648,14 +652,25 @@ export const pivot = (sticker: Three.Object3D, amount: number) => {
 };
 
 /**
+ * How a color's ink looks in 3D besides its hex: a special color's finish
+ * (palette.ts) – none for the others, a literal hex, or a key the palette
+ * doesn't have (anymore).
+ */
+export const finishOf = (color: ColorName): Finish | undefined =>
+  getPalette().find((known) => known.key === color)?.finish;
+
+/**
  * Inks the rubber: rim and doodle in the ink, the ground a pale tint of it –
- * exactly the drawing's (stamp-svg.tsx). Quick – only two colors change.
+ * exactly the drawing's (stamp-svg.tsx) – a special ink in its finish.
+ * Quick – only a few values change.
  */
 export const paintSticker = (sticker: Three.Object3D, ink: ColorName) => {
   const rubber = sticker.getObjectByName("rubber") as Three.Mesh | undefined;
   if (!rubber) return;
   const hex = hexOf(ink);
-  inkRubber(rubber.material as Three.Material, rgb(hex), tint(hex, GROUND));
+  const material = rubber.material as Three.Material;
+  inkRubber(material, rgb(hex), tint(hex, GROUND));
+  setFinish(material, finishOf(ink));
 };
 
 /** Frees what the stamp's meshes hold on the GPU. */

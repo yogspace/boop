@@ -5,6 +5,8 @@ import type { Snapshot } from "valtio";
 import { Bang } from "@/components/doodles";
 import { Button, Checkbox } from "@/components/ui";
 import type { StampDoc } from "@/features/calendar/model";
+import { CardSender } from "@/features/cards/ui/card-sender";
+import { SentCards } from "@/features/cards/ui/sent-cards";
 import {
   deleteStamp,
   renameStamp,
@@ -20,9 +22,12 @@ import { Sheet } from "./sheet";
 
 /**
  * One stamp up close: turning in 3D, as a file for a 3D printer – to build
- * it for real. Its owner also names it anew, says who else may stamp with
- * it – the members of which calendars, none to begin with – and deletes it.
- * Anyone else reads whose it is.
+ * it for real. Its owner also names it anew, sees and says whom it is
+ * shared with – the members of which calendars may stamp with it, none to
+ * begin with, and where its cards went –, sends it as a card (one they drew
+ * themselves: what came as a card or a gift is not passed on) and deletes
+ * it. Anyone else reads whose it is; one that came to its owner says from
+ * whom, with the giver's words.
  */
 export const StampSheet = ({
   stamp,
@@ -36,9 +41,11 @@ export const StampSheet = ({
   onClose: () => void;
 }) => {
   const t = dictionaryOf(locale);
-  const { calendars, people, me } = useBoop();
+  const { calendars, people, me, online } = useBoop();
   const [busy, setBusy] = useState(false);
   const [sure, setSure] = useState(false);
+  // Cards made of it while the sheet is open – its list reads anew.
+  const [made, setMade] = useState(0);
   const input = useMemo(
     () => ({ shape: stamp.shape, color: stamp.color, drawing: stamp.drawing }),
     [stamp.shape, stamp.color, stamp.drawing]
@@ -85,6 +92,17 @@ export const StampSheet = ({
           {t.app.stamp.by(firstName(stamp.owner))}
         </p>
       )}
+      {mine && stamp.origin && (
+        <p className="-mt-3 font-bold text-muted">
+          {t.app.stamp.origin(stamp.origin.name.split(" ")[0] ?? "")}
+        </p>
+      )}
+      {mine && stamp.origin?.message && (
+        // The giver's words – on a slip, as they came.
+        <p className="scribble scribble-thin scribble-soft wrap-break-word -rotate-1 whitespace-pre-line rounded-2xl px-4 py-3 font-medium">
+          {stamp.origin.message}
+        </p>
+      )}
       <div className={STAGE}>
         <StickerView className="absolute inset-0" stamp={input} />
       </div>
@@ -106,45 +124,70 @@ export const StampSheet = ({
         />
       )}
       {mine && (
-        <div className="flex flex-col gap-2">
-          <h3 className="font-black text-lg">{t.app.stamp.share}</h3>
-          {targets.length > 0 ? (
-            <>
+        // Whom it is shared with: the calendars whose members may stamp
+        // with it – and, for one drawn by its owner, the cards made of it.
+        <div className="flex flex-col gap-3">
+          <h3 className="font-black text-lg">{t.app.stamp.sharedWith}</h3>
+          <div className="flex flex-col gap-2">
+            <h4 className="font-bold text-sm">{t.app.calendars}</h4>
+            {targets.length > 0 ? (
+              <>
+                <p className="font-medium text-muted text-sm">
+                  {t.app.stamp.shareText}
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {targets.map((calendar) => (
+                    <li key={calendar.id}>
+                      <Checkbox
+                        checked={stamp.sharedWith.includes(calendar.id)}
+                        className="scribble scribble-bare scribble-soft gap-3 rounded-2xl px-3 py-2 text-base"
+                        onChange={(event) =>
+                          share(calendar.id, event.target.checked)
+                        }
+                      >
+                        <span className="flex min-w-0 flex-col">
+                          <span className="truncate font-bold">
+                            {calendar.name}
+                          </span>
+                          <span className="truncate font-medium text-muted text-sm">
+                            {calendar.members
+                              .filter((id) => id !== me?.id)
+                              .map(firstName)
+                              .join(", ") || t.app.stamp.onlyYou}
+                          </span>
+                        </span>
+                      </Checkbox>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
               <p className="font-medium text-muted text-sm">
-                {t.app.stamp.shareText}
+                {t.app.stamp.shareNone}
               </p>
-              <ul className="flex flex-col gap-2">
-                {targets.map((calendar) => (
-                  <li key={calendar.id}>
-                    <Checkbox
-                      checked={stamp.sharedWith.includes(calendar.id)}
-                      className="scribble scribble-bare scribble-soft gap-3 rounded-2xl px-3 py-2 text-base"
-                      onChange={(event) =>
-                        share(calendar.id, event.target.checked)
-                      }
-                    >
-                      <span className="flex min-w-0 flex-col">
-                        <span className="truncate font-bold">
-                          {calendar.name}
-                        </span>
-                        <span className="truncate font-medium text-muted text-sm">
-                          {calendar.members
-                            .filter((id) => id !== me?.id)
-                            .map(firstName)
-                            .join(", ") || t.app.stamp.onlyYou}
-                        </span>
-                      </span>
-                    </Checkbox>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            <p className="font-medium text-muted text-sm">
-              {t.app.stamp.shareNone}
-            </p>
+            )}
+          </div>
+          {!stamp.origin && (
+            <div className="flex flex-col gap-2">
+              <h4 className="font-bold text-sm">{t.app.stamp.card.sent}</h4>
+              <SentCards
+                fresh={made}
+                locale={locale}
+                online={online}
+                stamp={stamp.id}
+              />
+            </div>
           )}
         </div>
+      )}
+      {mine && !stamp.origin && (
+        <CardSender
+          locale={locale}
+          name={stamp.name}
+          online={online}
+          onMade={() => setMade((n) => n + 1)}
+          stamp={stamp.id}
+        />
       )}
       {mine &&
         (sure ? (

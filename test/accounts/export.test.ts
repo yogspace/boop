@@ -77,6 +77,25 @@ const stamps = [
     deleted: false,
   },
   { id: "stamp-gone", name: "", drawing: null, owner: ME, deleted: true },
+  // Taken from a card of Anna's – its own, with where it came from.
+  {
+    id: "stamp-taken",
+    name: "Annas Stern",
+    color: "sun",
+    shape: "square",
+    drawing: { v: 1, strokes: [{ w: 0.05, p: [0.4, 0.4, 0.6, 0.6] }] },
+    owner: ME,
+    sharedWith: [],
+    origin: {
+      kind: "card",
+      from: ANNA,
+      name: "Anna",
+      message: "Für dich!",
+      card: "AbCd1234EfGh",
+      gift: null,
+    },
+    deleted: false,
+  },
   {
     id: "stamp-annas",
     name: "Annas Wolke",
@@ -247,6 +266,43 @@ const calendarFeeds = [
   },
 ];
 
+const cards = [
+  {
+    id: "Zz99Yy88Xx77",
+    stamp: "stamp-mine",
+    from: ME,
+    name: "Herz",
+    color: "red",
+    shape: "circle",
+    drawing: stamps[0].drawing,
+    message: "Alles Gute!",
+    createdAt: "2026-10-10T09:00:00.000Z",
+  },
+  // Anna's – hers, should it ever be passed in.
+  {
+    id: "AbCd1234EfGh",
+    stamp: "stamp-annas-star",
+    from: ANNA,
+    name: "Annas Stern",
+    message: "Für dich!",
+    createdAt: "2026-10-09T09:00:00.000Z",
+  },
+];
+
+/** What others took from the cards – theirs; only how many shows. */
+const cardCopies = [
+  { id: "copy-annas", owner: ANNA, origin: { card: "Zz99Yy88Xx77" } },
+  { id: "copy-bens", owner: BEN, origin: { card: "Zz99Yy88Xx77" } },
+  // Deleted again – no longer taken.
+  {
+    id: "copy-gone",
+    owner: BEN,
+    origin: { card: "Zz99Yy88Xx77" },
+    deleted: true,
+  },
+  { id: "copy-other", owner: BEN, origin: { card: "AbCd1234EfGh" } },
+];
+
 const people = { [ME]: "Max", [ANNA]: "Anna", [BEN]: "Ben" };
 
 const data = accountExport({
@@ -257,6 +313,8 @@ const data = accountExport({
   notes,
   invites,
   invitingCalendars,
+  cards,
+  cardCopies,
   pushSettings,
   pushDevices,
   calendarFeeds,
@@ -337,14 +395,42 @@ describe("the account's data as a file", () => {
   });
 
   it("has its own stamps, drawing and all", () => {
-    expect(data.stamps.map((stamp) => stamp.id)).toEqual(["stamp-mine"]);
+    expect(data.stamps.map((stamp) => stamp.id)).toEqual([
+      "stamp-mine",
+      "stamp-taken",
+    ]);
     expect(data.stamps[0]).toMatchObject({
       name: "Herz",
       color: "red",
       shape: "circle",
       drawing: stamps[0].drawing,
       sharedWith: ["cal-mine"],
+      origin: null,
     });
+  });
+
+  it("says where a stamp it didn't draw came from – not by which link", () => {
+    expect(data.stamps[1].origin).toEqual({
+      kind: "card",
+      from: ANNA,
+      name: "Anna",
+      message: "Für dich!",
+    });
+    expect(file).not.toContain("AbCd1234EfGh");
+  });
+
+  it("lists the cards it sent – and how many took each, not who", () => {
+    expect(data.cards).toEqual([
+      {
+        id: "Zz99Yy88Xx77",
+        stamp: "stamp-mine",
+        name: "Herz",
+        message: "Alles Gute!",
+        createdAt: "2026-10-10T09:00:00.000Z",
+        taken: 2,
+      },
+    ]);
+    expect(file).not.toContain("copy-annas");
   });
 
   it("has the prints it made, wherever – not the ones others made", () => {
@@ -387,6 +473,7 @@ describe("the account's data as a file", () => {
     expect(data.notifications).toEqual({
       reminderAt: "21:30",
       invited: false,
+      gifts: true,
       calendars: [
         {
           calendar: "cal-annas",
@@ -509,10 +596,12 @@ describe("the account's data as a file", () => {
       fresh.notes,
       fresh.invites,
       fresh.invitedTo,
-    ]).toEqual([[], [], [], [], [], [], []]);
+      fresh.cards,
+    ]).toEqual([[], [], [], [], [], [], [], []]);
     expect(fresh.notifications).toEqual({
       reminderAt: "20:00",
       invited: true,
+      gifts: true,
       calendars: [],
       devices: [],
     });

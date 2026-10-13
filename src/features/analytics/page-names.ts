@@ -19,6 +19,8 @@ const PAGES: Record<string, Record<Lang, string>> = {
   "reset-password": { en: "Reset password", de: "Passwort zurücksetzen" },
   verify: { en: "Verify", de: "Bestätigen" },
   "change-email": { en: "Change email", de: "Adresse ändern" },
+  // A stamp sent as a card – every card is the one page (client.ts, `pageOf`).
+  card: { en: "Card", de: "Karte" },
   legal: { en: "Legal", de: "Rechtliches" },
 };
 

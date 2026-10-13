@@ -22,7 +22,7 @@ import {
   SPECIAL_SIZE,
   type StampDoc,
 } from "@/features/calendar/model";
-import { knownKey } from "@/features/calendar/palette";
+import { knownKey, pickable } from "@/features/calendar/palette";
 import { usePalette } from "@/features/calendar/palette-provider";
 import { Glitter, StampSvg } from "@/features/calendar/stamp-svg";
 import { PAPER } from "@/features/calendar/tint";
@@ -219,6 +219,15 @@ export const DayPage = ({
   const palette = usePalette();
   const [chosen, setInk] = useState<ColorName>("red");
   const ink = knownKey(chosen, palette);
+  // The pads to pick from: the colors one may pick (palette.ts – the special
+  // ones are Boop's gifts', an admin account has them all) – and, should it
+  // be a special one, the ink in use and the own color of the stamp in
+  // hand: a gift's stamp comes in its own, and finds back to it.
+  const open = pickable(palette, { admin: Boolean(boop.me?.admin) });
+  const pads = palette.filter(
+    (color) =>
+      open.includes(color) || color.key === ink || color.key === inHand?.color
+  );
 
   // Undo: the steps of this visit, and a line they queue up in – a step is
   // noted before the next undo looks, also while its print is still saving.
@@ -768,7 +777,7 @@ export const DayPage = ({
             {/* Flat blots of ink, in a row that wraps – nothing scrolls, so
               the marker ring round the one in use is never cut. */}
             <div className="flex flex-wrap gap-1.5">
-              {palette.map(({ key: c, hex, name: names }, i) => (
+              {pads.map(({ key: c, hex, name: names }, i) => (
                 <button
                   aria-label={names[locale]}
                   aria-pressed={ink === c}

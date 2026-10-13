@@ -12,9 +12,10 @@ import { dictionaryOf } from "../../i18n/dictionaries";
  *   and “someone else stamped here”, on until switched off, and “someone
  *   else changed something”, off until switched on – it would be loud.
  *   Only what differs is kept (`PushSettingsDoc.calendars`).
- * - And one of its own, for no calendar yet: “someone invites me to one”,
- *   on until switched off – kept only when off (`PushSettingsDoc.invited`).
- *   The one invited hears it, nobody else (`invitedTargets`).
+ * - And two of its own, for no calendar: “someone invites me to one” and
+ *   “Boop gives me a stamp”, on until switched off – kept only when off
+ *   (`PushSettingsDoc.invited`, `.gifts`). The one invited hears it, nobody
+ *   else (`invitedTargets`); a gift, whoever got it (`giftTargets`).
  * - A device (`SubscriptionRow`) hears only as long as the login it was
  *   switched on in lasts: logged out, it is quiet.
  * - The reminder comes once a day per device, at the account's time on the
@@ -74,6 +75,8 @@ export type PushSettingsDoc = {
   reminderAt?: string | null;
   /** “Someone invites me to a calendar” – kept only when off. */
   invited?: boolean | null;
+  /** “Boop gives me a stamp” (features/cards) – kept only when off. */
+  gifts?: boolean | null;
   calendars?:
     | {
         calendar?: unknown;
@@ -279,6 +282,16 @@ export const withInvited = (
   change?: boolean
 ): false | null => ((change ?? invitedOf(settings)) ? null : false);
 
+/** The other switch of its own, “Boop gives me a stamp” – like that one. */
+export const giftsOf = (settings: PushSettingsDoc | null | undefined) =>
+  settings?.gifts !== false;
+
+/** That switch as kept after a change – only an off is kept. */
+export const withGifts = (
+  settings: PushSettingsDoc | null | undefined,
+  change?: boolean
+): false | null => ((change ?? giftsOf(settings)) ? null : false);
+
 // ── Devices ─────────────────────────────────────────────────────────────────
 
 /** A device as the database has it, made plain – null if it is no device. */
@@ -407,6 +420,25 @@ export const invitedTargets = ({
           device.account === who && loginLasts(device, sessions[who], now)
       )
     : [];
+
+/**
+ * Who hears of a gift from Boop: the devices of the accounts that got it,
+ * whose switch is on and whose login lasts.
+ */
+export const giftTargets = ({
+  devices,
+  settings,
+  sessions,
+  now,
+}: Pick<
+  Audience,
+  "devices" | "settings" | "sessions" | "now"
+>): SubscriptionRow[] =>
+  devices.filter(
+    (device) =>
+      giftsOf(settings[device.account]) &&
+      loginLasts(device, sessions[device.account], now)
+  );
 
 /**
  * The calendars with an entry of the account on a day: a print of its own,
@@ -699,6 +731,23 @@ export const invitedMessage = (
     body: t.invitedBody(name.trim() || t.someone, calendar.name),
     url: `/${locale}/app`,
     tag: `invited-${calendar.id}`,
+  };
+};
+
+/**
+ * “Boop gave you a stamp: ‘Pumpkin’” – for those who got it. A tap opens
+ * the app, where the gift shows.
+ */
+export const giftMessage = (
+  locale: Locale,
+  { gift, name }: { gift: string; name: string },
+  t = dictionaryOf(locale).app.push
+): PushMessage => {
+  return {
+    title: t.giftTitle,
+    body: t.giftBody(name),
+    url: `/${locale}/app`,
+    tag: `gift-${gift}`,
   };
 };
 

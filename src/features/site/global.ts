@@ -2,6 +2,7 @@ import type { Field, GlobalConfig } from "payload";
 import { adminOnly, anyone } from "@/access";
 import {
   DEFAULT_PALETTE,
+  FINISHES,
   isColorKey,
   isHex,
 } from "@/features/calendar/palette";
@@ -95,14 +96,16 @@ export const Site: GlobalConfig = {
       // The code's colors until the global is saved – a name in the language
       // asked for, or (locale "all") in every one, as a localized field comes.
       defaultValue: ({ locale }) =>
-        DEFAULT_PALETTE.map(({ key, hex, name }) => ({
+        DEFAULT_PALETTE.map(({ key, hex, name, special, finish }) => ({
           key,
           color: hex,
           name: isLocale(locale) ? name[locale] : name,
+          public: !special,
+          finish: finish ?? null,
         })),
       admin: {
         description:
-          "The inks to pick from – for a stamp, a calendar and the ink pads, in this order. The first one is the default – and the color of anything whose own is gone.",
+          "The inks to pick from – for a stamp, a calendar and the ink pads, in this order. The first one is the default – and the color of anything whose own is gone. One that isn't public is for Boop's gifts (Content → Gifts): only accounts with the “Admin” box can pick it.",
         initCollapsed: true,
         components: {
           RowLabel: "@/features/site/stamp-color-field#StampColorRowLabel",
@@ -143,6 +146,30 @@ export const Site: GlobalConfig = {
             description:
               "Shown when pointing at it, read out aloud – one per language (switch at the top).",
           },
+        },
+        {
+          type: "row",
+          fields: [
+            {
+              name: "public",
+              type: "checkbox",
+              label: "Public",
+              defaultValue: true,
+              admin: {
+                description:
+                  "Anyone can pick it. Unticked, it is for Boop's gifts: only accounts with the “Admin” box can pick it – to draw a gift in it. Everyone sees it on what wears it.",
+              },
+            },
+            {
+              name: "finish",
+              type: "select",
+              options: [...FINISHES],
+              admin: {
+                description:
+                  "How the rubber looks in 3D – empty: like any other.",
+              },
+            },
+          ],
         },
       ],
     },

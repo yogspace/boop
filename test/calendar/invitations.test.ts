@@ -35,6 +35,7 @@ const real = {
   "@/features/calendar/note": () => import("../../src/features/calendar/note"),
   "@/features/calendar/palette": () =>
     import("../../src/features/calendar/palette"),
+  "@/features/cards/rules": () => import("../../src/features/cards/rules"),
   "@/features/sync/apply": () => import("../../src/features/sync/apply"),
   "@/i18n/config": () => import("../../src/i18n/config"),
   "@/lib/id": () => import("../../src/lib/id"),
@@ -63,6 +64,7 @@ vi.mock("@/features/calendar/note", () => real["@/features/calendar/note"]());
 vi.mock("@/features/calendar/palette", () =>
   real["@/features/calendar/palette"]()
 );
+vi.mock("@/features/cards/rules", () => real["@/features/cards/rules"]());
 vi.mock("@/features/sync/apply", () => real["@/features/sync/apply"]());
 vi.mock("@/i18n/config", () => real["@/i18n/config"]());
 vi.mock("@/lib/id", () => real["@/lib/id"]());

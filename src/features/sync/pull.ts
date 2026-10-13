@@ -12,6 +12,7 @@ import {
 } from "@/features/calendar/model";
 import { cleanNote } from "@/features/calendar/note";
 import { DEFAULT_PALETTE, isColorKey } from "@/features/calendar/palette";
+import { originOf } from "@/features/cards/rules";
 import { sharedWithAny } from "./apply";
 import type { Person, SyncResponse, SyncType } from "./protocol";
 
@@ -50,17 +51,22 @@ const toCalendar = (doc: Doc): CalendarDoc => ({
   deleted: Boolean(doc.deleted),
 });
 
-const toStamp = (doc: Doc): StampDoc => ({
-  id: String(doc.id),
-  name: String(doc.name ?? ""),
-  color: colorOf(doc),
-  shape: (doc.shape as StampShape) ?? "circle",
-  drawing: (doc.drawing as StampDoc["drawing"]) ?? null,
-  owner: idOf(doc.owner) ?? "",
-  sharedWith: sharedWithOf(doc),
-  changedAt: iso(doc.changedAt),
-  deleted: Boolean(doc.deleted),
-});
+/** A stamp – with where it came from, if it came from someone (cards). */
+const toStamp = (doc: Doc): StampDoc => {
+  const origin = originOf(doc.origin);
+  return {
+    id: String(doc.id),
+    name: String(doc.name ?? ""),
+    color: colorOf(doc),
+    shape: (doc.shape as StampShape) ?? "circle",
+    drawing: (doc.drawing as StampDoc["drawing"]) ?? null,
+    owner: idOf(doc.owner) ?? "",
+    sharedWith: sharedWithOf(doc),
+    ...(origin && { origin }),
+    changedAt: iso(doc.changedAt),
+    deleted: Boolean(doc.deleted),
+  };
+};
 
 const toPlacement = (doc: Doc): PlacementDoc => ({
   id: String(doc.id),
@@ -341,15 +347,18 @@ export const pull = async (
     calendarIds,
     people,
     calendars,
-    // Someone else's stamp names only the calendars this account is in.
-    stamps: [...stamps.values()].map((stamp) =>
-      stamp.owner === me
-        ? stamp
-        : {
-            ...stamp,
-            sharedWith: stamp.sharedWith.filter((id) => mine.has(id)),
-          }
-    ),
+    // Someone else's stamp names only the calendars this account is in –
+    // and of where it came from, no more than whether (cards/rules.ts).
+    stamps: [...stamps.values()].map((stamp) => {
+      if (stamp.owner === me) return stamp;
+      const { origin, ...theirs } = stamp;
+      const told = originOf(origin, false);
+      return {
+        ...theirs,
+        sharedWith: stamp.sharedWith.filter((id) => mine.has(id)),
+        ...(told && { origin: told }),
+      };
+    }),
     shared,
     placements: [...placements.values()],
     notes: [...notes.values()],

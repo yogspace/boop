@@ -19,6 +19,8 @@ import { Calendars } from "@/features/calendar/collections/calendars";
 import { Notes } from "@/features/calendar/collections/notes";
 import { Placements } from "@/features/calendar/collections/placements";
 import { Stamps } from "@/features/calendar/collections/stamps";
+import { Cards } from "@/features/cards/cards";
+import { Gifts } from "@/features/cards/gifts";
 import { invitationEndpoints } from "@/features/calendar/endpoints/invitations";
 import { Invites } from "@/features/calendar/invites";
 import { CalendarFeeds } from "@/features/ical/collection";
@@ -49,6 +51,7 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
  * - push       notifications: the devices that said yes, their settings
  * - ical       a calendar for calendar apps: private feed addresses, the
  *              feed itself, the export as a file
+ * - cards      stamps that travel: a card someone sends, a gift from Boop
  * - analytics  anonymous statistics and the mail report
  * - site/legal settings, imprint and privacy
  * - translations the texts of the site and the app, editable – the code
@@ -108,7 +111,9 @@ export default buildConfig({
     Placements,
     Notes,
     Invites,
+    Cards,
     CalendarFeeds,
+    Gifts,
     PageViews,
     Actions,
   ],

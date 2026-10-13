@@ -8,6 +8,7 @@ import { noteSeen } from "@/features/accounts/seen";
 import { sessionAccount } from "@/features/accounts/session";
 import { calendarsOf } from "@/features/calendar/membership";
 import { sharedWithOf } from "@/features/calendar/model";
+import { stampColorsNow } from "@/features/site/stamp-colors";
 import { isId } from "@/lib/id";
 import { rateLimit } from "@/lib/rate-limit";
 import { type ApplyContext, applyChange } from "./apply";
@@ -80,6 +81,16 @@ export const syncEndpoint: Endpoint = {
       me,
       mine: new Set((await calendarsOf(req, me)).map((c) => c.id)),
       unshared: new Set(),
+      // The colors that aren't public – and whether the account may wear
+      // them all the same (apply.ts). Asked only when there is a change.
+      special: changes.length
+        ? new Set(
+            (await stampColorsNow(req))
+              .filter((color) => color.special)
+              .map((color) => color.key)
+          )
+        : new Set(),
+      admin: (account as { admin?: unknown }).admin === true,
     };
     const touched: Record<SyncType, Set<string>> = {
       calendar: new Set(),

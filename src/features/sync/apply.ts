@@ -36,6 +36,14 @@ import type { Change, SyncType } from "./protocol";
  * palette, and what is stored must outlive a color taken out of it. A new
  * calendar or stamp that names none gets its collection's default
  * (calendar/color-field.ts).
+ *
+ * Except a color that isn't public (`special`, palette.ts) – Boop's gifts'.
+ * An account with the admin box wears it on whatever it likes; anyone else
+ * only where it came with the thing: a stamp that has it already (a gift,
+ * a card of a stamp in it – features/cards), and a print with a stamp in
+ * it, as the stamp's own ink. Anywhere else it is left out, and the rest of
+ * the change still counts: a new calendar or stamp gets the default, a new
+ * print the stamp's own ink.
  */
 
 const COLLECTION = {
@@ -52,6 +60,10 @@ export type ApplyContext = {
   mine: Set<string>;
   /** Calendars a stamp was shared with before a change – they hear of it. */
   unshared: Set<string>;
+  /** The colors that aren't public, by key – none: all are. */
+  special?: ReadonlySet<string>;
+  /** The account has the admin box: it may wear those, too. */
+  admin?: boolean;
 };
 
 type Outcome = { ok: true } | { ok: false; reason: string };
@@ -76,6 +88,17 @@ const number = (value: unknown, min: number, max: number) =>
   typeof value === "number" && Number.isFinite(value)
     ? Math.min(Math.max(value, min), max)
     : undefined;
+
+/**
+ * A color for something the account changes – one it may wear (see
+ * above): its key, or undefined. `has`: the color it has already, or its
+ * stamp's.
+ */
+const colorFor = (ctx: ApplyContext, value: unknown, has?: unknown) => {
+  if (!isColorKey(value)) return undefined;
+  const open = !ctx.special?.has(value) || ctx.admin === true;
+  return open || value === has ? value : undefined;
+};
 
 /** Drops the keys that are undefined – only what changed is written. */
 const defined = <T extends Doc>(doc: T): Partial<T> =>
@@ -163,7 +186,7 @@ const applyCalendar = async (
 ): Promise<Outcome> => {
   const fields = {
     name: text(data.name, 60),
-    color: isColorKey(data.color) ? data.color : undefined,
+    color: colorFor(ctx, data.color, existing?.color),
   };
   if (!existing) {
     await write({
@@ -208,7 +231,7 @@ const applyStamp = async (
   ];
   const fields = {
     name: text(data.name, 40),
-    color: isColorKey(data.color) ? data.color : undefined,
+    color: colorFor(ctx, data.color, existing?.color),
     shape: isShape(data.shape) ? data.shape : undefined,
     drawing: "drawing" in data ? cleanDrawing(data.drawing) : undefined,
     sharedWith,
@@ -225,8 +248,18 @@ const applyStamp = async (
   }
   if (idOf(existing.owner) !== ctx.me) return no("not the owner");
   if (change.deleted) {
-    // The marker keeps nothing of the doodle – and its prints go too.
-    await write({ deleted: true, name: "", drawing: null });
+    // The marker keeps nothing of the doodle – nor, of a stamp that came
+    // from someone (features/cards), who that was and what they wrote:
+    // only which card or gift, so it is known as taken. Its prints go too.
+    const origin = existing.origin as Doc | null | undefined;
+    await write({
+      deleted: true,
+      name: "",
+      drawing: null,
+      ...(origin?.kind
+        ? { origin: { ...origin, from: null, name: "", message: "" } }
+        : {}),
+    });
     await ctx.req.payload.update({
       collection: "placements",
       where: {
@@ -266,6 +299,11 @@ const applyPlacement = async (
     z: number(data.z, 0, 1_000_000),
     ink: isColorKey(data.ink) ? data.ink : undefined,
   };
+  // An ink that isn't public: only as its stamp's own (`colorFor`).
+  const inkOf = async (stampId: unknown) =>
+    fields.ink && ctx.special?.has(fields.ink) && ctx.admin !== true
+      ? colorFor(ctx, fields.ink, (await stampOf(ctx, idOf(stampId)))?.color)
+      : fields.ink;
   if (!existing) {
     const calendar = String(data.calendar ?? "");
     if (!ctx.mine.has(calendar)) return no("not a member");
@@ -273,7 +311,7 @@ const applyPlacement = async (
     const stampId = String(data.stamp ?? "");
     if (!(await canUseStamp(ctx, stampId))) return no("unknown stamp");
     await write({
-      ...defined(fields),
+      ...defined({ ...fields, ink: await inkOf(stampId) }),
       calendar,
       stamp: stampId,
       x: fields.x ?? 0.5,
@@ -290,7 +328,7 @@ const applyPlacement = async (
     await write({ deleted: true });
     return OK;
   }
-  await write(defined(fields));
+  await write(defined({ ...fields, ink: await inkOf(existing.stamp) }));
   return OK;
 };
 
@@ -328,16 +366,22 @@ const applyNote = async (
   return OK;
 };
 
+/** A stamp, as it is kept – none for no id. */
+const stampOf = async (ctx: ApplyContext, id: string | null) =>
+  id
+    ? ((await ctx.req.payload.findByID({
+        collection: "stamps",
+        id,
+        depth: 0,
+        disableErrors: true,
+        overrideAccess: true,
+        req: ctx.req,
+      })) as Doc | null)
+    : null;
+
 /** A stamp the account has: its own, or one shared with its calendars. */
 const canUseStamp = async (ctx: ApplyContext, id: string) => {
-  const stamp = (await ctx.req.payload.findByID({
-    collection: "stamps",
-    id,
-    depth: 0,
-    disableErrors: true,
-    overrideAccess: true,
-    req: ctx.req,
-  })) as Doc | null;
+  const stamp = await stampOf(ctx, id);
   if (!stamp || stamp.deleted) return false;
   return (
     idOf(stamp.owner) === ctx.me ||

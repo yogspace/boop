@@ -142,6 +142,15 @@ describe("a stamp kept or sent in the shape of before", () => {
     expect(stampDoc(bare)).toEqual(stamp("old", ME));
   });
 
+  it("keeps where a stamp came from – and makes none up", () => {
+    const origin = { kind: "card", from: ANNA, name: "Anna" } as const;
+    expect(stampDoc({ ...stamp("taken", ME), origin }).origin).toEqual(origin);
+    expect(stampDoc({ ...bare, calendar: FAMILY, origin }).origin).toEqual(
+      origin
+    );
+    expect("origin" in stampDoc(stamp("drawn", ME))).toBe(false);
+  });
+
   it("then shows in every calendar, as any stamp of mine", () => {
     const kept = [
       { ...bare, id: "mine", calendar: FAMILY },

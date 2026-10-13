@@ -24,8 +24,27 @@ export type StampColor = {
   hex: string;
   /** What pickers call it, per language. */
   name: Record<Locale, string>;
+  /**
+   * Not public (the CMS's “Public” unticked): only accounts with the admin
+   * box (accounts/collection.ts) can pick it – Max, for Boop's gifts
+   * (features/cards). Everyone sees it on what wears it, like any other.
+   */
+  special?: boolean;
+  /** How the rubber of a color looks in 3D – none: like any other. */
+  finish?: Finish;
 };
 
+/** The rubber's looks besides the plain one (`StampColor.finish`). */
+export const FINISHES = ["metal", "glitter"] as const;
+export type Finish = (typeof FINISHES)[number];
+
+const isFinish = (value: unknown): value is Finish =>
+  typeof value === "string" && (FINISHES as readonly string[]).includes(value);
+
+/**
+ * The last two are not public – for Boop's gifts: the CMS starts with them,
+ * and whatever it holds then is what counts.
+ */
 export const DEFAULT_PALETTE: StampColor[] = [
   { key: "red", hex: "#ee3b33", name: { de: "Rot", en: "Red" } },
   { key: "coral", hex: "#ff8159", name: { de: "Koralle", en: "Coral" } },
@@ -34,6 +53,20 @@ export const DEFAULT_PALETTE: StampColor[] = [
   { key: "sky", hex: "#3fa9ff", name: { de: "Himmel", en: "Sky" } },
   { key: "grape", hex: "#7c5cff", name: { de: "Traube", en: "Grape" } },
   { key: "pink", hex: "#ff5fae", name: { de: "Rosa", en: "Pink" } },
+  {
+    key: "gold",
+    hex: "#d4a72c",
+    name: { de: "Gold", en: "Gold" },
+    special: true,
+    finish: "metal",
+  },
+  {
+    key: "glitter",
+    hex: "#c264d6",
+    name: { de: "Glitzer", en: "Glitter" },
+    special: true,
+    finish: "glitter",
+  },
 ];
 
 const KEY = /^[a-z][a-z0-9-]{0,23}$/;
@@ -77,16 +110,26 @@ const namesOf = (key: string, given: unknown): StampColor["name"] => {
 /**
  * Colors as they came from somewhere (the CMS, a page's props) – checked:
  * only those with a key and a hex, each key once (the first wins), names
- * filled in. Nothing usable gives an empty list.
+ * filled in; `special` and `finish` only as they should be. Nothing usable
+ * gives an empty list.
  */
 export const cleanPalette = (value: unknown): StampColor[] => {
   if (!Array.isArray(value)) return [];
   const colors = new Map<string, StampColor>();
   for (const entry of value) {
     if (!entry || typeof entry !== "object") continue;
-    const { key, hex, name } = entry as Record<string, unknown>;
+    const { key, hex, name, special, finish } = entry as Record<
+      string,
+      unknown
+    >;
     if (!(isColorKey(key) && isHex(hex)) || colors.has(key)) continue;
-    colors.set(key, { key, hex: hex.toLowerCase(), name: namesOf(key, name) });
+    colors.set(key, {
+      key,
+      hex: hex.toLowerCase(),
+      name: namesOf(key, name),
+      ...(special === true && { special: true }),
+      ...(isFinish(finish) && { finish }),
+    });
   }
   return [...colors.values()];
 };
@@ -106,8 +149,20 @@ export const setPalette = (colors: unknown) => {
   byKey = new Map(next.map((color) => [color.key, color]));
 };
 
-/** The colors to pick from, in the CMS's order. */
+/**
+ * The colors, in the CMS's order – the special ones too: to pick from, see
+ * `pickable`.
+ */
 export const getPalette = (): readonly StampColor[] => palette;
+
+/**
+ * The colors one may pick: the public ones – and, for an account with the
+ * admin box, all of them.
+ */
+export const pickable = (
+  colors: readonly StampColor[],
+  { admin = false }: { admin?: boolean } = {}
+) => (admin ? [...colors] : colors.filter((color) => !color.special));
 
 /** Their keys, in the same order – the first is the default. */
 export const colorKeys = (): string[] => palette.map((color) => color.key);
@@ -154,13 +209,15 @@ export const knownKey = (
  * The color for one more of a kind – new calendars take turns: the first
  * that none of `taken` has yet, and round and round once all are taken. The
  * very first color sits out while there are others: it is the default, what
- * anything whose own color is gone shows in.
+ * anything whose own color is gone shows in. The special ones take no turn.
  */
 export const nextKey = (
   taken: readonly string[],
   colors: readonly StampColor[] = palette
 ): string => {
-  const all = colors.length ? colors : DEFAULT_PALETTE;
+  const known = colors.length ? colors : DEFAULT_PALETTE;
+  const open = pickable(known);
+  const all = open.length ? open : known;
   const turns = all.length > 1 ? all.slice(1) : all;
   const free = turns.find((color) => !taken.includes(color.key));
   return (free ?? turns[taken.length % turns.length]).key;

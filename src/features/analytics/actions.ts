@@ -18,6 +18,8 @@ const ACTIONS = {
   "day-opened": { en: "Days opened", de: "Tage geöffnet" },
   "stamp-created": { en: "Stamps drawn", de: "Stempel gezeichnet" },
   "stamp-placed": { en: "Stamps placed", de: "Stempel gesetzt" },
+  "card-created": { en: "Cards sent", de: "Karten verschickt" },
+  "card-taken": { en: "Cards taken", de: "Karten übernommen" },
   "export-table": { en: "Exported as table", de: "Als Tabelle exportiert" },
   "export-image": { en: "Exported as picture", de: "Als Bild exportiert" },
 } as const;
@@ -60,7 +62,7 @@ export const ACTION_GROUPS: {
   },
   {
     title: { en: "Stamps", de: "Stempel" },
-    names: ["stamp-created", "stamp-placed"],
+    names: ["stamp-created", "stamp-placed", "card-created", "card-taken"],
   },
   {
     title: { en: "Export", de: "Export" },

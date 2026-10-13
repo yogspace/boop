@@ -59,10 +59,12 @@ const send = (url: string, body: Record<string, unknown>) => {
 
 /**
  * The page a path counts as. The app is one page, whichever calendar it
- * shows: /de/app/{id} counts as /de/app – no calendar id is ever sent.
+ * shows: /de/app/{id} counts as /de/app – no calendar id is ever sent. A
+ * card's page likewise: /de/card/{id} counts as /de/card – its id is the
+ * link's secret (features/cards).
  */
 export const pageOf = (pathname: string) =>
-  pathname.replace(/^(\/[^/]+\/app)\/.*$/, "$1");
+  pathname.replace(/^(\/[^/]+\/(?:app|card))\/.*$/, "$1");
 
 /**
  * A page view. `ref` is where the visitor came from – the real referrer on

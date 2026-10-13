@@ -23,10 +23,10 @@ import {
   type StampShape,
 } from "@/features/calendar/model";
 import { rimLine } from "@/features/calendar/outline";
-import { hexOf, knownKey } from "@/features/calendar/palette";
+import { hexOf, knownKey, pickable } from "@/features/calendar/palette";
 import { usePalette } from "@/features/calendar/palette-provider";
 import { Glitter, ShapeOutline, StampSvg } from "@/features/calendar/stamp-svg";
-import { createStamp } from "@/features/offline/store";
+import { createStamp, useBoop } from "@/features/offline/store";
 import type { StickerInput } from "@/features/stickers/build";
 import { STAGE, StickerView } from "@/features/stickers/sticker-view";
 import type { Locale } from "@/i18n/config";
@@ -206,9 +206,12 @@ export const StampDrawer = ({
   const [rim, setRim] = useState<RimPattern | undefined>(undefined);
   const [special, setSpecial] = useState(false);
   const [shape, setShape] = useState<StampShape>("circle");
-  // Its color: one of the stamp colors – the one picked as long as the
-  // palette has it; else, and to begin with, “grape” or the palette's first.
-  const palette = usePalette();
+  // Its color: one of the stamp colors one may pick (palette.ts – the
+  // special ones are Boop's gifts', an admin account picks them too) – the
+  // one picked as long as they have it; else, and to begin with, “grape” or
+  // their first.
+  const { me } = useBoop();
+  const palette = pickable(usePalette(), { admin: Boolean(me?.admin) });
   const [picked, setColor] = useState<ColorName>("grape");
   const color = knownKey(picked, palette);
   const [name, setName] = useState("");

@@ -79,10 +79,14 @@ export const loadPush = async () => {
   return known;
 };
 
-/** One change: the reminder's time, the account's own switch, or a calendar's. */
+/**
+ * One change: the reminder's time, one of the account's own switches, or a
+ * calendar's.
+ */
 export type PushPatch =
   | { reminderAt: string }
   | { invited: boolean }
+  | { gifts: boolean }
   | ({ calendar: string } & Partial<Switches>);
 
 export const savePush = async (patch: PushPatch) => {

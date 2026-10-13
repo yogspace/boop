@@ -52,9 +52,11 @@ const tooManySignups = rateLimit({ limit: 10, windowMs: 60 * 60 * 1000 });
  * one:
  *
  * - `admin`: the app shows this account a link to the CMS (account-sheet.
- *   tsx). A shortcut, not a right: the CMS has logins of its own (`users`),
- *   an account never gets into it, and nothing in src/access looks at the
- *   box. It is told to the account itself (`me`), to no one else.
+ *   tsx), and lets it pick the stamp colors that aren't public – to draw
+ *   Boop's gifts in (features/cards, sync/apply.ts). That is all: the CMS
+ *   has logins of its own (`users`), an account never gets into it, and
+ *   nothing in src/access looks at the box. It is told to the account
+ *   itself (`me`), to no one else.
  * - `neverDelete`: the daily cleanup leaves the account alone – no warning,
  *   no deletion, confirmed address or not (retention.ts). The account can
  *   still delete itself.
@@ -161,7 +163,9 @@ const addFirstCalendar: CollectionAfterChangeHook = async ({
  * stamps' prints, whoever made them, and the invitations it sent. Its notes
  * elsewhere stay without its name; its notification devices and settings
  * go (features/push), and so do its addresses for calendar apps – with
- * everyone's for the calendars that went with it (features/ical).
+ * everyone's for the calendars that went with it (features/ical). The
+ * cards it sent go (features/cards); the stamps others took from them stay
+ * theirs, only without the giver.
  */
 const removeData: CollectionBeforeDeleteHook = async ({ id, req }) => {
   const account = String(id);
@@ -245,6 +249,38 @@ const removeData: CollectionBeforeDeleteHook = async ({ id, req }) => {
     overrideAccess: true,
     req,
   });
+
+  // The cards it sent – nobody takes them any more. Those who did keep
+  // their stamps, without whom they came from: no name, no account. A
+  // change, so their devices take it over.
+  await payload.delete({
+    collection: "cards",
+    where: { from: { equals: account } },
+    overrideAccess: true,
+    req,
+  });
+  const copies = await payload.find({
+    collection: "stamps",
+    where: { "origin.from": { equals: account } },
+    select: { origin: true },
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    req,
+  });
+  for (const copy of copies.docs) {
+    await payload.update({
+      collection: "stamps",
+      id: copy.id,
+      data: {
+        origin: { ...copy.origin, from: null, name: "" },
+        changedAt: now,
+      },
+      context: { sync: true },
+      overrideAccess: true,
+      req,
+    });
+  }
 
   // The invitations it sent wait for nobody now – the addresses in them go.
   await payload.delete({
@@ -398,7 +434,7 @@ export const Accounts: CollectionConfig = {
       admin: {
         position: "sidebar",
         description:
-          "Shows this person a link “Open CMS” in the app's account sheet. Only a shortcut – it gives no rights: the CMS still asks for its own login (Users), and an account never gets into it.",
+          "Shows this person a link “Open CMS” in the app's account sheet, and lets them pick the stamp colors that aren't public (Site → Stamp colors) – to draw Boop's gifts. Nothing more: the CMS still asks for its own login (Users), and an account never gets into it.",
       },
     },
     {

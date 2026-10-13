@@ -10,8 +10,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 /**
  * Who may do what – for every collection and global of the real config, as
  * written (src/access). The CMS runs Boop; it doesn't read what people made:
- * their calendars, stamps, prints, notes, invitations and notification
- * devices are closed to admins too – readable in support mode alone, and
+ * their calendars, stamps, prints, notes, cards, invitations and
+ * notification devices are closed to admins too – readable in support mode alone, and
  * written by nobody over the API. Accounts: the admin looks them up, deletes
  * and unlocks them and ticks two boxes – nothing else, a password least of
  * all (“accounts in the admin”, below).
@@ -122,6 +122,9 @@ const COLLECTIONS: Record<string, Partial<Record<Op, Who>>> = {
   placements: CONTENT,
   notes: CONTENT,
   invites: CONTENT,
+  // A card's id is its link – but what it shows is anyone's with the link,
+  // and nothing an admin wouldn't see of the stamp in support mode anyway.
+  cards: CONTENT,
   "push-subscriptions": CONTENT,
   "push-settings": CONTENT,
   // Feed addresses are keys – closed in support mode too.
@@ -142,6 +145,13 @@ const COLLECTIONS: Record<string, Partial<Record<Op, Who>>> = {
     read: "admin",
     create: "nobody",
     update: "nobody",
+    delete: "admin",
+  },
+  // Boop's gifts – the owner's own content, nobody's data.
+  gifts: {
+    read: "admin",
+    create: "admin",
+    update: "admin",
     delete: "admin",
   },
 };

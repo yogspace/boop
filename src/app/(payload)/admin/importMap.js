@@ -1,5 +1,8 @@
 import { UnlockAccount as UnlockAccount_e26a294016bffd96ac606e9ffcfaa921 } from '@/features/admin/unlock-account'
 import { StampColorCell as StampColorCell_93d6ffdb1eb2268c906fe00823dff9ca } from '@/features/site/stamp-color-cell'
+import { GiftColorField as GiftColorField_7049fd5773294c10ec001fcbcba990c3 } from '@/features/cards/gift-admin'
+import { GiftPreview as GiftPreview_7049fd5773294c10ec001fcbcba990c3 } from '@/features/cards/gift-admin'
+import { SendGift as SendGift_7d26fb0d8c442732a89d66559cc3648e } from '@/features/cards/send-gift'
 import { StampColorField as StampColorField_6a80540495d85b18f5317639c829943e } from '@/features/site/stamp-color-field'
 import { StampColorRowLabel as StampColorRowLabel_6a80540495d85b18f5317639c829943e } from '@/features/site/stamp-color-field'
 import { RscEntryLexicalCell as RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
@@ -37,6 +40,9 @@ import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } f
 export const importMap = {
   "@/features/admin/unlock-account#UnlockAccount": UnlockAccount_e26a294016bffd96ac606e9ffcfaa921,
   "@/features/site/stamp-color-cell#StampColorCell": StampColorCell_93d6ffdb1eb2268c906fe00823dff9ca,
+  "@/features/cards/gift-admin#GiftColorField": GiftColorField_7049fd5773294c10ec001fcbcba990c3,
+  "@/features/cards/gift-admin#GiftPreview": GiftPreview_7049fd5773294c10ec001fcbcba990c3,
+  "@/features/cards/send-gift#SendGift": SendGift_7d26fb0d8c442732a89d66559cc3648e,
   "@/features/site/stamp-color-field#StampColorField": StampColorField_6a80540495d85b18f5317639c829943e,
   "@/features/site/stamp-color-field#StampColorRowLabel": StampColorRowLabel_6a80540495d85b18f5317639c829943e,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalCell": RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e,

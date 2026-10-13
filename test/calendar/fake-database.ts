@@ -37,21 +37,31 @@ const holds = (value: unknown, condition: Condition) => {
   });
 };
 
+/** A field's value – also one inside a group, by its path (“origin.card”). */
+const valueAt = (doc: Doc, path: string) =>
+  path
+    .split(".")
+    .reduce<unknown>(
+      (value, key) =>
+        value && typeof value === "object" ? (value as Doc)[key] : undefined,
+      doc
+    );
+
 const matches = (doc: Doc, where: Where | undefined): boolean =>
   Object.entries(where ?? {}).every(([key, condition]) => {
     if (key === "and")
       return (condition as Where[]).every((w) => matches(doc, w));
     if (key === "or")
       return (condition as Where[]).some((w) => matches(doc, w));
-    return holds(doc[key], condition as Condition);
+    return holds(valueAt(doc, key), condition as Condition);
   });
 
 /**
  * The database, in memory – what sharing a calendar asks of Payload: the
- * member and invitation endpoints, the sync's reading, a login. No hooks,
- * no access – the code under test asks with full access anyway. `updates`
- * notes every write to a calendar with its context (who did it), `sent`
- * every mail.
+ * member and invitation endpoints, the sync's reading, a login – and what
+ * cards and gifts ask of it (test/cards). No hooks, no access – the code
+ * under test asks with full access anyway. `updates` notes every write to
+ * a calendar with its context (who did it), `sent` every mail.
  */
 export const fakeDatabase = () => {
   const db: Record<string, Map<string, Doc>> = {
@@ -61,6 +71,11 @@ export const fakeDatabase = () => {
     stamps: new Map(),
     placements: new Map(),
     notes: new Map(),
+    cards: new Map(),
+    gifts: new Map(),
+    "push-subscriptions": new Map(),
+    "push-settings": new Map(),
+    "calendar-feeds": new Map(),
   };
   const passwords = new Map<string, string>();
   const sent: { to: string; subject: string; html: string }[] = [];
@@ -82,15 +97,20 @@ export const fakeDatabase = () => {
       collection,
       where,
       limit,
+      page = 1,
     }: {
       collection: string;
       where?: Where;
       limit?: number;
+      page?: number;
     }) => {
       const all = found(collection, where);
+      const from = limit ? (page - 1) * limit : 0;
+      const until = limit ? from + limit : all.length;
       return {
-        docs: (limit ? all.slice(0, limit) : all).map((doc) => ({ ...doc })),
+        docs: all.slice(from, until).map((doc) => ({ ...doc })),
         totalDocs: all.length,
+        hasNextPage: until < all.length,
       };
     },
     findByID: async ({
@@ -122,22 +142,27 @@ export const fakeDatabase = () => {
     update: async ({
       collection,
       id,
+      where,
       data,
       context,
     }: {
       collection: string;
-      id: string;
+      id?: string;
+      where?: Where;
       data: Doc;
       context?: unknown;
     }) => {
-      const doc = {
-        ...db[collection].get(String(id)),
-        ...data,
-        updatedAt: stamp(),
+      const one = (key: string) => {
+        const doc = { ...db[collection].get(key), ...data, updatedAt: stamp() };
+        db[collection].set(key, doc);
+        updates.push({ collection, id: key, data, context });
+        return { ...doc };
       };
-      db[collection].set(String(id), doc);
-      updates.push({ collection, id: String(id), data, context });
-      return { ...doc };
+      // One by its id – or, without one, all that match.
+      if (id !== undefined) return one(String(id));
+      return {
+        docs: found(collection, where).map((doc) => one(String(doc.id))),
+      };
     },
     delete: async ({
       collection,

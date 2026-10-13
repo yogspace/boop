@@ -33,6 +33,29 @@ describe("the stamp colors as the CMS keeps them", () => {
     ]);
   });
 
+  it("takes “Public” unticked as a special color – and a finish as it is", () => {
+    expect(
+      stampColorsOf([
+        { key: "moss", color: "#335533", name: "Moos", public: true },
+        // From before the box: public.
+        { key: "coral", color: "#ff8159", name: "Koralle" },
+        {
+          key: "gold",
+          color: "#d4a72c",
+          name: "Gold",
+          public: false,
+          finish: "metal",
+        },
+        { key: "fog", color: "#cccccc", name: "Nebel", finish: null },
+      ]).map(({ key, special, finish }) => ({ key, special, finish }))
+    ).toEqual([
+      { key: "moss", special: undefined, finish: undefined },
+      { key: "coral", special: undefined, finish: undefined },
+      { key: "gold", special: true, finish: "metal" },
+      { key: "fog", special: undefined, finish: undefined },
+    ]);
+  });
+
   it("falls back to the code's own with nothing usable", () => {
     expect(stampColorsOf(undefined)).toBe(DEFAULT_PALETTE);
     expect(stampColorsOf([])).toBe(DEFAULT_PALETTE);
@@ -47,5 +70,16 @@ describe("the stamp colors as the CMS keeps them", () => {
     expect(await defaultColor(request(undefined), "coral")).toBe("coral");
     expect(await defaultColor(request(ROWS, true), "coral")).toBe("coral");
     expect(await defaultColor(request(ROWS, true), "lime")).toBe("red");
+  });
+
+  it("never starts one in a special color – wished or first", async () => {
+    const rows = [
+      { key: "gold", color: "#d4a72c", name: "Gold", public: false },
+      { key: "moss", color: "#335533", name: "Moos" },
+    ];
+    expect(await defaultColor(request(rows), "gold")).toBe("moss");
+    expect(await defaultColor(request(rows), "red")).toBe("moss");
+    // The code's own special ones neither.
+    expect(await defaultColor(request(undefined), "gold")).toBe("red");
   });
 });

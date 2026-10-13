@@ -3,8 +3,9 @@
 import { type FormEvent, type ReactNode, useState } from "react";
 import { Button, Field } from "@/components/ui";
 import type { ColorName } from "@/features/calendar/model";
-import { knownKey } from "@/features/calendar/palette";
+import { knownKey, pickable } from "@/features/calendar/palette";
 import { usePalette } from "@/features/calendar/palette-provider";
+import { useBoop } from "@/features/offline/store";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
@@ -20,9 +21,12 @@ import { Sheet } from "./sheet";
 
 /**
  * The stamp colors as ink blots to pick from – the picked one gets a
- * scribbled ring. A color the palette no longer has shows as the first –
- * and stays what it is until another is picked. `children`: a line about
- * the pick, below the blots.
+ * scribbled ring. Only the ones one may pick (palette.ts, `pickable`): the
+ * special colors are Boop's gifts' – and an admin account's. One of them in
+ * use already (a calendar an admin colored) still shows, ringed, among
+ * them. A color the palette no longer has shows as the first – and stays
+ * what it is until another is picked. `children`: a line about the pick,
+ * below the blots.
  */
 export const ColorPicker = ({
   locale,
@@ -37,12 +41,17 @@ export const ColorPicker = ({
 }) => {
   const t = dictionaryOf(locale);
   const palette = usePalette();
+  const { me } = useBoop();
   const shown = knownKey(value, palette);
+  const open = pickable(palette, { admin: Boolean(me?.admin) });
+  const colors = palette.filter(
+    (color) => open.includes(color) || color.key === shown
+  );
   return (
     <fieldset className="flex flex-wrap items-center gap-3.5">
       <legend className="mb-3 font-bold text-sm">{t.app.draw.color}</legend>
       {/* Blots of ink, the one picked ringed – like the day's stamp pads. */}
-      {palette.map(({ key: c, hex, name: names }, i) => (
+      {colors.map(({ key: c, hex, name: names }, i) => (
         <button
           aria-label={names[locale]}
           aria-pressed={shown === c}

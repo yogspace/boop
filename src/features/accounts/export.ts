@@ -3,8 +3,10 @@ import type { PayloadRequest, Where } from "payload";
 import { inviteEnd, inviteExpired } from "../calendar/invite-expiry";
 import { sharedWithOf } from "../calendar/model";
 import { cleanNote, noteText } from "../calendar/note";
+import { originOf } from "../cards/rules";
 import {
   entriesOf,
+  giftsOf,
   invitedOf,
   type PushSettingsDoc,
   pushServiceOf,
@@ -19,12 +21,13 @@ import {
  * It is put together field by field: what isn't named here doesn't get out
  * – no password hash, no token, no session id, no push address or key (only
  * whose push service it is), no calendar app's address (only that there is
- * one). And it is the account's own: its calendars, its stamps, the prints
- * it made, the notes it wrote last, the invitations it sent and those to
- * it, its notifications, its addresses for calendar apps. Of other people
- * only what the app shows it anyway – their names, as members of its
- * calendars, owners of the ones it is in and senders of its invitations.
- * What they drew and stamped is theirs.
+ * one). And it is the account's own: its calendars, its stamps (and where
+ * those it didn't draw came from), the prints it made, the notes it wrote
+ * last, the invitations it sent and those to it, the cards it sent, its
+ * notifications, its addresses for calendar apps. Of other people only
+ * what the app shows it anyway – their names, as members of its calendars,
+ * owners of the ones it is in, senders of its invitations and givers of
+ * its cards' stamps. What they drew and stamped is theirs.
  */
 
 type Doc = Record<string, unknown>;
@@ -58,6 +61,8 @@ export const accountExport = ({
   notes = [],
   invites,
   invitingCalendars = [],
+  cards = [],
+  cardCopies = [],
   pushSettings = null,
   pushDevices = [],
   calendarFeeds = [],
@@ -75,6 +80,10 @@ export const accountExport = ({
   invites: Doc[];
   /** The calendars it is invited to – for their names. */
   invitingCalendars?: Doc[];
+  /** The cards it sent (features/cards). */
+  cards?: Doc[];
+  /** The stamps others took from them, and kept – to count, no more. */
+  cardCopies?: Doc[];
   /** What it wants to hear of (features/push) – none: all as by default. */
   pushSettings?: Doc | null;
   /** Its devices that get notifications. */
@@ -158,6 +167,11 @@ export const accountExport = ({
         drawing: stamp.drawing ?? null,
         /** The calendars whose members may stamp with it too. */
         sharedWith: sharedWithOf(stamp),
+        /**
+         * Where it came from, if it didn't draw it: a card someone sent
+         * (who, by name then, and their words), a gift from Boop.
+         */
+        origin: originOf(stamp.origin) ?? null,
         createdAt: when(stamp.createdAt),
         changedAt: when(stamp.changedAt),
       })),
@@ -225,12 +239,32 @@ export const accountExport = ({
           expiresAt: when(inviteEnd(invite)),
         };
       }),
+    /**
+     * The cards it sent – each a link (by its id) to a stamp of its, as it
+     * was then, with its few words – until taken back, or the stamp or the
+     * account goes. And how many took it: who they are is theirs.
+     */
+    cards: cards
+      .filter((card) => ref(card.from) === me)
+      .map((card) => ({
+        id: String(card.id),
+        stamp: ref(card.stamp),
+        name: String(card.name ?? ""),
+        message: String(card.message ?? ""),
+        createdAt: when(card.createdAt),
+        taken: cardCopies.filter(
+          (copy) =>
+            alive(copy) && (copy.origin as Doc | null)?.card === card.id
+        ).length,
+      })),
     /** Notifications: what it wants to hear of, and the devices that do. */
     notifications: {
       /** The evening's reminder, on each device's clock. */
       reminderAt: reminderAtOf(pushSettings as PushSettingsDoc | null),
       /** Being invited to a calendar – for the whole account. */
       invited: invitedOf(pushSettings as PushSettingsDoc | null),
+      /** A gift from Boop – for the whole account, too. */
+      gifts: giftsOf(pushSettings as PushSettingsDoc | null),
       /** Calendars with a switch off – every other one has both on. */
       calendars: entriesOf(pushSettings as PushSettingsDoc | null),
       devices: pushDevices
@@ -277,7 +311,8 @@ export const collectExport = async (
       | "invites"
       | "push-settings"
       | "push-subscriptions"
-      | "calendar-feeds",
+      | "calendar-feeds"
+      | "cards",
     where: Where
   ) =>
     (
@@ -336,6 +371,15 @@ export const collectExport = async (
   const calendarFeeds = await find("calendar-feeds", {
     account: { equals: me },
   });
+  const cards = await find("cards", { from: { equals: me } });
+  const cardCopies = cards.length
+    ? await find("stamps", {
+        and: [
+          { "origin.card": { in: cards.map((card) => String(card.id)) } },
+          kept,
+        ],
+      })
+    : [];
 
   // The people in its calendars and who invited it, by name – nothing
   // else about them.
@@ -368,6 +412,8 @@ export const collectExport = async (
     notes,
     invites,
     invitingCalendars,
+    cards,
+    cardCopies,
     pushSettings: pushSettings ?? null,
     pushDevices,
     calendarFeeds,

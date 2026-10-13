@@ -152,13 +152,14 @@ export const StampColorField: TextFieldClientComponent = (props) => {
 
 /**
  * A color's row, closed: its swatch, its name and its key – the first is
- * the default.
+ * the default, one not public is said so.
  */
 export const StampColorRowLabel = () => {
   const { data, rowNumber = 0 } = useRowLabel<{
     key?: string;
     color?: string;
     name?: string;
+    public?: boolean;
   }>();
   return (
     <span className="stamp-color-row">
@@ -169,6 +170,7 @@ export const StampColorRowLabel = () => {
         {data?.name || "Color"}
         {data?.key && <small> · {data.key}</small>}
         {rowNumber === 0 && <small> – the default</small>}
+        {data?.public === false && <small> – not public</small>}
       </span>
     </span>
   );

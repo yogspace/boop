@@ -1,4 +1,5 @@
 import type * as Three from "three";
+import type { Finish } from "../calendar/palette";
 
 /**
  * How a stamp is drawn – like a cartoon: flat colors, a touch of shade, and
@@ -117,6 +118,10 @@ uniform vec3 color;
 uniform vec3 shade;
 uniform float code;
 uniform float amount;
+uniform float metal;
+uniform float glitter;
+uniform float time;
+uniform float twinkle;
 #ifdef RUBBER
 uniform vec3 ink;
 uniform vec3 inkShade;
@@ -134,12 +139,53 @@ varying vec3 vFacing;
 // The light, from the front and a little above left – fixed to the view:
 // only what turns well away from it takes the shade.
 const vec3 LIGHT = vec3(-0.36, 0.46, 0.81);
+const vec3 WHITE = vec3(1.0, 0.99, 0.96);
 
 // Low and slow, so the lines swell and thin like drawn by hand – stuck to
 // the stamp, so nothing crawls while it turns.
 float wobble(vec3 p) {
   return 0.5 + 0.3 * sin(dot(p, vec3(13.1, 7.3, 5.7)) + 1.3)
     + 0.2 * sin(dot(p, vec3(-6.3, 15.7, -8.1)) + 4.1);
+}
+
+float hash(vec3 p) {
+  return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+}
+
+// 1 inside a stripe of half-width w round c, smooth at its edges.
+float band(float x, float c, float w) {
+  float aa = fwidth(x);
+  return 1.0 - smoothstep(w - aa, w + aa, abs(x - c));
+}
+
+// A metal ink, drawn like a cartoon: a round part takes the sky above the
+// horizon (lighter), a darker band below it and one hard glint; a flat one
+// two light streaks across it.
+vec3 metalOf(vec3 c, vec3 n, float level) {
+  float up = n.y + 0.3 * n.x;
+  float aa = fwidth(up);
+  vec3 curved = mix(c * 0.66, mix(c, WHITE, 0.4), smoothstep(-aa, aa, up - 0.04));
+  float glint = dot(n, normalize(vec3(-0.5, 0.6, 0.62)));
+  float ga = fwidth(glint);
+  curved = mix(curved, WHITE, 0.85 * smoothstep(0.95 - ga, 0.95 + ga, glint));
+  float d = (vLocal.x + vLocal.y) * 0.7071;
+  vec3 streaked = mix(c, WHITE, 0.5 * max(band(d, 0.1, 0.06), band(d, 0.26, 0.022)));
+  return mix(curved, streaked, level);
+}
+
+// Glitter in the ink: small flecks stuck to the stamp – a few of the cells
+// of a fine grid hold one – that twinkle out of step where it is live. Each
+// one soft at its edge by how big the grid shows (not by the distance's own
+// change, which leaps at the cells' borders).
+float flecks(vec3 p) {
+  vec3 cell = floor(p);
+  float h = hash(cell);
+  vec3 at = 0.5 + 0.3 * (vec3(hash(cell + 1.7), hash(cell + 3.1), hash(cell + 5.3)) - 0.5);
+  float d = length(fract(p) - at);
+  float r = 0.14 + 0.1 * hash(cell + 7.9);
+  float aa = 0.7 * length(fwidth(p));
+  float beat = 0.55 + 0.45 * sin(time * (1.6 + 2.4 * h) + h * 40.0);
+  return step(0.78, h) * (1.0 - smoothstep(r - aa, r + aa, d)) * mix(0.85, beat, twinkle);
 }
 
 void main() {
@@ -149,6 +195,11 @@ void main() {
   float part = code;
   vec3 fill = color;
   vec3 shadow = shade;
+  // How much of it wears the finish: the ink – all of the knob, the
+  // rubber's raised parts.
+  float inked = 1.0;
+  // How level it is – the rubber's face, against the round knob.
+  float level = 0.0;
 #ifdef RUBBER
   // Ink on the raised parts only, sharp – the ground pale.
   float edge = clamp((vRelief - 0.5) / max(fwidth(vRelief), 1e-4) + 0.5, 0.0, 1.0);
@@ -156,6 +207,8 @@ void main() {
   shadow = mix(groundShade, inkShade, edge);
   // Raised or not – the side goes with the rim, inked as far as it is.
   if (vRelief > 0.5) part += 1.0;
+  inked = edge;
+  level = 1.0;
 #endif
 #ifdef BLOCK
   // Its back (extruded towards the face, so −Z) – the rest, the rounded
@@ -174,10 +227,38 @@ void main() {
 #ifdef KNOB
   deep = 0.5 + vDeep * DEEP;
 #endif
-  outColor = vec4(mix(fill, shadow, dark), 1.0);
+  vec3 seen = mix(fill, shadow, dark);
+  // A special color's finish – nothing of it without the cartoon (the
+  // drawing's flat colors) – and no lines: they are only light.
+  float finish = inked * amount;
+  if (metal > 0.0) {
+    seen = mix(seen, metalOf(seen, normalize(vNormal), level), metal * finish);
+  }
+  if (glitter > 0.0) {
+    seen = mix(seen, WHITE, 0.8 * flecks(vLocal * 34.0) * glitter * finish);
+  }
+  outColor = vec4(seen, 1.0);
   outData = vec4(part / 16.0, wobble(vLocal), deep, 1.0);
 }
 `;
+
+/** No finish to begin with – a material's own, `setFinish` changes it. */
+const finishUniforms = () => ({ metal: { value: 0 }, glitter: { value: 0 } });
+
+/**
+ * The finish of a special color (palette.ts) on a material – metal or
+ * glitter, or none: the plain cartoon colors. Only the ink wears it: the
+ * knob all over, the rubber on its raised parts.
+ */
+export const setFinish = (
+  material: Three.Material,
+  finish: Finish | undefined
+) => {
+  const { uniforms } = material as Three.ShaderMaterial;
+  if (!uniforms?.metal) return;
+  uniforms.metal.value = finish === "metal" ? 1 : 0;
+  uniforms.glitter.value = finish === "glitter" ? 1 : 0;
+};
 
 /**
  * A stamp part's material: its flat color (sRGB) and shade. The rubber's
@@ -208,6 +289,9 @@ export const toonMaterial = (
       shade: { value: vec(THREE, shaded(color)) },
       code: { value: CODE[part] },
       amount: inkState.amount,
+      time: inkState.time,
+      twinkle: inkState.twinkle,
+      ...finishUniforms(),
       ink: { value: new THREE.Vector3() },
       inkShade: { value: new THREE.Vector3() },
       ground: { value: new THREE.Vector3() },

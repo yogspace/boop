@@ -514,6 +514,7 @@ const de = {
       // The account's own switch, in its sheet – and a word there when this
       // device hears nothing.
       invited: "Wenn mich jemand zu einem Kalender einlädt",
+      gifts: "Wenn Boop mir einen Stempel schenkt",
       deviceOff:
         "Auf diesem Gerät sind Benachrichtigungen aus. Einschalten kannst du sie in den Einstellungen eines Kalenders.",
       // What the notifications say – in the device's language.
@@ -527,6 +528,11 @@ const de = {
       invitedBody: template(
         "{name} lädt dich zu „{calendar}“ ein.",
         (say) => (name: string, calendar: string) => say({ name, calendar })
+      ),
+      giftTitle: "Boop!",
+      giftBody: template(
+        "Boop hat dir einen Stempel geschenkt: „{name}“",
+        (say) => (name: string) => say({ name })
       ),
       changedTitle: "Boop!",
       // One kind of change by its name; several: `several`. {name} is who
@@ -611,7 +617,9 @@ const de = {
       untitled: "Stempel",
       by: template("Von {name}", (say) => (name: string) => say({ name })),
       shared: "Geteilt",
-      share: "Teilen",
+      // The section of a stamp's sheet: the calendars it is shared with,
+      // and the cards made of it.
+      sharedWith: "Geteilt mit",
       shareText:
         "Er bleibt dein Stempel. Wer in einem angekreuzten Kalender ist, darf auch damit stempeln.",
       shareNone:
@@ -625,6 +633,80 @@ const de = {
       delete: "Stempel löschen",
       deleteConfirm:
         "Diesen Stempel löschen? Auch seine Abdrücke verschwinden.",
+      // Where a stamp came from that one didn't draw (features/cards): a
+      // card someone sent, a gift from Boop – a giver without a name: none.
+      origin: template(
+        { named: "von {name}", unnamed: "geschenkt" },
+        (say) => (name: string) => (name ? say.named({ name }) : say.unnamed())
+      ),
+      // Sending one's own stamp as a card – a link to a page with it.
+      card: {
+        title: "Als Karte verschicken",
+        text: "Wer den Link bekommt, sieht deinen Stempel – und kann ihn mit einem Boop-Konto in die eigenen Stempel übernehmen. Deiner bleibt, wie er ist.",
+        message: "Ein paar Worte dazu (optional)",
+        messagePlaceholder: "Für deine Tage am Meer …",
+        create: "Karte erstellen",
+        share: "Karte teilen",
+        another: "Noch eine Karte",
+        offline: "Offline – Karten gibt es nur mit Verbindung.",
+        // The cards made of a stamp, as their giver sees them – and taking
+        // one back.
+        sent: "Karten",
+        sentNone: "Noch keine Karte verschickt.",
+        sentOffline:
+          "Offline – welche Karten unterwegs sind, siehst du mit Verbindung.",
+        takenBy: template(
+          {
+            some: "Übernommen von {names}",
+            none: "Noch von niemandem übernommen",
+          },
+          (say) => (names: string) =>
+            names ? say.some({ names }) : say.none()
+        ),
+        withdraw: "Zurückziehen",
+        withdrawConfirm:
+          "Diese Karte zurückziehen? Ihr Link führt dann ins Leere. Wer den Stempel schon übernommen hat, behält ihn.",
+        tooMany:
+          "Genug Karten für den Moment – versuch es in einer Stunde noch einmal.",
+        // What the phone's share sheet sends along with the link.
+        shareText: template(
+          {
+            named: "Ich schicke dir einen Stempel: „{name}“",
+            unnamed: "Ich schicke dir einen Stempel",
+          },
+          (say) => (name: string) =>
+            name ? say.named({ name }) : say.unnamed()
+        ),
+      },
+    },
+    // The shelf's order – kept on the device (features/app/shelf.ts).
+    shelf: {
+      order: "Ordnen",
+      newest: "Neueste zuerst",
+      person: "Nach Person",
+      mine: "Meine",
+      boop: "Boop",
+      gifted: "Geschenkt",
+    },
+    // A stamp that came to the account: a gift from Boop, a card taken
+    // after logging in (features/app/gifts.tsx).
+    arrival: {
+      giftTitle: "Boop schenkt dir einen Stempel",
+      giftText:
+        "Er gehört jetzt dir – in einer Farbe, die sonst niemand wählen kann.",
+      cardTitle: "Angekommen!",
+      cardText: template(
+        {
+          named: "Der Stempel von {name} ist jetzt in deinen Stempeln.",
+          unnamed: "Der Stempel ist jetzt in deinen Stempeln.",
+        },
+        (say) => (name: string) => (name ? say.named({ name }) : say.unnamed())
+      ),
+      goneTitle: "Karte nicht mehr da",
+      goneText:
+        "Die Karte, die du vor dem Anmelden geöffnet hast, gibt es nicht mehr – ihr Stempel ließ sich nicht übernehmen.",
+      toShelf: "Zum Regal",
+      close: "Schließen",
     },
     account: "Konto",
     accountSheet: {
@@ -688,6 +770,33 @@ const de = {
       },
       (say) => (n: number) => (n === 1 ? say.one() : say.many({ n }))
     ),
+  },
+  // A card's page – a stamp someone sent (features/cards/ui).
+  card: {
+    title: template(
+      {
+        named: "{name} schickt dir einen Stempel",
+        unnamed: "Ein Stempel für dich",
+      },
+      (say) => (name: string) => (name ? say.named({ name }) : say.unnamed())
+    ),
+    description:
+      "Übernimm ihn in deine Stempel und boop ihn auf deine Tage – mit Boop, dem Doodle-Stempelkalender.",
+    take: "In meine Stempel",
+    taken: "Schon in deinen Stempeln",
+    mine: "Deine Karte",
+    mineText:
+      "So sieht sie für alle aus, die den Link bekommen. Schick ihn weiter, wem du magst.",
+    copy: "Link kopieren",
+    copied: "Kopiert!",
+    login: "Anmelden und übernehmen",
+    signedOut:
+      "Mit einem kostenlosen Boop-Konto übernimmst du ihn in deine Stempel und boopst ihn auf deine Tage.",
+    goneTitle: "Diese Karte gibt es nicht (mehr)",
+    goneText:
+      "Vielleicht wurde der Stempel gelöscht – oder der Link ist nicht ganz vollständig. Frag einfach nach einer neuen Karte.",
+    home: "Zu Boop",
+    offline: "Du bist offline – die Karte kommt, sobald du wieder Netz hast.",
   },
   // The contact form in the imprint (features/legal/contact-form.tsx).
   contact: {
@@ -1205,6 +1314,7 @@ const en: Shape<typeof de> = {
       time: "Reminder at",
       timeHint: "For all your calendars – on your device's clock.",
       invited: "When someone invites me to a calendar",
+      gifts: "When Boop gives me a stamp",
       deviceOff:
         "Notifications are off on this device. You can turn them on in a calendar's settings.",
       someone: "Someone",
@@ -1212,6 +1322,8 @@ const en: Shape<typeof de> = {
       stampedBody: "{name} stamped in “{calendar}”.",
       invitedTitle: "Boop!",
       invitedBody: "{name} invited you to “{calendar}”.",
+      giftTitle: "Boop!",
+      giftBody: "Boop gave you a stamp: “{name}”",
       changedTitle: "Boop!",
       changedBody: {
         note: "{name} wrote a note in “{calendar}”.",
@@ -1259,7 +1371,7 @@ const en: Shape<typeof de> = {
       untitled: "Stamp",
       by: "By {name}",
       shared: "Shared",
-      share: "Share",
+      sharedWith: "Shared with",
       shareText:
         "It stays your stamp. Everyone in a calendar you tick may stamp with it too.",
       shareNone:
@@ -1269,6 +1381,54 @@ const en: Shape<typeof de> = {
       hint: "{mm} mm wide, with “boop” on its back. It stands on its stamp face, knob up – only bigger hollows need supports from the bed. The face is mirrored, so your print comes out the right way round.",
       delete: "Delete stamp",
       deleteConfirm: "Delete this stamp? Its prints go too.",
+      origin: { named: "from {name}", unnamed: "a gift" },
+      card: {
+        title: "Send as a card",
+        text: "Whoever gets the link sees your stamp – and with a Boop account can take it into their own stamps. Yours stays as it is.",
+        message: "A few words with it (optional)",
+        messagePlaceholder: "For your days by the sea …",
+        create: "Make the card",
+        share: "Share the card",
+        another: "Another card",
+        offline: "Offline – cards need a connection.",
+        sent: "Cards",
+        sentNone: "No card sent yet.",
+        sentOffline: "Offline – the cards on their way show with a connection.",
+        takenBy: {
+          some: "Taken by {names}",
+          none: "Not taken by anyone yet",
+        },
+        withdraw: "Take back",
+        withdrawConfirm:
+          "Take this card back? Its link leads nowhere then. Whoever took the stamp already keeps it.",
+        tooMany: "Enough cards for now – try again in an hour.",
+        shareText: {
+          named: "I'm sending you a stamp: “{name}”",
+          unnamed: "I'm sending you a stamp",
+        },
+      },
+    },
+    shelf: {
+      order: "Order",
+      newest: "Newest first",
+      person: "By person",
+      mine: "Mine",
+      boop: "Boop",
+      gifted: "Gifts",
+    },
+    arrival: {
+      giftTitle: "Boop gives you a stamp",
+      giftText: "It's yours now – in a color nobody else can pick.",
+      cardTitle: "It's here!",
+      cardText: {
+        named: "The stamp from {name} is in your stamps now.",
+        unnamed: "The stamp is in your stamps now.",
+      },
+      goneTitle: "Card no longer there",
+      goneText:
+        "The card you opened before logging in is gone – its stamp couldn't be taken.",
+      toShelf: "To the shelf",
+      close: "Close",
     },
     account: "Account",
     accountSheet: {
@@ -1315,6 +1475,29 @@ const en: Shape<typeof de> = {
       one: "1 change isn't synced yet and will be lost when you log out.",
       many: "{n} changes aren't synced yet and will be lost when you log out.",
     },
+  },
+  card: {
+    title: {
+      named: "{name} is sending you a stamp",
+      unnamed: "A stamp for you",
+    },
+    description:
+      "Take it into your stamps and boop it onto your days – with Boop, the doodle stamp calendar.",
+    take: "Add to my stamps",
+    taken: "Already in your stamps",
+    mine: "Your card",
+    mineText:
+      "This is how everyone with the link sees it. Pass it on to whoever you like.",
+    copy: "Copy link",
+    copied: "Copied!",
+    login: "Log in and take it",
+    signedOut:
+      "With a free Boop account you take it into your stamps and boop it onto your days.",
+    goneTitle: "This card doesn't exist (anymore)",
+    goneText:
+      "Maybe the stamp was deleted – or the link isn't quite complete. Just ask for a new card.",
+    home: "To Boop",
+    offline: "You're offline – the card comes as soon as you're back online.",
   },
   contact: {
     intro:

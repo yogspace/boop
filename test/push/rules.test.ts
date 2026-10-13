@@ -12,6 +12,9 @@ import {
   createBundle,
   createThrottle,
   enteredIn,
+  giftMessage,
+  giftsOf,
+  giftTargets,
   invitedMessage,
   invitedOf,
   invitedTargets,
@@ -33,6 +36,7 @@ import {
   stampedMessage,
   stampedTargets,
   switchesOf,
+  withGifts,
   withInvited,
   withSwitch,
 } from "../../src/features/push/rules";
@@ -279,6 +283,18 @@ describe("the account's own switch", () => {
     expect(withInvited({ reminderAt: "07:15" })).toBeNull();
     expect(withInvited(null)).toBeNull();
   });
+
+  it("has a second one for Boop's gifts – the same way, apart from it", () => {
+    expect(giftsOf(null)).toBe(true);
+    expect(giftsOf({ invited: false })).toBe(true);
+    expect(giftsOf({ gifts: null })).toBe(true);
+    expect(giftsOf({ gifts: false })).toBe(false);
+    expect(invitedOf({ gifts: false })).toBe(true);
+    expect(withGifts(null, false)).toBe(false);
+    expect(withGifts({ gifts: false }, true)).toBeNull();
+    expect(withGifts({ gifts: false })).toBe(false);
+    expect(withGifts({ invited: false })).toBeNull();
+  });
 });
 
 describe("a device's login", () => {
@@ -368,6 +384,36 @@ describe("who hears that someone stamped", () => {
         now: EVENING,
       })
     ).toEqual([]);
+  });
+});
+
+describe("who hears of a gift from Boop", () => {
+  const devices = [
+    device("anna-phone", ANNA),
+    device("ben-phone", BEN),
+    device("ben-old", BEN, { session: "logged-out" }),
+    device("carl-phone", CARL, { locale: "en" }),
+  ];
+  const sessions = {
+    [ANNA]: loggedIn(ANNA),
+    [BEN]: loggedIn(BEN),
+    [CARL]: loggedIn(CARL),
+  };
+  const targets = (settings: Parameters<typeof giftTargets>[0]["settings"]) =>
+    giftTargets({ devices, settings, sessions, now: EVENING }).map((d) => d.id);
+
+  it("is everyone who got it, on the devices they are logged in on", () => {
+    expect(targets({})).toEqual(["anna-phone", "ben-phone", "carl-phone"]);
+  });
+
+  it("is not who switched it off – whatever else they hear of", () => {
+    expect(
+      targets({
+        [ANNA]: { gifts: false },
+        [BEN]: { invited: false },
+        [CARL]: { gifts: null },
+      })
+    ).toEqual(["ben-phone", "carl-phone"]);
   });
 });
 
@@ -643,6 +689,21 @@ describe("what a notification says", () => {
         calendar: { id: FAMILY, name: "Family" },
       }).body
     ).toBe("Someone invited you to “Family”.");
+  });
+
+  it("tells of a gift by its name – and leads to the app", () => {
+    expect(giftMessage("de", { gift: "gift-1", name: "Kürbis" })).toEqual({
+      title: "Boop!",
+      body: "Boop hat dir einen Stempel geschenkt: „Kürbis“",
+      url: "/de/app",
+      tag: "gift-gift-1",
+    });
+    expect(giftMessage("en", { gift: "gift-1", name: "Pumpkin" })).toEqual({
+      title: "Boop!",
+      body: "Boop gave you a stamp: “Pumpkin”",
+      url: "/en/app",
+      tag: "gift-gift-1",
+    });
   });
 
   it("names the calendars still waiting, and leads to the first", () => {

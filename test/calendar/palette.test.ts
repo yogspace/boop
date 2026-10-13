@@ -9,6 +9,7 @@ import {
   isColorKey,
   knownKey,
   nextKey,
+  pickable,
   setPalette,
 } from "../../src/features/calendar/palette";
 
@@ -23,6 +24,8 @@ describe("the stamp colors", () => {
       "sky",
       "grape",
       "pink",
+      "gold",
+      "glitter",
     ]);
     expect(hexOf("mint")).toBe("#22c993");
     expect(colorName("mint", "de")).toBe("Minze");
@@ -62,6 +65,40 @@ describe("the stamp colors", () => {
       { key: "bare", hex: "#000000", name: { de: "bare", en: "bare" } },
     ]);
     expect(cleanPalette("nothing")).toEqual([]);
+  });
+
+  it("keeps what makes a color special – only as it should be", () => {
+    expect(
+      cleanPalette([
+        { key: "gold", hex: "#d4a72c", special: true, finish: "metal" },
+        { key: "moss", hex: "#335533", special: false, finish: "matte" },
+        { key: "fog", hex: "#cccccc", special: "yes", finish: "glitter" },
+      ]).map(({ key, special, finish }) => ({ key, special, finish }))
+    ).toEqual([
+      { key: "gold", special: true, finish: "metal" },
+      { key: "moss", special: undefined, finish: undefined },
+      { key: "fog", special: undefined, finish: "glitter" },
+    ]);
+  });
+
+  it("lets anyone pick the public colors – an admin all of them", () => {
+    const keys = (colors: readonly { key: string }[]) =>
+      colors.map((color) => color.key);
+    expect(keys(pickable(DEFAULT_PALETTE))).toEqual([
+      "red",
+      "coral",
+      "sun",
+      "mint",
+      "sky",
+      "grape",
+      "pink",
+    ]);
+    expect(keys(pickable(DEFAULT_PALETTE, { admin: false }))).not.toContain(
+      "gold"
+    );
+    expect(keys(pickable(DEFAULT_PALETTE, { admin: true }))).toEqual(
+      keys(DEFAULT_PALETTE)
+    );
   });
 
   it("ignores a palette with nothing usable", () => {
@@ -118,5 +155,13 @@ describe("the stamp colors", () => {
     expect(nextKey([], one)).toBe("moss");
     expect(nextKey(["moss", "moss"], one)).toBe("moss");
     expect(nextKey(["x"], [])).toBe("coral");
+    // A special color takes no turn – not even as the only one left.
+    const withGold = cleanPalette([
+      { key: "moss", hex: "#335533" },
+      { key: "gold", hex: "#d4a72c", special: true },
+      { key: "mint", hex: "#22c993" },
+    ]);
+    expect(nextKey([], withGold)).toBe("mint");
+    expect(nextKey(["mint"], withGold)).toBe("mint");
   });
 });

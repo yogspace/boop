@@ -16,8 +16,8 @@ import {
  *   its clock's zone and language. Tied to the login it was switched on in
  *   (rules.ts, `loginLasts`).
  * - `push-settings`: what an account wants to hear of – its reminder's time,
- *   whether to hear when someone invites it to a calendar and, per calendar,
- *   the switches it flipped. One per account, apart from the account
+ *   whether to hear when someone invites it to a calendar or Boop gives it
+ *   a stamp and, per calendar, the switches it flipped. One per account, apart from the account
  *   itself: the app reads and writes it through its own endpoints
  *   (endpoints.ts), and nothing of it rides along with the login.
  *
@@ -131,9 +131,9 @@ export const PushSettings: CollectionConfig = {
     hidden: hiddenUnlessSupport,
     group: "People",
     useAsTitle: "reminderAt",
-    defaultColumns: ["account", "reminderAt", "invited", "updatedAt"],
+    defaultColumns: ["account", "reminderAt", "invited", "gifts", "updatedAt"],
     description:
-      "What an account wants to hear of. “Someone invites me to a calendar” is on until switched off. A calendar not listed is as by default: the reminder and “someone else stamped” on, “someone else changed something” off.",
+      "What an account wants to hear of. “Someone invites me to a calendar” and “Boop gives me a stamp” are on until switched off. A calendar not listed is as by default: the reminder and “someone else stamped” on, “someone else changed something” off.",
   },
   fields: [
     {
@@ -159,6 +159,12 @@ export const PushSettings: CollectionConfig = {
       // them. On until switched off: only an off is kept (rules.ts,
       // `withInvited`), and whatever else is there reads as on – here too.
       name: "invited",
+      type: "checkbox",
+      hooks: { afterRead: [({ value }) => value !== false] },
+    },
+    {
+      // “Boop gives me a stamp” (features/cards) – the same way.
+      name: "gifts",
       type: "checkbox",
       hooks: { afterRead: [({ value }) => value !== false] },
     },
