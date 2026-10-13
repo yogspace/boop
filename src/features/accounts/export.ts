@@ -322,7 +322,9 @@ export const collectExport = async (
   const invitedTo = invites.filter((invite) => invite.email === email);
   const invitingCalendars = invitedTo.length
     ? await find("calendars", {
-        id: { in: [...new Set(invitedTo.map((invite) => ref(invite.calendar)))] },
+        id: {
+          in: [...new Set(invitedTo.map((invite) => ref(invite.calendar)))],
+        },
       })
     : [];
   const [pushSettings] = await find("push-settings", {

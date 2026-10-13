@@ -19,12 +19,14 @@ import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { NameForm } from "./dialogs";
+import { InvitationList } from "./invitations";
 import { Sheet } from "./sheet";
 
 /**
- * One's own account – opened from the account's menu (boop-app.tsx): its
- * name, its address (`Address`), what is stored about it, and the ways out
- * (the data as a file, deleting it). All need a connection: the server has
+ * One's own account – opened from the account's menu (boop-app.tsx): the
+ * invitations waiting for an answer, if any (invitations.tsx), its name,
+ * its address (`Address`), what is stored about it, and the ways out (the
+ * data as a file, deleting it). All need a connection: the server has
  * the data, and the last word. Where an admin ticked the account's box in
  * the CMS, a link leads there – a shortcut and no more: the CMS asks for
  * its own login.
@@ -105,6 +107,7 @@ export const AccountSheet = ({
 
   return (
     <Sheet onClose={onClose} title={text.title}>
+      <InvitationList locale={locale} />
       <div className="flex flex-col gap-2">
         <NameForm
           label={text.name}

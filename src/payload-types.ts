@@ -1250,10 +1250,6 @@ export interface Translation {
        */
       until?: string | null;
       /**
-       * DE: Einladung annehmen  ·  EN: Accept invitation
-       */
-      accept?: string | null;
-      /**
        * DE: Erstell ein kostenloses Konto oder melde dich an – dann bist du dabei.  ·  EN: Create a free account or log in – and you're in.
        */
       account?: string | null;
@@ -2985,7 +2981,6 @@ export interface TranslationsSelect<T extends boolean = true> {
               title?: T;
               text?: T;
               until?: T;
-              accept?: T;
               account?: T;
               expiredTitle?: T;
               expired?:

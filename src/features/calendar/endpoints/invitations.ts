@@ -1,5 +1,8 @@
 import type { Endpoint, PayloadRequest } from "payload";
-import { type SessionAccount, sessionAccount } from "@/features/accounts/session";
+import {
+  type SessionAccount,
+  sessionAccount,
+} from "@/features/accounts/session";
 import { nudge } from "@/features/sync/live";
 import type { InvitationDoc } from "@/features/sync/protocol";
 import { inviteEnd, inviteExpired } from "../invite-expiry";
@@ -45,7 +48,12 @@ export const invitationsOf = async (
   const { docs } = await req.payload.find({
     collection: "invites",
     where: { email: { equals: email } },
-    select: { calendar: true, invitedBy: true, createdAt: true, expiresAt: true },
+    select: {
+      calendar: true,
+      invitedBy: true,
+      createdAt: true,
+      expiresAt: true,
+    },
     depth: 0,
     pagination: false,
     overrideAccess: true,
@@ -57,9 +65,7 @@ export const invitationsOf = async (
   if (!open.length) return [];
 
   const byId = (found: { docs: unknown[] }) =>
-    new Map(
-      (found.docs as Doc[]).map((doc) => [String(doc.id), doc] as const)
-    );
+    new Map((found.docs as Doc[]).map((doc) => [String(doc.id), doc] as const));
   const [calendars, senders] = await Promise.all([
     req.payload
       .find({

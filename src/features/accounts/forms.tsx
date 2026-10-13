@@ -671,9 +671,7 @@ export const InvitePanel = ({ locale }: { locale: Locale }) => {
         {t.auth.invite.text(invite.from, invite.calendar)}
       </p>
       {account ? (
-        <p className="-mt-3 font-medium text-muted text-sm">
-          {t.auth.working}
-        </p>
+        <p className="-mt-3 font-medium text-muted text-sm">{t.auth.working}</p>
       ) : (
         <>
           {invite.until && (

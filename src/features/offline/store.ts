@@ -773,7 +773,7 @@ const isGone = (response: Response) =>
  * Says yes to an invitation – a member of its calendar from now on. The
  * calendar comes with the sync: once it is on the device, its id comes
  * back. “gone”: the invitation is no more (taken back, over, the calendar
- * deleted) – it leaves the device too.
+ * deleted) – the sync takes it off the device, while whoever asked says so.
  */
 export const acceptInvitation = async (
   id: string
@@ -782,7 +782,6 @@ export const acceptInvitation = async (
 > => {
   const response = await answer(id, "accept");
   if (response && isGone(response)) {
-    await dropInvitation(id);
     void sync();
     return { ok: false, reason: "gone" };
   }
