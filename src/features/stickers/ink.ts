@@ -183,10 +183,10 @@ float flecks(vec3 p) {
   vec3 at = 0.5 + 0.2 * (vec3(hash(cell + 1.7), hash(cell + 3.1), hash(cell + 5.3)) - 0.5);
   vec3 off = abs(fract(p) - at);
   float d = off.x + off.y + off.z;
-  float r = 0.24 + 0.14 * hash(cell + 7.9);
+  float r = 0.3 + 0.16 * hash(cell + 7.9);
   float aa = 0.7 * length(fwidth(p));
   float beat = 0.55 + 0.45 * sin(time * (1.6 + 2.4 * h) + h * 40.0);
-  return step(0.7, h) * (1.0 - smoothstep(r - aa, r + aa, d)) * mix(0.85, beat, twinkle);
+  return step(0.5, h) * (1.0 - smoothstep(r - aa, r + aa, d)) * mix(0.9, beat, twinkle);
 }
 
 void main() {
@@ -238,7 +238,11 @@ void main() {
   if (glitter > 0.0) {
     // Half a cell off: the face (z = 0) lies in the middle of a layer of
     // cells, not on the border between two.
-    seen = mix(seen, WHITE, 0.85 * flecks(vLocal * 13.0 + 0.5) * glitter * finish);
+    // Two sizes of it: a fine dust, and fewer big flakes over it – seen
+    // from across the shelf, too.
+    float dust = flecks(vLocal * 11.0 + 0.5);
+    float flakes = flecks(vLocal * 5.5 + 0.5 + 17.0);
+    seen = mix(seen, WHITE, 0.95 * max(dust, flakes) * glitter * finish);
   }
   outColor = vec4(seen, 1.0);
   outData = vec4(part / 16.0, wobble(vLocal), deep, 1.0);

@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { Bang, Dot, Mail } from "@/components/doodles";
 import { LocaleSwitch } from "@/components/locale-switch";
 import { Button, buttonClass, Field, Notice } from "@/components/ui";
@@ -22,6 +22,7 @@ import { cn } from "@/lib/cn";
 import { NameForm } from "./dialogs";
 import { InvitationList } from "./invitations";
 import { Sheet } from "./sheet";
+import { SyncStatus } from "./sync-badge";
 
 /**
  * One's own account – opened from the account's menu (boop-app.tsx): the
@@ -113,132 +114,163 @@ export const AccountSheet = ({
 
   return (
     <Sheet onClose={onClose} title={text.title}>
-      <InvitationList locale={locale} />
-      <div className="flex flex-col gap-2">
-        <NameForm
-          label={text.name}
-          maxLength={40}
-          name={me?.name ?? ""}
-          onSave={(name) => void saveName(name)}
-          required
-          save={t.app.save}
-        />
-        {nameError && <Notice tone="error">{nameError}</Notice>}
-        <Address locale={locale} />
-        {/* The app's language – here, not in the bar: it is rarely changed. */}
-        <p className="flex items-center gap-3 font-medium text-muted text-sm">
-          {text.language}
-          <LocaleSwitch hrefOf={addressIn} locale={locale} onPick={onLocale} />
-        </p>
-        {/* In a tab of its own: the app stays open, with what waits in it. */}
-        {me?.admin && (
-          <a
-            className={cn(
-              buttonClass({ variant: "plain", size: "sm" }),
-              "self-start"
-            )}
-            href="/admin"
-            rel="noopener"
-            target="_blank"
+      {/* Part by part, a line between them – room to find things. */}
+      <div className="flex flex-col gap-6 pt-1">
+        <InvitationList locale={locale} />
+
+        <Part title={text.profile}>
+          <NameForm
+            label={text.name}
+            maxLength={40}
+            name={me?.name ?? ""}
+            onSave={(name) => void saveName(name)}
+            required
+            save={t.app.save}
+          />
+          {nameError && <Notice tone="error">{nameError}</Notice>}
+          <Address locale={locale} />
+          {!online && <Notice>{t.auth.offline}</Notice>}
+        </Part>
+
+        <span aria-hidden="true" className="scribble-rule" />
+        {/* The app on this device: its language (rarely changed – so here,
+            not in the bar) and how it stands with the server. */}
+        <Part title={text.device}>
+          <div className="flex items-center justify-between gap-4">
+            <p className="font-bold">{text.language}</p>
+            <LocaleSwitch
+              className="text-base"
+              hrefOf={addressIn}
+              locale={locale}
+              onPick={onLocale}
+            />
+          </div>
+          <SyncStatus locale={locale} />
+          {/* In a tab of its own: the app stays open, with what waits in it. */}
+          {me?.admin && (
+            <a
+              className={cn(
+                buttonClass({ variant: "plain", size: "sm" }),
+                "self-start"
+              )}
+              href="/admin"
+              rel="noopener"
+              target="_blank"
+            >
+              {text.cms}
+            </a>
+          )}
+        </Part>
+
+        {/* What the whole account hears of – an invitation, a gift (push).
+            Nothing where notifications are off on the server: then its line
+            goes too. */}
+        <div className="hidden flex-col gap-6 has-[h3]:flex">
+          <span aria-hidden="true" className="scribble-rule" />
+          <AccountNotifications locale={locale} />
+        </div>
+
+        <span aria-hidden="true" className="scribble-rule" />
+        <Part title={text.exportTitle}>
+          <p className="font-medium text-muted text-sm">
+            {text.stored}{" "}
+            <Link
+              className="font-bold text-ink underline decoration-2 underline-offset-4 hover:decoration-[3px]"
+              href={legalPath(locale)}
+            >
+              {text.privacy}
+            </Link>
+          </p>
+          <p className="font-medium text-muted text-sm">{text.exportText}</p>
+          <Button
+            className="self-start"
+            disabled={Boolean(busy) || !online}
+            onClick={download}
+            size="sm"
+            variant="plain"
           >
-            {text.cms}
-          </a>
+            {busy === "export" ? t.auth.working : text.export}
+          </Button>
+          {exportFailed && <Notice tone="error">{text.exportFailed}</Notice>}
+        </Part>
+
+        <span aria-hidden="true" className="scribble-rule" />
+        {sure ? (
+          // Watch out: a thick frame and an exclamation mark, like an error.
+          <form
+            className="scribble scribble-bold flex animate-fade flex-col gap-3 rounded-2xl p-4"
+            onSubmit={remove}
+          >
+            <p className="flex items-start gap-2.5 font-bold">
+              <Bang className="h-6 w-6 shrink-0" />
+              {text.deleteLead}
+            </p>
+            <ul className="flex flex-col gap-1.5 font-medium text-sm">
+              {text.deleteGone.map((line) => (
+                <li className="flex items-start gap-2.5" key={line}>
+                  {/* A marker dot under the exclamation mark, on the first line. */}
+                  <span className="flex h-5 w-6 shrink-0 items-center justify-center">
+                    <Dot className="h-2 w-2" />
+                  </span>
+                  {line}
+                </li>
+              ))}
+            </ul>
+            <p className="font-medium text-muted text-sm">{text.deleteTip}</p>
+            <Field
+              autoComplete="current-password"
+              label={text.password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              type="password"
+              value={password}
+            />
+            {error && <Notice tone="error">{error}</Notice>}
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                disabled={Boolean(busy)}
+                onClick={() => {
+                  setSure(false);
+                  setPassword("");
+                  setError(null);
+                }}
+                size="sm"
+                variant="ghost"
+              >
+                {t.app.draw.cancel}
+              </Button>
+              <Button
+                disabled={Boolean(busy) || !online || !password}
+                size="sm"
+                type="submit"
+                variant="danger"
+              >
+                {busy === "delete" ? t.auth.working : text.deleteForGood}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <Button
+            className="self-start"
+            onClick={() => setSure(true)}
+            size="sm"
+            variant="danger"
+          >
+            {text.delete}
+          </Button>
         )}
       </div>
-      <p className="font-medium text-muted text-sm">
-        {text.stored}{" "}
-        <Link
-          className="font-bold text-ink underline decoration-2 underline-offset-4 hover:decoration-[3px]"
-          href={legalPath(locale)}
-        >
-          {text.privacy}
-        </Link>
-      </p>
-      {!online && <Notice>{t.auth.offline}</Notice>}
-
-      {/* What the whole account hears of – an invitation (push). */}
-      <AccountNotifications locale={locale} />
-
-      <div className="flex flex-col gap-2">
-        <h3 className="font-black text-lg">{text.exportTitle}</h3>
-        <p className="font-medium text-muted text-sm">{text.exportText}</p>
-        <Button
-          disabled={Boolean(busy) || !online}
-          onClick={download}
-          variant="plain"
-        >
-          {busy === "export" ? t.auth.working : text.export}
-        </Button>
-        {exportFailed && <Notice tone="error">{text.exportFailed}</Notice>}
-      </div>
-
-      {sure ? (
-        // Watch out: a thick frame and an exclamation mark, like an error.
-        <form
-          className="scribble scribble-bold flex animate-fade flex-col gap-3 rounded-2xl p-4"
-          onSubmit={remove}
-        >
-          <p className="flex items-start gap-2.5 font-bold">
-            <Bang className="h-6 w-6 shrink-0" />
-            {text.deleteLead}
-          </p>
-          <ul className="flex flex-col gap-1.5 font-medium text-sm">
-            {text.deleteGone.map((line) => (
-              <li className="flex items-start gap-2.5" key={line}>
-                {/* A marker dot under the exclamation mark, on the first line. */}
-                <span className="flex h-5 w-6 shrink-0 items-center justify-center">
-                  <Dot className="h-2 w-2" />
-                </span>
-                {line}
-              </li>
-            ))}
-          </ul>
-          <p className="font-medium text-muted text-sm">{text.deleteTip}</p>
-          <Field
-            autoComplete="current-password"
-            label={text.password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-            type="password"
-            value={password}
-          />
-          {error && <Notice tone="error">{error}</Notice>}
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              disabled={Boolean(busy)}
-              onClick={() => {
-                setSure(false);
-                setPassword("");
-                setError(null);
-              }}
-              size="sm"
-              variant="ghost"
-            >
-              {t.app.draw.cancel}
-            </Button>
-            <Button
-              disabled={Boolean(busy) || !online || !password}
-              size="sm"
-              type="submit"
-              variant="danger"
-            >
-              {busy === "delete" ? t.auth.working : text.deleteForGood}
-            </Button>
-          </div>
-        </form>
-      ) : (
-        <Button
-          className="self-start"
-          onClick={() => setSure(true)}
-          size="sm"
-          variant="danger"
-        >
-          {text.delete}
-        </Button>
-      )}
     </Sheet>
   );
 };
+
+/** One of the sheet's parts, under its heading. */
+const Part = ({ title, children }: { title: string; children: ReactNode }) => (
+  <section className="flex flex-col gap-3">
+    <h3 className="font-black text-lg">{title}</h3>
+    {children}
+  </section>
+);
 
 /**
  * The account's address, and the way to a new one: the new address and the

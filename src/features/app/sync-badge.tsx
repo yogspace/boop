@@ -8,10 +8,10 @@ import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 
 /**
- * Online or not, and whether changes still wait – in the account's menu
- * (boop-app.tsx), not in the bar: there it was louder than it deserves. The
- * bar keeps only a sign on the account's button when there is something to
- * say (`SyncMark`); the menu says it in words, with a button to sync now
+ * Online or not, and whether changes still wait – in the account's sheet
+ * (account-sheet.tsx), not in the bar: there it was louder than it deserves.
+ * The bar keeps only a sign on the account's button when there is something
+ * to say (`SyncMark`); the sheet says it in words, with a button to sync now
  * (`SyncStatus`). The sign shares the button with the invitations waiting.
  */
 
@@ -82,34 +82,39 @@ export const SyncMark = ({ locale }: { locale: Locale }) => {
   );
 };
 
-/** In the account's menu: the state, what it means, and sync now. */
+/**
+ * In the account's sheet: the state and a button to sync now in one row,
+ * under them what it means and how syncing goes.
+ */
 export const SyncStatus = ({ locale }: { locale: Locale }) => {
   const { t, online, pending, state, label } = useSyncState(locale);
   return (
     <div className="flex flex-col gap-2">
-      <p className="flex items-center gap-2 font-bold text-sm">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center">
-          {!online ? (
-            <Cross className="h-4 w-4" />
-          ) : pending || state === "syncing" ? (
-            <Dot className="h-3 w-3 animate-pulse-dot" />
-          ) : (
-            <Check className="h-4.5 w-4.5" />
-          )}
-        </span>
-        {state === "offline" ? t.app.sync.offlineTitle : label}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <p className="flex items-center gap-2 font-bold">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+            {!online ? (
+              <Cross className="h-4 w-4" />
+            ) : pending || state === "syncing" ? (
+              <Dot className="h-3 w-3 animate-pulse-dot" />
+            ) : (
+              <Check className="h-4.5 w-4.5" />
+            )}
+          </span>
+          {state === "offline" ? t.app.sync.offlineTitle : label}
+        </p>
+        <Button
+          disabled={!online}
+          onClick={() => void sync()}
+          size="sm"
+          variant="plain"
+        >
+          {t.app.sync.now}
+        </Button>
+      </div>
+      <p className="font-medium text-muted text-sm">
+        {t.app.sync[state]} {t.app.sync.how}
       </p>
-      <p className="text-muted text-xs">{t.app.sync[state]}</p>
-      {/* Quieter than the account's own buttons below it. */}
-      <Button
-        className="-ml-2 self-start"
-        disabled={!online}
-        onClick={() => void sync()}
-        size="sm"
-        variant="ghost"
-      >
-        {t.app.sync.now}
-      </Button>
     </div>
   );
 };

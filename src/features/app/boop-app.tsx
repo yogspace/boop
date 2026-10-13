@@ -68,7 +68,7 @@ import {
 import { StampDrawer } from "./stamp-drawer";
 import { StampSheet } from "./stamp-sheet";
 import { SHELF_ID, StampShelf } from "./stamp-shelf";
-import { SyncMark, SyncStatus } from "./sync-badge";
+import { SyncMark } from "./sync-badge";
 import { TodayView } from "./today-view";
 import { useDismiss } from "./use-dismiss";
 import { ViewSwitch } from "./view-switch";
@@ -525,7 +525,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
               type="button"
             >
               {firstName.slice(0, 1).toUpperCase() || "?"}
-              {/* Changes waiting, or offline – the menu says more. */}
+              {/* Invitations, changes waiting, offline – the sheet says more. */}
               <SyncMark locale={locale} />
             </button>
             {/* Unfolds from the button, and folds back into it. */}
@@ -554,7 +554,6 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                       {boop.me?.email}
                     </p>
                   </div>
-                  <SyncStatus locale={locale} />
                   <Button
                     onClick={() => {
                       setMenu(false);

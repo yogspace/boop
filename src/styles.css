@@ -619,6 +619,13 @@
  * stamp's sheet says its name).
  */
 .name-tag {
+  /*
+   * Fixed, said out loud: the tag is a scribbled frame too, and that makes
+   * it `relative` – in the top layer that turns into `absolute`, hung from
+   * the page instead of the window. Chrome then puts it off by as far as
+   * the page is scrolled.
+   */
+  position: fixed;
   position-area: top;
   position-try-fallbacks: flip-block, --name-tag-right, --name-tag-left;
   inset: auto;

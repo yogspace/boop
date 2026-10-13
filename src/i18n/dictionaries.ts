@@ -711,6 +711,9 @@ const de = {
     account: "Konto",
     accountSheet: {
       title: "Konto",
+      // The sheet's parts, each under its own heading.
+      profile: "Profil",
+      device: "App",
       language: "Sprache",
       name: "Dein Name – so sehen dich die anderen",
       nameFailed:
@@ -1435,6 +1438,8 @@ const en: Shape<typeof de> = {
     account: "Account",
     accountSheet: {
       title: "Account",
+      profile: "Profile",
+      device: "App",
       language: "Language",
       name: "Your name – how the others see you",
       nameFailed: "The name couldn't be saved. Please try again.",
