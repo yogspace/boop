@@ -4,10 +4,13 @@ Stand: 13.10.2026
 
 ## Offen
 
-- **Nach dem Deploy im CMS**: Seeds → Translations (neue Texte) und
-  Seeds → „Imprint & privacy“ mit „Replace“ – die Vorlage beschreibt jetzt
-  Einladungen mit Zustimmung, Adresse ändern, „Admin“ / „Nie löschen“,
-  Einladungs-Push und den Export samt Einladungen an dich.
+- **Nach dem Deploy im CMS**:
+  - Seeds → Translations (neue Texte).
+  - Seeds → „Imprint & privacy“ mit „Replace“ – die Vorlage beschreibt jetzt
+    Einladungen mit Zustimmung, Adresse ändern, „Admin“ / „Nie löschen“,
+    Stempel-Karten, Geschenke von Boop und den Export.
+  - Site → Stamp colors: die Sonderfarben anlegen, „Public“ aus, „Finish“
+    setzen – z. B. Gold `#d4a72c` (metal), Glitzer `#c264d6` (glitter).
 - **Benachrichtigungen (Web Push)** – live: Schlüssel in GitHub, deployt,
   Cron für die Erinnerung eingetragen (alle 15 Minuten). Optional noch die
   Variable `VAPID_SUBJECT` (z. B. `mailto:…`). Fehlt nur noch:
@@ -88,6 +91,17 @@ Stand: 13.10.2026
   Kreuz ohne Netz. „Kalender löschen“ / „Konto löschen“ sind rot.
 - Sync-Stand jetzt im Kontomenü (mit „Jetzt abgleichen“); am Konto-Kreis
   nur eine Zahl, wenn etwas wartet, bzw. ein Kreuz ohne Netz.
+- Stempel-Karten (nie gegen den echten Server im Browser gesehen):
+  Stempel-Sheet → „Als Karte verschicken“, Link in einem Messenger
+  (Vorschaubild!), Kartenseite mit Tapete auf dem iPhone, abgemeldet
+  öffnen → anmelden → der Stempel liegt im Regal („von …“), „Geteilt mit“
+  zeigt, wer übernommen hat, „Zurückziehen“ macht den Link tot.
+- Geschenk von Boop: als Admin-Konto in Sonderfarbe zeichnen (Picker zeigt
+  sie nur dir), Karte machen, im CMS Content → Gifts Link einfügen, „Send
+  to everyone…“; Popup in der App, Push, Kästchen im Konto. Glitzer und
+  Metall in 3D ansehen (zwei Konstanten in `stickers/ink.ts`).
+- Regal: Umschalter „Neueste zuerst“ / „Nach Person“ (erscheint erst mit
+  Stempeln von anderen).
 - Einladung zwischen zwei Konten (lief nie gegen echtes Payload): Popup
   beim Öffnen der App, „Später“, Liste ganz oben im Konto, Annehmen springt
   in den Kalender, Ablehnen – beim Besitzer verschwindet sie aus
