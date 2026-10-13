@@ -1564,11 +1564,11 @@ export interface Translation {
        */
       upload?: string | null;
       /**
-       * DE: Invertiert (ausgeschnitten)  ·  EN: Inverted (cut out)
+       * DE: Invertiert  ·  EN: Inverted
        */
       inverted?: string | null;
       /**
-       * DE: Special – größer & glitzert  ·  EN: Special – bigger & sparkly
+       * DE: Special – glitzert  ·  EN: Special – sparkly
        */
       special?: string | null;
       /**

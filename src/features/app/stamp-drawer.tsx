@@ -23,7 +23,7 @@ import {
   type Stroke,
 } from "@/features/calendar/model";
 import { rimLine } from "@/features/calendar/outline";
-import { knownKey } from "@/features/calendar/palette";
+import { hexOf, knownKey } from "@/features/calendar/palette";
 import { usePalette } from "@/features/calendar/palette-provider";
 import { Glitter, ShapeOutline, StampSvg } from "@/features/calendar/stamp-svg";
 import { createStamp } from "@/features/offline/store";
@@ -146,6 +146,8 @@ export const StampDrawer = ({
 }) => {
   const t = dictionaryOf(locale);
   const area = useRef<HTMLDivElement>(null);
+  // The pen's tip over the stage, pointed at – moved without a render.
+  const tip = useRef<HTMLSpanElement>(null);
   const file = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<"draw" | "3d">("draw");
   const [history, setHistory] = useState<History>({
@@ -231,7 +233,33 @@ export const StampDrawer = ({
     ] as const;
   };
 
+  /**
+   * The pen's tip where the line would go – as wide as it draws, in the
+   * stamp's ink (paper on an inverted stamp, where lines are cut out). Kept
+   * on the drawing as the line is (`point`); nothing for a finger, which
+   * covers it anyway.
+   */
+  const showTip = (event: PointerEvent<HTMLDivElement>) => {
+    const el = tip.current;
+    const box = area.current?.getBoundingClientRect();
+    const p = point(event);
+    if (!(el && box && p)) return;
+    if (event.pointerType === "touch") {
+      el.style.opacity = "0";
+      return;
+    }
+    const at = (u: number, size: number) =>
+      INSET + ((u + 0.02) * (size - 2 * INSET)) / 1.04;
+    el.style.transform = `translate(${at(p[0], box.width)}px, ${at(p[1], box.height)}px) translate(-50%, -50%)`;
+    el.style.opacity = "1";
+  };
+
+  const hideTip = () => {
+    if (tip.current) tip.current.style.opacity = "0";
+  };
+
   const onDown = (event: PointerEvent<HTMLDivElement>) => {
+    showTip(event);
     const p = point(event);
     if (!p) return;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -246,6 +274,7 @@ export const StampDrawer = ({
   };
 
   const onMove = (event: PointerEvent<HTMLDivElement>) => {
+    showTip(event);
     if (!drawing.current) return;
     const p = point(event);
     if (!p) return;
@@ -407,11 +436,19 @@ export const StampDrawer = ({
           className={cn(
             STAGE,
             "touch-none md:col-start-1 md:row-span-2 md:row-start-1",
-            draws && "cursor-crosshair"
+            // The tip shows where the pen is – no arrow on top of it.
+            draws && "cursor-none"
           )}
           onPointerCancel={draws ? stop : undefined}
           onPointerDown={draws ? onDown : undefined}
-          onPointerLeave={draws ? stop : undefined}
+          onPointerLeave={
+            draws
+              ? () => {
+                  stop();
+                  hideTip();
+                }
+              : undefined
+          }
           onPointerMove={draws ? onMove : undefined}
           onPointerUp={draws ? stop : undefined}
           ref={area}
@@ -427,6 +464,17 @@ export const StampDrawer = ({
             filled
             shape={shape}
           />
+          {draws && (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute top-0 left-0 aspect-square rounded-full opacity-0 ring-1 ring-ink/50 transition-opacity duration-100"
+              ref={tip}
+              style={{
+                width: `calc((100% - ${2 * INSET}px) * ${WIDTHS[width] / 1.04})`,
+                background: inverted ? "#ffffff" : hexOf(color),
+              }}
+            />
+          )}
           {draws && special && !empty && (
             // A taste of what its prints will do.
             <span className="pointer-events-none absolute inset-3 animate-fade">
