@@ -97,9 +97,15 @@ Stand: 13.10.2026
   öffnen → anmelden → der Stempel liegt im Regal („von …“), „Geteilt mit“
   zeigt, wer übernommen hat, „Zurückziehen“ macht den Link tot.
 - Geschenk von Boop: als Admin-Konto in Sonderfarbe zeichnen (Picker zeigt
-  sie nur dir), Karte machen, im CMS Content → Gifts Link einfügen, „Send
-  to everyone…“; Popup in der App, Push, Kästchen im Konto. Glitzer und
-  Metall in 3D ansehen (zwei Konstanten in `stickers/ink.ts`).
+  sie nur dir), im Stempel-Sheet „Geschenk von Boop“ → „An alle
+  verschicken“ → „Ja, an alle“ (nie im Browser gesehen); Popup in der App,
+  Push, Kästchen im Konto; im CMS steht es danach unter Content → Gifts.
+  Der Weg über Karten-Link im CMS geht weiter. Glitzer und Metall in 3D
+  ansehen (`stickers/ink.ts`).
+- Namensschild beim Hover in Chrome, mit gescrollter Seite: sitzt es wieder
+  direkt über dem Stempel? (War um die Scroll-Strecke nach oben verrutscht.)
+- Konto-Sheet in Abschnitten (Profil, App mit Sprache und Abgleich,
+  Benachrichtigungen, Deine Daten); das Menü am Konto-Kreis ist kurz.
 - Kartenseite: ein Knopf „In meine Stempel“ (abgemeldet: erst danach
   Anmelden / Konto erstellen), darunter „Für den 3D-Drucker (STL)“. Im
   Stempel-Sheet bei jeder Karte „Ansehen“. Sprachwahl nur noch im

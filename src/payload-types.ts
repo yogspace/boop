@@ -165,7 +165,7 @@ export interface Account {
   locale: 'de' | 'en';
   password?: string | null;
   /**
-   * Shows this person a link “Open CMS” in the app's account sheet, and lets them pick the stamp colors that aren't public (Site → Stamp colors) – to draw Boop's gifts. Nothing more: the CMS still asks for its own login (Users), and an account never gets into it.
+   * Shows this person a link “Open CMS” in the app's account sheet, lets them pick the stamp colors that aren't public (Site → Stamp colors) and send a stamp they drew to every account, as a gift from Boop. Nothing more: the CMS still asks for its own login (Users), and an account never gets into it.
    */
   admin?: boolean | null;
   /**
@@ -438,7 +438,7 @@ export interface CalendarFeed {
   createdAt: string;
 }
 /**
- * Stamps from Boop for everyone. Draw it in the app (an account with the “Admin” box can pick the colors that aren't public), send it as a card, paste the card's link here – then “Send to everyone”. Everyone with a confirmed address gets a copy of their own, sees it in the app and – if they want – as a notification. No mail.
+ * Stamps from Boop for everyone – each account with a confirmed address gets a copy of its own, sees it in the app and, if it wants, as a notification. No mail. The short way: in the app, an account with the “Admin” box opens a stamp it drew and sends it to everyone; it then shows up here. From here: draw the stamp in the app, send it as a card, paste the card's link into a new gift – then “Send to everyone”.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "gifts".
@@ -454,9 +454,9 @@ export interface Gift {
    */
   message?: string | null;
   /**
-   * The card's link (or its id) – the stamp's shape and drawing come from it, once, when saved.
+   * The card's link (or its id) – the stamp's shape and drawing come from it, once, when saved. Empty only for a gift sent straight from the app: that one brought its drawing along.
    */
-  card: string;
+  card?: string | null;
   /**
    * Empty: the card's color.
    */
@@ -2577,7 +2577,7 @@ export interface Translation {
          */
         message?: string | null;
         /**
-         * DE: Für deine Tage am Meer …  ·  EN: For your days by the sea …
+         * DE: Hab dir was gezeichnet …  ·  EN: Drew something for you …
          */
         messagePlaceholder?: string | null;
         /**
@@ -2600,6 +2600,10 @@ export interface Translation {
          * DE: Karten  ·  EN: Cards
          */
         sent?: string | null;
+        /**
+         * DE: Ansehen  ·  EN: View
+         */
+        view?: string | null;
         /**
          * DE: Noch keine Karte verschickt.  ·  EN: No card sent yet.
          */
@@ -2640,6 +2644,58 @@ export interface Translation {
            */
           unnamed?: string | null;
         };
+      };
+      gift?: {
+        /**
+         * DE: Geschenk von Boop  ·  EN: A gift from Boop
+         */
+        title?: string | null;
+        /**
+         * DE: Schick diesen Stempel an alle: Jedes Boop-Konto bekommt eine eigene Kopie, „von Boop“ – deins auch.  ·  EN: Send this stamp to everyone: every Boop account gets a copy of its own, “from Boop” – yours too.
+         */
+        text?: string | null;
+        /**
+         * DE: Ein paar Worte dazu (optional)  ·  EN: A few words with it (optional)
+         */
+        message?: string | null;
+        /**
+         * DE: Frohes Stempeln!  ·  EN: Happy stamping!
+         */
+        messagePlaceholder?: string | null;
+        /**
+         * DE: An alle verschicken  ·  EN: Send to everyone
+         */
+        send?: string | null;
+        /**
+         * DE: Dieser Stempel geht an alle Boop-Konten – das lässt sich nicht zurückholen.  ·  EN: This stamp goes to every Boop account – it can't be taken back.
+         */
+        confirm?: string | null;
+        /**
+         * DE: Ja, an alle  ·  EN: Yes, to everyone
+         */
+        yes?: string | null;
+        sent?: {
+          /**
+           * DE: Unterwegs an 1 Konto  ·  EN: On its way to 1 account
+           */
+          one?: string | null;
+          /**
+           * DE: Unterwegs an {n} Konten  ·  EN: On its way to {n} accounts  ·  Keeps {n}
+           */
+          many?: string | null;
+        };
+        /**
+         * DE: Offline – verschicken geht nur mit Verbindung.  ·  EN: Offline – sending needs a connection.
+         */
+        offline?: string | null;
+        /**
+         * DE: Genug Geschenke für den Moment – versuch es in einer Stunde noch einmal.  ·  EN: Enough gifts for now – try again in an hour.
+         */
+        tooMany?: string | null;
+        /**
+         * DE: Dieses Konto darf keine Geschenke verschicken.  ·  EN: This account can't send gifts.
+         */
+        forbidden?: string | null;
       };
     };
     shelf?: {
@@ -2717,6 +2773,18 @@ export interface Translation {
        * DE: Konto  ·  EN: Account
        */
       title?: string | null;
+      /**
+       * DE: Profil  ·  EN: Profile
+       */
+      profile?: string | null;
+      /**
+       * DE: App  ·  EN: App
+       */
+      device?: string | null;
+      /**
+       * DE: Sprache  ·  EN: Language
+       */
+      language?: string | null;
       /**
        * DE: Dein Name – so sehen dich die anderen  ·  EN: Your name – how the others see you
        */
@@ -2871,11 +2939,11 @@ export interface Translation {
      */
     description?: string | null;
     /**
-     * DE: In meine Stempel  ·  EN: Add to my stamps
+     * DE: Stempel speichern  ·  EN: Save stamp
      */
     take?: string | null;
     /**
-     * DE: Schon in deinen Stempeln  ·  EN: Already in your stamps
+     * DE: Schon gespeichert – er liegt bei deinen Stempeln  ·  EN: Saved already – it's with your stamps
      */
     taken?: string | null;
     /**
@@ -2895,11 +2963,11 @@ export interface Translation {
      */
     copied?: string | null;
     /**
-     * DE: Anmelden und übernehmen  ·  EN: Log in and take it
+     * DE: Anmelden und speichern  ·  EN: Log in and save
      */
     login?: string | null;
     /**
-     * DE: Mit einem kostenlosen Boop-Konto übernimmst du ihn in deine Stempel und boopst ihn auf deine Tage.  ·  EN: With a free Boop account you take it into your stamps and boop it onto your days.
+     * DE: Mit einem kostenlosen Boop-Konto speicherst du ihn bei deinen Stempeln und boopst ihn auf deine Tage.  ·  EN: With a free Boop account you save it with your stamps and boop it onto your days.
      */
     signedOut?: string | null;
     /**
@@ -3783,6 +3851,7 @@ export interface TranslationsSelect<T extends boolean = true> {
                     another?: T;
                     offline?: T;
                     sent?: T;
+                    view?: T;
                     sentNone?: T;
                     sentOffline?: T;
                     takenBy?:
@@ -3800,6 +3869,26 @@ export interface TranslationsSelect<T extends boolean = true> {
                           named?: T;
                           unnamed?: T;
                         };
+                  };
+              gift?:
+                | T
+                | {
+                    title?: T;
+                    text?: T;
+                    message?: T;
+                    messagePlaceholder?: T;
+                    send?: T;
+                    confirm?: T;
+                    yes?: T;
+                    sent?:
+                      | T
+                      | {
+                          one?: T;
+                          many?: T;
+                        };
+                    offline?: T;
+                    tooMany?: T;
+                    forbidden?: T;
                   };
             };
         shelf?:
@@ -3834,6 +3923,9 @@ export interface TranslationsSelect<T extends boolean = true> {
           | T
           | {
               title?: T;
+              profile?: T;
+              device?: T;
+              language?: T;
               name?: T;
               nameFailed?: T;
               email?: T;

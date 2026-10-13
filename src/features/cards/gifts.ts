@@ -2,35 +2,44 @@ import {
   APIError,
   type CollectionBeforeChangeHook,
   type CollectionConfig,
+  type Endpoint,
   type Payload,
 } from "payload";
 import { adminOnly, isAdmin } from "@/access";
+import { sessionAccount } from "@/features/accounts/session";
 import { idOf } from "@/features/calendar/membership";
 import { SHAPES } from "@/features/calendar/model";
 import { notifyGifted } from "@/features/push/gifted";
 import { stampColorsNow } from "@/features/site/stamp-colors";
 import { nudge } from "@/features/sync/live";
 import { isLocale, LOCALES, type Locale } from "@/i18n/config";
-import { newId } from "@/lib/id";
+import { isId, newId } from "@/lib/id";
+import { rateLimit } from "@/lib/rate-limit";
 import { MESSAGE_MAX } from "./protocol";
 import { BOOP, cardIdOf, cardStampOf, cleanMessage } from "./rules";
 
 /**
- * Gifts from Boop: a stamp the owner sends from the CMS to everyone – in a
- * color nobody else can pick, if he likes (Site → Stamp colors, “Public”
- * unticked).
+ * Gifts from Boop: a stamp the owner sends to everyone – in a color nobody
+ * else can pick, if he likes (Site → Stamp colors, “Public” unticked).
  *
  * The stamp is drawn in the app – an account with the admin box picks those
- * colors there too – and sent as a card; its link goes here, and the gift
- * takes the card's shape and drawing (`takeDrawing`). Its name and its few
- * words are the CMS's, per language.
+ * colors there too. From there it goes one of two ways:
  *
- * “Send” (send-gift.tsx → POST /api/gifts/:id/send) gives every account
- * with a confirmed address a copy of its own, from Boop (`sendGift`) – once:
- * sent again, only those without one get it, and an account made later
- * gets nothing until then. The app shows it as it comes (a nudge, the
- * sync), and the devices that want to hear of it hear of it (push/
- * gifted.ts). No mail: the privacy policy promises none of that kind.
+ * - straight from the app: such an account sends a stamp it drew to
+ *   everyone (POST /api/gifts/from-stamp, the stamp's sheet). The gift is
+ *   made of the stamp as it is – its name and the few words typed with it,
+ *   the same in every language – and goes out at once.
+ * - by the CMS: the stamp is sent as a card, the card's link pasted into a
+ *   gift made here, which takes the card's shape and drawing
+ *   (`takeDrawing`); its name and words are the CMS's, per language. “Send”
+ *   (send-gift.tsx → POST /api/gifts/:id/send) sends it.
+ *
+ * Either way every account with a confirmed address gets a copy of its own,
+ * from Boop (`sendGift`) – the sender's too – once: sent again, only those
+ * without one get it, and an account made later gets nothing until then.
+ * The app shows it as it comes (a nudge, the sync), and the devices that
+ * want to hear of it hear of it (push/gifted.ts). No mail: the privacy
+ * policy promises none of that kind.
  */
 
 type Doc = Record<string, unknown>;
@@ -40,6 +49,13 @@ export const GIFT_PORTION = 50;
 
 /** The gifts on their way right now – one sending at a time per gift. */
 const sending = new Set<string>();
+
+// A gift reaches everyone, and can't be taken back – a few an hour, should
+// a finger slip or a login be in the wrong hands.
+const tooMany = rateLimit({ limit: 3, windowMs: 60 * 60 * 1000 });
+
+/** What a gift is called whose stamp has no name. */
+const UNNAMED: Record<Locale, string> = { de: "Überraschung", en: "Surprise" };
 
 /** A localized field read with locale "all" – a value per language. */
 const perLocale = (value: unknown, clean = (text: unknown) => String(text)) => {
@@ -98,6 +114,97 @@ const takeDrawing: CollectionBeforeChangeHook = async ({
   };
 };
 
+/**
+ * POST /api/gifts/from-stamp { stamp, message? } → { gift, sent }
+ *
+ * An account with the admin box sends a stamp it drew to everyone: a gift
+ * is made of the stamp as it is now, and sent at once (`sendSoon`). The box
+ * is read from the database for this very request – what a login was told
+ * of it once doesn't count. Not a stamp that came from someone: what was
+ * given is not passed on, here neither (cards.ts).
+ */
+const giftFromStamp: Endpoint["handler"] = async (req) => {
+  const account = await sessionAccount(req);
+  if (!account) {
+    return Response.json({ error: "Not logged in." }, { status: 401 });
+  }
+  const me = String(account.id);
+  const { payload } = req;
+  const self = (await payload.findByID({
+    collection: "accounts",
+    id: me,
+    select: { admin: true },
+    depth: 0,
+    disableErrors: true,
+    overrideAccess: true,
+    req,
+  })) as Doc | null;
+  if (self?.admin !== true) {
+    return Response.json({ error: "Not for this account." }, { status: 403 });
+  }
+  const body = ((await req.json?.().catch(() => null)) ?? {}) as Doc;
+  const stamp = isId(body.stamp)
+    ? ((await payload.findByID({
+        collection: "stamps",
+        id: body.stamp,
+        depth: 0,
+        disableErrors: true,
+        overrideAccess: true,
+        req,
+      })) as Doc | null)
+    : null;
+  if (!stamp || stamp.deleted || idOf(stamp.owner) !== me) {
+    return Response.json({ error: "Not found." }, { status: 404 });
+  }
+  if ((stamp.origin as Doc | null | undefined)?.kind || !stamp.drawing) {
+    return Response.json({ error: "Not drawn by its owner." }, { status: 400 });
+  }
+  if (tooMany(me)) {
+    return Response.json({ error: "Too many gifts." }, { status: 429 });
+  }
+  const look = cardStampOf(stamp);
+  const colors = await stampColorsNow(req);
+  const message = cleanMessage(body.message);
+  // The same in every language: its maker wrote it once.
+  const texts = (locale: Locale) => ({
+    name: look.name.trim() || UNNAMED[locale],
+    message,
+  });
+  const [first, ...others] = LOCALES;
+  const gift = await payload.create({
+    collection: "gifts",
+    locale: first,
+    data: {
+      ...texts(first),
+      shape: look.shape,
+      drawing: look.drawing,
+      // A color the CMS no longer has shows as its first – there, too.
+      ...(colors.some((color) => color.key === look.color) && {
+        color: look.color,
+      }),
+    } as never,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  });
+  for (const locale of others) {
+    await payload.update({
+      collection: "gifts",
+      id: gift.id,
+      locale,
+      data: texts(locale),
+      depth: 0,
+      overrideAccess: true,
+      req,
+    });
+  }
+  const id = String(gift.id);
+  return Response.json(
+    { gift: id, sent: await sendSoon(payload, id) },
+    { status: 202 }
+  );
+};
+
 /** The color – one the CMS has, public or not. Empty: the card's. */
 const knownColor = async (
   value: unknown,
@@ -127,7 +234,7 @@ export const Gifts: CollectionConfig = {
     useAsTitle: "name",
     defaultColumns: ["name", "color", "sentAt", "sentTo"],
     description:
-      "Stamps from Boop for everyone. Draw it in the app (an account with the “Admin” box can pick the colors that aren't public), send it as a card, paste the card's link here – then “Send to everyone”. Everyone with a confirmed address gets a copy of their own, sees it in the app and – if they want – as a notification. No mail.",
+      "Stamps from Boop for everyone – each account with a confirmed address gets a copy of its own, sees it in the app and, if it wants, as a notification. No mail. The short way: in the app, an account with the “Admin” box opens a stamp it drew and sends it to everyone; it then shows up here. From here: draw the stamp in the app, send it as a card, paste the card's link into a new gift – then “Send to everyone”.",
     components: {
       edit: {
         beforeDocumentControls: ["@/features/cards/send-gift#SendGift"],
@@ -158,15 +265,18 @@ export const Gifts: CollectionConfig = {
     {
       name: "card",
       type: "text",
-      required: true,
       admin: {
         description:
-          "The card's link (or its id) – the stamp's shape and drawing come from it, once, when saved.",
+          "The card's link (or its id) – the stamp's shape and drawing come from it, once, when saved. Empty only for a gift sent straight from the app: that one brought its drawing along.",
       },
-      validate: (value: unknown) =>
-        cardIdOf(value)
+      // A card to take the stamp from – or the stamp is there already.
+      validate: (value: unknown, { data }: { data?: unknown }) => {
+        if (cardIdOf(value)) return true;
+        const empty = value == null || value === "";
+        return empty && (data as Doc | undefined)?.drawing
           ? true
-          : "A card's link, like https://…/de/card/AbCd1234EfGh",
+          : "A card's link, like https://…/de/card/AbCd1234EfGh";
+      },
     },
     {
       name: "color",
@@ -219,6 +329,12 @@ export const Gifts: CollectionConfig = {
   hooks: { beforeChange: [takeDrawing] },
   endpoints: [
     {
+      // Straight from the app: a stamp of one's own, to everyone.
+      path: "/from-stamp",
+      method: "post",
+      handler: giftFromStamp,
+    },
+    {
       // “Send to everyone” – in the background: the answer says to how many
       // it goes, `sentAt` and `sentTo` once it is done.
       path: "/:id/send",
@@ -247,20 +363,30 @@ export const Gifts: CollectionConfig = {
             { status: 409 }
           );
         }
-        const { totalDocs } = await req.payload.count({
-          collection: "accounts",
-          where: { _verified: { equals: true } },
-          overrideAccess: true,
-        });
-        const { payload } = req;
-        void sendGift(payload, id).catch((error) =>
-          payload.logger.error({ err: error, msg: "[gifts] not sent" })
+        return Response.json(
+          { accounts: await sendSoon(req.payload, id) },
+          { status: 202 }
         );
-        return Response.json({ accounts: totalDocs }, { status: 202 });
       },
     },
   ],
   timestamps: true,
+};
+
+/**
+ * Starts a gift on its way, in the background – and says to how many
+ * accounts it goes: all with a confirmed address.
+ */
+const sendSoon = async (payload: Payload, id: string) => {
+  const { totalDocs } = await payload.count({
+    collection: "accounts",
+    where: { _verified: { equals: true } },
+    overrideAccess: true,
+  });
+  void sendGift(payload, id).catch((error) =>
+    payload.logger.error({ err: error, msg: "[gifts] not sent" })
+  );
+  return totalDocs;
 };
 
 const giftById = async (payload: Payload, id: string) =>

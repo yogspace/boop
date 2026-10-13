@@ -6,8 +6,10 @@ import { CARD_ID, type CardSent, type CardView } from "./protocol";
 /**
  * Cards from the browser (protocol.ts): make one of a stamp of one's own,
  * look at one, take one – a copy of its stamp, one's own from then on –
- * and, for the giver, see where one's cards went and take one back. All of
- * it needs a connection: a card is on the server, nowhere else.
+ * and, for the giver, see where one's cards went and take one back. And,
+ * for an account with the admin box, a gift from Boop: a stamp of its own
+ * sent to everyone (gifts.ts). All of it needs a connection: cards and
+ * gifts are on the server, nowhere else.
  */
 
 const post = (path: string, body?: unknown) =>
@@ -105,4 +107,29 @@ export const deleteCard = async (id: string): Promise<boolean> => {
     credentials: "include",
   }).catch(() => null);
   return Boolean(response && (response.ok || response.status === 404));
+};
+
+/**
+ * Sends a stamp of one's own to everyone, as a gift from Boop – every
+ * account with a confirmed address gets a copy, one's own too. It can't be
+ * taken back. `sent`: to how many accounts it is on its way. “forbidden”:
+ * the account may not (no admin box); “tooMany”: enough gifts for now –
+ * the server lets only a few go out an hour.
+ */
+export const sendGiftOf = async (
+  stamp: string,
+  message: string
+): Promise<
+  | { ok: true; sent: number }
+  | { ok: false; reason: "failed" | "tooMany" | "forbidden" }
+> => {
+  const response = await post("/api/gifts/from-stamp", { stamp, message });
+  if (response?.status === 429) return { ok: false, reason: "tooMany" };
+  if (response?.status === 403) return { ok: false, reason: "forbidden" };
+  const body = (await response?.json().catch(() => null)) as {
+    sent?: unknown;
+  } | null;
+  return response?.ok && typeof body?.sent === "number"
+    ? { ok: true, sent: body.sent }
+    : { ok: false, reason: "failed" };
 };

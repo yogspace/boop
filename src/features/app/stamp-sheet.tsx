@@ -6,6 +6,7 @@ import { Bang } from "@/components/doodles";
 import { Button, Checkbox } from "@/components/ui";
 import type { StampDoc } from "@/features/calendar/model";
 import { CardSender } from "@/features/cards/ui/card-sender";
+import { GiftSender } from "@/features/cards/ui/gift-sender";
 import { SentCards } from "@/features/cards/ui/sent-cards";
 import {
   deleteStamp,
@@ -26,8 +27,9 @@ import { Sheet } from "./sheet";
  * shared with – the members of which calendars may stamp with it, none to
  * begin with, and where its cards went –, sends it as a card (one they drew
  * themselves: what came as a card or a gift is not passed on) and deletes
- * it. Anyone else reads whose it is; one that came to its owner says from
- * whom, with the giver's words.
+ * it. An account with the admin box also sends such a stamp to everyone, as
+ * a gift from Boop. Anyone else reads whose it is; one that came to its
+ * owner says from whom, with the giver's words.
  */
 export const StampSheet = ({
   stamp,
@@ -188,6 +190,10 @@ export const StampSheet = ({
           onMade={() => setMade((n) => n + 1)}
           stamp={stamp.id}
         />
+      )}
+      {mine && !stamp.origin && me?.admin && (
+        // Boop's gifts – the server asks for the box once more.
+        <GiftSender locale={locale} online={online} stamp={stamp.id} />
       )}
       {mine &&
         (sure ? (

@@ -678,6 +678,26 @@ const de = {
             name ? say.named({ name }) : say.unnamed()
         ),
       },
+      // A gift from Boop: a stamp of one's own sent to everyone – for an
+      // account with the admin box alone (features/cards/gifts.ts).
+      gift: {
+        title: "Geschenk von Boop",
+        text: "Schick diesen Stempel an alle: Jedes Boop-Konto bekommt eine eigene Kopie, „von Boop“ – deins auch.",
+        message: "Ein paar Worte dazu (optional)",
+        messagePlaceholder: "Frohes Stempeln!",
+        send: "An alle verschicken",
+        confirm:
+          "Dieser Stempel geht an alle Boop-Konten – das lässt sich nicht zurückholen.",
+        yes: "Ja, an alle",
+        sent: template(
+          { one: "Unterwegs an 1 Konto", many: "Unterwegs an {n} Konten" },
+          (say) => (n: number) => (n === 1 ? say.one() : say.many({ n }))
+        ),
+        offline: "Offline – verschicken geht nur mit Verbindung.",
+        tooMany:
+          "Genug Geschenke für den Moment – versuch es in einer Stunde noch einmal.",
+        forbidden: "Dieses Konto darf keine Geschenke verschicken.",
+      },
     },
     // The shelf's order – kept on the device (features/app/shelf.ts).
     shelf: {
@@ -1411,6 +1431,23 @@ const en: Shape<typeof de> = {
           named: "I'm sending you a stamp: “{name}”",
           unnamed: "I'm sending you a stamp",
         },
+      },
+      gift: {
+        title: "A gift from Boop",
+        text: "Send this stamp to everyone: every Boop account gets a copy of its own, “from Boop” – yours too.",
+        message: "A few words with it (optional)",
+        messagePlaceholder: "Happy stamping!",
+        send: "Send to everyone",
+        confirm:
+          "This stamp goes to every Boop account – it can't be taken back.",
+        yes: "Yes, to everyone",
+        sent: {
+          one: "On its way to 1 account",
+          many: "On its way to {n} accounts",
+        },
+        offline: "Offline – sending needs a connection.",
+        tooMany: "Enough gifts for now – try again in an hour.",
+        forbidden: "This account can't send gifts.",
       },
     },
     shelf: {

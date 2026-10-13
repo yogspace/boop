@@ -52,11 +52,11 @@ const tooManySignups = rateLimit({ limit: 10, windowMs: 60 * 60 * 1000 });
  * one:
  *
  * - `admin`: the app shows this account a link to the CMS (account-sheet.
- *   tsx), and lets it pick the stamp colors that aren't public – to draw
- *   Boop's gifts in (features/cards, sync/apply.ts). That is all: the CMS
- *   has logins of its own (`users`), an account never gets into it, and
- *   nothing in src/access looks at the box. It is told to the account
- *   itself (`me`), to no one else.
+ *   tsx), lets it pick the stamp colors that aren't public (sync/apply.ts)
+ *   and send a stamp it drew to everyone, as a gift from Boop (features/
+ *   cards/gifts.ts). That is all: the CMS has logins of its own (`users`),
+ *   an account never gets into it, and nothing in src/access looks at the
+ *   box. It is told to the account itself (`me`), to no one else.
  * - `neverDelete`: the daily cleanup leaves the account alone – no warning,
  *   no deletion, confirmed address or not (retention.ts). The account can
  *   still delete itself.
@@ -434,7 +434,7 @@ export const Accounts: CollectionConfig = {
       admin: {
         position: "sidebar",
         description:
-          "Shows this person a link “Open CMS” in the app's account sheet, and lets them pick the stamp colors that aren't public (Site → Stamp colors) – to draw Boop's gifts. Nothing more: the CMS still asks for its own login (Users), and an account never gets into it.",
+          "Shows this person a link “Open CMS” in the app's account sheet, lets them pick the stamp colors that aren't public (Site → Stamp colors) and send a stamp they drew to every account, as a gift from Boop. Nothing more: the CMS still asks for its own login (Users), and an account never gets into it.",
       },
     },
     {

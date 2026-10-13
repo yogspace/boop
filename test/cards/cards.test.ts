@@ -700,6 +700,158 @@ describe("a gift from Boop", () => {
     });
   });
 
+  describe("sent straight from the app", () => {
+    const fromStamp = (as: string | undefined, stamp: string, message = "") =>
+      call(Gifts, "post", "/from-stamp", { as, body: { stamp, message } });
+
+    /** Anna with the admin box ticked – as the database has it. */
+    const tick = (id = ANNA, name = "Anna") =>
+      fake.account({ id, name, email: "anna@example.com", admin: true });
+
+    const gifts = () => [...fake.db.gifts.values()];
+    const gifted = () =>
+      [...fake.db.stamps.values()].filter(
+        (stamp) => (stamp.origin as Doc | undefined)?.kind === "gift"
+      );
+
+    it("is for an account with the admin box alone", async () => {
+      expect((await fromStamp(undefined, HEART)).status).toBe(401);
+      expect((await fromStamp(ANNA, HEART)).status).toBe(403);
+      // Ben's own stamp, Ben without the box: no.
+      fake.put("stamps", {
+        id: STAR,
+        owner: BEN,
+        name: "Stern",
+        drawing: DRAWING,
+        deleted: false,
+      });
+      expect((await fromStamp(BEN, STAR)).status).toBe(403);
+      expect(gifts()).toEqual([]);
+      expect(gifted()).toEqual([]);
+    });
+
+    it("goes by the box as the database has it now – not as a login once heard", async () => {
+      const endpoint = (Gifts.endpoints as Endpoint[]).find(
+        (one) => one.path === "/from-stamp"
+      );
+      const response = await endpoint?.handler({
+        ...request(ANNA),
+        // Unticked since: the login still says yes.
+        context: {
+          sessionAccount: { id: ANNA, collection: "accounts", admin: true },
+        },
+        routeParams: {},
+        json: async () => ({ stamp: HEART }),
+      } as unknown as PayloadRequest);
+      expect(response?.status).toBe(403);
+      expect(gifts()).toEqual([]);
+    });
+
+    it("makes a gift of the stamp as it is – and sends it to everyone, the sender too", async () => {
+      tick();
+      const answer = await fromStamp(ANNA, HEART, "  Frohes   Stempeln! ");
+      expect(answer.status).toBe(202);
+      expect(answer.body.sent).toBe(3);
+      const [gift] = gifts();
+      expect(answer.body.gift).toBe(gift.id);
+      expect(gift).toMatchObject({
+        // Her words and the stamp's name – the same in every language.
+        name: { de: "Herz", en: "Herz" },
+        message: { de: "Frohes Stempeln!", en: "Frohes Stempeln!" },
+        color: "gold",
+        shape: "diamond",
+        drawing: DRAWING,
+      });
+      expect("card" in gift).toBe(false);
+      // On its way in the background.
+      await vi.waitFor(() =>
+        expect(fake.get("gifts", String(gift.id))?.sentTo).toBe(3)
+      );
+      expect(gifted().map((copy) => copy.owner)).toEqual([ANNA, BEN, CARL]);
+      expect(gifted()[1]).toMatchObject({
+        name: "Herz",
+        color: "gold",
+        shape: "diamond",
+        drawing: DRAWING,
+        origin: {
+          kind: "gift",
+          from: null,
+          name: "Boop",
+          message: "Frohes Stempeln!",
+          gift: gift.id,
+        },
+      });
+      // Anna keeps her own beside the copy that came back to her.
+      expect(stampsOf(ANNA).map((stamp) => stamp.id)).toContain(HEART);
+      expect(stampsOf(ANNA)).toHaveLength(2);
+      expect(beside.nudged).toEqual([ANNA, BEN, CARL]);
+      expect(beside.gifted).toHaveLength(1);
+    });
+
+    it("calls a gift without a name a surprise – in each account's language", async () => {
+      tick();
+      fake.put("stamps", {
+        ...(fake.get("stamps", HEART) as Doc & { id: string }),
+        name: " ",
+      });
+      const answer = await fromStamp(ANNA, HEART);
+      const id = String(answer.body.gift);
+      expect(fake.get("gifts", id)).toMatchObject({
+        name: { de: "Überraschung", en: "Surprise" },
+        message: { de: "", en: "" },
+      });
+      await vi.waitFor(() => expect(fake.get("gifts", id)?.sentTo).toBe(3));
+      expect(stampsOf(BEN)[0].name).toBe("Surprise");
+      expect(stampsOf(CARL)[0].name).toBe("Überraschung");
+    });
+
+    it("sends only a stamp of one's own that one drew", async () => {
+      tick();
+      // Ben's stamp, a deleted one, none at all.
+      fake.put("stamps", {
+        id: STAR,
+        owner: BEN,
+        name: "Stern",
+        drawing: DRAWING,
+        deleted: false,
+      });
+      expect((await fromStamp(ANNA, STAR)).status).toBe(404);
+      expect((await fromStamp(ANNA, FAMILY)).status).toBe(404);
+      expect((await fromStamp(ANNA, "nope")).status).toBe(404);
+      fake.put("stamps", { id: STAR, owner: ANNA, name: "", deleted: true });
+      expect((await fromStamp(ANNA, STAR)).status).toBe(404);
+      // One that came from someone – a card, a gift – is not passed on.
+      fake.put("stamps", {
+        id: STAR,
+        owner: ANNA,
+        name: "Stern",
+        drawing: DRAWING,
+        origin: { kind: "card", from: BEN, name: "Ben", card: "AbCd1234EfGh" },
+        deleted: false,
+      });
+      expect((await fromStamp(ANNA, STAR)).status).toBe(400);
+      expect(gifts()).toEqual([]);
+      expect(gifted()).toEqual([]);
+    });
+
+    it("lets only a few go out an hour", async () => {
+      tick();
+      for (let n = 0; n < 3; n++) {
+        expect((await fromStamp(ANNA, HEART)).status).toBe(202);
+      }
+      expect((await fromStamp(ANNA, HEART)).status).toBe(429);
+      expect(gifts()).toHaveLength(3);
+      await vi.waitFor(() =>
+        expect(gifts().every((gift) => gift.sentTo === 3)).toBe(true)
+      );
+      later(61);
+      expect((await fromStamp(ANNA, HEART)).status).toBe(202);
+      await vi.waitFor(() =>
+        expect(gifts().every((gift) => gift.sentTo === 3)).toBe(true)
+      );
+    });
+  });
+
   describe("its page in the CMS", () => {
     const admin = { id: "admin-1", collection: "users" };
     const [takeDrawing] = Gifts.hooks?.beforeChange ?? [];

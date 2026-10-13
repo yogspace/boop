@@ -11,6 +11,9 @@ type Condition = {
 };
 type Where = { and?: Where[]; or?: Where[] } & Record<string, unknown>;
 
+/** The fields kept per language, by collection. */
+const LOCALIZED: Record<string, string[]> = { gifts: ["name", "message"] };
+
 /** Nothing there and null are the same to a query. */
 const same = (value: unknown, wanted: unknown) =>
   (value ?? null) === (wanted ?? null);
@@ -88,6 +91,29 @@ export const fakeDatabase = () => {
   let next = 1;
   const stamp = () => new Date(Date.now()).toISOString();
 
+  /**
+   * What is written, as it is kept: a localized field – a gift's name and
+   * words – per language, when the write names one. Read, it comes whole,
+   * as Payload gives it with locale "all".
+   */
+  const kept = (
+    collection: string,
+    data: Doc,
+    locale: string | undefined,
+    before: Doc = {}
+  ) => {
+    const next = { ...data };
+    for (const field of (locale && LOCALIZED[collection]) || []) {
+      if (!(field in data)) continue;
+      const others = before[field];
+      next[field] = {
+        ...(others && typeof others === "object" ? others : {}),
+        [locale as string]: data[field],
+      };
+    }
+    return next;
+  };
+
   const found = (collection: string, where?: Where) =>
     [...db[collection].values()].filter((doc) => matches(doc, where));
 
@@ -123,6 +149,8 @@ export const fakeDatabase = () => {
       const doc = db[collection].get(String(id));
       return doc ? { ...doc } : null;
     },
+    // The globals as never saved: the code's own show (the stamp colors).
+    findGlobal: async () => ({}),
     count: async ({
       collection,
       where,
@@ -132,10 +160,23 @@ export const fakeDatabase = () => {
     }) => ({
       totalDocs: found(collection, where).length,
     }),
-    create: async ({ collection, data }: { collection: string; data: Doc }) => {
+    create: async ({
+      collection,
+      data,
+      locale,
+    }: {
+      collection: string;
+      data: Doc;
+      locale?: string;
+    }) => {
       // Mongo's ids where Payload makes them; the app's own where it has one.
       const id = String(data.id ?? (next++).toString(16).padStart(24, "0"));
-      const doc = { ...data, id, createdAt: stamp(), updatedAt: stamp() };
+      const doc = {
+        ...kept(collection, data, locale),
+        id,
+        createdAt: stamp(),
+        updatedAt: stamp(),
+      };
       db[collection].set(id, doc);
       return { ...doc };
     },
@@ -145,15 +186,22 @@ export const fakeDatabase = () => {
       where,
       data,
       context,
+      locale,
     }: {
       collection: string;
       id?: string;
       where?: Where;
       data: Doc;
       context?: unknown;
+      locale?: string;
     }) => {
       const one = (key: string) => {
-        const doc = { ...db[collection].get(key), ...data, updatedAt: stamp() };
+        const before = db[collection].get(key);
+        const doc = {
+          ...before,
+          ...kept(collection, data, locale, before),
+          updatedAt: stamp(),
+        };
         db[collection].set(key, doc);
         updates.push({ collection, id: key, data, context });
         return { ...doc };
