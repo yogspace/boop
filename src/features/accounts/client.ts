@@ -192,6 +192,20 @@ export const rename = async (name: string): Promise<Result<Me>> => {
 };
 
 /**
+ * The language the account's mails come in – the one the app is used in
+ * (boop-app.tsx). True once the server has it.
+ */
+export const saveLocale = async (locale: Locale): Promise<boolean> => {
+  const response = await fetch("/api/accounts/me", {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ locale }),
+  }).catch(() => null);
+  return Boolean(response?.ok);
+};
+
+/**
  * Asks for a new address – only with the password. The server notes it and
  * sends it a mail; it is the account's once that mail's link was opened
  * (email-change.ts). The answer is the same for an address that is someone

@@ -175,6 +175,7 @@ const pushSettings = {
   id: "push-settings-id",
   account: ME,
   reminderAt: "21:30",
+  invited: false,
   calendars: [
     { id: "row-id", calendar: "cal-annas", reminder: false, stamped: true },
   ],
@@ -360,6 +361,7 @@ describe("the account's data as a file", () => {
   it("has its notifications – the push service by name, not its address", () => {
     expect(data.notifications).toEqual({
       reminderAt: "21:30",
+      invited: false,
       calendars: [
         {
           calendar: "cal-annas",
@@ -468,6 +470,7 @@ describe("the account's data as a file", () => {
     ]).toEqual([[], [], [], [], [], []]);
     expect(fresh.notifications).toEqual({
       reminderAt: "20:00",
+      invited: true,
       calendars: [],
       devices: [],
     });

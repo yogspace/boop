@@ -361,13 +361,18 @@ export const Accounts: CollectionConfig = {
       access: { update: () => false },
     },
     {
-      // The language of the app and of the mails.
+      // The language of the mails: the page's at sign-up, then the one the
+      // app was last used in (boop-app.tsx).
       name: "locale",
       type: "select",
       required: true,
       defaultValue: "de",
       options: [...LOCALES],
       access: { update: () => false },
+      admin: {
+        description:
+          "The language of the mails – the page's at sign-up, then the one the app was last used in. Notifications follow each device's language.",
+      },
     },
     // Two of Payload's own for a login, named here only to close them for
     // a change (Payload merges this into its field): the address – a new

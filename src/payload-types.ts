@@ -155,6 +155,9 @@ export interface User {
 export interface Account {
   id: string;
   name: string;
+  /**
+   * The language of the mails – the page's at sign-up, then the one the app was last used in. Notifications follow each device's language.
+   */
   locale: 'de' | 'en';
   password?: string | null;
   /**
@@ -2055,7 +2058,7 @@ export interface Translation {
        */
       changedHint?: string | null;
       /**
-       * DE: Geht, sobald jemand mit in diesem Kalender ist.  ·  EN: Works once someone else is in this calendar.
+       * DE: Meldet sich, sobald jemand mit in diesem Kalender ist.  ·  EN: Speaks up once someone else is in this calendar.
        */
       alone?: string | null;
       /**

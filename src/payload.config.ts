@@ -64,7 +64,8 @@ export default buildConfig({
     user: Users.slug,
     importMap: { baseDir: dirname },
     meta: {
-      titleSuffix: " · Boop",
+      // Payload puts its own space before it.
+      titleSuffix: "· Boop",
       icons: [{ rel: "icon", type: "image/svg+xml", url: "/icon.svg" }],
     },
     components: {

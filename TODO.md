@@ -12,10 +12,7 @@ Stand: 13.10.2026
   - Datenschutztext (`features/legal/seed-content.ts`): Adresse in der App
     ändern, die Kästchen „Admin“ / „Nie löschen“, ausstehende Adresse im
     Export, Einladungs-Nachricht samt Abschalten im Konto.
-  - Datenexport nennt den Schalter „Einladungen“ (Push) noch nicht.
   - Neue Texte: im CMS einmal Seeds → Translations.
-  - Im CMS-Titel steht „Anmelden  · Boop“ mit doppeltem Leerzeichen
-    (`titleSuffix` in `payload.config.ts`).
 - **Stempelfarben im CMS**: Wer die Zeilen unter „Site“ → Stamp colors
   schon gespeichert hat, hat dort noch „Tinte“ als erste Farbe – von Hand
   auf Rot ändern (Schlüssel `red`, `#ee3b33`).
@@ -73,7 +70,7 @@ Stand: 13.10.2026
   Einladung.
 - Tagesansicht: Stempel kommt in seiner eigenen Farbe; Namensschild beim
   Hover in der Stempelauswahl.
-- Kontomenü und Sync-Notiz schließen bei Klick daneben.
+- Kontomenü schließt bei Klick daneben.
 - iPhone: die App lässt sich nicht mehr seitlich scrollen (die gezeichneten
   Linien ragten am Rand bis zu 10 px über den Bildschirm – jetzt am Rahmen
   abgeschnitten).
@@ -104,8 +101,8 @@ Stand: 13.10.2026
 - Startseite: „So einfach geht's“ als drei Zettel mit Bildgeschichte
   (Desktop nebeneinander, Phone untereinander); Sprachwechsel dort behält
   jetzt den Login-Zustand.
-- Sync-Knopf in der Leiste: ohne Rahmen und grau, solange alles abgeglichen
-  ist; Punkt mit Zahl bzw. Kreuz, wenn etwas wartet oder kein Netz da ist.
+- Sync-Stand jetzt im Kontomenü (mit „Jetzt abgleichen“); am Konto-Kreis
+  nur eine Zahl, wenn etwas wartet, bzw. ein Kreuz ohne Netz.
 - Heute-, Monats- und Jahresansicht mit dem echten Router: Umschalter,
   Adresse `/de/app/{kalender}/{heute|monat|jahr}`, Zurück/Vor, alte
   Id-Adressen, Reload; offline eine noch nie geöffnete Adresse.
@@ -148,6 +145,10 @@ Stand: 13.10.2026
   nichts (Name, Adresse, Passwort); „Change password“ darf nicht da sein.
   Mit „Admin“ steht im Konto „CMS öffnen“. Logo auf der Anmeldeseite und
   das Icon in der Seitenleiste.
+- Sprache des Kontos (für die Mails): folgt jetzt der Sprache, in der die
+  App benutzt wird – in der App auf EN stellen, im CMS steht dann „en“.
+- Benachrichtigungen in einem Kalender nur für dich: „Jemand anderes …“
+  lässt sich jetzt setzen (meldet sich, sobald jemand dazukommt).
 - Push bei Einladung auf einem Gerät: kommt an, Tippen öffnet die App;
   Kästchen im Konto aus → nichts. Einmal aus, neu laden, an, neu laden.
 - Kalender, der auf einem Gerät fehlt, obwohl der Server ihn noch hat:

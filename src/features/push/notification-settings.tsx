@@ -16,9 +16,10 @@ import { usePush } from "./use-push";
  * where this device stands – it can't, it's an iPhone not on the Home
  * Screen, it said no, it's off (the button), it's on – then, when on, the
  * account's switches for this calendar (the reminder; someone else
- * stamping, someone else changing something – asleep in a calendar of
- * one's own) and the reminder's time (one for all calendars). The switches are the account's, on every device; the yes
- * is the device's.
+ * stamping, someone else changing something – set in a calendar of one's
+ * own too, they speak once someone else is in it) and the reminder's time
+ * (one for all calendars). The switches are the account's, on every
+ * device; the yes is the device's.
  *
  * Nothing shows while the server has no keys (notifications off), and
  * nothing changes without a connection: the switches stay as last heard,
@@ -133,12 +134,12 @@ export const NotificationSettings = ({
           >
             {t.reminder}
           </Checkbox>
-          {/* About someone else – there in a calendar of one's own too, so
-              they can be found, but asleep until someone else is in it. */}
+          {/* About someone else – set in a calendar of one's own too: they
+              hold, and speak once someone else is in it. */}
           <Checkbox
             aria-describedby={shared ? undefined : `push-alone-${calendar.id}`}
             checked={switches.stamped}
-            disabled={!(awake && shared)}
+            disabled={!awake}
             onChange={(event) => void flip({ stamped: event.target.checked })}
           >
             {t.stamped}
@@ -147,7 +148,7 @@ export const NotificationSettings = ({
             <Checkbox
               aria-describedby={`push-changed-${calendar.id}${shared ? "" : ` push-alone-${calendar.id}`}`}
               checked={switches.changed}
-              disabled={!(awake && shared)}
+              disabled={!awake}
               onChange={(event) => void flip({ changed: event.target.checked })}
             >
               {t.changed}

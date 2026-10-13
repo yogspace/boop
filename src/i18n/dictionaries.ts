@@ -447,7 +447,7 @@ const de = {
       changed: "Wenn jemand anderes etwas ändert",
       changedHint:
         "Notizen, verschobene oder entfernte Abdrücke, ein neuer Name, wer dazukommt oder geht.",
-      alone: "Geht, sobald jemand mit in diesem Kalender ist.",
+      alone: "Meldet sich, sobald jemand mit in diesem Kalender ist.",
       time: "Erinnerung um",
       timeHint: "Für alle deine Kalender – in der Uhrzeit deines Geräts.",
       // The account's own switch, in its sheet – and a word there when this
@@ -1108,7 +1108,7 @@ const en: Shape<typeof de> = {
       changed: "When someone else changes something",
       changedHint:
         "Notes, moved or removed prints, a new name, who joins or leaves.",
-      alone: "Works once someone else is in this calendar.",
+      alone: "Speaks up once someone else is in this calendar.",
       time: "Reminder at",
       timeHint: "For all your calendars – on your device's clock.",
       invited: "When someone invites me to a calendar",

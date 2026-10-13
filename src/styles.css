@@ -596,55 +596,6 @@
   }
 }
 
-/* Sync badge's overlay */
-/*
- * The note the sync badge opens (features/app/sync-badge.tsx) – a popover,
- * hung from the badge with anchor positioning: below it, reaching to the
- * left (the badge sits at the header's right end). Where that doesn't fit it
- * turns – reaching right, then above, then beside it – so it never leaves
- * the screen. Without anchor positioning it sits under the header's right
- * end, where the badge is.
- *
- * The popover itself is only the hanger – no box of its own, and nothing
- * clipped: the scribbled frame inside is the note and wobbles past it. How
- * it comes and goes is Motion's, on the note (sync-badge.tsx).
- */
-.sync-overlay {
-  position-anchor: --sync-badge;
-  position-area: bottom span-left;
-  position-try-fallbacks:
-    flip-inline,
-    flip-block,
-    flip-block flip-inline,
-    --sync-overlay-beside;
-  inset: auto;
-  margin: 10px 0 0;
-  /*
-   * As wide as there is room for, up to 20rem, a gutter short of the screen's
-   * edge – but never squeezed under 15rem: where that doesn't fit, it turns.
-   */
-  width: 20rem;
-  max-width: calc(100% - 1rem);
-  min-width: min(15rem, calc(100vw - 2rem));
-  overflow: visible;
-  border: 0;
-  padding: 0;
-  background: none;
-  color: inherit;
-}
-
-@position-try --sync-overlay-beside {
-  position-area: left span-bottom;
-  margin: 0 10px 0 0;
-}
-
-@supports not (anchor-name: --x) {
-  .sync-overlay {
-    top: 4.5rem;
-    right: max(1rem, calc((100vw - 72rem) / 2 + 1.5rem));
-  }
-}
-
 /* Name tags */
 /*
  * A stamp's name on the shelf (features/app/name-tag.tsx) – a popover hung

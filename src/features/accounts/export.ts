@@ -5,6 +5,7 @@ import { sharedWithOf } from "../calendar/model";
 import { cleanNote, noteText } from "../calendar/note";
 import {
   entriesOf,
+  invitedOf,
   type PushSettingsDoc,
   pushServiceOf,
   reminderAtOf,
@@ -197,6 +198,8 @@ export const accountExport = ({
     notifications: {
       /** The evening's reminder, on each device's clock. */
       reminderAt: reminderAtOf(pushSettings as PushSettingsDoc | null),
+      /** Being invited to a calendar – for the whole account. */
+      invited: invitedOf(pushSettings as PushSettingsDoc | null),
       /** Calendars with a switch off – every other one has both on. */
       calendars: entriesOf(pushSettings as PushSettingsDoc | null),
       devices: pushDevices

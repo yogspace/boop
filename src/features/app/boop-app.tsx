@@ -21,6 +21,7 @@ import {
   PILL,
   ROUND_BUTTON,
 } from "@/components/ui";
+import { saveLocale } from "@/features/accounts/client";
 import { trackEvent } from "@/features/analytics/client";
 import {
   type ColorName,
@@ -64,7 +65,7 @@ import { NameTag } from "./name-tag";
 import { ShareSheet } from "./share-sheet";
 import { StampDrawer } from "./stamp-drawer";
 import { StampSheet } from "./stamp-sheet";
-import { SyncBadge } from "./sync-badge";
+import { SyncMark, SyncStatus } from "./sync-badge";
 import { TodayView } from "./today-view";
 import { useDismiss } from "./use-dismiss";
 import { ViewSwitch } from "./view-switch";
@@ -204,6 +205,20 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   useEffect(() => {
     if (boop.status === "signedOut") router.replace(`/${locale}/login`);
   }, [boop.status, locale, router]);
+
+  // The account's mails come in the language the app is used in: switched
+  // here, or opened in the other one. Told once per language – the next
+  // sync brings it back in `me`; offline, the next time there is a line.
+  const told = useRef<string | null>(null);
+  const savedLocale = boop.me?.locale;
+  useEffect(() => {
+    if (boop.status !== "ready" || !boop.online || !savedLocale) return;
+    if (savedLocale === locale || told.current === locale) return;
+    told.current = locale;
+    void saveLocale(locale).then((ok) => {
+      if (!ok) told.current = null;
+    });
+  }, [boop.status, boop.online, savedLocale, locale]);
 
   const calendars = useMemo(
     () =>
@@ -381,16 +396,20 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
               locale={locale}
               onPick={setLocale}
             />
-            <SyncBadge locale={locale} />
             <button
               aria-expanded={menu}
               aria-label={t.app.account}
-              className={cn(ROUND_BUTTON, "aria-expanded:scribble-ink")}
+              className={cn(
+                ROUND_BUTTON,
+                "relative aria-expanded:scribble-ink"
+              )}
               onClick={() => setMenu(!menu)}
               ref={menuButton}
               type="button"
             >
               {firstName.slice(0, 1).toUpperCase() || "?"}
+              {/* Changes waiting, or offline – the menu says more. */}
+              <SyncMark locale={locale} />
             </button>
             {/* Unfolds from the button, and folds back into it. */}
             <AnimatePresence>
@@ -418,6 +437,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                       {boop.me?.email}
                     </p>
                   </div>
+                  <SyncStatus locale={locale} />
                   <LocaleSwitch
                     className="sm:hidden"
                     hrefOf={addressIn}
