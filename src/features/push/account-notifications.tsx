@@ -8,7 +8,7 @@ import { usePush } from "./use-push";
 
 /**
  * The account's own notifications, in its sheet (app/account-sheet.tsx):
- * the one switch that is no calendar's – “someone added me to a calendar”,
+ * the one switch that is no calendar's – “someone invites me to a calendar”,
  * which one isn't in yet. It is the account's, on every device, like a
  * calendar's switches (notification-settings.tsx).
  *

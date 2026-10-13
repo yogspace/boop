@@ -100,15 +100,14 @@ export const addMember: Endpoint = {
     if (!calendar.members.includes(id)) {
       await touch(req, calendar.id, [...calendar.members, id], String(me.id));
       await nudgeCalendars(req, [calendar.id]);
+      // New in it: they hear so on their devices, unless they'd rather not
+      // (features/push) – sent after this has answered.
+      notifyInvited(req.payload, {
+        calendar: calendar.id,
+        who: id,
+        by: String(me.id),
+      });
     }
-    // New in it, they hear so on their devices – whether they are, and
-    // want to, is features/push's to say. Sent after this has answered.
-    notifyInvited(req.payload, {
-      calendar: calendar.id,
-      who: id,
-      by: String(me.id),
-      before: calendar.members,
-    });
     return Response.json({
       added: true,
       person: { id, name: (person as { name?: string }).name ?? "" },

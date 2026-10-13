@@ -120,6 +120,20 @@ Stand: 12.10.2026
   Konto-Kreis mit Menü (auch Abmelden) – ohne Flackern beim Laden; nach dem
   Abmelden wieder die Anmelde-Knöpfe. Wer schon vor diesem Stand angemeldet
   war, bekommt den Hinweis beim nächsten Öffnen der App.
+- Zeichenwerkzeuge im Stempel-Editor (bisher nur WebKit ohne Fenster):
+  Radierer (E), Auswahl (V: verschieben, skalieren, drehen, ⌥-Ziehen
+  dupliziert, Pfeiltasten, ⌘D, Entf), Zentrierhilfen (⌘ schaltet sie aus),
+  Strichstärke einer Auswahl ändern. Linie (L): Klick = Ecke, Ziehen =
+  Kurve, ⇧ = 45°, Klick auf den ersten Punkt schließt, Enter beendet, ⌫
+  nimmt den letzten Punkt weg. Punkte bearbeiten (A oder Doppelklick):
+  Anker und Griffe ziehen, ⌥-Klick rund/eckig, Klick auf die Linie fügt
+  einen Punkt ein. Noch nie im Browser geprüft: ⌥ beim Ziehen (Griffe
+  brechen). Auf dem Phone: Punkte tippen, „Fertig“, Zwei-Finger-Gesten.
+- Kalender, der auf einem Gerät fehlt, obwohl der Server ihn noch hat:
+  kommt jetzt beim nächsten Abgleich von selbst zurück (neu laden reicht).
+- Dev-Server: Speichert jemand eine Datei, von der der Store abhängt, bleibt
+  die offene App beim Logo stehen, bis man neu lädt (nur lokal, nicht im
+  Build).
 - Automatisches Löschen: vor dem ersten echten Lauf einmal
   `/next/cron/cleanup?dry=1` aufrufen – de r erste Lauf löscht unbestätigte
   Konten, die älter als 30 Tage sind.

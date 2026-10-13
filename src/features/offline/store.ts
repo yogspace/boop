@@ -89,6 +89,15 @@ const KIND = {
   note: "notes",
 } as const satisfies Record<SyncType, string>;
 
+// In development a saved file can swap this module into a running page: the
+// new store would stay empty (nothing starts it again), beside the old one
+// still syncing. The page starts over instead.
+if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+  const page = window as { boopStore?: true };
+  if (page.boopStore) window.location.reload();
+  page.boopStore = true;
+}
+
 export const boop = proxy<BoopState>({
   status: "loading",
   me: null,
@@ -725,14 +734,17 @@ export const sync = async (): Promise<void> => {
   running = (async () => {
     set({ syncing: true });
     try {
-      // A few rounds at most: the outbox in parts, then missing stamps.
+      // A few rounds at most: the outbox in parts, then missing stamps –
+      // and a calendar the server names but this device doesn't have.
       for (let round = 0; round < 5; round++) {
         const batch = outbox.slice(0, MAX_CHANGES);
         for (const entry of batch) inFlight.add(entry.seq);
         const need = missingStamps();
         const body: SyncRequest = {
           since,
-          known,
+          // Only those really here: the server sends the others complete,
+          // as it does new ones – so one this device lost comes back.
+          known: known.filter(here),
           need,
           changes: batch.map((entry) => entry.change),
         };
@@ -758,6 +770,8 @@ export const sync = async (): Promise<void> => {
         await merge(result);
         const stillMissing = missingStamps();
         const progress = need.some((id) => !stillMissing.includes(id));
+        const lost = result.calendarIds.some((id) => !here(id));
+        if (lost) continue;
         if (!outbox.length && (!stillMissing.length || !progress)) break;
       }
     } catch {
@@ -787,6 +801,13 @@ const missingStamps = () => [
 /** True when a change for this document is still waiting to be sent. */
 const waiting = (type: SyncType, id: string) =>
   outbox.some((entry) => entry.change.type === type && entry.change.id === id);
+
+/**
+ * Is this calendar on the device? Also one changed here and not yet sent –
+ * deleted here, it is on its way out, not lost.
+ */
+const here = (id: string) =>
+  Boolean(boop.calendars[id]) || waiting("calendar", id);
 
 /** Takes over what the server sent – unless this device changed it since. */
 const merge = async (result: SyncResponse) => {
@@ -899,3 +920,5 @@ export const logout = async () => {
   });
   return true;
 };
+
+// hmr probe

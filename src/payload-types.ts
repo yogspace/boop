@@ -229,7 +229,7 @@ export interface PushSubscription {
   createdAt: string;
 }
 /**
- * What an account wants to hear of. “Someone added me to a calendar” is on until switched off. A calendar not listed is as by default: the reminder and “someone else stamped” on, “someone else changed something” off.
+ * What an account wants to hear of. “Someone invites me to a calendar” is on until switched off. A calendar not listed is as by default: the reminder and “someone else stamped” on, “someone else changed something” off.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "push-settings".
@@ -2067,7 +2067,7 @@ export interface Translation {
        */
       timeHint?: string | null;
       /**
-       * DE: Wenn mich jemand zu einem Kalender hinzufügt  ·  EN: When someone adds me to a calendar
+       * DE: Wenn mich jemand zu einem Kalender einlädt  ·  EN: When someone invites me to a calendar
        */
       invited?: string | null;
       /**
@@ -2091,7 +2091,7 @@ export interface Translation {
        */
       invitedTitle?: string | null;
       /**
-       * DE: {name} hat dich zu „{calendar}“ hinzugefügt.  ·  EN: {name} added you to “{calendar}”.  ·  Keeps {name}, {calendar}
+       * DE: {name} lädt dich zu „{calendar}“ ein.  ·  EN: {name} invited you to “{calendar}”.  ·  Keeps {name}, {calendar}
        */
       invitedBody?: string | null;
       /**
@@ -2313,7 +2313,7 @@ export interface Translation {
        */
       emailNew?: string | null;
       /**
-       * DE: Wir schicken dir einen Link an die neue Adresse. Öffne ihn innerhalb von {hours} Stunden – erst dann gilt sie.  ·  EN: We'll send a link to the new address. Open it within {hours} hours – only then does it count.  ·  May use {hours}
+       * DE: Wir schicken dir einen Link an die neue Adresse. Du hast {hours} Stunden Zeit, ihn zu öffnen.  ·  EN: We'll send a link to the new address. You have {hours} hours to open it.  ·  May use {hours}
        */
       emailHint?: string | null;
       /**

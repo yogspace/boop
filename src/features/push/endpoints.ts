@@ -50,7 +50,7 @@ export type PushState = {
   /** Ours, for the browser's subscription. */
   publicKey: string | null;
   reminderAt: string;
-  /** “Someone added me to a calendar” – the account's own, for all of them. */
+  /** “Someone invites me to a calendar” – the account's own, for all of them. */
   invited: boolean;
   /** The switches per calendar the account is in. */
   calendars: Record<string, Switches>;

@@ -452,7 +452,7 @@ const de = {
       timeHint: "Für alle deine Kalender – in der Uhrzeit deines Geräts.",
       // The account's own switch, in its sheet – and a word there when this
       // device hears nothing.
-      invited: "Wenn mich jemand zu einem Kalender hinzufügt",
+      invited: "Wenn mich jemand zu einem Kalender einlädt",
       deviceOff:
         "Auf diesem Gerät sind Benachrichtigungen aus. Einschalten kannst du sie in den Einstellungen eines Kalenders.",
       // What the notifications say – in the device's language.
@@ -464,7 +464,7 @@ const de = {
       ),
       invitedTitle: "Boop!",
       invitedBody: template(
-        "{name} hat dich zu „{calendar}“ hinzugefügt.",
+        "{name} lädt dich zu „{calendar}“ ein.",
         (say) => (name: string, calendar: string) => say({ name, calendar })
       ),
       changedTitle: "Boop!",
@@ -579,7 +579,7 @@ const de = {
       emailChange: "Ändern",
       emailNew: "Neue E-Mail-Adresse",
       emailHint: template(
-        "Wir schicken dir einen Link an die neue Adresse. Öffne ihn innerhalb von {hours} Stunden – erst dann gilt sie.",
+        "Wir schicken dir einen Link an die neue Adresse. Du hast {hours} Stunden Zeit, ihn zu öffnen.",
         (say) => say({ hours: EMAIL_CHANGE_HOURS }),
         { optional: ["hours"] }
       ),
@@ -1111,14 +1111,14 @@ const en: Shape<typeof de> = {
       alone: "Works once someone else is in this calendar.",
       time: "Reminder at",
       timeHint: "For all your calendars – on your device's clock.",
-      invited: "When someone adds me to a calendar",
+      invited: "When someone invites me to a calendar",
       deviceOff:
         "Notifications are off on this device. You can turn them on in a calendar's settings.",
       someone: "Someone",
       stampedTitle: "Boop!",
       stampedBody: "{name} stamped in “{calendar}”.",
       invitedTitle: "Boop!",
-      invitedBody: "{name} added you to “{calendar}”.",
+      invitedBody: "{name} invited you to “{calendar}”.",
       changedTitle: "Boop!",
       changedBody: {
         note: "{name} wrote a note in “{calendar}”.",
@@ -1186,7 +1186,7 @@ const en: Shape<typeof de> = {
       emailChange: "Change",
       emailNew: "New email address",
       emailHint:
-        "We'll send a link to the new address. Open it within {hours} hours – only then does it count.",
+        "We'll send a link to the new address. You have {hours} hours to open it.",
       emailSend: "Send link",
       emailSame: "That's your address already.",
       emailInvalid: "That's not an email address.",

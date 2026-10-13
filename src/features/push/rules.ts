@@ -12,9 +12,9 @@ import { dictionaryOf } from "../../i18n/dictionaries";
  *   and “someone else stamped here”, on until switched off, and “someone
  *   else changed something”, off until switched on – it would be loud.
  *   Only what differs is kept (`PushSettingsDoc.calendars`).
- * - And one of its own, for no calendar yet: “someone added me to one”, on
- *   until switched off – kept only when off (`PushSettingsDoc.invited`).
- *   The one added hears it, nobody else (`invitedTargets`).
+ * - And one of its own, for no calendar yet: “someone invites me to one”,
+ *   on until switched off – kept only when off (`PushSettingsDoc.invited`).
+ *   The one invited hears it, nobody else (`invitedTargets`).
  * - A device (`SubscriptionRow`) hears only as long as the login it was
  *   switched on in lasts: logged out, it is quiet.
  * - The reminder comes once a day per device, at the account's time on the
@@ -64,15 +64,15 @@ export const CHANGED_WINDOW_MS = 10 * 60 * 1000;
 export const CHANGED_GATHER_MS = 5 * 1000;
 
 /**
- * Added to one calendar, taken out and added again within this long is one
- * notification – nobody is rung up by being put in and out.
+ * Invited to one calendar again within this long is one notification –
+ * nobody is rung up by being asked over and over.
  */
 export const INVITED_WINDOW_MS = 10 * 60 * 1000;
 
 /** The account's settings as stored (collections.ts) – none: all default. */
 export type PushSettingsDoc = {
   reminderAt?: string | null;
-  /** “Someone added me to a calendar” – kept only when off. */
+  /** “Someone invites me to a calendar” – kept only when off. */
   invited?: boolean | null;
   calendars?:
     | {
@@ -263,7 +263,7 @@ export const withSwitch = (
 };
 
 /**
- * The account's own switch, “someone added me to a calendar”: on until
+ * The account's own switch, “someone invites me to a calendar”: on until
  * switched off – whatever is kept that is no off counts as on.
  */
 export const invitedOf = (settings: PushSettingsDoc | null | undefined) =>
@@ -380,45 +380,31 @@ export const changedTargets = ({
     (device) => !about.includes(device.account)
   );
 
-/** Someone put into a calendar – who, by whom, and who was in it before. */
-export type Added = {
-  who: string;
-  /** Who did it. */
-  by: string;
-  /** The calendar's members before. */
-  before: readonly string[];
-};
-
 /**
- * Is it news to them? Only to one new in the calendar, put there by
- * someone else: already in, nothing happened – and whoever came in by
- * themselves (an invitation's link) knows.
- */
-export const wasAdded = ({ who, by, before }: Added) =>
-  who !== by && !before.includes(who);
-
-/**
- * Who hears that they were added to a calendar: the devices of the one
- * added (`wasAdded`) – nobody else's; the others hear of it as a change
- * (`changedTargets`, which leaves this one out) – whose account has its
- * switch on, and whose login lasts.
+ * Who hears of an invitation to a calendar: the devices of the one invited
+ * – nobody else's – whose account has its switch on, and whose login
+ * lasts. Nobody invites themselves: one's own doing is no news.
  */
 export const invitedTargets = ({
+  who,
+  by,
   devices,
   settings,
   sessions,
   now,
-  ...added
-}: Added &
-  Pick<
-    Audience,
-    "devices" | "settings" | "sessions" | "now"
-  >): SubscriptionRow[] =>
-  wasAdded(added) && invitedOf(settings[added.who])
+}: {
+  /** Who is invited. */
+  who: string;
+  /** Who invites them. */
+  by: string;
+} & Pick<
+  Audience,
+  "devices" | "settings" | "sessions" | "now"
+>): SubscriptionRow[] =>
+  who !== by && invitedOf(settings[who])
     ? devices.filter(
         (device) =>
-          device.account === added.who &&
-          loginLasts(device, sessions[added.who], now)
+          device.account === who && loginLasts(device, sessions[who], now)
       )
     : [];
 
@@ -672,7 +658,7 @@ export const createBundle = (windowMs: number, gatherMs: number) => {
 export type PushMessage = {
   title: string;
   body: string;
-  /** Where a tap leads – the calendar in the app. */
+  /** Where a tap leads – the calendar in the app, or the app. */
   url: string;
   /** One per calendar and kind on the device: a new one replaces it. */
   tag: string;
@@ -700,8 +686,8 @@ export const stampedMessage = (
 };
 
 /**
- * “Anna added you to ‘Family’” – for the one added. A tap leads into the
- * calendar: theirs now, there with their device's next sync.
+ * “Anna invited you to ‘Family’” – for the one invited. A tap leads to the
+ * app, where the invitation is to show – not into the calendar itself.
  */
 export const invitedMessage = (
   locale: Locale,
@@ -711,7 +697,7 @@ export const invitedMessage = (
   return {
     title: t.invitedTitle,
     body: t.invitedBody(name.trim() || t.someone, calendar.name),
-    url: calendarUrl(locale, calendar.id),
+    url: `/${locale}/app`,
     tag: `invited-${calendar.id}`,
   };
 };
