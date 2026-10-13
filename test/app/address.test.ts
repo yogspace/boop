@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   addressOf,
   calendarOf,
+  PANEL_SLUGS,
+  panelOf,
   readAddress,
   slugOf,
   slugsOf,
@@ -129,10 +131,14 @@ describe("the address", () => {
     expect(readAddress("/de/app/familie/heute")).toEqual({
       calendar: "familie",
       view: "today",
+      day: null,
+      panel: null,
     });
     expect(readAddress("/en/app/family/month")).toEqual({
       calendar: "family",
       view: "month",
+      day: null,
+      panel: null,
     });
   });
 
@@ -146,16 +152,65 @@ describe("the address", () => {
   });
 
   it("reads what is there, and nothing else", () => {
-    expect(readAddress("/de/app")).toEqual({ calendar: null, view: null });
-    expect(readAddress("/de/app/")).toEqual({ calendar: null, view: null });
-    expect(readAddress(`/de/app/${ID}`)).toEqual({ calendar: ID, view: null });
+    const none = { calendar: null, view: null, day: null, panel: null };
+    expect(readAddress("/de/app")).toEqual(none);
+    expect(readAddress("/de/app/")).toEqual(none);
+    expect(readAddress(`/de/app/${ID}`)).toEqual({ ...none, calendar: ID });
     expect(readAddress("/de/app/familie/quatsch")).toEqual({
+      ...none,
       calendar: "familie",
-      view: null,
     });
     expect(readAddress("/de/login").calendar).toBeNull();
     expect(readAddress("/de/app/k%C3%BCche").calendar).toBe("küche");
     expect(readAddress("/de/app/%E0%A4").calendar).toBe("%E0%A4");
+  });
+
+  it("has the day open in the month or the year – a real one", () => {
+    expect(addressOf("de", "familie", "month", { day: "2026-10-13" })).toBe(
+      "/de/app/familie/monat/2026-10-13"
+    );
+    expect(addressOf("en", "family", "year", { day: "2026-02-28" })).toBe(
+      "/en/app/family/year/2026-02-28"
+    );
+    expect(addressOf("de", "familie", "today", { day: "2026-10-13" })).toBe(
+      "/de/app/familie/heute"
+    );
+    expect(addressOf("de", null, "month", { day: "2026-10-13" })).toBe(
+      "/de/app"
+    );
+    expect(readAddress("/de/app/familie/monat/2026-10-13").day).toBe(
+      "2026-10-13"
+    );
+    expect(readAddress("/en/app/family/jahr/2026-10-13").day).toBe(
+      "2026-10-13"
+    );
+    expect(readAddress("/de/app/familie/heute/2026-10-13").day).toBeNull();
+    expect(readAddress("/de/app/familie/monat/2026-02-30").day).toBeNull();
+    expect(readAddress("/de/app/familie/monat/quatsch").day).toBeNull();
+    expect(readAddress("/de/app/familie/2026-10-13")).toEqual({
+      calendar: "familie",
+      view: null,
+      day: null,
+      panel: null,
+    });
+  });
+
+  it("has the sheet open over a view – in either language", () => {
+    expect(addressOf("de", "familie", "today", { panel: "settings" })).toBe(
+      "/de/app/familie/heute/einstellungen"
+    );
+    expect(addressOf("en", "family", "month", { panel: "share" })).toBe(
+      "/en/app/family/month/share"
+    );
+    expect(addressOf("de", "familie", "year", { panel: "account" })).toBe(
+      "/de/app/familie/jahr/konto"
+    );
+    expect(readAddress("/en/app/family/today/einstellungen").panel).toBe(
+      "settings"
+    );
+    expect(readAddress("/de/app/familie/teilen").panel).toBeNull();
+    expect(readAddress("/de/app/familie/heute/quatsch").panel).toBeNull();
+    expect(panelOf("Konto")).toBeNull();
   });
 
   it("writes the view in the page's language", () => {
@@ -170,10 +225,19 @@ describe("the address", () => {
   it("reads back what it writes", () => {
     for (const locale of ["de", "en"] as const) {
       for (const view of ["today", "month", "year"] as const) {
-        expect(readAddress(addressOf(locale, "wg-kueche", view))).toEqual({
-          calendar: "wg-kueche",
-          view,
-        });
+        const none = { calendar: "wg-kueche", view, day: null, panel: null };
+        expect(readAddress(addressOf(locale, "wg-kueche", view))).toEqual(none);
+        expect(
+          readAddress(
+            addressOf(locale, "wg-kueche", view, { day: "2026-10-13" })
+          )
+        ).toEqual({ ...none, day: view === "today" ? null : "2026-10-13" });
+        for (const panel of ["settings", "share", "account"] as const) {
+          expect(
+            readAddress(addressOf(locale, "wg-kueche", view, { panel }))
+          ).toEqual({ ...none, panel });
+          expect(PANEL_SLUGS[locale][panel]).toMatch(/^[a-z]+$/);
+        }
         expect(VIEW_SLUGS[locale][view]).toMatch(/^[a-z]+$/);
       }
     }

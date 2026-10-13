@@ -52,6 +52,8 @@ import {
   type Address,
   addressOf,
   calendarOf,
+  type Open,
+  type Panel,
   readAddress,
   slugsOf,
 } from "./address";
@@ -87,14 +89,24 @@ const HELD = "boop";
  * history entry kept, where it kept one, else the one the address names.
  */
 const asked = (): Address => {
-  if (typeof window === "undefined") return { calendar: null, view: null };
+  if (typeof window === "undefined") {
+    return { calendar: null, view: null, day: null, panel: null };
+  }
   const address = readAddress(window.location.pathname);
   const held: unknown = window.history.state?.[HELD]?.calendar;
   return {
     calendar: typeof held === "string" ? held : address.calendar,
     view: address.view,
+    day: address.day,
+    panel: address.panel,
   };
 };
+
+/** The month a day is in – where the month and the year open with it. */
+const monthOf = (day: DayKey) => ({
+  year: Number(day.slice(0, 4)),
+  month: Number(day.slice(5, 7)) - 1,
+});
 
 /**
  * The views take turns quietly: one fades, the other settles in from a
@@ -150,11 +162,14 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   // renders none – no matter: until the device's copy is open (status
   // "loading", always so while hydrating) no calendar shows.
   const [shown, setShown] = useState(asked);
+  // A day open in the month or the year – in the address too, so a reload
+  // or a link opens it again, in its month.
+  const [day, setDay] = useState<DayKey | null>(shown.day);
   const [month, setMonth] = useState(() => {
+    if (shown.day) return monthOf(shown.day);
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
   });
-  const [day, setDay] = useState<DayKey | null>(null);
   const [drawing, setDrawing] = useState(false);
   // Whose share sheet, whose settings are open – by id: should that calendar
   // go meanwhile (deleted, or someone took the account out), its sheet goes
@@ -165,6 +180,9 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   // two at once would undo each other's hold on the page behind (sheet.tsx).
   const shareNext = useRef<string | null>(null);
   const [account, setAccount] = useState(false);
+  // A sheet the address asks for (a reload, a link, back and forth) – it
+  // opens once the calendar it belongs to is known.
+  const [asking, setAsking] = useState<Panel | null>(shown.panel);
   const [menu, setMenu] = useState(false);
   // The account's menu closes with a press elsewhere, or Escape.
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -248,6 +266,27 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   }
   const view: CalendarView =
     shown.view ?? (calendar && prefOf(boop, calendar.id).view) ?? "today";
+  // The today view is a day of its own – none opens over it.
+  const openDay = view === "today" ? null : day;
+  if (asking && boop.status === "ready" && calendar) {
+    setAsking(null);
+    if (asking === "settings") setSettings(calendar.id);
+    // Sharing is the owner's – for anyone else the address asks for nothing.
+    if (asking === "share" && calendar.owner === boop.me?.id) {
+      setSharing(calendar.id);
+    }
+    if (asking === "account") setAccount(true);
+  }
+  // The sheet open over the view, for the address – the share sheet already
+  // while the settings make way for it.
+  const shownId = calendar?.id;
+  const panel: Panel | null = account
+    ? "account"
+    : shownId && settings === shownId
+      ? "settings"
+      : shownId && (sharing ?? shareNext.current) === shownId
+        ? "share"
+        : null;
   // The calendar's color as this account sees it – and the ground in it,
   // once there is something to show.
   const color = calendar ? hexOf(colorOf(boop, calendar)) : null;
@@ -273,27 +312,36 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   // calendar's id besides (`HELD`). No navigation: the page stays as it is
   // – Next learns the new path from `history` itself (usePathname), and
   // adds its own state to ours.
-  const shownId = calendar?.id;
   const slug = shownId && slugs[locale].get(shownId);
   useEffect(() => {
     if (!shownId) return;
-    const path = addressOf(locale, slug, view);
+    const path = addressOf(locale, slug, view, { day: openDay, panel });
     const { pathname, search, hash } = window.location;
-    const held = window.history.state?.[HELD]?.calendar;
-    if (pathname === path && held === shownId) return;
+    const held = window.history.state?.[HELD];
+    if (pathname === path && held?.calendar === shownId) return;
+    // The entry of a day or a sheet stays a step of its own (`stepped`,
+    // `stepTo`) – in the other language too, and from the settings on to
+    // the share sheet.
     window.history.replaceState(
-      { [HELD]: { calendar: shownId } },
+      { [HELD]: { ...((openDay || panel) && held), calendar: shownId } },
       "",
       `${path}${search}${hash}`
     );
-  }, [locale, shownId, slug, view]);
+  }, [locale, shownId, slug, view, openDay, panel]);
 
-  // Back and forth in the history: what that entry showed. A day's sheet
-  // open belongs to where it was opened.
+  // Back and forth in the history: what that entry showed – a day open in
+  // it too, in its month, or a sheet.
   useEffect(() => {
     const onPop = () => {
-      setShown(asked());
-      setDay(null);
+      const next = asked();
+      setShown(next);
+      setDay(next.day);
+      if (next.day) setMonth(monthOf(next.day));
+      setSettings(null);
+      setSharing(null);
+      setAccount(false);
+      shareNext.current = null;
+      setAsking(next.panel);
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
@@ -333,7 +381,8 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
         `${path}${search}${hash}`
       );
     }
-    setShown({ calendar: id, view: next });
+    setShown({ calendar: id, view: next, day: null, panel: null });
+    setDay(null);
   };
 
   /** The other view – kept for the calendar, it opens in it next time. */
@@ -343,8 +392,33 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     void setCalendarPref(calendar.id, { view: next });
   };
 
+  /**
+   * A day or a sheet opens over the view – a step of its own in the
+   * history: back closes it, and closing it goes back (`closeStep`).
+   */
+  const stepTo = (open: Open) => {
+    const path = addressOf(locale, slug, view, open);
+    const { search, hash } = window.location;
+    window.history.pushState(
+      { [HELD]: { calendar: shownId, stepped: true } },
+      "",
+      `${path}${search}${hash}`
+    );
+  };
+
+  /**
+   * A day or a sheet closes: where opening it was a step, a step back –
+   * otherwise (it came with the address: a reload, a link) the address
+   * simply loses it.
+   */
+  const closeStep = (close: () => void) => () => {
+    if (window.history.state?.[HELD]?.stepped) window.history.back();
+    else close();
+  };
+
   /** A day's sheet, from the month or the year. */
-  const openDay = (key: DayKey) => {
+  const openDayAt = (key: DayKey) => {
+    stepTo({ day: key });
     setDay(key);
     trackEvent("day-opened");
   };
@@ -366,10 +440,20 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   const firstName = boop.me?.name.split(" ")[0] ?? "";
   // The address in the other language – the view's word changes with it.
   const addressIn = (other: Locale) =>
-    addressOf(other, calendar && slugs[other].get(calendar.id), view);
+    addressOf(other, calendar && slugs[other].get(calendar.id), view, {
+      day: openDay,
+      panel,
+    });
   // Something lies over the today view – its page's keys are off then.
   const covered = Boolean(
-    menu || day || drawing || sharing || settings || account || dialog || opened
+    menu ||
+      openDay ||
+      drawing ||
+      sharing ||
+      settings ||
+      account ||
+      dialog ||
+      opened
   );
 
   return (
@@ -447,6 +531,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                   <Button
                     onClick={() => {
                       setMenu(false);
+                      stepTo({ panel: "account" });
                       setAccount(true);
                     }}
                     size="sm"
@@ -584,6 +669,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                           className={ROUND_BUTTON}
                           onClick={() => {
                             onClick();
+                            stepTo({ panel: "share" });
                             setSharing(calendar.id);
                           }}
                           type="button"
@@ -601,6 +687,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                         className={ROUND_BUTTON}
                         onClick={() => {
                           onClick();
+                          stepTo({ panel: "settings" });
                           setSettings(calendar.id);
                         }}
                         type="button"
@@ -631,7 +718,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                         calendar={calendar.id}
                         locale={locale}
                         month={month}
-                        onDay={openDay}
+                        onDay={openDayAt}
                         onMonth={setMonth}
                       />
                     )}
@@ -642,7 +729,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                       <YearGrid
                         calendar={calendar.id}
                         locale={locale}
-                        onDay={openDay}
+                        onDay={openDayAt}
                         onMonth={(at) => {
                           setMonth(at);
                           pick("month");
@@ -741,13 +828,13 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
 
       {/* Each sheet in its own presence – there it can go the way it came. */}
       <AnimatePresence>
-        {calendar && day && (
+        {calendar && openDay && (
           <DaySheet
             calendar={calendar.id}
-            date={day}
+            date={openDay}
             key="day"
             locale={locale}
-            onClose={() => setDay(null)}
+            onClose={closeStep(() => setDay(null))}
             stamps={myStamps}
           />
         )}
@@ -792,8 +879,11 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
             calendar={boop.calendars[settings]}
             key="settings"
             locale={locale}
-            onClose={() => setSettings(null)}
-            onDeleted={() => setShown({ calendar: null, view: null })}
+            onClose={closeStep(() => setSettings(null))}
+            onDeleted={() => {
+              setSettings(null);
+              setShown({ calendar: null, view: null, day: null, panel: null });
+            }}
             onShare={() => {
               shareNext.current = settings;
               setSettings(null);
@@ -806,7 +896,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
           <AccountSheet
             key="account"
             locale={locale}
-            onClose={() => setAccount(false)}
+            onClose={closeStep(() => setAccount(false))}
           />
         )}
       </AnimatePresence>
@@ -841,7 +931,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
             calendar={boop.calendars[sharing]}
             key="share"
             locale={locale}
-            onClose={() => setSharing(null)}
+            onClose={closeStep(() => setSharing(null))}
           />
         )}
       </AnimatePresence>
