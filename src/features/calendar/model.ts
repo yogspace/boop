@@ -184,7 +184,7 @@ export type PlacementDoc = Synced & {
  * A stretch of a note's text, bold and/or underlined – or neither. Never a
  * line break inside: those part the lines.
  */
-export type NoteRun = { text: string; b?: true; u?: true };
+export type NoteRun = { text: string; b?: true; i?: true; u?: true };
 
 /**
  * What a note says: its lines, each of runs. No HTML – a structure checked

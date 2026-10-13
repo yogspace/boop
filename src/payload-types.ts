@@ -1718,6 +1718,10 @@ export interface Translation {
        */
       bold?: string | null;
       /**
+       * DE: Kursiv  ·  EN: Italic
+       */
+      italic?: string | null;
+      /**
        * DE: Unterstrichen  ·  EN: Underline
        */
       underline?: string | null;
@@ -1908,7 +1912,7 @@ export interface Translation {
        */
       offline?: string | null;
       /**
-       * DE: Erinnern, wenn ich heute noch nicht gestempelt habe  ·  EN: Remind me when I haven't stamped today
+       * DE: Erinnern, wenn ich heute noch nichts eingetragen habe  ·  EN: Remind me when I haven't entered anything today
        */
       reminder?: string | null;
       /**
@@ -1923,6 +1927,10 @@ export interface Translation {
        * DE: Notizen, verschobene oder entfernte Abdrücke, ein neuer Name, wer dazukommt oder geht.  ·  EN: Notes, moved or removed prints, a new name, who joins or leaves.
        */
       changedHint?: string | null;
+      /**
+       * DE: Geht, sobald jemand mit in diesem Kalender ist.  ·  EN: Works once someone else is in this calendar.
+       */
+      alone?: string | null;
       /**
        * DE: Erinnerung um  ·  EN: Reminder at
        */
@@ -2798,6 +2806,7 @@ export interface TranslationsSelect<T extends boolean = true> {
               past?: T;
               future?: T;
               bold?: T;
+              italic?: T;
               underline?: T;
               ctrl?: T;
               by?:
@@ -2874,6 +2883,7 @@ export interface TranslationsSelect<T extends boolean = true> {
               stamped?: T;
               changed?: T;
               changedHint?: T;
+              alone?: T;
               time?: T;
               timeHint?: T;
               someone?: T;

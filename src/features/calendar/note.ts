@@ -6,10 +6,11 @@ import type { DayKey, NoteContent, NoteRun } from "./model";
  * and in the app (features/app/day-note.tsx). No server imports here.
  *
  * A note is never HTML: it is lines of runs, each run plain text that is
- * bold, underlined, both or neither (`NoteContent`). Whatever a device sends
- * goes through `cleanNote` on the server, and what the app shows goes
- * through it once more – the app draws it with text nodes and two kinds of
- * element (`b`, `u`), so nothing stored ever reaches a page as markup.
+ * bold, italic, underlined, any of them or none (`NoteContent`). Whatever a
+ * device sends goes through `cleanNote` on the server, and what the app
+ * shows goes through it once more – the app draws it with text nodes and
+ * three kinds of element (`b`, `i`, `u`), so nothing stored ever reaches a
+ * page as markup.
  *
  * One note per day of a calendar: its id is made of the two (`noteId`).
  */
@@ -66,7 +67,7 @@ const blank = (line: NoteRun[]) => line.every((run) => !run.text.trim());
 /**
  * A note as it came – from a device, the database or the editor – checked
  * and trimmed, or null when nothing is left to say. Lines of runs only, and
- * in each run nothing but its text and `b`/`u` when they are `true`; runs
+ * in each run nothing but its text and `b`/`i`/`u` when they are `true`; runs
  * alike side by side become one, empty ones go, and so do blank lines at
  * the end. A break inside a run's text starts a new line. Past the limits
  * (`NOTE_LIMITS`) the rest is cut off.
@@ -87,20 +88,16 @@ export const cleanNote = (value: unknown): NoteContent | null => {
     }
     return !full;
   };
-  const add = (text: string, b: boolean, u: boolean) => {
+  const add = (text: string, marks: Marks) => {
     const kept = cut(tidy(text), room);
     if (!kept) return;
     room -= kept.length;
     const line = lines[lines.length - 1];
     const last = line.at(-1);
-    if (last && Boolean(last.b) === b && Boolean(last.u) === u) {
+    if (last && sameMarks(last, marks)) {
       last.text += kept;
     } else {
-      line.push({
-        text: kept,
-        ...(b && { b: true as const }),
-        ...(u && { u: true as const }),
-      });
+      line.push({ text: kept, ...marksOf(marks) });
     }
   };
   for (const [i, row] of rows.entries()) {
@@ -109,18 +106,34 @@ export const cleanNote = (value: unknown): NoteContent | null => {
     for (const run of row) {
       if (full || room < 1) break;
       if (!run || typeof run !== "object") continue;
-      const { text, b, u } = run as Record<string, unknown>;
+      const { text, b, i: it, u } = run as Record<string, unknown>;
       if (typeof text !== "string") continue;
+      const marks = { b: b === true, i: it === true, u: u === true };
       const parts = text.split(BREAK);
       for (const [k, part] of parts.entries()) {
         if (k > 0 && !next()) break;
-        add(part, b === true, u === true);
+        add(part, marks);
       }
     }
   }
   while (lines.length > 1 && blank(lines[lines.length - 1])) lines.pop();
   return blank(lines[0]) && lines.length === 1 ? null : { v: 1, lines };
 };
+
+/** How a run is set: bold, italic, underlined – each on or off. */
+type Marks = { b: boolean; i: boolean; u: boolean };
+
+const sameMarks = (run: NoteRun, marks: Marks) =>
+  Boolean(run.b) === marks.b &&
+  Boolean(run.i) === marks.i &&
+  Boolean(run.u) === marks.u;
+
+/** The marks a run keeps – only those that are on. */
+const marksOf = ({ b, i, u }: Marks) => ({
+  ...(b && { b: true as const }),
+  ...(i && { i: true as const }),
+  ...(u && { u: true as const }),
+});
 
 /** A note as plain text – its lines, one under the other. */
 export const noteText = (content: NoteContent | null | undefined) =>
@@ -156,6 +169,7 @@ export type NoteNode = {
   childNodes: ArrayLike<NoteNode>;
   style?: {
     fontWeight?: string;
+    fontStyle?: string;
     textDecoration?: string;
     textDecorationLine?: string;
   };
@@ -199,8 +213,9 @@ const boldOf = (weight: string | undefined): boolean | undefined => {
  * Safari and Chrome make for a new line) stands on lines of its own, a
  * break in a text node breaks it (the box keeps white space, `pre-wrap`).
  * A `<br>` that only ends a line – the last thing in it – adds none. Bold is
- * `<b>`, `<strong>` or a font weight from 600; underlined `<u>`, `<ins>` or
- * a text decoration – whatever the browser made of a ⌘B or ⌘U.
+ * `<b>`, `<strong>` or a font weight from 600; italic `<i>`, `<em>` or a
+ * font style; underlined `<u>`, `<ins>` or a text decoration – whatever the
+ * browser made of a ⌘B, ⌘I or ⌘U.
  */
 export const noteOf = (root: NoteNode): NoteContent | null => {
   const lines: NoteRun[][] = [];
@@ -210,24 +225,20 @@ export const noteOf = (root: NoteNode): NoteContent | null => {
     if (!line) lines.push([]);
     line = null;
   };
-  const text = (value: string, b: boolean, u: boolean) => {
-    for (const [i, part] of value.split(BREAK).entries()) {
-      if (i > 0) breakLine();
+  const text = (value: string, marks: Marks) => {
+    for (const [n, part] of value.split(BREAK).entries()) {
+      if (n > 0) breakLine();
       if (!part) continue;
       if (!line) {
         line = [];
         lines.push(line);
       }
-      line.push({
-        text: part,
-        ...(b && { b: true as const }),
-        ...(u && { u: true as const }),
-      });
+      line.push({ text: part, ...marksOf(marks) });
     }
   };
-  const walk = (node: NoteNode, b: boolean, u: boolean) => {
+  const walk = (node: NoteNode, { b, i, u }: Marks) => {
     if (node.nodeType === TEXT) {
-      text(node.nodeValue ?? "", b, u);
+      text(node.nodeValue ?? "", { b, i, u });
       return;
     }
     if (node.nodeType !== ELEMENT) return;
@@ -242,13 +253,19 @@ export const noteOf = (root: NoteNode): NoteContent | null => {
     const bold =
       boldOf(node.style?.fontWeight) ??
       (b || name === "B" || name === "STRONG");
+    const slant = node.style?.fontStyle;
+    const italic = slant
+      ? slant !== "normal"
+      : i || name === "I" || name === "EM";
     const decoration = `${node.style?.textDecorationLine ?? ""} ${node.style?.textDecoration ?? ""}`;
     const under =
       u || name === "U" || name === "INS" || decoration.includes("underline");
-    for (const child of Array.from(node.childNodes)) walk(child, bold, under);
+    const marks = { b: bold, i: italic, u: under };
+    for (const child of Array.from(node.childNodes)) walk(child, marks);
     if (block) line = null;
   };
-  for (const child of Array.from(root.childNodes)) walk(child, false, false);
+  const none = { b: false, i: false, u: false };
+  for (const child of Array.from(root.childNodes)) walk(child, none);
   return cleanNote({ v: 1, lines });
 };
 

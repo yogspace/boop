@@ -50,6 +50,26 @@ describe("a note as it comes in", () => {
     }
   });
 
+  it("keeps italic – on its own and with the others", () => {
+    expect(
+      cleanNote(
+        lines([
+          { text: "a", i: true },
+          { text: "b", i: true },
+          { text: "c", b: true, i: true, u: true },
+        ])
+      )
+    ).toEqual(
+      lines([
+        { text: "ab", i: true },
+        { text: "c", b: true, i: true, u: true },
+      ])
+    );
+    expect(cleanNote({ lines: [[{ text: "x", i: "yes" }]] })).toEqual(
+      lines([{ text: "x" }])
+    );
+  });
+
   it("keeps nothing of a run but its text and b/u when they are true", () => {
     const run = JSON.parse(
       '{"text":"x","b":"true","u":1,"html":"<img src=x onerror=alert(1)>","style":"color:red","__proto__":{"b":true}}'
@@ -219,6 +239,28 @@ describe("reading what was typed", () => {
     expect(noteOf(page())).toBeNull();
     expect(noteOf(page(br()))).toBeNull();
     expect(noteOf(page(el("div", [br()])))).toBeNull();
+  });
+
+  it("knows italic by tag and by style – also cut into words", () => {
+    expect(
+      noteOf(
+        page(
+          el("i", ["Heute "]),
+          el("i", ["war "]),
+          el("i", [el("b", ["schön"])]),
+          el("em", ["e"]),
+          el("span", ["s"], { fontStyle: "italic" }),
+          el("i", [el("span", ["n"], { fontStyle: "normal" })])
+        )
+      )
+    ).toEqual(
+      lines([
+        { text: "Heute war ", i: true },
+        { text: "schön", b: true, i: true },
+        { text: "es", i: true },
+        { text: "n" },
+      ])
+    );
   });
 
   it("knows bold and underline by tag and by style", () => {

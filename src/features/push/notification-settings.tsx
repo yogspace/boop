@@ -24,9 +24,9 @@ import { DEFAULT_SWITCHES, type Switches } from "./rules";
  * A calendar's notifications, under “Just for you” in its settings: first
  * where this device stands – it can't, it's an iPhone not on the Home
  * Screen, it said no, it's off (the button), it's on – then, when on, the
- * account's switches for this calendar (the reminder; shared, also someone
- * else stamping and changing something) and the reminder's time (one for
- * all calendars). The switches are the account's, on every device; the yes
+ * account's switches for this calendar (the reminder; someone else
+ * stamping, someone else changing something – asleep in a calendar of
+ * one's own) and the reminder's time (one for all calendars). The switches are the account's, on every device; the yes
  * is the device's.
  *
  * Nothing shows while the server has no keys (notifications off), and
@@ -174,38 +174,41 @@ export const NotificationSettings = ({
           >
             {t.reminder}
           </Checkbox>
-          {shared && (
-            <>
-              <Checkbox
-                checked={switches.stamped}
-                disabled={!awake}
-                onChange={(event) =>
-                  void flip({ stamped: event.target.checked })
-                }
+          {/* About someone else – there in a calendar of one's own too, so
+              they can be found, but asleep until someone else is in it. */}
+          <Checkbox
+            aria-describedby={shared ? undefined : `push-alone-${calendar.id}`}
+            checked={switches.stamped}
+            disabled={!(awake && shared)}
+            onChange={(event) => void flip({ stamped: event.target.checked })}
+          >
+            {t.stamped}
+          </Checkbox>
+          <div className="flex flex-col gap-1">
+            <Checkbox
+              aria-describedby={`push-changed-${calendar.id}${shared ? "" : ` push-alone-${calendar.id}`}`}
+              checked={switches.changed}
+              disabled={!(awake && shared)}
+              onChange={(event) => void flip({ changed: event.target.checked })}
+            >
+              {t.changed}
+            </Checkbox>
+            {/* Under the words, past the box. */}
+            <p
+              className="pl-7.5 text-muted text-xs"
+              id={`push-changed-${calendar.id}`}
+            >
+              {t.changedHint}
+            </p>
+            {!shared && (
+              <p
+                className="pl-7.5 font-medium text-muted text-xs"
+                id={`push-alone-${calendar.id}`}
               >
-                {t.stamped}
-              </Checkbox>
-              <div className="flex flex-col gap-1">
-                <Checkbox
-                  aria-describedby={`push-changed-${calendar.id}`}
-                  checked={switches.changed}
-                  disabled={!awake}
-                  onChange={(event) =>
-                    void flip({ changed: event.target.checked })
-                  }
-                >
-                  {t.changed}
-                </Checkbox>
-                {/* Under the words, past the box. */}
-                <p
-                  className="pl-7.5 text-muted text-xs"
-                  id={`push-changed-${calendar.id}`}
-                >
-                  {t.changedHint}
-                </p>
-              </div>
-            </>
-          )}
+                {t.alone}
+              </p>
+            )}
+          </div>
           {switches.reminder && (
             <Field
               className="mt-1 max-w-56 animate-fade"

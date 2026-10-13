@@ -26,10 +26,11 @@ import {
 import { boop, setNote, useBoop } from "@/features/offline/store";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
+import { cn } from "@/lib/cn";
 
 /**
- * A day's note – what happened that day, in a few words (bold, underlined,
- * line breaks). One per day of a calendar, written by its members together.
+ * A day's note – what happened that day, in a few words (bold, italic,
+ * underlined, line breaks). One per day of a calendar, written by its members together.
  * It stands under the day's page, wherever that shows (the day's sheet, the
  * today view).
  *
@@ -41,13 +42,14 @@ import { dictionaryOf } from "@/i18n/dictionaries";
  * cursor, autocorrect, the IME and ⌫ over a bold word are what the system
  * does everywhere. While it has the focus its page is the browser's alone:
  * nothing here writes into it – what is typed is only read (`noteOf`) – so
- * the cursor never jumps. Bold and underline go through the browser too
- * (`execCommand`, with its undo). What goes in otherwise is held to plain
- * text: a paste comes as plain text, a drop not at all, and whatever else
- * the browser offers (italics, lists, links) is turned down. The page is
- * drawn anew from the note only while nobody writes on it – then with text
- * nodes and `b`/`u` alone, from a note checked once more (`cleanNote`):
- * nothing stored reaches the page as markup.
+ * the cursor never jumps. Bold, italic and underline go through the browser
+ * too (`execCommand`, with its undo). What goes in otherwise is held to
+ * plain text: a paste comes as plain text, a drop not at all, and whatever
+ * else the browser offers (lists, links) is turned down. The page is drawn
+ * anew from the note only while nobody writes on it – then with text nodes
+ * and `b`/`i`/`u` alone, from a note checked once more (`cleanNote`):
+ * nothing stored reaches the page as markup. The underline is a wavy one;
+ * italic leans back (`ITALIC`).
  *
  * Someone else's change that comes in while one writes waits: the own text
  * stays, and is saved – so it is the later one and wins. Once one leaves
@@ -89,34 +91,44 @@ const apple = () =>
 
 /**
  * What may change the page: typing (also composed, corrected, swapped),
- * line breaks, deleting, undo – and bold or underline. Anything else the
+ * line breaks, deleting, undo – and bold, italic or underline. Anything else the
  * browser offers is turned down.
  */
 const ALLOWED =
-  /^(insert(Text|ReplacementText|LineBreak|CompositionText|FromComposition|Transpose|FromYank)|delete(?!ByDrag).*|history(Undo|Redo)|format(Bold|Underline|Remove))$/;
+  /^(insert(Text|ReplacementText|LineBreak|CompositionText|FromComposition|Transpose|FromYank)|delete(?!ByDrag).*|history(Undo|Redo)|format(Bold|Italic|Underline|Remove))$/;
 
 /** What adds to the text – held at the note's length. */
 const GROWS = /^insert(Text|ReplacementText|LineBreak|FromYank)$/;
 
-/** Draws a note onto the page – text nodes, `<b>`, `<u>` and `<br>` only. */
+/**
+ * An italic run in pieces, a word each with the space after it. Italic
+ * leans the other way here (`ITALIC`) – a skew, which only a box can take –
+ * and one box per word lets the line still break between them.
+ */
+const words = (text: string) => text.match(/\S+\s*|\s+/g) ?? [text];
+
+/**
+ * Draws a note onto the page – text nodes, `<b>`, `<i>`, `<u>` and `<br>`
+ * only. Italic outermost: an underline drawn inside its box leans with it.
+ */
 const draw = (page: HTMLElement, content: NoteContent | null) => {
   const doc = page.ownerDocument;
+  const wrap = (node: Node, tag: string) => {
+    const element = doc.createElement(tag);
+    element.append(node);
+    return element;
+  };
   const nodes: Node[] = [];
-  for (const [i, line] of (content?.lines ?? []).entries()) {
-    if (i > 0) nodes.push(doc.createElement("br"));
+  for (const [n, line] of (content?.lines ?? []).entries()) {
+    if (n > 0) nodes.push(doc.createElement("br"));
     for (const run of line) {
-      let node: Node = doc.createTextNode(run.text);
-      if (run.u) {
-        const u = doc.createElement("u");
-        u.append(node);
-        node = u;
+      for (const piece of run.i ? words(run.text) : [run.text]) {
+        let node: Node = doc.createTextNode(piece);
+        if (run.u) node = wrap(node, "u");
+        if (run.b) node = wrap(node, "b");
+        if (run.i) node = wrap(node, "i");
+        nodes.push(node);
       }
-      if (run.b) {
-        const b = doc.createElement("b");
-        b.append(node);
-        node = b;
-      }
-      nodes.push(node);
     }
   }
   page.replaceChildren(...nodes);
@@ -169,6 +181,21 @@ const ago = (iso: string, locale: Locale, justNow: string) => {
  * A toggle drawn round, filled with ink while on. It keeps the focus where
  * it is (on the page, with its selection): pressing it is no leaving.
  */
+/** What a toggle asks the browser for. */
+const COMMANDS = { b: "bold", i: "italic", u: "underline" } as const;
+
+/**
+ * Italic on this paper leans back, the other way than type does: each piece
+ * of it (`draw`, a word) a little box skewed about its middle – so it
+ * neither eats the space before it nor leaves a gap after. It stays
+ * `italic` – that is how the browser tells it is on, for ⌘I to switch it
+ * off again – but the browser may not slant the letters itself (Satoshi
+ * has no italic of its own): upright, then leaning back. An underline
+ * inside leans along.
+ */
+const ITALIC =
+  "[&_i]:inline-block [&_i]:skew-x-[14deg] [&_i]:[font-synthesis-style:none]";
+
 const TOGGLE =
   "scribble scribble-sm scribble-thin flex h-9 w-9 shrink-0 select-none flex-col items-center justify-center rounded-full leading-none transition-transform duration-150 ease-out hover:-rotate-6 active:scale-90 aria-pressed:scribble-ink aria-pressed:hover:rotate-0";
 
@@ -198,7 +225,7 @@ const NotePage = ({
   const dirty = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [blank, setBlank] = useState(!content);
-  const [marks, setMarks] = useState({ b: false, u: false });
+  const [marks, setMarks] = useState({ b: false, i: false, u: false });
   const [rows, setRows] = useState(ROWS);
 
   const save = useCallback(() => {
@@ -244,13 +271,14 @@ const NotePage = ({
     return () => observer.disconnect();
   }, []);
 
-  /** Bold and underline where the cursor is – for the toggles. */
+  /** Bold, italic and underline where the cursor is – for the toggles. */
   const readMarks = useCallback(() => {
     const el = page.current;
     const at = window.getSelection()?.anchorNode;
     if (!(el && at && el.contains(at))) return;
     setMarks({
       b: document.queryCommandState("bold"),
+      i: document.queryCommandState("italic"),
       u: document.queryCommandState("underline"),
     });
   }, []);
@@ -276,7 +304,7 @@ const NotePage = ({
   };
 
   // Turned down before it happens: what the browser would put in that is
-  // no plain text, bold or underline – and what would make the note too
+  // no plain text, bold, italic or underline – and what would make the note too
   // long. A new paragraph is a line break here.
   useEffect(() => {
     const el = page.current;
@@ -309,14 +337,14 @@ const NotePage = ({
     timer.current = setTimeout(save, SAVE_MS);
   };
 
-  const format = (mark: "b" | "u") => {
+  const format = (mark: "b" | "i" | "u") => {
     const el = page.current;
     if (!el) return;
     if (document.activeElement !== el) {
       el.focus();
       caretToEnd(el);
     }
-    document.execCommand(mark === "b" ? "bold" : "underline");
+    document.execCommand(COMMANDS[mark]);
     readMarks();
   };
 
@@ -333,12 +361,9 @@ const NotePage = ({
       : event.ctrlKey && !event.metaKey;
     if (!mod || event.altKey || event.shiftKey) return;
     const key = event.key.toLowerCase();
-    if (key === "b" || key === "u") {
+    if (key === "b" || key === "i" || key === "u") {
       event.preventDefault();
       format(key);
-    } else if (key === "i") {
-      // No italics on this paper.
-      event.preventDefault();
     }
   };
 
@@ -362,7 +387,7 @@ const NotePage = ({
     // Only the app left (another window, another app): it all stays as it
     // is, cursor and all, for when one comes back.
     if (!document.hasFocus()) return;
-    setMarks({ b: false, u: false });
+    setMarks({ b: false, i: false, u: false });
     // Done writing: the note as it is now – the own, just saved, or someone
     // else's that came in meanwhile – drawn the way it is kept.
     queueMicrotask(() => show(cleanNote(boop.notes[id]?.content ?? null)));
@@ -412,7 +437,10 @@ const NotePage = ({
           aria-label={t.label}
           aria-multiline="true"
           aria-placeholder={placeholder}
-          className="relative whitespace-pre-wrap wrap-break-word text-base text-ink caret-ink outline-none [&_b]:font-extrabold [&_u]:underline [&_u]:decoration-2 [&_u]:underline-offset-[3px]"
+          className={cn(
+            "relative whitespace-pre-wrap wrap-break-word text-base text-ink caret-ink outline-none [&_b]:font-extrabold [&_u]:underline [&_u]:decoration-wavy [&_u]:decoration-[1.5px] [&_u]:underline-offset-[4px]",
+            ITALIC
+          )}
           contentEditable
           onBlur={onBlur}
           onDragOver={(event) => event.preventDefault()}
@@ -449,6 +477,23 @@ const NotePage = ({
           >
             <span aria-hidden="true" className="font-black text-sm">
               B
+            </span>
+          </button>
+          <button
+            aria-label={t.italic}
+            aria-pressed={marks.i}
+            className={TOGGLE}
+            onClick={() => format("i")}
+            onMouseDown={(event) => event.preventDefault()}
+            title={`${t.italic} (${keys}I)`}
+            type="button"
+          >
+            {/* Leaning back, like the italics on the page. */}
+            <span
+              aria-hidden="true"
+              className="inline-block origin-bottom skew-x-[14deg] font-bold font-serif text-sm"
+            >
+              I
             </span>
           </button>
           <button
