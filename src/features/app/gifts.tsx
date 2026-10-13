@@ -124,8 +124,11 @@ export const Arrivals = ({
     });
   }, [account, online]);
 
-  // Free once nothing else has lain over the app for a breath.
+  // Free once nothing else has lain over the app for a breath – its own
+  // sheet before included (`round`): one goes before the next comes.
   const [free, setFree] = useState(false);
+  const [round, setRound] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `round` starts the breath anew
   useEffect(() => {
     if (hold || status !== "ready") {
       setFree(false);
@@ -133,7 +136,12 @@ export const Arrivals = ({
     }
     const timer = setTimeout(() => setFree(true), BREATH);
     return () => clearTimeout(timer);
-  }, [hold, status]);
+  }, [hold, status, round]);
+  const close = () => {
+    setShown(null);
+    setFree(false);
+    setRound((n) => n + 1);
+  };
 
   // What comes next: a card first – just taken – then the newest gift.
   const here = (arrival: Arrival) =>
@@ -157,7 +165,7 @@ export const Arrivals = ({
   };
   if (shown) {
     // Its stamp went meanwhile (deleted elsewhere): so does its sheet.
-    if (shown.stamp && !stamps[shown.stamp]) setShown(null);
+    if (shown.stamp && !stamps[shown.stamp]) close();
   } else if (free && !hold) {
     const coming = next();
     if (coming) {
@@ -179,9 +187,9 @@ export const Arrivals = ({
           arrival={shown}
           key="arrival"
           locale={locale}
-          onClose={() => setShown(null)}
+          onClose={close}
           onShelf={() => {
-            setShown(null);
+            close();
             onShelf?.();
           }}
           stamp={stamp}
