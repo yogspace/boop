@@ -11,6 +11,7 @@ import {
   cleanReminderAt,
   createBundle,
   createThrottle,
+  enteredIn,
   isPushEndpoint,
   isPushKey,
   localClock,
@@ -344,24 +345,102 @@ describe("which calendars a reminder names", () => {
     { id: TRIP, name: "Reise" },
   ];
 
-  it("those without a print of the account today, with the reminder on", () => {
+  it("those without an entry of the account today, with the reminder on", () => {
     expect(
       openCalendars({
         calendars,
         settings: { calendars: [{ calendar: TRIP, reminder: false }] },
-        stamped: new Set([FAMILY]),
+        entered: new Set([FAMILY]),
       }).map((c) => c.name)
     ).toEqual(["Sport"]);
   });
 
-  it("none when everything has its print", () => {
+  it("none when everything has its entry", () => {
     expect(
       openCalendars({
         calendars,
         settings: null,
-        stamped: new Set([FAMILY, SPORT, TRIP]),
+        entered: new Set([FAMILY, SPORT, TRIP]),
       })
     ).toEqual([]);
+  });
+});
+
+describe("what counts as an entry of one's own today", () => {
+  const DAY = "2026-10-12";
+  const print = (calendar: string, more: Record<string, unknown> = {}) => ({
+    calendar,
+    date: DAY,
+    placedBy: ME,
+    deleted: false,
+    ...more,
+  });
+  const note = (calendar: string, more: Record<string, unknown> = {}) => ({
+    calendar,
+    date: DAY,
+    editedBy: ME,
+    content: [[{ text: "Zoo" }]],
+    deleted: false,
+    ...more,
+  });
+  const entered = (
+    prints: Record<string, unknown>[],
+    notes: Record<string, unknown>[]
+  ) => enteredIn({ account: ME, day: DAY, prints, notes });
+  const open = (entries: Set<string>) =>
+    openCalendars({
+      calendars: [
+        { id: FAMILY, name: "Familie" },
+        { id: SPORT, name: "Sport" },
+      ],
+      settings: null,
+      entered: entries,
+    }).map((c) => c.name);
+
+  it("a print of one's own", () => {
+    expect(entered([print(FAMILY)], [])).toEqual(new Set([FAMILY]));
+    // Someone else's, another day's, a removed one: not.
+    expect(
+      entered(
+        [
+          print(SPORT, { placedBy: ANNA }),
+          print(SPORT, { date: "2026-10-11" }),
+          print(SPORT, { deleted: true }),
+        ],
+        []
+      )
+    ).toEqual(new Set());
+  });
+
+  it("only a note – that calendar is not named", () => {
+    const entries = entered([], [note(FAMILY)]);
+    expect(entries).toEqual(new Set([FAMILY]));
+    expect(open(entries)).toEqual(["Sport"]);
+  });
+
+  it("a note someone else wrote doesn't count", () => {
+    const entries = entered([], [note(FAMILY, { editedBy: ANNA })]);
+    expect(entries).toEqual(new Set());
+    expect(open(entries)).toEqual(["Familie", "Sport"]);
+  });
+
+  it("an emptied note doesn't count", () => {
+    expect(
+      entered(
+        [],
+        [note(FAMILY, { deleted: true, content: null, editedBy: null })]
+      )
+    ).toEqual(new Set());
+    // Not even with its writer still on it.
+    expect(entered([], [note(FAMILY, { deleted: true })])).toEqual(new Set());
+  });
+
+  it("a print here and a note there – nothing open, no reminder", () => {
+    const entries = entered(
+      [print(FAMILY, { calendar: { id: FAMILY } })],
+      [note(SPORT, { editedBy: { id: ME } })]
+    );
+    expect(open(entries)).toEqual([]);
   });
 });
 

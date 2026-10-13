@@ -2,6 +2,7 @@ import type { Payload } from "payload";
 import { getDictionary } from "@/features/translations/get-texts";
 import { peopleOf, settingsOf } from "./read";
 import {
+  enteredIn,
   loginLasts,
   openCalendars,
   reminderAtOf,
@@ -17,9 +18,10 @@ import { forget, pushReady, sendPush } from "./send";
  * The evening's reminder (/next/cron/push-reminder, every 15 minutes): each
  * device whose time has come on its clock (the account's, 20:00 unless set)
  * and that got none today yet hears which of the account's calendars still
- * wait for a print of its own today – one notification, naming them all.
- * With nothing open it hears nothing, and that counts as reminded too: one
- * look a day. Which calendars count is each one's switch (rules.ts).
+ * wait for an entry of its own today – a print, or the day's note – in one
+ * notification, naming them all. With nothing open it hears nothing, and
+ * that counts as reminded too: one look a day. What counts as an entry
+ * (`enteredIn`) and which calendars count (each one's switch): rules.ts.
  *
  * `dry` only counts – nothing is sent, noted or deleted.
  */
@@ -31,7 +33,7 @@ export type ReminderTally = {
   /** Devices whose time had come. */
   due: number;
   sent: number;
-  /** Due, but every calendar had its print already. */
+  /** Due, but every calendar had an entry of its own already. */
   nothingOpen: number;
   /** Their login was over – deleted. */
   loggedOut: number;
@@ -97,21 +99,21 @@ export const runReminders = async (
     );
   const live = due.filter(lasts);
 
-  // The account's calendars, and its prints on a day – asked once each.
+  // The account's calendars, and its entries on a day – asked once each.
   const calendars = new Map<string, Calendar[]>();
   for (const account of unique(live.map(({ device }) => device.account))) {
     calendars.set(account, await calendarsOf(payload, account));
   }
-  const stamped = new Map<string, Promise<Set<string>>>();
-  const stampedOn = (account: string, day: string) => {
+  const entered = new Map<string, Promise<Set<string>>>();
+  const enteredOn = (account: string, day: string) => {
     const key = `${account}:${day}`;
-    if (!stamped.has(key)) {
-      stamped.set(
+    if (!entered.has(key)) {
+      entered.set(
         key,
-        printedIn(payload, account, day, calendars.get(account) ?? [])
+        entriesOn(payload, account, day, calendars.get(account) ?? [])
       );
     }
-    return stamped.get(key) as Promise<Set<string>>;
+    return entered.get(key) as Promise<Set<string>>;
   };
 
   const reminded = new Map<string, string[]>();
@@ -119,7 +121,7 @@ export const runReminders = async (
     const open = openCalendars({
       calendars: calendars.get(device.account) ?? [],
       settings: settings[device.account],
-      stamped: await stampedOn(device.account, day),
+      entered: await enteredOn(device.account, day),
     });
     if (!open.length) {
       tally.nothingOpen++;
@@ -187,30 +189,38 @@ const calendarsOf = async (
   }));
 };
 
-/** The calendars with a print of the account on that day. */
-const printedIn = async (
+/**
+ * The calendars with an entry of the account on that day – its prints and
+ * the notes it wrote last, asked for as such; `enteredIn` says what counts.
+ */
+const entriesOn = async (
   payload: Payload,
   account: string,
   day: string,
   calendars: Calendar[]
 ): Promise<Set<string>> => {
   if (!calendars.length) return new Set();
-  const { docs } = await payload.find({
-    collection: "placements",
-    where: {
-      and: [
-        { placedBy: { equals: account } },
-        { date: { equals: day } },
-        { calendar: { in: calendars.map((calendar) => calendar.id) } },
-        { deleted: { not_equals: true } },
-      ],
-    },
-    select: { calendar: true },
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-  });
-  return new Set(
-    docs.map((doc) => String((doc as { calendar?: unknown }).calendar))
-  );
+  const find = async (collection: "placements" | "notes", by: string) => {
+    const { docs } = await payload.find({
+      collection,
+      where: {
+        and: [
+          { [by]: { equals: account } },
+          { date: { equals: day } },
+          { calendar: { in: calendars.map((calendar) => calendar.id) } },
+          { deleted: { not_equals: true } },
+        ],
+      },
+      select: { calendar: true, date: true, deleted: true, [by]: true },
+      depth: 0,
+      pagination: false,
+      overrideAccess: true,
+    });
+    return docs as unknown as Record<string, unknown>[];
+  };
+  const [prints, notes] = await Promise.all([
+    find("placements", "placedBy"),
+    find("notes", "editedBy"),
+  ]);
+  return enteredIn({ account, day, prints, notes });
 };

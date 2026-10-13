@@ -14,7 +14,8 @@ import { dictionaryOf } from "../../i18n/dictionaries";
  * - A device (`SubscriptionRow`) hears only as long as the login it was
  *   switched on in lasts: logged out, it is quiet.
  * - The reminder comes once a day per device, at the account's time on the
- *   device's clock – naming the calendars still without a print of its own.
+ *   device's clock – naming the calendars still without an entry of its own
+ *   that day: no print, no note (`enteredIn`).
  * - Changes are someone's notes, moved or removed prints, a new name, who
  *   came or went (`noteChanges`, `placementChanges`, `calendarChanges`),
  *   bundled per person and calendar (`createBundle`).
@@ -351,22 +352,52 @@ export const changedTargets = ({
   );
 
 /**
+ * The calendars with an entry of the account on a day: a print of its own,
+ * or the day's note it wrote last – not emptied. A note someone else wrote
+ * last is theirs, not its.
+ */
+export const enteredIn = ({
+  account,
+  day,
+  prints,
+  notes,
+}: {
+  account: string;
+  day: string;
+  /** Placements of that day – theirs and others'. */
+  prints: readonly Doc[];
+  /** Notes of that day – theirs and others'. */
+  notes: readonly Doc[];
+}): Set<string> => {
+  const own = (doc: Doc, by: unknown) =>
+    !doc.deleted && doc.date === day && refOf(by) === account;
+  return new Set(
+    [
+      ...prints.filter((print) => own(print, print.placedBy)),
+      ...notes.filter((note) => own(note, note.editedBy)),
+    ]
+      .map((doc) => refOf(doc.calendar))
+      .filter((id): id is string => Boolean(id))
+  );
+};
+
+/**
  * The calendars a reminder names: the account's own with the reminder on,
- * that have no print of the account on its day yet.
+ * that have no entry of the account on its day yet (`enteredIn`).
  */
 export const openCalendars = <C extends { id: string }>({
   calendars,
   settings,
-  stamped,
+  entered,
 }: {
   calendars: readonly C[];
   settings: PushSettingsDoc | null | undefined;
-  /** The calendars with a print of the account on the device's day. */
-  stamped: ReadonlySet<string>;
+  /** The calendars with an entry of the account on the device's day. */
+  entered: ReadonlySet<string>;
 }): C[] =>
   calendars.filter(
     (calendar) =>
-      switchesOf(settings, calendar.id).reminder && !stamped.has(calendar.id)
+      switchesOf(settings, calendar.id).reminder && !entered.has(calendar.id)
   );
 
 /**

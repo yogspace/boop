@@ -348,7 +348,14 @@ describe("the account's data as a file", () => {
   it("has its notifications – the push service by name, not its address", () => {
     expect(data.notifications).toEqual({
       reminderAt: "21:30",
-      calendars: [{ calendar: "cal-annas", reminder: false, stamped: true }],
+      calendars: [
+        {
+          calendar: "cal-annas",
+          reminder: false,
+          stamped: true,
+          changed: false,
+        },
+      ],
       devices: [
         {
           service: "web.push.apple.com",
