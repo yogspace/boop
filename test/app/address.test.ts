@@ -210,6 +210,10 @@ describe("the address", () => {
     );
     expect(readAddress("/de/app/familie/teilen").panel).toBeNull();
     expect(readAddress("/de/app/familie/heute/quatsch").panel).toBeNull();
+    expect(addressOf("de", "familie", "today", { panel: "draw" })).toBe(
+      "/de/app/familie/heute/neuer-stempel"
+    );
+    expect(readAddress("/en/app/family/month/new-stamp").panel).toBe("draw");
     expect(panelOf("Konto")).toBeNull();
   });
 
@@ -232,11 +236,11 @@ describe("the address", () => {
             addressOf(locale, "wg-kueche", view, { day: "2026-10-13" })
           )
         ).toEqual({ ...none, day: view === "today" ? null : "2026-10-13" });
-        for (const panel of ["settings", "share", "account"] as const) {
+        for (const panel of ["settings", "share", "account", "draw"] as const) {
           expect(
             readAddress(addressOf(locale, "wg-kueche", view, { panel }))
           ).toEqual({ ...none, panel });
-          expect(PANEL_SLUGS[locale][panel]).toMatch(/^[a-z]+$/);
+          expect(PANEL_SLUGS[locale][panel]).toMatch(/^[a-z]+(-[a-z]+)*$/);
         }
         expect(VIEW_SLUGS[locale][view]).toMatch(/^[a-z]+$/);
       }

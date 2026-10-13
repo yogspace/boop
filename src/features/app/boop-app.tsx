@@ -276,17 +276,20 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
       setSharing(calendar.id);
     }
     if (asking === "account") setAccount(true);
+    if (asking === "draw") setDrawing(true);
   }
   // The sheet open over the view, for the address – the share sheet already
   // while the settings make way for it.
   const shownId = calendar?.id;
-  const panel: Panel | null = account
-    ? "account"
-    : shownId && settings === shownId
-      ? "settings"
-      : shownId && (sharing ?? shareNext.current) === shownId
-        ? "share"
-        : null;
+  const panel: Panel | null = drawing
+    ? "draw"
+    : account
+      ? "account"
+      : shownId && settings === shownId
+        ? "settings"
+        : shownId && (sharing ?? shareNext.current) === shownId
+          ? "share"
+          : null;
   // The calendar's color as this account sees it – and the ground in it,
   // once there is something to show.
   const color = calendar ? hexOf(colorOf(boop, calendar)) : null;
@@ -340,6 +343,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
       setSettings(null);
       setSharing(null);
       setAccount(false);
+      setDrawing(false);
       shareNext.current = null;
       setAsking(next.panel);
     };
@@ -758,7 +762,10 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
               <li>
                 <button
                   className="scribble scribble-dashed group flex aspect-square w-full flex-col items-center justify-center gap-1.5 text-balance rounded-3xl px-2 text-center font-bold text-[13px] leading-tight transition-transform duration-150 ease-out hover:-translate-y-0.5 hover:scribble-boil active:translate-y-px active:scale-[0.97]"
-                  onClick={() => setDrawing(true)}
+                  onClick={() => {
+                    stepTo({ panel: "draw" });
+                    setDrawing(true);
+                  }}
                   type="button"
                 >
                   <span className="scribble scribble-sm scribble-ink flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-200 group-hover:rotate-90">
@@ -847,7 +854,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
             }
             key="drawer"
             locale={locale}
-            onClose={() => setDrawing(false)}
+            onClose={closeStep(() => setDrawing(false))}
           />
         )}
       </AnimatePresence>

@@ -38,12 +38,22 @@ export const viewOf = (
 };
 
 /** The sheets that have an address – each over the calendar's view. */
-export type Panel = "settings" | "share" | "account";
+export type Panel = "settings" | "share" | "account" | "draw";
 
 /** The sheets' words in the address, in each language. */
 export const PANEL_SLUGS = {
-  de: { settings: "einstellungen", share: "teilen", account: "konto" },
-  en: { settings: "settings", share: "share", account: "account" },
+  de: {
+    settings: "einstellungen",
+    share: "teilen",
+    account: "konto",
+    draw: "neuer-stempel",
+  },
+  en: {
+    settings: "settings",
+    share: "share",
+    account: "account",
+    draw: "new-stamp",
+  },
 } as const satisfies Record<Locale, Record<Panel, string>>;
 
 /** A sheet by its word – in either language. */
