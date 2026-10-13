@@ -33,14 +33,19 @@ export type TileOptions = {
   gap: number;
 };
 
+/**
+ * A wide tile, well filled: on a desktop it comes round only once or twice,
+ * and a phone – where the sheet leaves little of the paper – still shows a
+ * print or two in every strip.
+ */
 export const TILE: TileOptions = {
-  width: 600,
-  height: 600,
-  count: 15,
-  min: 56,
-  max: 124,
+  width: 840,
+  height: 760,
+  count: 54,
+  min: 40,
+  max: 100,
   turn: 22,
-  gap: 14,
+  gap: 12,
 };
 
 /** A number for a string – the same string, the same number. */
@@ -96,7 +101,7 @@ export const tileOf = (seed: number, options: TileOptions = TILE) => {
   ).sort((a, b) => b - a);
   const prints: TilePrint[] = [];
   for (const size of sizes) {
-    for (let tries = 0; tries < 200; tries++) {
+    for (let tries = 0; tries < 400; tries++) {
       const at = { x: random() * width, y: random() * height };
       const free = prints.every(
         (other) =>

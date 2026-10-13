@@ -121,8 +121,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const later = (minutes = 1) =>
-  vi.setSystemTime(Date.now() + minutes * MINUTE);
+const later = (minutes = 1) => vi.setSystemTime(Date.now() + minutes * MINUTE);
 
 type Answer = { status: number; body: Record<string, unknown> };
 
@@ -736,9 +735,11 @@ describe("a gift from Boop", () => {
       const id = await card();
       const kept = await save({ card: id });
       await takeBack(id, ANNA);
-      expect(
-        await save({ ...kept, name: "Neu" }, kept as Doc)
-      ).toMatchObject({ card: id, drawing: DRAWING, name: "Neu" });
+      expect(await save({ ...kept, name: "Neu" }, kept as Doc)).toMatchObject({
+        card: id,
+        drawing: DRAWING,
+        name: "Neu",
+      });
       await expect(
         save({ ...kept, card: "ZzZz9999YyYy" }, kept as Doc)
       ).rejects.toThrow();
@@ -758,8 +759,11 @@ describe("a gift from Boop", () => {
       });
       expect((await send({ as: ANNA })).status).toBe(401);
       expect(
-        (await send({ user: { id: ANNA, collection: "accounts", admin: true } }))
-          .status
+        (
+          await send({
+            user: { id: ANNA, collection: "accounts", admin: true },
+          })
+        ).status
       ).toBe(401);
       expect(copies()).toEqual([]);
 
@@ -767,9 +771,7 @@ describe("a gift from Boop", () => {
       const answer = await send({ user: admin });
       expect(answer).toEqual({ status: 202, body: { accounts: 3 } });
       // On its way in the background.
-      await vi.waitFor(() =>
-        expect(fake.get("gifts", GIFT)?.sentTo).toBe(3)
-      );
+      await vi.waitFor(() => expect(fake.get("gifts", GIFT)?.sentTo).toBe(3));
       expect(copies()).toHaveLength(3);
     });
 

@@ -109,7 +109,7 @@ export const Wallpaper = ({
       {/* Pale, and in softly once it is there. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 -z-10 opacity-30"
+        className="pointer-events-none fixed inset-0 -z-10 opacity-35"
       >
         {picture && (
           <div

@@ -20,7 +20,8 @@ import type { Change, SyncType } from "./protocol";
  *   through members.ts.
  * - stamp: anyone makes their own; only its owner changes, shares or
  *   deletes it. Shared it is with calendars the owner belongs to – any other
- *   is left out.
+ *   is left out. Where it came from (`origin`) is the server's to say
+ *   (features/cards): nothing here reads it from a device.
  * - placement: every member of its calendar places, moves and removes – with
  *   a stamp they have: their own (in any calendar of theirs), or one shared
  *   with a calendar of theirs (in any of them, too).

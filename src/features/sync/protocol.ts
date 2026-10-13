@@ -30,6 +30,12 @@ import type {
  * prints show: with the calendar, or asked for by id (`need`) – those are
  * not to stamp with.
  *
+ * A stamp its owner didn't draw – taken from a card, a gift from Boop
+ * (features/cards) – says where it came from (`StampDoc.origin`). Only the
+ * server says so: it makes those stamps, and what a device sends of an
+ * origin is never read. Someone else's stamp tells only that it came from
+ * somewhere, not from whom.
+ *
  * Notes come with their calendars, like placements. A day's note has the
  * same id on every device (calendar/note.ts): written on two at once, it is
  * still one note – the later change wins, the earlier is gone. That is the

@@ -253,8 +253,7 @@ export const accountExport = ({
         message: String(card.message ?? ""),
         createdAt: when(card.createdAt),
         taken: cardCopies.filter(
-          (copy) =>
-            alive(copy) && (copy.origin as Doc | null)?.card === card.id
+          (copy) => alive(copy) && (copy.origin as Doc | null)?.card === card.id
         ).length,
       })),
     /** Notifications: what it wants to hear of, and the devices that do. */

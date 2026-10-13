@@ -126,16 +126,14 @@ const ctx = (me = ME, admin = false) => ({
 });
 
 /** Each change a minute after the last – the later one wins. */
-const at = () =>
-  new Date(Date.UTC(2026, 9, 13, 8, minute++)).toISOString();
+const at = () => new Date(Date.UTC(2026, 9, 13, 8, minute++)).toISOString();
 
 const change = (
   type: "calendar" | "stamp" | "placement",
   id: string,
   data: Doc,
   who: { me?: string; admin?: boolean } = {}
-) =>
-  applyChange(ctx(who.me, who.admin), { type, id, changedAt: at(), data });
+) => applyChange(ctx(who.me, who.admin), { type, id, changedAt: at(), data });
 
 const print = (data: Doc, who?: { me?: string; admin?: boolean }, id = PRINT) =>
   change(

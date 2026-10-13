@@ -2522,9 +2522,9 @@ export interface Translation {
        */
       shared?: string | null;
       /**
-       * DE: Teilen  ·  EN: Share
+       * DE: Geteilt mit  ·  EN: Shared with
        */
-      share?: string | null;
+      sharedWith?: string | null;
       /**
        * DE: Er bleibt dein Stempel. Wer in einem angekreuzten Kalender ist, darf auch damit stempeln.  ·  EN: It stays your stamp. Everyone in a calendar you tick may stamp with it too.
        */
@@ -2596,6 +2596,36 @@ export interface Translation {
          * DE: Offline – Karten gibt es nur mit Verbindung.  ·  EN: Offline – cards need a connection.
          */
         offline?: string | null;
+        /**
+         * DE: Karten  ·  EN: Cards
+         */
+        sent?: string | null;
+        /**
+         * DE: Noch keine Karte verschickt.  ·  EN: No card sent yet.
+         */
+        sentNone?: string | null;
+        /**
+         * DE: Offline – welche Karten unterwegs sind, siehst du mit Verbindung.  ·  EN: Offline – the cards on their way show with a connection.
+         */
+        sentOffline?: string | null;
+        takenBy?: {
+          /**
+           * DE: Übernommen von {names}  ·  EN: Taken by {names}  ·  Keeps {names}
+           */
+          some?: string | null;
+          /**
+           * DE: Noch von niemandem übernommen  ·  EN: Not taken by anyone yet
+           */
+          none?: string | null;
+        };
+        /**
+         * DE: Zurückziehen  ·  EN: Take back
+         */
+        withdraw?: string | null;
+        /**
+         * DE: Diese Karte zurückziehen? Ihr Link führt dann ins Leere. Wer den Stempel schon übernommen hat, behält ihn.  ·  EN: Take this card back? Its link leads nowhere then. Whoever took the stamp already keeps it.
+         */
+        withdrawConfirm?: string | null;
         /**
          * DE: Genug Karten für den Moment – versuch es in einer Stunde noch einmal.  ·  EN: Enough cards for now – try again in an hour.
          */
@@ -3727,7 +3757,7 @@ export interface TranslationsSelect<T extends boolean = true> {
               untitled?: T;
               by?: T;
               shared?: T;
-              share?: T;
+              sharedWith?: T;
               shareText?: T;
               shareNone?: T;
               onlyYou?: T;
@@ -3752,6 +3782,17 @@ export interface TranslationsSelect<T extends boolean = true> {
                     share?: T;
                     another?: T;
                     offline?: T;
+                    sent?: T;
+                    sentNone?: T;
+                    sentOffline?: T;
+                    takenBy?:
+                      | T
+                      | {
+                          some?: T;
+                          none?: T;
+                        };
+                    withdraw?: T;
+                    withdrawConfirm?: T;
                     tooMany?: T;
                     shareText?:
                       | T

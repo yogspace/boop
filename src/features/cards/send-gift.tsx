@@ -88,8 +88,7 @@ export const SendGift = () => {
         body={
           <p>
             Every account with a confirmed address gets “{name}” as a stamp of
-            its own, sees it in the app and – if they want – as a
-            notification.{" "}
+            its own, sees it in the app and – if they want – as a notification.{" "}
             {sentAt
               ? `It went out before (${sentAt}): only those without it get it now.`
               : "Accounts that have it already are left out."}{" "}
