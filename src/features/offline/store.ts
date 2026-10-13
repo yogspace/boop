@@ -920,5 +920,3 @@ export const logout = async () => {
   });
   return true;
 };
-
-// hmr probe

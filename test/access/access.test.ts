@@ -13,7 +13,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
  * their calendars, stamps, prints, notes, invitations and notification
  * devices are closed to admins too – readable in support mode alone, and
  * written by nobody over the API. Accounts: the admin looks them up, deletes
- * and unlocks them, nothing else.
+ * and unlocks them and ticks two boxes – nothing else, a password least of
+ * all (“accounts in the admin”, below).
  *
  * Every collection and global must be in the tables below, with its access
  * set by itself: Payload's default (“any logged-in user”) would let every
@@ -105,13 +106,14 @@ const COLLECTIONS: Record<string, Partial<Record<Op, Who>>> = {
     delete: "admin",
     unlock: "admin",
   },
-  // Read, delete and unlock – no new name, address or password, and no
-  // account made in the admin. The app goes through session.ts.
+  // Read, delete and unlock – and an update for the two boxes alone: no new
+  // name, address or password (see “accounts in the admin”), and no account
+  // made in the admin. The app goes through session.ts.
   accounts: {
     admin: "nobody",
     read: "admin",
     create: "visitors",
-    update: "nobody",
+    update: "admin",
     delete: "admin",
     unlock: "admin",
   },
@@ -257,6 +259,264 @@ describe.each([false, true])("support mode %s", (on) => {
   });
 });
 
+/**
+ * What an admin may change of an account: the boxes “Admin” and “Never
+ * delete”, and nothing else – asked of the collection's own hooks and
+ * fields, the way Payload runs them (accounts/collection.ts). With a new
+ * password, address or confirmation an admin could log in as that person
+ * and read what is sealed above.
+ */
+describe.each([false, true])(
+  "accounts in the admin – support mode %s",
+  (on) => {
+    const accounts = collections.find(
+      (c) => c.slug === "accounts"
+    ) as CollectionConfig;
+    const BOXES = ["admin", "neverDelete"];
+
+    /** An account as it is kept – what a change is made on. */
+    const KEPT = {
+      id: "acc-1",
+      name: "Anna",
+      email: "anna@example.com",
+      locale: "de",
+      _verified: true,
+      admin: false,
+      neverDelete: false,
+      deletionWarnedAt: "2026-10-01T06:00:00.000Z",
+    };
+
+    /** All an admin might try to slip in beside a box. */
+    const SMUGGLED = {
+      id: "acc-2",
+      name: "Hacked",
+      email: "evil@example.com",
+      locale: "en",
+      _verified: false,
+      _verificationToken: null,
+      loginAttempts: 0,
+      lockUntil: null,
+      hash: "a-hash",
+      salt: "a-salt",
+      resetPasswordToken: "known",
+      resetPasswordExpiration: "2030-01-01T00:00:00.000Z",
+      sessions: [],
+      pendingEmail: "evil@example.com",
+      pendingEmailToken: "known",
+      pendingEmailExpiresAt: "2030-01-01T00:00:00.000Z",
+      lastSeenAt: "2020-01-01T00:00:00.000Z",
+      deletionWarnedAt: "2020-01-01T00:00:00.000Z",
+      createdAt: "2020-01-01T00:00:00.000Z",
+      updatedAt: "2020-01-01T00:00:00.000Z",
+      "confirm-password": "ein-neues-1",
+    };
+
+    const request = (user: PayloadRequest["user"]) =>
+      ({ user, headers: new Headers(), context: {} }) as PayloadRequest;
+
+    /**
+     * A change's data as Payload takes it up – after the collection's
+     * `beforeOperation` hooks, each handing its result to the next. This is
+     * where Payload reads a new password from.
+     */
+    const takenUp = async (
+      role: Role,
+      data: Record<string, unknown>,
+      operation = "update"
+    ) => {
+      let args = { data } as { data: Record<string, unknown> };
+      for (const hook of accounts.hooks?.beforeOperation ?? []) {
+        const result = await hook({
+          args,
+          operation,
+          collection: accounts,
+          context: {},
+          req: request(USERS[role]),
+        } as never);
+        if (result !== undefined) args = result as typeof args;
+      }
+      return args.data;
+    };
+
+    /** … and as it is written – after the `beforeChange` hooks. */
+    const written = async (
+      user: PayloadRequest["user"],
+      data: Record<string, unknown>,
+      operation: "create" | "update" = "update"
+    ) => {
+      let next = data;
+      for (const hook of accounts.hooks?.beforeChange ?? []) {
+        next =
+          ((await hook({
+            data: next,
+            operation,
+            originalDoc: KEPT,
+            collection: accounts,
+            context: {},
+            req: request(user),
+          } as never)) as Record<string, unknown>) ?? next;
+      }
+      return next;
+    };
+
+    /** An admin's change, all the way: taken up, then written. */
+    const byAdmin = async (data: Record<string, unknown>) =>
+      written(USERS.admin, await takenUp("admin", data));
+
+    it("lets an admin tick the two boxes – and untick them", async () => {
+      support(on);
+      expect(await byAdmin({ admin: true, neverDelete: true })).toEqual({
+        admin: true,
+        neverDelete: true,
+        // “Never delete” takes a standing warning back with it.
+        deletionWarnedAt: null,
+      });
+      expect(await byAdmin({ admin: false, neverDelete: false })).toEqual({
+        admin: false,
+        neverDelete: false,
+      });
+      expect(await byAdmin({ admin: true })).toEqual({ admin: true });
+    });
+
+    it("drops everything else an admin sends along – name, address, the lot", async () => {
+      support(on);
+      expect(
+        await takenUp("admin", { ...SMUGGLED, neverDelete: true })
+      ).toEqual({
+        neverDelete: true,
+      });
+      expect(await byAdmin(SMUGGLED)).toEqual({});
+      // A box is a box: anything but true or false is no tick.
+      expect(await byAdmin({ admin: "true", neverDelete: 1 })).toEqual({});
+      expect(
+        await byAdmin({ admin: null, neverDelete: { $ne: false } })
+      ).toEqual({});
+    });
+
+    it("refuses an admin's new password – before Payload reads it", async () => {
+      support(on);
+      for (const data of [
+        { password: "ein-neues-1" },
+        { password: "ein-neues-1", admin: true },
+        { ...SMUGGLED, password: "x" },
+      ]) {
+        await expect(takenUp("admin", data)).rejects.toMatchObject({
+          status: 403,
+        });
+      }
+      // What the admin's page sends without a new one changes nothing.
+      expect(await takenUp("admin", { password: "", admin: true })).toEqual({
+        admin: true,
+      });
+      expect(await takenUp("admin", { password: null })).toEqual({});
+    });
+
+    it("holds the same for many accounts at once – one hook for every update", () => {
+      // Payload runs `beforeOperation` for an update by id and by query alike
+      // (both arrive as “update”), and nothing here asks which.
+      expect(accounts.hooks?.beforeOperation).toHaveLength(2);
+      expect(accounts.hooks?.beforeChange).toHaveLength(1);
+    });
+
+    it("never lets an account tick its own boxes – whichever way the change comes", async () => {
+      support(on);
+      const mine = { admin: true, neverDelete: true, name: "Anna B." };
+      // Over the API it isn't let in at all (the table above). The app's own
+      // endpoints write with full access and no user – or, were the account
+      // itself the request's user:
+      for (const user of [USERS.anonymous, USERS.account]) {
+        expect(await written(user, mine)).toEqual({ name: "Anna B." });
+      }
+      // An account whose box is ticked is no admin for that.
+      const ticked = {
+        ...USERS.account,
+        admin: true,
+      } as PayloadRequest["user"];
+      expect(await written(ticked, mine)).toEqual({ name: "Anna B." });
+    });
+
+    it("starts every sign-up unticked and unconfirmed – whatever it says", async () => {
+      support(on);
+      const signUp = {
+        name: "Anna",
+        email: "anna@example.com",
+        admin: true,
+        neverDelete: true,
+        _verified: true,
+      };
+      for (const user of [USERS.anonymous, USERS.account, USERS.admin]) {
+        expect(await written(user, signUp, "create")).toEqual({
+          name: "Anna",
+          email: "anna@example.com",
+          admin: false,
+          neverDelete: false,
+          _verified: false,
+        });
+      }
+    });
+
+    it("closes every field for a change but the boxes – and those to admins alone", async () => {
+      support(on);
+      const named = accounts.fields.filter(
+        (field): field is Field & { name: string } => "name" in field
+      );
+      // The login's own are named too, to be closed: address and password.
+      expect(named.map((field) => field.name)).toEqual(
+        expect.arrayContaining([
+          "name",
+          "locale",
+          "email",
+          "password",
+          ...BOXES,
+        ])
+      );
+      for (const field of named) {
+        const { update, create } = ((field as { access?: unknown }).access ??
+          {}) as Record<string, unknown>;
+        expect(typeof update, field.name).toBe("function");
+        for (const role of Object.keys(USERS) as Role[]) {
+          expect(await ask(update, role), `${field.name} for ${role}`).toBe(
+            BOXES.includes(field.name) && role === "admin"
+          );
+        }
+        // Never set at sign-up: the boxes.
+        if (BOXES.includes(field.name)) {
+          for (const role of Object.keys(USERS) as Role[]) {
+            expect(await ask(create, role), `${field.name} for ${role}`).toBe(
+              false
+            );
+          }
+        }
+      }
+    });
+
+    it("gives no rights with the “Admin” box – nothing here looks at it", async () => {
+      support(on);
+      const ticked = { ...USERS.account, admin: true, neverDelete: true };
+      const as = (fn: unknown, user: unknown) =>
+        (fn as AccessFn)({ req: { user } as PayloadRequest });
+      for (const collection of collections) {
+        for (const [op, fn] of Object.entries(collection.access ?? {})) {
+          expect(await as(fn, ticked), `${collection.slug}.${op}`).toBe(
+            await as(fn, USERS.account)
+          );
+        }
+      }
+      for (const global of globals) {
+        for (const [op, fn] of Object.entries(global.access ?? {})) {
+          expect(await as(fn, ticked), `${global.slug}.${op}`).toBe(
+            await as(fn, USERS.account)
+          );
+        }
+      }
+      // And no way into the CMS: that is for `users`.
+      const users = collections.find((c) => c.slug === "users");
+      expect(await as(users?.access?.admin, ticked)).toBe(false);
+      expect(await as(accounts.access?.admin, ticked)).toBe(false);
+    });
+  }
+);
+
 describe("secrets", () => {
   const field = (slug: string, name: string) =>
     collections
@@ -264,6 +524,7 @@ describe("secrets", () => {
       ?.fields.find((f: Field) => "name" in f && f.name === name);
 
   it.each([
+    ["accounts", "pendingEmailToken"],
     ["invites", "token"],
     ["push-subscriptions", "keys"],
     ["push-subscriptions", "session"],

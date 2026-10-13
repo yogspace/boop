@@ -1,9 +1,21 @@
 # Todo
 
-Stand: 12.10.2026
+Stand: 13.10.2026
 
 ## Offen
 
+- **Einladungen in der App** (als Nächstes): Popup und Liste im Konto mit
+  Annehmen/Ablehnen; wer ein Konto hat, ist erst nach dem Ja Mitglied.
+- **Warnung bei unsicheren Passwörtern** (nach dem nächsten Deploy): beim
+  Registrieren und beim neuen Passwort.
+- **Nachziehen nach Mail-Wechsel, Kästchen und Einladungs-Push**:
+  - Datenschutztext (`features/legal/seed-content.ts`): Adresse in der App
+    ändern, die Kästchen „Admin“ / „Nie löschen“, ausstehende Adresse im
+    Export, Einladungs-Nachricht samt Abschalten im Konto.
+  - Datenexport nennt den Schalter „Einladungen“ (Push) noch nicht.
+  - Neue Texte: im CMS einmal Seeds → Translations.
+  - Im CMS-Titel steht „Anmelden  · Boop“ mit doppeltem Leerzeichen
+    (`titleSuffix` in `payload.config.ts`).
 - **Stempelfarben im CMS**: Wer die Zeilen unter „Site“ → Stamp colors
   schon gespeichert hat, hat dort noch „Tinte“ als erste Farbe – von Hand
   auf Rot ändern (Schlüssel `red`, `#ee3b33`).
@@ -129,6 +141,15 @@ Stand: 12.10.2026
   Anker und Griffe ziehen, ⌥-Klick rund/eckig, Klick auf die Linie fügt
   einen Punkt ein. Noch nie im Browser geprüft: ⌥ beim Ziehen (Griffe
   brechen). Auf dem Phone: Punkte tippen, „Fertig“, Zwei-Finger-Gesten.
+- Mail-Adresse ändern (nichts davon im Browser gesehen): „Ändern“ im
+  Konto, Mail an die neue Adresse, Bestätigungsseite (löst erst auf Klick
+  ein), Nachricht an die alte Adresse, Abbrechen; man bleibt angemeldet.
+- CMS → Accounts: „Admin“ und „Nie löschen“ lassen sich setzen, sonst
+  nichts (Name, Adresse, Passwort); „Change password“ darf nicht da sein.
+  Mit „Admin“ steht im Konto „CMS öffnen“. Logo auf der Anmeldeseite und
+  das Icon in der Seitenleiste.
+- Push bei Einladung auf einem Gerät: kommt an, Tippen öffnet die App;
+  Kästchen im Konto aus → nichts. Einmal aus, neu laden, an, neu laden.
 - Kalender, der auf einem Gerät fehlt, obwohl der Server ihn noch hat:
   kommt jetzt beim nächsten Abgleich von selbst zurück (neu laden reicht).
 - Dev-Server: Speichert jemand eine Datei, von der der Store abhängt, bleibt

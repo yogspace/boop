@@ -33,7 +33,6 @@ import {
   stampedMessage,
   stampedTargets,
   switchesOf,
-  wasAdded,
   withInvited,
   withSwitch,
 } from "../../src/features/push/rules";
@@ -372,9 +371,8 @@ describe("who hears that someone stamped", () => {
   });
 });
 
-describe("who hears that they were added to a calendar", () => {
-  // Anna's calendar, Carl in it already – she adds Ben.
-  const before = [ANNA, CARL];
+describe("who hears of an invitation to a calendar", () => {
+  // Anna's calendar, Carl in it already – she invites Ben.
   const devices = [
     device("anna-phone", ANNA),
     device("ben-phone", BEN),
@@ -391,7 +389,6 @@ describe("who hears that they were added to a calendar", () => {
     invitedTargets({
       who: BEN,
       by: ANNA,
-      before,
       devices,
       settings: {},
       sessions,
@@ -399,8 +396,8 @@ describe("who hears that they were added to a calendar", () => {
       ...more,
     }).map((d) => d.id);
 
-  it("is the one added, on every device they are logged in on", () => {
-    // Not who added them, not who was in it – and not their own old one.
+  it("is the one invited, on every device they are logged in on", () => {
+    // Not who invited them, not who is in it – and not their own old one.
     expect(targets()).toEqual(["ben-phone", "ben-laptop"]);
   });
 
@@ -428,22 +425,17 @@ describe("who hears that they were added to a calendar", () => {
     ).toEqual([]);
   });
 
-  it("is nobody when they were in it already – nothing happened", () => {
-    expect(targets({ before: [ANNA, BEN, CARL] })).toEqual([]);
-    expect(wasAdded({ who: BEN, by: ANNA, before: [ANNA, BEN] })).toBe(false);
-    expect(wasAdded({ who: BEN, by: ANNA, before })).toBe(true);
-  });
-
-  it("is nobody when they came in by themselves – an invitation's link", () => {
+  it("is nobody when it was their own doing", () => {
     expect(targets({ by: BEN })).toEqual([]);
-    expect(wasAdded({ who: BEN, by: BEN, before })).toBe(false);
   });
 
   it("is heard once: as a change it goes to the others, never to them", () => {
-    const calendar = { id: FAMILY, name: "Familie", members: before };
+    // As long as an invitation makes a member at once, the calendar's hook
+    // sees someone coming in (changed.ts).
+    const calendar = { id: FAMILY, name: "Familie", members: [ANNA, CARL] };
     const changes = calendarChanges({
       operation: "update",
-      doc: { ...calendar, members: [...before, BEN] },
+      doc: { ...calendar, members: [ANNA, CARL, BEN] },
       previous: calendar,
       by: ANNA,
     });
@@ -453,7 +445,7 @@ describe("who hears that they were added to a calendar", () => {
     expect(
       changedTargets({
         calendar: FAMILY,
-        members: [...before, BEN],
+        members: [ANNA, CARL, BEN],
         by: ANNA,
         about: aboutOf(changes),
         devices,
@@ -614,7 +606,7 @@ describe("what a notification says", () => {
     ).toBe("Someone stamped in “Family”.");
   });
 
-  it("tells the one added who did it, and leads into the calendar", () => {
+  it("tells the one invited by whom and where to – and leads to the app", () => {
     expect(
       invitedMessage("de", {
         name: "Anna",
@@ -622,8 +614,9 @@ describe("what a notification says", () => {
       })
     ).toEqual({
       title: "Boop!",
-      body: "Anna hat dich zu „Familie“ hinzugefügt.",
-      url: `/de/app/${FAMILY}`,
+      body: "Anna lädt dich zu „Familie“ ein.",
+      // Not into the calendar: the invitation shows in the app.
+      url: "/de/app",
       tag: `invited-${FAMILY}`,
     });
     expect(
@@ -633,8 +626,8 @@ describe("what a notification says", () => {
       })
     ).toEqual({
       title: "Boop!",
-      body: "Anna added you to “Family”.",
-      url: `/en/app/${FAMILY}`,
+      body: "Anna invited you to “Family”.",
+      url: "/en/app",
       tag: `invited-${FAMILY}`,
     });
     // Without a name: someone.
@@ -643,13 +636,13 @@ describe("what a notification says", () => {
         name: " ",
         calendar: { id: FAMILY, name: "Familie" },
       }).body
-    ).toBe("Jemand hat dich zu „Familie“ hinzugefügt.");
+    ).toBe("Jemand lädt dich zu „Familie“ ein.");
     expect(
       invitedMessage("en", {
         name: "",
         calendar: { id: FAMILY, name: "Family" },
       }).body
-    ).toBe("Someone added you to “Family”.");
+    ).toBe("Someone invited you to “Family”.");
   });
 
   it("names the calendars still waiting, and leads to the first", () => {

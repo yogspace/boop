@@ -28,7 +28,7 @@ import { forget, pushReady, sendPush } from "./send";
  * nothing here can make it fail.
  */
 
-/** An invitation, as far as its notification goes – accounts and a calendar by id. */
+/** An invitation, as far as its notification goes – all by id. */
 export type Invitation = {
   /** The calendar it is to. */
   calendar: string;
@@ -59,7 +59,10 @@ export const notifyInvited = (payload: Payload, invitation: Invitation) => {
   }, 0);
 };
 
-const tellThem = async (payload: Payload, { calendar, who, by }: Invitation) => {
+const tellThem = async (
+  payload: Payload,
+  { calendar, who, by }: Invitation
+) => {
   const doc = (await payload.findByID({
     collection: "calendars",
     id: calendar,

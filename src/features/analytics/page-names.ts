@@ -18,6 +18,7 @@ const PAGES: Record<string, Record<Lang, string>> = {
   "forgot-password": { en: "Forgot password", de: "Passwort vergessen" },
   "reset-password": { en: "Reset password", de: "Passwort zurücksetzen" },
   verify: { en: "Verify", de: "Bestätigen" },
+  "change-email": { en: "Change email", de: "Adresse ändern" },
   legal: { en: "Legal", de: "Rechtliches" },
 };
 

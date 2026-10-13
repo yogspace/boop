@@ -5,7 +5,9 @@ import {
   type InactivityPorts,
   inactivityStep,
   type Kept,
+  keptForGood,
   maybeInactiveBefore,
+  notKeptForGood,
   RUN_LIMIT,
   type SeenPatch,
   seenPatch,
@@ -61,6 +63,50 @@ describe("a sign-up never confirmed", () => {
     expect(unverifiedDue({ _verified: false, createdAt: "?" }, NOW)).toBe(
       false
     );
+  });
+});
+
+describe("an account marked “never delete”", () => {
+  const old = iso(NOW - 400 * DAY);
+
+  it("is one whose box is ticked – nothing else counts as that", () => {
+    expect(keptForGood({ neverDelete: true })).toBe(true);
+    for (const not of [undefined, null, false, "true", 1, {}]) {
+      expect(keptForGood({ neverDelete: not }), String(not)).toBe(false);
+    }
+    // The cleanup's query asks the same: all but the ticked ones.
+    expect(notKeptForGood).toEqual({ neverDelete: { not_equals: true } });
+  });
+
+  it("stays, never confirmed or not – however old the sign-up", () => {
+    const signUp = { _verified: false, createdAt: old };
+    expect(unverifiedDue(signUp, NOW)).toBe(true);
+    expect(unverifiedDue({ ...signUp, neverDelete: true }, NOW)).toBe(false);
+    // Unticked again, the rule is back.
+    expect(unverifiedDue({ ...signUp, neverDelete: false }, NOW)).toBe(true);
+  });
+
+  it("is nothing for the cleanup to do – no note, no warning, no deletion", () => {
+    const long = iso(monthsAgo(60));
+    const cases: Kept[] = [
+      // Never noted when it was there.
+      {},
+      // Away for five years, not warned.
+      { lastSeenAt: long },
+      // Warned long ago, and away since.
+      { lastSeenAt: long, deletionWarnedAt: iso(NOW - 90 * DAY) },
+      // Warned, but there again.
+      { lastSeenAt: iso(NOW - DAY), deletionWarnedAt: iso(NOW - 20 * DAY) },
+    ];
+    expect(cases.map((account) => inactivityStep(account, NOW))).toEqual([
+      "note",
+      "warn",
+      "delete",
+      "reset",
+    ]);
+    for (const account of cases) {
+      expect(inactivityStep({ ...account, neverDelete: true }, NOW)).toBeNull();
+    }
   });
 });
 
@@ -285,6 +331,58 @@ describe("a cleanup run", () => {
     const stale = [{ ...warned }];
     const doc = store.get("a");
     if (doc) Object.assign(doc, seenPatch(doc, NOW));
+    const tally = await tendInactive(stale, ports, { now: NOW });
+    expect(tally.deleted).toBe(0);
+    expect(removed).toEqual([]);
+  });
+
+  it("passes by the ones marked “never delete” – dry or not", async () => {
+    const accounts = [
+      { id: "kept-new", neverDelete: true },
+      { id: "kept-away", lastSeenAt: away, neverDelete: true },
+      {
+        id: "kept-warned",
+        lastSeenAt: away,
+        deletionWarnedAt: iso(NOW - 40 * DAY),
+        neverDelete: true,
+      },
+      { id: "gone", lastSeenAt: away, deletionWarnedAt: iso(NOW - 40 * DAY) },
+    ];
+    const none = {
+      noted: 0,
+      reset: 0,
+      warned: 0,
+      mailFailed: 0,
+      left: 0,
+      failed: 0,
+    };
+    for (const dry of [true, false]) {
+      const { store, sent, removed, ports } = world(accounts);
+      const tally = await tendInactive([...store.values()], ports, {
+        now: NOW,
+        dry,
+      });
+      // Only the one without the mark is counted – and, for real, goes.
+      expect(tally).toEqual({ ...none, deleted: 1 });
+      expect(sent).toEqual([]);
+      expect(removed).toEqual(dry ? [] : ["gone"]);
+      for (const kept of accounts.slice(0, 3)) {
+        expect(store.get(kept.id)).toEqual(kept);
+      }
+    }
+  });
+
+  it("keeps one that was marked between the look and the deletion", async () => {
+    const warned = {
+      id: "a",
+      lastSeenAt: away,
+      deletionWarnedAt: iso(NOW - 31 * DAY),
+    };
+    const { store, removed, ports } = world([warned]);
+    // The list was read before; an admin ticked the box since.
+    const stale = [{ ...warned }];
+    const doc = store.get("a");
+    if (doc) doc.neverDelete = true;
     const tally = await tendInactive(stale, ports, { now: NOW });
     expect(tally.deleted).toBe(0);
     expect(removed).toEqual([]);

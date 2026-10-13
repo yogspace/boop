@@ -76,11 +76,24 @@ const isToken = (value: unknown): value is string =>
 export const tokenHash = (token: string) =>
   createHash("sha256").update(token).digest("hex");
 
-/** Is there an account with this address – confirmed or not? */
-const taken = async (payload: Payload, email: string) => {
+/**
+ * Is there an account with this address – confirmed or not? Another one
+ * than `mine`: of two confirming the same link at once, the later must not
+ * take the first one's success for someone else's account.
+ */
+const taken = async (
+  payload: Payload,
+  email: string,
+  mine?: string | number
+) => {
   const { totalDocs } = await payload.count({
     collection: ACCOUNTS,
-    where: { email: { equals: email } },
+    where: {
+      and: [
+        { email: { equals: email } },
+        ...(mine === undefined ? [] : [{ id: { not_equals: String(mine) } }]),
+      ],
+    },
     overrideAccess: true,
   });
   return totalDocs > 0;
@@ -203,7 +216,7 @@ export const confirmEmailChange = async (
     return { ok: false, reason: "taken" };
   };
 
-  if (await taken(payload, email)) return lost();
+  if (await taken(payload, email, account.id)) return lost();
   let changed: Row | null;
   try {
     changed = (await payload.db.updateOne({

@@ -13,6 +13,7 @@ import {
 import { legalPath } from "@/features/legal/links";
 import { clearAll } from "@/features/offline/db";
 import { sync, useBoop } from "@/features/offline/store";
+import { AccountNotifications } from "@/features/push/account-notifications";
 import { Link } from "@/features/transitions/link";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
@@ -140,6 +141,9 @@ export const AccountSheet = ({
         </Link>
       </p>
       {!online && <Notice>{t.auth.offline}</Notice>}
+
+      {/* What the whole account hears of – an invitation (push). */}
+      <AccountNotifications locale={locale} />
 
       <div className="flex flex-col gap-2">
         <h3 className="font-black text-lg">{text.exportTitle}</h3>

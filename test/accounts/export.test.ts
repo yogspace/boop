@@ -30,6 +30,13 @@ const account = {
   createdAt: "2026-01-05T12:00:00.000Z",
   updatedAt: "2026-10-01T08:00:00.000Z",
   lastSeenAt: "2026-10-11T18:00:00.000Z",
+  // A new address it asked for – with the hash of its link's token.
+  pendingEmail: "max.neu@example.com",
+  pendingEmailToken: "pending-token-secret",
+  pendingEmailExpiresAt: "2026-10-13T09:00:00.000Z",
+  // The admin's two boxes.
+  admin: true,
+  neverDelete: true,
 };
 
 const calendars = [
@@ -241,8 +248,12 @@ describe("the account's data as a file", () => {
       email: "max@example.com",
       locale: "de",
       verified: true,
+      admin: true,
+      neverDelete: true,
       createdAt: "2026-01-05T12:00:00.000Z",
       updatedAt: "2026-10-01T08:00:00.000Z",
+      pendingEmail: "max.neu@example.com",
+      pendingEmailUntil: "2026-10-13T09:00:00.000Z",
       lastSeenAt: "2026-10-11T18:00:00.000Z",
       deletionWarnedAt: null,
       logins: [
@@ -264,6 +275,7 @@ describe("the account's data as a file", () => {
       "token",
       "resetPasswordToken",
       "_verificationToken",
+      "pendingEmailToken",
       "sessions",
       "resetPasswordExpiration",
     ]) {
@@ -437,6 +449,13 @@ describe("the account's data as a file", () => {
       now: NOW,
     });
     expect(fresh.account.verified).toBe(false);
+    // No box ticked, no new address asked for.
+    expect(fresh.account).toMatchObject({
+      admin: false,
+      neverDelete: false,
+      pendingEmail: null,
+      pendingEmailUntil: null,
+    });
     expect(fresh.account.logins).toEqual([]);
     expect(fresh.account.failedLogins).toBe(0);
     expect([
