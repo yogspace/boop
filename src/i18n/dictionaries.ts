@@ -401,7 +401,7 @@ const de = {
         "Benachrichtigungen sind für Boop blockiert. Erlaub sie in den Einstellungen deines Browsers – auf dem iPhone unter Einstellungen → Mitteilungen → Boop.",
       failed: "Das hat nicht geklappt. Versuch es bitte noch einmal.",
       offline: "Zum Ändern brauchst du eine Verbindung.",
-      reminder: "Erinnern, wenn ich heute noch nicht gestempelt habe",
+      reminder: "Erinnern, wenn ich heute noch nichts eingetragen habe",
       stamped: "Wenn jemand anderes hier stempelt",
       changed: "Wenn jemand anderes etwas ändert",
       changedHint:
@@ -963,7 +963,7 @@ const en: Shape<typeof de> = {
         "Notifications are blocked for Boop. Allow them in your browser's settings – on the iPhone under Settings → Notifications → Boop.",
       failed: "That didn't work. Please try again.",
       offline: "Changing this needs a connection.",
-      reminder: "Remind me when I haven't stamped today",
+      reminder: "Remind me when I haven't entered anything today",
       stamped: "When someone else stamps here",
       changed: "When someone else changes something",
       changedHint:
