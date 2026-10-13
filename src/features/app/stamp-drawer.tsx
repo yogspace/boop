@@ -251,7 +251,8 @@ export const StampDrawer = ({
     const at = (u: number, size: number) =>
       INSET + ((u + 0.02) * (size - 2 * INSET)) / 1.04;
     el.style.transform = `translate(${at(p[0], box.width)}px, ${at(p[1], box.height)}px) translate(-50%, -50%)`;
-    el.style.opacity = "1";
+    // See-through: a tip, not a dot already drawn.
+    el.style.opacity = "0.6";
   };
 
   const hideTip = () => {
