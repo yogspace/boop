@@ -1934,7 +1934,7 @@ export interface Translation {
        */
       title?: string | null;
       /**
-       * DE: Lade Leute per E-Mail ein. Ohne Boop-Konto bekommen sie eine Einladung.  ·  EN: Invite people by email. Without a Boop account they get an invitation.
+       * DE: Lade Leute per E-Mail ein – dabei sind sie, sobald sie Ja sagen.  ·  EN: Invite people by email – they're in once they say yes.
        */
       text?: string | null;
       /**
@@ -1946,11 +1946,11 @@ export interface Translation {
        */
       add?: string | null;
       /**
-       * DE: {name} ist jetzt dabei.  ·  EN: {name} is in now.  ·  Keeps {name}
+       * DE: Das ist deine eigene Adresse.  ·  EN: That's your own address.
        */
-      added?: string | null;
+      yourself?: string | null;
       /**
-       * DE: Einladung an {email} verschickt – sie gilt {days} Tage. Sobald es ein Konto gibt, ist die Person dabei.  ·  EN: Invitation sent to {email} – it's valid for {days} days. They're in once they have an account.  ·  Keeps {email}  ·  May use {days}
+       * DE: Einladung an {email} verschickt – sie gilt {days} Tage. Sagt die Person Ja, ist sie dabei.  ·  EN: Invitation sent to {email} – it's valid for {days} days. They're in once they say yes.  ·  Keeps {email}  ·  May use {days}
        */
       invited?: string | null;
       /**
@@ -1989,6 +1989,58 @@ export interface Translation {
        * DE: Ja, verlassen  ·  EN: Yes, leave
        */
       leaveYes?: string | null;
+    };
+    invitations?: {
+      /**
+       * DE: Einladungen  ·  EN: Invitations
+       */
+      title?: string | null;
+      /**
+       * DE: Du bist eingeladen!  ·  EN: You're invited!
+       */
+      popupTitle?: string | null;
+      text?: {
+        /**
+         * DE: {from} lädt dich zu „{calendar}“ ein.  ·  EN: {from} invites you to “{calendar}”.  ·  Keeps {from}, {calendar}
+         */
+        named?: string | null;
+        /**
+         * DE: Du bist zu „{calendar}“ eingeladen.  ·  EN: You're invited to “{calendar}”.  ·  Keeps {calendar}
+         */
+        unnamed?: string | null;
+      };
+      /**
+       * DE: Gilt bis zum {date} Uhr.  ·  EN: Valid until {date}.  ·  Keeps {date}
+       */
+      until?: string | null;
+      /**
+       * DE: Annehmen  ·  EN: Accept
+       */
+      accept?: string | null;
+      /**
+       * DE: Ablehnen  ·  EN: Decline
+       */
+      decline?: string | null;
+      /**
+       * DE: Später  ·  EN: Later
+       */
+      later?: string | null;
+      /**
+       * DE: Schließen  ·  EN: Close
+       */
+      close?: string | null;
+      /**
+       * DE: Zum Antworten brauchst du eine Verbindung.  ·  EN: Answering needs a connection.
+       */
+      offline?: string | null;
+      /**
+       * DE: Du bist jetzt bei „{calendar}“ dabei.  ·  EN: You're in “{calendar}” now.  ·  Keeps {calendar}
+       */
+      joined?: string | null;
+      /**
+       * DE: Die Einladung zu „{calendar}“ gilt nicht mehr – vielleicht wurde sie zurückgezogen.  ·  EN: The invitation to “{calendar}” isn't valid anymore – it may have been taken back.  ·  Keeps {calendar}
+       */
+      gone?: string | null;
     };
     /**
      * DE: Speichern  ·  EN: Save
@@ -2710,7 +2762,7 @@ export interface Translation {
        */
       button?: string | null;
       /**
-       * DE: Du kennst die Person nicht? Dann ignoriere diese Mail einfach – ohne Konto passiert nichts.  ·  EN: Don't know them? Then simply ignore this mail – nothing happens without an account.
+       * DE: Du kennst die Person nicht? Dann ignoriere diese Mail einfach – ohne dein Ja passiert nichts.  ·  EN: Don't know them? Then simply ignore this mail – nothing happens unless you say yes.
        */
       footnote?: string | null;
     };
@@ -3170,7 +3222,7 @@ export interface TranslationsSelect<T extends boolean = true> {
               text?: T;
               email?: T;
               add?: T;
-              added?: T;
+              yourself?: T;
               invited?: T;
               invitesTitle?: T;
               revoke?: T;
@@ -3181,6 +3233,26 @@ export interface TranslationsSelect<T extends boolean = true> {
               leave?: T;
               leaveAsk?: T;
               leaveYes?: T;
+            };
+        invitations?:
+          | T
+          | {
+              title?: T;
+              popupTitle?: T;
+              text?:
+                | T
+                | {
+                    named?: T;
+                    unnamed?: T;
+                  };
+              until?: T;
+              accept?: T;
+              decline?: T;
+              later?: T;
+              close?: T;
+              offline?: T;
+              joined?: T;
+              gone?: T;
             };
         save_?: T;
         settings?:

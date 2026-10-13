@@ -38,7 +38,10 @@ import { checkPassword, type Owner, type Weakness } from "./password-strength";
  * server through ./client.ts.
  */
 
-/** An invitation opened before logging in – taken up after the login. */
+/**
+ * An invitation opened before logging in – taken up after the login:
+ * following its link was the yes.
+ */
 const INVITE_KEY = "boop-invite";
 
 const pendingInvite = {
@@ -54,7 +57,8 @@ const pendingInvite = {
       if (token) localStorage.setItem(INVITE_KEY, token);
       else localStorage.removeItem(INVITE_KEY);
     } catch {
-      // No storage – the address's own invitations still join at login.
+      // No storage – an invitation to the account's own address still
+      // waits in the app.
     }
   },
 };
@@ -597,13 +601,17 @@ const momentOf = (iso: string, locale: Locale) =>
     minute: "2-digit",
   });
 
+/**
+ * The invitation's page – where the mail's link leads. Following it is the
+ * yes: logged in already, the calendar is joined at once and the app opens;
+ * otherwise after logging in or signing up (`afterLogin`).
+ */
 export const InvitePanel = ({ locale }: { locale: Locale }) => {
   const t = dictionaryOf(locale);
   const router = useTransitionRouter();
   const token = useSearchParams().get("token") ?? "";
   const [invite, setInvite] = useState<Invitation | null>(null);
   const [account, setAccount] = useState<boolean | null>(null);
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -617,6 +625,24 @@ export const InvitePanel = ({ locale }: { locale: Locale }) => {
       .then((me) => setAccount(Boolean(me)))
       .catch(() => setAccount(false));
   }, [token]);
+
+  // Logged in: taken up – once (strict mode runs effects twice). Gone
+  // meanwhile, the page says why, fresh from the server.
+  const joining = useRef(false);
+  const open = invite?.state === "open";
+  useEffect(() => {
+    if (!(account && open) || joining.current) return;
+    joining.current = true;
+    void acceptInvite(token).then(async (ok) => {
+      if (ok) {
+        router.replace(`/${locale}/app`);
+        return;
+      }
+      setInvite(
+        await readInvite(token).catch((): Invitation => ({ state: "missing" }))
+      );
+    });
+  }, [account, open, token, locale, router]);
 
   // Too late: no alarm – it says how long invitations last and what to do.
   if (invite?.state === "expired") {
@@ -639,35 +665,22 @@ export const InvitePanel = ({ locale }: { locale: Locale }) => {
     return <Frame title={t.auth.invite.title}>{t.app.loading}</Frame>;
   }
 
-  const accept = async () => {
-    setBusy(true);
-    const ok = await acceptInvite(token);
-    setBusy(false);
-    if (ok) router.replace(`/${locale}/app`);
-    // Gone meanwhile – the page says why, fresh from the server.
-    else {
-      setInvite(
-        await readInvite(token).catch((): Invitation => ({ state: "missing" }))
-      );
-    }
-  };
-
   return (
     <Frame sticker="heart" title={t.auth.invite.title}>
       <p className="font-medium text-lg">
         {t.auth.invite.text(invite.from, invite.calendar)}
       </p>
-      {invite.until && (
-        <p className="-mt-3 font-medium text-muted text-sm">
-          {t.auth.invite.until(momentOf(invite.until, locale))}
-        </p>
-      )}
       {account ? (
-        <Button disabled={busy} onClick={accept} size="lg">
-          {t.auth.invite.accept}
-        </Button>
+        <p className="-mt-3 font-medium text-muted text-sm">
+          {t.auth.working}
+        </p>
       ) : (
         <>
+          {invite.until && (
+            <p className="-mt-3 font-medium text-muted text-sm">
+              {t.auth.invite.until(momentOf(invite.until, locale))}
+            </p>
+          )}
           <p className="font-medium text-muted">{t.auth.invite.account}</p>
           <div className="flex flex-wrap gap-3">
             <LinkButton

@@ -18,10 +18,12 @@ import { dictionaryOf } from "@/i18n/dictionaries";
 import { Sheet } from "./sheet";
 
 /**
- * Sharing a calendar – its owner's: inviting by email (an account joins at
- * once, an address without one gets an invitation by mail) and taking an
- * invitation back. Below, who is in it already (`Members`). Needs a
- * connection: the server decides.
+ * Sharing a calendar – its owner's: inviting by email, and taking an
+ * invitation back. Every address gets an invitation – one with an account
+ * sees it in the app, too – and is in once it says yes; until then it waits
+ * here. The server answers the same for every address, so this says
+ * “invited” whatever it is. Below, who is in it already (`Members`). Needs
+ * a connection: the server decides.
  */
 export const ShareSheet = ({
   calendar,
@@ -61,8 +63,13 @@ export const ShareSheet = ({
 
   const invite = async (event: FormEvent) => {
     event.preventDefault();
-    setBusy(true);
     setNotice(null);
+    // One's own address – the server would take it in silence.
+    if (email.trim().toLowerCase() === me?.email.toLowerCase()) {
+      setNotice({ tone: "error", text: t.app.share.yourself });
+      return;
+    }
+    setBusy(true);
     const response = await fetch(`${base}/members`, {
       method: "POST",
       credentials: "include",
@@ -70,21 +77,14 @@ export const ShareSheet = ({
       body: JSON.stringify({ email }),
     }).catch(() => null);
     const body = (await response?.json().catch(() => null)) as {
-      added?: boolean;
       invited?: boolean;
-      person?: { name: string };
     } | null;
     setBusy(false);
-    if (body?.added || body?.invited) {
-      setNotice({
-        tone: "success",
-        text: body.added
-          ? t.app.share.added(body.person?.name ?? email)
-          : t.app.share.invited(email),
-      });
+    if (body?.invited) {
+      setNotice({ tone: "success", text: t.app.share.invited(email.trim()) });
       setEmail("");
       trackEvent("calendar-shared");
-      await Promise.all([sync(), loadInvites()]);
+      await loadInvites();
     } else {
       setNotice({ tone: "error", text: t.app.share.notFound });
     }

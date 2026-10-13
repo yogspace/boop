@@ -180,7 +180,6 @@ const de = {
         "Die Einladung gilt bis zum {date} Uhr.",
         (say) => (date: string) => say({ date })
       ),
-      accept: "Einladung annehmen",
       account:
         "Erstell ein kostenloses Konto oder melde dich an – dann bist du dabei.",
       expiredTitle: "Einladung abgelaufen",
@@ -933,7 +932,6 @@ const en: Shape<typeof de> = {
       title: "You're invited!",
       text: "{from} would like to share the calendar “{calendar}” with you.",
       until: "The invitation is valid until {date}.",
-      accept: "Accept invitation",
       account: "Create a free account or log in – and you're in.",
       expiredTitle: "Invitation expired",
       expired: {
