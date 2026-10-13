@@ -164,6 +164,15 @@ export interface Account {
    * When the mail “your account goes in 30 days” went out. Any login or sync takes it back.
    */
   deletionWarnedAt?: string | null;
+  /**
+   * A new address the account asked for – not confirmed yet. It becomes the address once the link in the mail to it is opened; unopened, it goes after 24 hours.
+   */
+  pendingEmail?: string | null;
+  /**
+   * Until when the new address can be confirmed.
+   */
+  pendingEmailExpiresAt?: string | null;
+  pendingEmailToken?: string | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -570,6 +579,9 @@ export interface AccountsSelect<T extends boolean = true> {
   locale?: T;
   lastSeenAt?: T;
   deletionWarnedAt?: T;
+  pendingEmail?: T;
+  pendingEmailExpiresAt?: T;
+  pendingEmailToken?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -1240,6 +1252,32 @@ export interface Translation {
        */
       toLogin?: string | null;
     };
+    changeEmail?: {
+      /**
+       * DE: Neue Adresse bestätigen  ·  EN: Confirm new address
+       */
+      title?: string | null;
+      /**
+       * DE: Wir bestätigen deine neue Adresse …  ·  EN: Confirming your new address …
+       */
+      working?: string | null;
+      /**
+       * DE: Geschafft – ab jetzt meldest du dich mit deiner neuen Adresse an.  ·  EN: Done – from now on you log in with your new address.
+       */
+      done?: string | null;
+      /**
+       * DE: Der Link ist abgelaufen oder wurde schon benutzt. Vielleicht ist deine Adresse schon geändert? Sonst fordere in der App unter „Konto“ einfach einen neuen an.  ·  EN: The link has expired or was already used. Maybe your address is changed already? Otherwise simply ask for a new one in the app under “Account”.
+       */
+      failed?: string | null;
+      /**
+       * DE: Mit dieser Adresse gibt es inzwischen ein anderes Konto. Deine bisherige Adresse bleibt, wie sie ist.  ·  EN: There's another account with this address by now. Your address stays as it is.
+       */
+      taken?: string | null;
+      /**
+       * DE: Zu Boop  ·  EN: Open Boop
+       */
+      toApp?: string | null;
+    };
   };
   app?: {
     /**
@@ -1581,6 +1619,38 @@ export interface Translation {
        * DE: Nimmt Linien und Flächen weg – den Rand nie  ·  EN: Takes away lines and areas – never the rim
        */
       eraserHint?: string | null;
+      /**
+       * DE: Linie  ·  EN: Line
+       */
+      line?: string | null;
+      /**
+       * DE: Klicken setzt Punkte für gerade Linien, Ziehen biegt sie zur Kurve · ⇧ 45° · Enter beendet  ·  EN: Click sets points for straight lines, dragging bends them into a curve · ⇧ 45° · Enter ends
+       */
+      lineHint?: string | null;
+      /**
+       * DE: Tippen setzt Punkte für gerade Linien, Ziehen biegt sie zur Kurve  ·  EN: Tap sets points for straight lines, dragging bends them into a curve
+       */
+      lineHintTouch?: string | null;
+      /**
+       * DE: Fertig  ·  EN: Done
+       */
+      finish?: string | null;
+      /**
+       * DE: Punkte bearbeiten  ·  EN: Edit points
+       */
+      points?: string | null;
+      /**
+       * DE: Punkte und Griffe ziehen · Alt-Klick: rund oder eckig · Klick auf die Linie: neuer Punkt · Entf löscht  ·  EN: Drag points and handles · Alt-click: smooth or corner · click the line: new point · Del removes
+       */
+      pointsHint?: string | null;
+      /**
+       * DE: Punkte und Griffe ziehen · auf die Linie tippen: neuer Punkt  ·  EN: Drag points and handles · tap the line: new point
+       */
+      pointsHintTouch?: string | null;
+      /**
+       * DE: Punkt entfernen  ·  EN: Remove point
+       */
+      removePoint?: string | null;
       /**
        * DE: Strichstärke  ·  EN: Line width
        */
@@ -2202,6 +2272,38 @@ export interface Translation {
        */
       email?: string | null;
       /**
+       * DE: Ändern  ·  EN: Change
+       */
+      emailChange?: string | null;
+      /**
+       * DE: Neue E-Mail-Adresse  ·  EN: New email address
+       */
+      emailNew?: string | null;
+      /**
+       * DE: Wir schicken dir einen Link an die neue Adresse. Öffne ihn innerhalb von {hours} Stunden – erst dann gilt sie.  ·  EN: We'll send a link to the new address. Open it within {hours} hours – only then does it count.  ·  May use {hours}
+       */
+      emailHint?: string | null;
+      /**
+       * DE: Link schicken  ·  EN: Send link
+       */
+      emailSend?: string | null;
+      /**
+       * DE: Das ist schon deine Adresse.  ·  EN: That's your address already.
+       */
+      emailSame?: string | null;
+      /**
+       * DE: Das ist keine E-Mail-Adresse.  ·  EN: That's not an email address.
+       */
+      emailInvalid?: string | null;
+      /**
+       * DE: Wir haben dir eine Mail an {pending} geschickt. Bis du bestätigst, bleibt {email} deine Adresse.  ·  EN: We've sent a mail to {pending}. Until you confirm, {email} stays your address.  ·  Keeps {pending}, {email}
+       */
+      emailPending?: string | null;
+      /**
+       * DE: Doch nicht ändern  ·  EN: Don't change it
+       */
+      emailCancel?: string | null;
+      /**
        * DE: Bei Boop liegen dein Name, deine E-Mail-Adresse und was du anlegst: Kalender, Stempel, Abdrücke und Notizen – und, wenn du sie einschaltest, deine Geräte für Benachrichtigungen.  ·  EN: Boop keeps your name, your email address and what you make: calendars, stamps, prints and notes – and, once you turn them on, your devices for notifications.
        */
       stored?: string | null;
@@ -2389,6 +2491,74 @@ export interface Translation {
       button?: string | null;
       /**
        * DE: Das warst du nicht? Dann bleibt alles, wie es ist – dein Passwort ändert sich nur über den Link.  ·  EN: Wasn't you? Then nothing changes – your password only changes through the link.
+       */
+      footnote?: string | null;
+    };
+    newEmail?: {
+      /**
+       * DE: Bestätige deine neue Adresse für Boop  ·  EN: Confirm your new address for Boop
+       */
+      subject?: string | null;
+      hello?: {
+        /**
+         * DE: Hallo {name}!  ·  EN: Hi {name}!  ·  Keeps {name}
+         */
+        named?: string | null;
+        /**
+         * DE: Hallo!  ·  EN: Hi!
+         */
+        unnamed?: string | null;
+      };
+      /**
+       * DE: Neue Adresse  ·  EN: New address
+       */
+      title?: string | null;
+      /**
+       * DE: Du möchtest dich bei Boop künftig mit dieser Adresse anmelden. Bestätige sie kurz – der Link gilt {hours} Stunden. Bis dahin bleibt deine bisherige Adresse.  ·  EN: You'd like to log in to Boop with this address from now on. Just confirm it – the link is valid for {hours} hours. Until then your old address stays.  ·  May use {hours}
+       */
+      body?: string | null;
+      /**
+       * DE: Neue Adresse bestätigen  ·  EN: Confirm new address
+       */
+      button?: string | null;
+      /**
+       * DE: Das warst du nicht? Dann ignoriere diese Mail einfach – ohne Bestätigung ändert sich nichts.  ·  EN: Wasn't you? Then simply ignore this mail – nothing changes without confirmation.
+       */
+      footnote?: string | null;
+    };
+    emailChanged?: {
+      /**
+       * DE: Deine Adresse bei Boop wurde geändert  ·  EN: Your address at Boop was changed
+       */
+      subject?: string | null;
+      hello?: {
+        /**
+         * DE: Hallo {name}!  ·  EN: Hi {name}!  ·  Keeps {name}
+         */
+        named?: string | null;
+        /**
+         * DE: Hallo!  ·  EN: Hi!
+         */
+        unnamed?: string | null;
+      };
+      /**
+       * DE: Adresse geändert  ·  EN: Address changed
+       */
+      title?: string | null;
+      /**
+       * DE: Dein Boop-Konto hat jetzt eine neue E-Mail-Adresse. Diese hier gilt dafür nicht mehr – angemeldet wird ab sofort mit der neuen.  ·  EN: Your Boop account has a new email address now. This one no longer counts for it – logging in works with the new one from now on.
+       */
+      body?: string | null;
+      /**
+       * DE: Das warst du nicht? Dann melde dich bitte gleich bei uns – über das Kontaktformular.  ·  EN: Wasn't you? Then please get in touch right away – through the contact form.
+       */
+      notYou?: string | null;
+      /**
+       * DE: Zum Kontaktformular  ·  EN: To the contact form
+       */
+      button?: string | null;
+      /**
+       * DE: Du bekommst diese Mail, weil diese Adresse bis eben zu einem Boop-Konto gehörte.  ·  EN: You're getting this mail because this address belonged to a Boop account until just now.
        */
       footnote?: string | null;
     };
@@ -2682,6 +2852,16 @@ export interface TranslationsSelect<T extends boolean = true> {
               failed?: T;
               toLogin?: T;
             };
+        changeEmail?:
+          | T
+          | {
+              title?: T;
+              working?: T;
+              done?: T;
+              failed?: T;
+              taken?: T;
+              toApp?: T;
+            };
       };
   app?:
     | T
@@ -2798,6 +2978,14 @@ export interface TranslationsSelect<T extends boolean = true> {
               removeSelection?: T;
               penHint?: T;
               eraserHint?: T;
+              line?: T;
+              lineHint?: T;
+              lineHintTouch?: T;
+              finish?: T;
+              points?: T;
+              pointsHint?: T;
+              pointsHintTouch?: T;
+              removePoint?: T;
               width?: T;
               widths?:
                 | T
@@ -3009,6 +3197,14 @@ export interface TranslationsSelect<T extends boolean = true> {
               name?: T;
               nameFailed?: T;
               email?: T;
+              emailChange?: T;
+              emailNew?: T;
+              emailHint?: T;
+              emailSend?: T;
+              emailSame?: T;
+              emailInvalid?: T;
+              emailPending?: T;
+              emailCancel?: T;
               stored?: T;
               privacy?: T;
               exportTitle?: T;
@@ -3079,6 +3275,37 @@ export interface TranslationsSelect<T extends boolean = true> {
               subject?: T;
               title?: T;
               body?: T;
+              button?: T;
+              footnote?: T;
+            };
+        newEmail?:
+          | T
+          | {
+              subject?: T;
+              hello?:
+                | T
+                | {
+                    named?: T;
+                    unnamed?: T;
+                  };
+              title?: T;
+              body?: T;
+              button?: T;
+              footnote?: T;
+            };
+        emailChanged?:
+          | T
+          | {
+              subject?: T;
+              hello?:
+                | T
+                | {
+                    named?: T;
+                    unnamed?: T;
+                  };
+              title?: T;
+              body?: T;
+              notYou?: T;
               button?: T;
               footnote?: T;
             };

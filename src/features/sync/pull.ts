@@ -1,4 +1,5 @@
 import type { PayloadRequest, Where } from "payload";
+import { pendingEmailOf } from "@/features/accounts/retention";
 import { idOf } from "@/features/calendar/membership";
 import {
   type CalendarDoc,
@@ -291,7 +292,13 @@ export const pull = async (
         await req.payload.find({
           collection: "accounts",
           where: { id: { in: [...new Set([...memberIds, me])] } },
-          select: { name: true, email: true, locale: true },
+          select: {
+            name: true,
+            email: true,
+            locale: true,
+            pendingEmail: true,
+            pendingEmailExpiresAt: true,
+          },
           depth: 0,
           pagination: false,
           overrideAccess: true,
@@ -319,6 +326,9 @@ export const pull = async (
       name: String(self.name ?? ""),
       email: String(self.email ?? ""),
       locale: String(self.locale ?? "de"),
+      // A new address it asked for and hasn't confirmed yet (accounts/
+      // email-change.ts) – the account sheet says so.
+      pendingEmail: pendingEmailOf(self),
     },
     calendarIds,
     people,

@@ -7,7 +7,17 @@ import { SESSION_ONLY_COOKIE, sessionOnlyOver } from "./cookie";
  * an httpOnly cookie the server sets; the page never sees a token.
  */
 
-export type Me = { id: string; name: string; email: string; locale: string };
+export type Me = {
+  id: string;
+  name: string;
+  email: string;
+  locale: string;
+  /**
+   * A new address the account asked for, waiting for its confirmation –
+   * `email` counts until then. None: null (or nothing, kept from before).
+   */
+  pendingEmail?: string | null;
+};
 
 type Result<T = undefined> =
   | ({ ok: true } & (T extends undefined ? object : { value: T }))
@@ -33,6 +43,7 @@ const toMe = (user: Record<string, unknown>): Me => ({
   name: String(user.name ?? ""),
   email: String(user.email ?? ""),
   locale: String(user.locale ?? "de"),
+  pendingEmail: user.pendingEmail ? String(user.pendingEmail) : null,
 });
 
 /**
@@ -172,6 +183,63 @@ export const rename = async (name: string): Promise<Result<Me>> => {
     user: Record<string, unknown>;
   };
   return { ok: true, value: toMe(user) };
+};
+
+/**
+ * Asks for a new address – only with the password. The server notes it and
+ * sends it a mail; it is the account's once that mail's link was opened
+ * (email-change.ts). The answer is the same for an address that is someone
+ * else's: nobody learns that here.
+ */
+export const requestEmailChange = async (
+  email: string,
+  password: string
+): Promise<Result<Me>> => {
+  const response = await call("/me/email", {
+    json: { email: email.trim(), password },
+  }).catch(() => null);
+  if (response?.ok) {
+    const { user } = (await response.json()) as {
+      user: Record<string, unknown>;
+    };
+    return { ok: true, value: toMe(user) };
+  }
+  if (response?.status === 403) return { ok: false, reason: "wrong" };
+  if (response?.status === 429) return { ok: false, reason: "tooMany" };
+  if (response?.status === 400) {
+    const body = (await response.json().catch(() => null)) as {
+      reason?: string;
+    } | null;
+    return { ok: false, reason: body?.reason === "same" ? "same" : "invalid" };
+  }
+  return { ok: false, reason: "failed" };
+};
+
+/** Not after all: the address asked for is dropped, its link dead. */
+export const cancelEmailChange = async (): Promise<Result<Me>> => {
+  const response = await call("/me/email", { method: "DELETE" }).catch(
+    () => null
+  );
+  if (!response?.ok) return { ok: false, reason: "failed" };
+  const { user } = (await response.json()) as {
+    user: Record<string, unknown>;
+  };
+  return { ok: true, value: toMe(user) };
+};
+
+/**
+ * Redeems the link in the mail to a new address. “invalid”: the link is
+ * over, used or unknown; “taken”: the address is someone else's by now;
+ * “failed”: the server couldn't be asked.
+ */
+export const confirmEmailChange = async (token: string): Promise<Result> => {
+  const response = await call("/change-email", { json: { token } }).catch(
+    () => null
+  );
+  if (response?.ok) return { ok: true };
+  if (response?.status === 409) return { ok: false, reason: "taken" };
+  const over = response?.status === 404 || response?.status === 410;
+  return { ok: false, reason: over ? "invalid" : "failed" };
 };
 
 /**

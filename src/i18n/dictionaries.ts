@@ -1,4 +1,8 @@
-import { UNVERIFIED_DAYS, WARNING_DAYS } from "../features/accounts/retention";
+import {
+  EMAIL_CHANGE_HOURS,
+  UNVERIFIED_DAYS,
+  WARNING_DAYS,
+} from "../features/accounts/retention";
 import { INVITE_DAYS } from "../features/calendar/invite-expiry";
 import { LOCALES, type Locale } from "./config";
 import { build, type Flat, flatten, type Resolved, type Shape } from "./flat";
@@ -187,6 +191,17 @@ const de = {
         "Der Link ist ungültig oder wurde schon benutzt. Vielleicht ist deine Adresse schon bestätigt?",
       toLogin: "Zur Anmeldung",
     },
+    // The link in the mail to a new address (accounts/email-change.ts).
+    changeEmail: {
+      title: "Neue Adresse bestätigen",
+      working: "Wir bestätigen deine neue Adresse …",
+      done: "Geschafft – ab jetzt meldest du dich mit deiner neuen Adresse an.",
+      failed:
+        "Der Link ist abgelaufen oder wurde schon benutzt. Vielleicht ist deine Adresse schon geändert? Sonst fordere in der App unter „Konto“ einfach einen neuen an.",
+      taken:
+        "Mit dieser Adresse gibt es inzwischen ein anderes Konto. Deine bisherige Adresse bleibt, wie sie ist.",
+      toApp: "Zu Boop",
+    },
   },
   app: {
     loading: "Boop lädt …",
@@ -284,6 +299,18 @@ const de = {
       removeSelection: "Auswahl entfernen",
       penHint: "⇧ zieht eine gerade Linie",
       eraserHint: "Nimmt Linien und Flächen weg – den Rand nie",
+      line: "Linie",
+      lineHint:
+        "Klicken setzt Punkte für gerade Linien, Ziehen biegt sie zur Kurve · ⇧ 45° · Enter beendet",
+      lineHintTouch:
+        "Tippen setzt Punkte für gerade Linien, Ziehen biegt sie zur Kurve",
+      finish: "Fertig",
+      points: "Punkte bearbeiten",
+      pointsHint:
+        "Punkte und Griffe ziehen · Alt-Klick: rund oder eckig · Klick auf die Linie: neuer Punkt · Entf löscht",
+      pointsHintTouch:
+        "Punkte und Griffe ziehen · auf die Linie tippen: neuer Punkt",
+      removePoint: "Punkt entfernen",
       width: "Strichstärke",
       widths: { thin: "Fein", medium: "Mittel", thick: "Dick" },
       upload: "SVG hochladen",
@@ -537,6 +564,22 @@ const de = {
         "Angemeldet als {email}",
         (say) => (email: string) => say({ email })
       ),
+      // A new address – it counts once confirmed (accounts/email-change.ts).
+      emailChange: "Ändern",
+      emailNew: "Neue E-Mail-Adresse",
+      emailHint: template(
+        "Wir schicken dir einen Link an die neue Adresse. Öffne ihn innerhalb von {hours} Stunden – erst dann gilt sie.",
+        (say) => say({ hours: EMAIL_CHANGE_HOURS }),
+        { optional: ["hours"] }
+      ),
+      emailSend: "Link schicken",
+      emailSame: "Das ist schon deine Adresse.",
+      emailInvalid: "Das ist keine E-Mail-Adresse.",
+      emailPending: template(
+        "Wir haben dir eine Mail an {pending} geschickt. Bis du bestätigst, bleibt {email} deine Adresse.",
+        (say) => (pending: string, email: string) => say({ pending, email })
+      ),
+      emailCancel: "Doch nicht ändern",
       stored:
         "Bei Boop liegen dein Name, deine E-Mail-Adresse und was du anlegst: Kalender, Stempel, Abdrücke und Notizen – und, wenn du sie einschaltest, deine Geräte für Benachrichtigungen.",
       privacy: "Mehr im Datenschutz",
@@ -621,6 +664,41 @@ const de = {
       button: "Neues Passwort wählen",
       footnote:
         "Das warst du nicht? Dann bleibt alles, wie es ist – dein Passwort ändert sich nur über den Link.",
+    },
+    // To a new address the account asked for: its link confirms it.
+    newEmail: {
+      subject: "Bestätige deine neue Adresse für Boop",
+      hello: template(
+        { named: "Hallo {name}!", unnamed: "Hallo!" },
+        (say) => (name: string | null) =>
+          name ? say.named({ name }) : say.unnamed()
+      ),
+      title: "Neue Adresse",
+      body: template(
+        "Du möchtest dich bei Boop künftig mit dieser Adresse anmelden. Bestätige sie kurz – der Link gilt {hours} Stunden. Bis dahin bleibt deine bisherige Adresse.",
+        (say) => say({ hours: EMAIL_CHANGE_HOURS }),
+        { optional: ["hours"] }
+      ),
+      button: "Neue Adresse bestätigen",
+      footnote:
+        "Das warst du nicht? Dann ignoriere diese Mail einfach – ohne Bestätigung ändert sich nichts.",
+    },
+    // To the address it had, once the new one counts – the button leads to
+    // the contact form.
+    emailChanged: {
+      subject: "Deine Adresse bei Boop wurde geändert",
+      hello: template(
+        { named: "Hallo {name}!", unnamed: "Hallo!" },
+        (say) => (name: string | null) =>
+          name ? say.named({ name }) : say.unnamed()
+      ),
+      title: "Adresse geändert",
+      body: "Dein Boop-Konto hat jetzt eine neue E-Mail-Adresse. Diese hier gilt dafür nicht mehr – angemeldet wird ab sofort mit der neuen.",
+      notYou:
+        "Das warst du nicht? Dann melde dich bitte gleich bei uns – über das Kontaktformular.",
+      button: "Zum Kontaktformular",
+      footnote:
+        "Du bekommst diese Mail, weil diese Adresse bis eben zu einem Boop-Konto gehörte.",
     },
     inactive: {
       subject: "Wir vermissen dich bei Boop",
@@ -793,6 +871,16 @@ const en: Shape<typeof de> = {
         "The link is invalid or was already used. Maybe your address is confirmed already?",
       toLogin: "Go to log in",
     },
+    changeEmail: {
+      title: "Confirm new address",
+      working: "Confirming your new address …",
+      done: "Done – from now on you log in with your new address.",
+      failed:
+        "The link has expired or was already used. Maybe your address is changed already? Otherwise simply ask for a new one in the app under “Account”.",
+      taken:
+        "There's another account with this address by now. Your address stays as it is.",
+      toApp: "Open Boop",
+    },
   },
   app: {
     loading: "Boop is loading …",
@@ -882,6 +970,17 @@ const en: Shape<typeof de> = {
       removeSelection: "Remove selection",
       penHint: "⇧ draws a straight line",
       eraserHint: "Takes away lines and areas – never the rim",
+      line: "Line",
+      lineHint:
+        "Click sets points for straight lines, dragging bends them into a curve · ⇧ 45° · Enter ends",
+      lineHintTouch:
+        "Tap sets points for straight lines, dragging bends them into a curve",
+      finish: "Done",
+      points: "Edit points",
+      pointsHint:
+        "Drag points and handles · Alt-click: smooth or corner · click the line: new point · Del removes",
+      pointsHintTouch: "Drag points and handles · tap the line: new point",
+      removePoint: "Remove point",
       width: "Line width",
       widths: { thin: "Thin", medium: "Medium", thick: "Thick" },
       upload: "Upload SVG",
@@ -1065,6 +1164,16 @@ const en: Shape<typeof de> = {
       name: "Your name – how the others see you",
       nameFailed: "The name couldn't be saved. Please try again.",
       email: "Logged in as {email}",
+      emailChange: "Change",
+      emailNew: "New email address",
+      emailHint:
+        "We'll send a link to the new address. Open it within {hours} hours – only then does it count.",
+      emailSend: "Send link",
+      emailSame: "That's your address already.",
+      emailInvalid: "That's not an email address.",
+      emailPending:
+        "We've sent a mail to {pending}. Until you confirm, {email} stays your address.",
+      emailCancel: "Don't change it",
       stored:
         "Boop keeps your name, your email address and what you make: calendars, stamps, prints and notes – and, once you turn them on, your devices for notifications.",
       privacy: "More in the privacy notes",
@@ -1126,6 +1235,26 @@ const en: Shape<typeof de> = {
       button: "Choose a new password",
       footnote:
         "Wasn't you? Then nothing changes – your password only changes through the link.",
+    },
+    newEmail: {
+      subject: "Confirm your new address for Boop",
+      hello: { named: "Hi {name}!", unnamed: "Hi!" },
+      title: "New address",
+      body: "You'd like to log in to Boop with this address from now on. Just confirm it – the link is valid for {hours} hours. Until then your old address stays.",
+      button: "Confirm new address",
+      footnote:
+        "Wasn't you? Then simply ignore this mail – nothing changes without confirmation.",
+    },
+    emailChanged: {
+      subject: "Your address at Boop was changed",
+      hello: { named: "Hi {name}!", unnamed: "Hi!" },
+      title: "Address changed",
+      body: "Your Boop account has a new email address now. This one no longer counts for it – logging in works with the new one from now on.",
+      notYou:
+        "Wasn't you? Then please get in touch right away – through the contact form.",
+      button: "To the contact form",
+      footnote:
+        "You're getting this mail because this address belonged to a Boop account until just now.",
     },
     inactive: {
       subject: "We miss you at Boop",

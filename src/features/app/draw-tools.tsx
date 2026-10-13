@@ -6,32 +6,53 @@ import {
   type Selection,
 } from "@/features/calendar/arrange";
 import type { Art, Box } from "@/features/calendar/art";
+import { ANCHOR, anchorCount, noHandle } from "@/features/calendar/bezier";
 import type { Guides } from "@/features/calendar/guides";
 import { strokePath } from "@/features/calendar/stamp-svg";
 import { cn } from "@/lib/cn";
+import type { LineMarking } from "./use-line";
 import { KNOB, type Picked } from "./use-select";
 
-/** The drawing tools: the pen, the eraser, picking and moving. */
-export const TOOLS = ["pen", "eraser", "move"] as const;
-export type Tool = (typeof TOOLS)[number];
+/**
+ * The drawing tools on the bar: the pen (freehand), the line (straight
+ * from point to point, or bent into curves), the eraser, picking and
+ * moving. A fifth has no button on the bar – editing such a line's points
+ * (`points`): from a double click on one, its key, or the button that
+ * comes with one picked.
+ */
+export const TOOLS = ["pen", "line", "eraser", "move"] as const;
+export type Tool = (typeof TOOLS)[number] | "points";
 
-/** Each tool's key – the letter Figma uses (B: its pencil). */
+/**
+ * Each tool's key – the letters Figma uses (B: its pencil – P draws with
+ * the pen here, too; L: its line).
+ */
 export const TOOL_KEYS: Record<Tool, string> = {
   pen: "B",
+  line: "L",
   eraser: "E",
   move: "V",
+  points: "A",
 };
 
 /** What each tool's button shows – a small line drawing (24 × 24). */
 export const TOOL_SIGNS: Record<Tool, string> = {
   // A pencil, writing down to the left.
   pen: "M4.5 19.5 5.6 15 15.8 4.8a2.1 2.1 0 0 1 3 3L8.6 18l-4.1 1.5ZM14 6.6l3.4 3.4",
+  // A line bent between two points.
+  line: "M6.5 16.5C10 5 14 19 17.5 7.5M4 16.5h3.5V20H4ZM16.5 4H20v3.5h-3.5Z",
   // A rubber, tilted, the line it leaves clean.
   eraser:
     "M13.6 4.6a1.7 1.7 0 0 1 2.4 0l3.4 3.4a1.7 1.7 0 0 1 0 2.4L10.8 19H7.2l-2.8-2.8a1.7 1.7 0 0 1 0-2.4ZM8.6 9.6l5.8 5.8M12 19h8",
   // The pointer.
   move: "M6 3.5v15.2l4-3.8 2.7 6 2.7-1.2-2.7-5.9H18.5Z",
+  // A point on a line, its two handles out.
+  points:
+    "M5 12h14M10.2 10.2h3.6v3.6h-3.6ZM3.6 10.6a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8ZM20.4 10.6a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8ZM4.5 20C9 20 9.5 15.5 12 13.8",
 };
+
+/** A tick – done. */
+export const DONE_SIGN = "M5 12.5 10 17.5 19 7";
 
 /** A dashed box with a cross – taking what is picked away. */
 export const REMOVE_SIGN =
@@ -55,6 +76,56 @@ const ringPath = (p: readonly number[]) => {
   return `${d}Z`;
 };
 
+/** The overlay's side in px – it lies exactly over the drawing. */
+const useSide = () => {
+  const box = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState(0);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const watch = new ResizeObserver(() => setSize(el.clientWidth));
+    watch.observe(el);
+    setSize(el.clientWidth);
+    return () => watch.disconnect();
+  }, []);
+  return [box, size] as const;
+};
+
+/** A thin inked line on a white edge – readable on paper and on ink. */
+const Line = ({ d, dashed }: { d: string; dashed?: boolean }) => (
+  <>
+    <path d={d} stroke="white" strokeOpacity={0.8} strokeWidth={3.5} />
+    <path
+      d={d}
+      stroke="var(--color-ink)"
+      strokeDasharray={dashed ? "5 4" : undefined}
+      strokeWidth={1.5}
+    />
+  </>
+);
+
+/** The guides something has snapped to – across the whole face. */
+const GuideLines = ({
+  lines,
+  px,
+  size,
+}: {
+  lines: Guides;
+  px: (u: number) => number;
+  size: number;
+}) => {
+  const d = [
+    ...lines.x.map((x) => `M${px(x).toFixed(1)} 0V${size}`),
+    ...lines.y.map((y) => `M0 ${px(y).toFixed(1)}H${size}`),
+  ].join("");
+  return (
+    <>
+      <path d={d} stroke="white" strokeOpacity={0.8} strokeWidth={3} />
+      <path d={d} stroke={GUIDE} strokeWidth={1} />
+    </>
+  );
+};
+
 /** The outlines of some lines and areas – thin, like Figma's hover. */
 const Outlines = ({
   art,
@@ -76,12 +147,7 @@ const Outlines = ({
       return stroke ? [strokePath(stroke.p.map(px))] : [];
     }),
   ].join("");
-  return (
-    <>
-      <path d={paths} stroke="white" strokeOpacity={0.8} strokeWidth={3.5} />
-      <path d={paths} stroke="var(--color-ink)" strokeWidth={1.5} />
-    </>
-  );
+  return <Line d={paths} />;
 };
 
 /**
@@ -110,16 +176,7 @@ export const Marks = ({
   knob: boolean;
   className?: string;
 }) => {
-  const box = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState(0);
-  useLayoutEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    const watch = new ResizeObserver(() => setSize(el.clientWidth));
-    watch.observe(el);
-    setSize(el.clientWidth);
-    return () => watch.disconnect();
-  }, []);
+  const [box, size] = useSide();
   const px = toPx(size);
   const unit = size / 1.04;
   const frame = picked?.frame;
@@ -228,24 +285,7 @@ export const Marks = ({
               })}
             </>
           )}
-          {lines &&
-            (() => {
-              const d = [
-                ...lines.x.map((x) => `M${px(x).toFixed(1)} 0V${size}`),
-                ...lines.y.map((y) => `M0 ${px(y).toFixed(1)}H${size}`),
-              ].join("");
-              return (
-                <>
-                  <path
-                    d={d}
-                    stroke="white"
-                    strokeOpacity={0.8}
-                    strokeWidth={3}
-                  />
-                  <path d={d} stroke={GUIDE} strokeWidth={1} />
-                </>
-              );
-            })()}
+          {lines && <GuideLines lines={lines} px={px} size={size} />}
           {marquee && (
             <rect
               fill="var(--color-ink)"
@@ -259,6 +299,113 @@ export const Marks = ({
               y={px(marquee.y0)}
             />
           )}
+        </svg>
+      )}
+    </div>
+  );
+};
+
+/**
+ * What the line tool and editing its points draw over the drawing – precise,
+ * in the scribble's ink: the line itself, thin; its anchors as small
+ * squares (the picked one filled, the first one ringed when a press would
+ * close the line); handles as lines with round ends; the next curve to the
+ * pointer, dashed; and the guides an anchor has snapped to. On touch
+ * everything a little bigger. It never takes a pointer.
+ */
+export const LineMarks = ({
+  marks,
+  lines,
+  touch,
+  className,
+}: {
+  marks: LineMarking | null;
+  lines: Guides | null;
+  touch: boolean;
+  className?: string;
+}) => {
+  const [box, size] = useSide();
+  const px = toPx(size);
+  const half = touch ? 5.5 : 4;
+  const at = (x: number, y: number) =>
+    `${px(x).toFixed(1)} ${px(y).toFixed(1)}`;
+  const anchors = marks?.anchors ?? [];
+  const count = anchorCount(anchors);
+  const shows = (i: number) =>
+    marks?.handles === "all" || (marks?.handles === "last" && i === count - 1);
+  return (
+    <div
+      aria-hidden="true"
+      className={cn("pointer-events-none", className)}
+      ref={box}
+    >
+      {size > 0 && (
+        <svg
+          aria-hidden="true"
+          className="h-full w-full overflow-visible"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          viewBox={`0 0 ${size} ${size}`}
+        >
+          {lines && <GuideLines lines={lines} px={px} size={size} />}
+          {marks && marks.line.length >= 4 && (
+            <Line d={strokePath(marks.line.map(px))} />
+          )}
+          {marks?.preview && (
+            <Line
+              d={`M${at(marks.preview[0], marks.preview[1])}C${at(marks.preview[2], marks.preview[3])} ${at(marks.preview[4], marks.preview[5])} ${at(marks.preview[6], marks.preview[7])}`}
+              dashed
+            />
+          )}
+          {Array.from({ length: count }, (_, i) => i).map((i) => {
+            const k = i * ANCHOR;
+            return (["in", "out"] as const).map((side) => {
+              if (!shows(i) || noHandle(anchors, i, side)) return null;
+              const h = k + (side === "in" ? 2 : 4);
+              return (
+                <g key={`${i}-${side}`}>
+                  <Line
+                    d={`M${at(anchors[k], anchors[k + 1])}L${at(anchors[h], anchors[h + 1])}`}
+                  />
+                  <circle
+                    cx={px(anchors[h])}
+                    cy={px(anchors[h + 1])}
+                    fill="white"
+                    r={half - 0.5}
+                    stroke="var(--color-ink)"
+                    strokeWidth={1.5}
+                  />
+                </g>
+              );
+            });
+          })}
+          {Array.from({ length: count }, (_, i) => i).map((i) => {
+            const x = px(anchors[i * ANCHOR]);
+            const y = px(anchors[i * ANCHOR + 1]);
+            return (
+              <g key={i}>
+                {marks?.closing && i === 0 && (
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={half + 5}
+                    stroke="var(--color-ink)"
+                    strokeWidth={1.5}
+                  />
+                )}
+                <rect
+                  fill={marks?.picked === i ? "var(--color-ink)" : "white"}
+                  height={half * 2}
+                  stroke="var(--color-ink)"
+                  strokeWidth={1.5}
+                  width={half * 2}
+                  x={x - half}
+                  y={y - half}
+                />
+              </g>
+            );
+          })}
         </svg>
       )}
     </div>

@@ -96,6 +96,10 @@ export const accountExport = ({
       verified: account._verified === true,
       createdAt: when(account.createdAt),
       updatedAt: when(account.updatedAt),
+      // A new address it asked for and hasn't confirmed – as it is kept,
+      // with its deadline (email-change.ts). Not the link's token.
+      pendingEmail: account.pendingEmail ? String(account.pendingEmail) : null,
+      pendingEmailUntil: when(account.pendingEmailExpiresAt),
       // When it was last there – and warned it would go (retention.ts).
       lastSeenAt: when(account.lastSeenAt),
       deletionWarnedAt: when(account.deletionWarnedAt),

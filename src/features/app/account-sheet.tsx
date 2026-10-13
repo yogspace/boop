@@ -1,9 +1,15 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
-import { Bang, Dot } from "@/components/doodles";
+import { Bang, Dot, Mail } from "@/components/doodles";
 import { Button, Field, Notice } from "@/components/ui";
-import { deleteAccount, fetchExport, rename } from "@/features/accounts/client";
+import {
+  cancelEmailChange,
+  deleteAccount,
+  fetchExport,
+  rename,
+  requestEmailChange,
+} from "@/features/accounts/client";
 import { legalPath } from "@/features/legal/links";
 import { clearAll } from "@/features/offline/db";
 import { sync, useBoop } from "@/features/offline/store";
@@ -15,10 +21,9 @@ import { Sheet } from "./sheet";
 
 /**
  * One's own account – opened from the account's menu (boop-app.tsx): its
- * name, what is stored about it, and the ways out (the data as a file,
- * deleting it). All need a connection: the server has the data, and the
- * last word. (The address can't be changed yet – a new one would need
- * confirming.)
+ * name, its address (`Address`), what is stored about it, and the ways out
+ * (the data as a file, deleting it). All need a connection: the server has
+ * the data, and the last word.
  *
  * Deleting asks twice: first what goes with the account, spelled out, then
  * the password – an open app on a table is not enough.
@@ -106,9 +111,7 @@ export const AccountSheet = ({
           save={t.app.save}
         />
         {nameError && <Notice tone="error">{nameError}</Notice>}
-        <p className="truncate font-medium text-muted text-sm">
-          {text.email(me?.email ?? "")}
-        </p>
+        <Address locale={locale} />
       </div>
       <p className="font-medium text-muted text-sm">
         {text.stored}{" "}
@@ -194,5 +197,163 @@ export const AccountSheet = ({
         </Button>
       )}
     </Sheet>
+  );
+};
+
+/**
+ * The account's address, and the way to a new one: the new address and the
+ * password – an open app on a table is not enough here either. The server
+ * notes it and sends it a mail (accounts/email-change.ts); until that
+ * mail's link was opened the old address counts. The sheet says so for as
+ * long, with the way to take it back.
+ */
+const Address = ({ locale }: { locale: Locale }) => {
+  const t = dictionaryOf(locale);
+  const text = t.app.accountSheet;
+  const { me, online } = useBoop();
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const current = me?.email ?? "";
+  const kept = me?.pendingEmail ?? null;
+  // What the server just answered shows at once; the sync brings it to the
+  // device a moment later – from then on the device's copy says it (also
+  // that the address was confirmed meanwhile: then `current` is another).
+  const [answer, setAnswer] = useState<{
+    email: string;
+    pending: string | null;
+  } | null>(null);
+  if (answer && (answer.pending === kept || answer.email !== current)) {
+    setAnswer(null);
+  }
+  const pending = answer ? answer.pending : kept;
+
+  const close = () => {
+    setOpen(false);
+    setEmail("");
+    setPassword("");
+    setError(null);
+  };
+
+  const ask = async (event: FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    if (email.trim().toLowerCase() === current.toLowerCase()) {
+      setError(text.emailSame);
+      return;
+    }
+    setBusy(true);
+    const result = await requestEmailChange(email, password);
+    setBusy(false);
+    if (!result.ok) {
+      const reasons: Record<string, string> = {
+        wrong: text.wrongPassword,
+        tooMany: text.tooMany,
+        same: text.emailSame,
+        invalid: text.emailInvalid,
+      };
+      setError(reasons[result.reason] ?? t.auth.failed);
+      return;
+    }
+    setAnswer({ email: current, pending: result.value.pendingEmail ?? null });
+    close();
+    void sync();
+  };
+
+  const cancel = async () => {
+    setBusy(true);
+    setError(null);
+    const result = await cancelEmailChange();
+    setBusy(false);
+    if (!result.ok) {
+      setError(t.auth.failed);
+      return;
+    }
+    setAnswer({ email: current, pending: null });
+    void sync();
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <p className="min-w-0 truncate font-medium text-muted text-sm">
+          {text.email(current)}
+        </p>
+        {!(open || pending) && (
+          <Button
+            className="shrink-0"
+            disabled={!online}
+            onClick={() => setOpen(true)}
+            size="sm"
+            variant="ghost"
+          >
+            {text.emailChange}
+          </Button>
+        )}
+      </div>
+      {pending ? (
+        // Waiting – a dashed frame, like an invitation not taken up yet.
+        <div className="scribble scribble-thin scribble-dashed flex animate-fade flex-col gap-2 rounded-2xl px-4 py-3">
+          <p className="flex items-start gap-2.5 font-medium text-sm">
+            <Mail className="h-5 w-5 shrink-0" />
+            <span className="min-w-0 break-words">
+              {text.emailPending(pending, current)}
+            </span>
+          </p>
+          {error && <Notice tone="error">{error}</Notice>}
+          <div className="flex justify-end">
+            <Button
+              disabled={busy || !online}
+              onClick={cancel}
+              size="sm"
+              variant="ghost"
+            >
+              {busy ? t.auth.working : text.emailCancel}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        open && (
+          <form
+            className="scribble scribble-thin flex animate-fade flex-col gap-3 rounded-2xl p-4"
+            onSubmit={ask}
+          >
+            <p className="font-medium text-muted text-sm">{text.emailHint}</p>
+            <Field
+              autoComplete="email"
+              autoFocus
+              label={text.emailNew}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              type="email"
+              value={email}
+            />
+            <Field
+              autoComplete="current-password"
+              label={text.password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              type="password"
+              value={password}
+            />
+            {error && <Notice tone="error">{error}</Notice>}
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button disabled={busy} onClick={close} size="sm" variant="ghost">
+                {t.app.draw.cancel}
+              </Button>
+              <Button
+                disabled={busy || !online || !email.trim() || !password}
+                size="sm"
+                type="submit"
+              >
+                {busy ? t.auth.working : text.emailSend}
+              </Button>
+            </div>
+          </form>
+        )
+      )}
+    </>
   );
 };

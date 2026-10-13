@@ -19,7 +19,12 @@ import {
   verifyHtml,
   verifySubject,
 } from "./emails";
-import { INACTIVE_MONTHS, UNVERIFIED_DAYS, WARNING_DAYS } from "./retention";
+import {
+  EMAIL_CHANGE_HOURS,
+  INACTIVE_MONTHS,
+  UNVERIFIED_DAYS,
+  WARNING_DAYS,
+} from "./retention";
 import { sessionEndpoints } from "./session";
 
 /**
@@ -32,10 +37,11 @@ import { sessionEndpoints } from "./session";
  * cleanup.ts).
  *
  * An account sees and changes itself through the app's own endpoints
- * (session.ts) – its name, its language, its end; over REST nobody changes
- * an account. The admin looks accounts up to help – address, name, the
- * dates – deletes one and unlocks a login, and that is all: no new name, no
- * new address, no new password, and so no way in as someone else.
+ * (session.ts) – its name, its language, its address, its end; over REST
+ * nobody changes an account. The admin looks accounts up to help – address,
+ * name, the dates – deletes one and unlocks a login, and that is all: no
+ * new name, no new address, no new password, and so no way in as someone
+ * else.
  */
 
 // Sign-ups per IP – enough for a family behind one router, not for a bot.
@@ -51,9 +57,10 @@ const limitSignups: CollectionBeforeOperationHook = ({ operation, req }) => {
 };
 
 /**
- * Only the confirmation link confirms an address, and the address stays as
- * confirmed: an account can't change it itself (yet – that would need a new
- * confirmation). Whoever writes: no admin is let past either.
+ * Only a confirmation link confirms an address, and the address stays as
+ * confirmed. A new one needs a link of its own, sent to it – whoever opens
+ * that confirms it, and only then is it written, past this hook
+ * (email-change.ts). Whoever writes here: no admin is let past either.
  */
 const protectAccount: CollectionBeforeChangeHook = ({
   data,
@@ -315,6 +322,46 @@ export const Accounts: CollectionConfig = {
         date: { pickerAppearance: "dayAndTime" },
         description: `When the mail “your account goes in ${WARNING_DAYS} days” went out. Any login or sync takes it back.`,
       },
+    },
+    // A new address the account asked for (email-change.ts), until when its
+    // link can be opened, and that link's token – as a hash. Written by the
+    // server alone, like the dates above; `email` stays what it is until
+    // the link is opened.
+    {
+      name: "pendingEmail",
+      type: "email",
+      access: { create: () => false, update: () => false },
+      admin: {
+        readOnly: true,
+        position: "sidebar",
+        description: `A new address the account asked for – not confirmed yet. It becomes the address once the link in the mail to it is opened; unopened, it goes after ${EMAIL_CHANGE_HOURS} hours.`,
+      },
+    },
+    {
+      name: "pendingEmailExpiresAt",
+      type: "date",
+      index: true,
+      access: { create: () => false, update: () => false },
+      admin: {
+        readOnly: true,
+        position: "sidebar",
+        date: { pickerAppearance: "dayAndTime" },
+        description: "Until when the new address can be confirmed.",
+      },
+    },
+    {
+      // Never read – not over REST, not in the admin, not by the server's
+      // own reads: only the database compares it.
+      name: "pendingEmailToken",
+      type: "text",
+      index: true,
+      hidden: true,
+      access: {
+        read: () => false,
+        create: () => false,
+        update: () => false,
+      },
+      admin: { hidden: true },
     },
   ],
   // Login, logout, “me”, new password – into the app's own cookie.

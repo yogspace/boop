@@ -1,5 +1,6 @@
 import { boxOf, groupsOf, type Selection } from "./arrange";
 import type { Art, Box } from "./art";
+import { ANCHOR } from "./bezier";
 import { FACE } from "./model";
 
 /**
@@ -56,6 +57,32 @@ export const guidesFor = (art: Art, picked: Selection): Guides => {
     guides.x.push(...lines.x);
     guides.y.push(...lines.y);
   }
+  return guides;
+};
+
+/**
+ * The lines an anchor of an anchored line (the line tool's) may snap to,
+ * set or dragged: the face's, and level with or straight above the other
+ * anchors – every such line's, and `more` (a line not yet in the drawing).
+ * `but`: the anchor itself, which is no guide to itself.
+ */
+export const anchorGuides = (
+  art: Art,
+  more: readonly number[] = [],
+  but?: { stroke: number; anchor: number }
+): Guides => {
+  const guides: Guides = { x: [...FACE_LINES], y: [...FACE_LINES] };
+  const add = (a: readonly number[], skip = -1) => {
+    for (let i = 0; i * ANCHOR + 1 < a.length; i++) {
+      if (i === skip) continue;
+      guides.x.push(a[i * ANCHOR]);
+      guides.y.push(a[i * ANCHOR + 1]);
+    }
+  };
+  art.strokes.forEach((stroke, index) => {
+    if (stroke.a) add(stroke.a, but?.stroke === index ? but.anchor : -1);
+  });
+  add(more);
   return guides;
 };
 

@@ -14,6 +14,7 @@ import {
   frameAround,
   grip,
   isNothing,
+  itemAt,
   join,
   type Matrix,
   moveWithin,
@@ -57,6 +58,8 @@ const SLOP = { mouse: 3, touch: 6 };
 export const NUDGE = { small: 0.005, big: 0.05 };
 /** A copy lands this far off its original. */
 const OFFSET = 0.03;
+/** Two presses this soon (ms) and near (px) are a double click. */
+const TWICE = { ms: 400, px: 8 };
 
 /** The turning cursor: an arrow round a corner, inked on a white edge. */
 const TURN_CURSOR = (() => {
@@ -138,7 +141,8 @@ const holds = (a: Selection, b: Selection) =>
  * 15° steps) – on touch a knob above the frame, or two fingers. Every
  * gesture is one step back. The drawing shows each change at once (`live`)
  * and becomes one step when the pointer lets go (`settle`); keys and buttons
- * make theirs at once (`put`).
+ * make theirs at once (`put`). A double click on a line with anchors (the
+ * line tool's) asks to edit its points (`onEdit`).
  */
 export const useSelect = ({
   on,
@@ -148,6 +152,7 @@ export const useSelect = ({
   live,
   settle,
   put,
+  onEdit,
 }: {
   on: boolean;
   area: RefObject<HTMLElement | null>;
@@ -156,6 +161,7 @@ export const useSelect = ({
   live: (next: Art) => void;
   settle: (before: Art) => void;
   put: (next: Art) => void;
+  onEdit?: (stroke: number) => void;
 }) => {
   const [picked, setPicked] = useState<Picked | null>(null);
   const [hover, setHover] = useState<Selection | null>(null);
@@ -167,6 +173,7 @@ export const useSelect = ({
   const gesture = useRef<Gesture | null>(null);
   const fingers = useRef(new Map<number, Point>());
   const clip = useRef<{ art: Art; times: number } | null>(null);
+  const pressed = useRef({ time: 0, x: 0, y: 0 });
   // The latest drawing and selection – ahead of the render during a drag.
   const latest = useRef({ art, picked });
   latest.current = { art, picked };
@@ -272,6 +279,20 @@ export const useSelect = ({
     if (fingers.current.size > 1) return;
     setHover(null);
     const reach = (touch ? REACH.touch : REACH.mouse) / at.unit;
+    // Twice on a line with anchors: its points are edited.
+    const before = pressed.current;
+    const twice =
+      event.timeStamp - before.time < TWICE.ms &&
+      Math.hypot(at.x - before.x, at.y - before.y) * at.unit < TWICE.px;
+    pressed.current = { time: event.timeStamp, x: at.x, y: at.y };
+    const line = twice
+      ? itemAt(now.art, at.x, at.y, reach)?.strokes[0]
+      : undefined;
+    if (onEdit && line !== undefined && now.art.strokes[line]?.a) {
+      fingers.current.delete(event.pointerId);
+      onEdit(line);
+      return;
+    }
     const press = (items: Selection, frame: Frame): Press => ({
       pointer: event.pointerId,
       origin: point,
@@ -538,6 +559,8 @@ export const useSelect = ({
     leave,
     clear: () => choose(null),
     all: () => chooseIn(art, everything(art)),
+    /** These lines and areas picked – as they are, not what touches them. */
+    pick: (items: Selection) => chooseIn(art, items),
     remove: () => {
       if (chosen) change(remove(art, chosen.items), null);
     },

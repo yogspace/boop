@@ -16,6 +16,7 @@ import {
   spans,
   strokeBox,
 } from "./art";
+import { lineStroke } from "./bezier";
 import { DRAWING_LIMITS } from "./model";
 
 /**
@@ -326,10 +327,16 @@ export const touching = (art: Art, box: Box): Selection | null => {
   return isNothing(hit) ? null : grouped(art, hit);
 };
 
-/** The selection's points, flat pairs – what must stay on the face. */
+/**
+ * The selection's points, flat pairs – what must stay on the face: of a
+ * anchored line its anchors and handles (its curve lies between them).
+ */
 export const pointsOf = (art: Art, selection: Selection) => {
   const out: number[] = [];
-  for (const i of selection.strokes) out.push(...(art.strokes[i]?.p ?? []));
+  for (const i of selection.strokes) {
+    const stroke = art.strokes[i];
+    out.push(...(stroke?.a ?? stroke?.p ?? []));
+  }
   for (const i of selection.fills) {
     for (const ring of art.fills[i]?.p ?? []) out.push(...ring);
   }
@@ -390,7 +397,10 @@ export const restroke = (art: Art, selection: Selection, w: number): Art => {
 /** Whether a drawing keeps within what one stamp may hold. */
 export const withinLimits = (art: Art) => {
   const points =
-    art.strokes.reduce((sum, s) => sum + s.p.length / 2, 0) +
+    art.strokes.reduce(
+      (sum, s) => sum + (s.p.length + (s.a?.length ?? 0)) / 2,
+      0
+    ) +
     art.fills.reduce(
       (sum, f) => sum + f.p.reduce((n, ring) => n + ring.length / 2, 0),
       0
@@ -439,7 +449,10 @@ export const turnAbout = (angle: number, cx: number, cy: number): Matrix => {
   return [c, s, -s, c, cx - c * cx + s * cy, cy - s * cx - c * cy];
 };
 
-/** The selection's points moved – lines keep their width. */
+/**
+ * The selection's points moved – lines keep their width. An anchored line's
+ * anchors move, and its points follow from them: it stays an anchored line.
+ */
 export const transformArt = (
   art: Art,
   selection: Selection,
@@ -457,7 +470,11 @@ export const transformArt = (
   };
   return {
     strokes: art.strokes.map((s, i) =>
-      lines.has(i) ? { ...s, p: move(s.p) } : s
+      lines.has(i)
+        ? s.a
+          ? lineStroke(s.w, move(s.a), s.closed)
+          : { ...s, p: move(s.p) }
+        : s
     ),
     fills: art.fills.map((f, i) =>
       areas.has(i) ? { ...f, p: f.p.map(move) } : f

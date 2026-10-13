@@ -6,8 +6,9 @@ import { serverUrl } from "@/lib/server-url";
 /**
  * The mails to accounts, in the account's language: those Payload sends –
  * confirming the address after sign-up, choosing a new password; the links
- * lead to the site's own pages, which pass the token on to Payload – and
- * the cleanup's one before an unused account goes (cleanup.ts).
+ * lead to the site's own pages, which pass the token on to Payload – the
+ * two around a new address (email-change.ts), and the cleanup's one before
+ * an unused account goes (cleanup.ts).
  *
  * Their words are the dictionary's (`mail`, i18n/dictionaries.ts), the
  * CMS's where it has them – read as the mail is made, as no page brings
@@ -82,6 +83,58 @@ export const resetHtml = async ({
     },
     footnote: t.footnote,
   });
+};
+
+/**
+ * The mail to a new address an account asked for (email-change.ts): its
+ * link makes it the account's – for as long as the mail says
+ * (EMAIL_CHANGE_HOURS, retention.ts).
+ */
+export const newEmailMail = async ({
+  token,
+  user,
+}: {
+  token: string;
+  user: unknown;
+}) => {
+  const { locale, mail } = await wordsFor(user);
+  const t = mail.newEmail;
+  return {
+    subject: t.subject,
+    html: mailLayout({
+      lang: locale,
+      preheader: t.body,
+      title: t.title,
+      paragraphs: [t.hello(nameOf(user)), t.body],
+      button: {
+        label: t.button,
+        url: `${serverUrl()}/${locale}/change-email?token=${encodeURIComponent(token)}`,
+      },
+      footnote: t.footnote,
+    }),
+  };
+};
+
+/**
+ * A word to the address an account had, once its new one counts: whoever
+ * didn't do this learns of it here, and where to say so – the contact form
+ * in the imprint. The new address isn't named: this mailbox may be someone
+ * else's by now.
+ */
+export const emailChangedMail = async ({ user }: { user: unknown }) => {
+  const { locale, mail } = await wordsFor(user);
+  const t = mail.emailChanged;
+  return {
+    subject: t.subject,
+    html: mailLayout({
+      lang: locale,
+      preheader: t.body,
+      title: t.title,
+      paragraphs: [t.hello(nameOf(user)), t.body, t.notYou],
+      button: { label: t.button, url: `${serverUrl()}/${locale}/legal` },
+      footnote: t.footnote,
+    }),
+  };
 };
 
 /**

@@ -72,7 +72,9 @@ const piecesOf = ({ stroke, gone }: Line): Stroke[] => {
   let run: number[] = [];
   const flush = () => {
     if (run.length) {
-      pieces.push({ ...stroke, p: roundPoints(thin(run, THIN_LINE)) });
+      // Plain lines – an anchored line cut is none any more (its anchors
+      // go), as in Illustrator.
+      pieces.push({ w: stroke.w, p: roundPoints(thin(run, THIN_LINE)) });
     }
     run = [];
   };

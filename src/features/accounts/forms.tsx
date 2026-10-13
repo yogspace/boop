@@ -19,6 +19,7 @@ import { Link, useTransitionRouter } from "@/features/transitions/link";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import {
+  confirmEmailChange,
   fetchMe,
   forgotPassword,
   login,
@@ -29,7 +30,8 @@ import {
 
 /**
  * The account pages' forms: log in, sign up, forgot password, new password,
- * confirm address, invitation. Each talks to the server through ./client.ts.
+ * confirm address, confirm a new address, invitation. Each talks to the
+ * server through ./client.ts.
  */
 
 /** An invitation opened before logging in – taken up after the login. */
@@ -395,6 +397,55 @@ export const VerifyPanel = ({ locale }: { locale: Locale }) => {
       {state !== "working" && (
         <LinkButton href={`/${locale}/login`} size="lg">
           {t.auth.verify.toLogin}
+        </LinkButton>
+      )}
+    </Frame>
+  );
+};
+
+/**
+ * The link in the mail to a new address (email-change.ts): opening it is
+ * the confirmation. No login needed – and none made: whoever is logged in
+ * stays so, and the app shows the new address after its next sync.
+ */
+export const ChangeEmailPanel = ({ locale }: { locale: Locale }) => {
+  const t = dictionaryOf(locale);
+  const text = t.auth.changeEmail;
+  const token = useSearchParams().get("token") ?? "";
+  const [state, setState] = useState<
+    "working" | "done" | "invalid" | "taken" | "failed" | "offline"
+  >("working");
+  // Once – a token works only one time (strict mode runs effects twice).
+  const sent = useRef(false);
+  useEffect(() => {
+    if (sent.current) return;
+    sent.current = true;
+    if (!token) {
+      setState("invalid");
+      return;
+    }
+    // The server couldn't be asked: the link is as good as before.
+    const unasked = () => setState(navigator.onLine ? "failed" : "offline");
+    confirmEmailChange(token)
+      .then((result) => {
+        if (result.ok) setState("done");
+        else if (result.reason === "failed") unasked();
+        else setState(result.reason === "taken" ? "taken" : "invalid");
+      })
+      .catch(unasked);
+  }, [token]);
+  return (
+    <Frame sticker={state === "done" ? "heart" : "cloud"} title={text.title}>
+      {state === "working" && <p className="font-medium">{text.working}</p>}
+      {state === "done" && <Notice tone="success">{text.done}</Notice>}
+      {state === "invalid" && <Notice tone="error">{text.failed}</Notice>}
+      {state === "taken" && <Notice tone="error">{text.taken}</Notice>}
+      {state === "failed" && <Notice tone="error">{t.auth.failed}</Notice>}
+      {state === "offline" && <Notice tone="error">{t.auth.offline}</Notice>}
+      {/* Not logged in on this device: the app leads on to the login. */}
+      {state !== "working" && (
+        <LinkButton href={`/${locale}/app`} size="lg">
+          {text.toApp}
         </LinkButton>
       )}
     </Frame>

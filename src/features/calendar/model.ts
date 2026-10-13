@@ -19,6 +19,9 @@
  * marker so other devices learn of it). See features/sync.
  */
 
+// Relative, not `@/…`: the unit tests import this without the app's aliases.
+import { cleanAnchors, lineStroke } from "./bezier";
+
 /**
  * The color a stamp, a calendar or a print has – one each, never mixed: the
  * KEY of a stamp color, e.g. “mint”. Which colors there are, their hex and
@@ -61,8 +64,13 @@ export const FACE = {
  * A doodle: strokes of points in a unit square (0–1 both ways), so it draws
  * at any size. `w` is the line width relative to the square's side. Points
  * are flat pairs – [x0, y0, x1, y1, …] – rounded to 3 decimals.
+ *
+ * A line drawn with the line tool also keeps its anchors, `a` (bezier.ts:
+ * six numbers each – the anchor, its handle in, its handle out), and
+ * `closed` when it runs back to its start – to be edited again. Everything
+ * that draws reads `p` alone, which is worked out from `a`.
  */
-export type Stroke = { w: number; p: number[] };
+export type Stroke = { w: number; p: number[]; a?: number[]; closed?: true };
 
 /**
  * A filled area – from an uploaded picture (import-svg.ts): closed outlines,
@@ -109,12 +117,15 @@ export const SPECIAL_SIZE = 1.3;
 
 /**
  * Limits that keep one stamp small (a few dozen KB at most) – the points of
- * strokes and fills counted together.
+ * strokes and fills counted together, an anchored line's anchors with them (each
+ * as its three points).
  */
 export const DRAWING_LIMITS = {
   strokes: 200,
   fills: 100,
   points: 4000,
+  /** Anchors one anchored line may have. */
+  anchors: 100,
 } as const;
 
 /** A calendar day, as the date it shows: "2026-10-11" – no time, no zone. */
@@ -289,14 +300,34 @@ export const cleanDrawing = (value: unknown): Drawing | null => {
   const clean: Stroke[] = [];
   for (const stroke of strokes.slice(0, DRAWING_LIMITS.strokes)) {
     if (!stroke || typeof stroke !== "object") continue;
-    const { w, p } = stroke as { w?: unknown; p?: unknown };
+    const { w, p, a, closed } = stroke as {
+      w?: unknown;
+      p?: unknown;
+      a?: unknown;
+      closed?: unknown;
+    };
     if (typeof w !== "number" || !Array.isArray(p)) continue;
-    const pairs = Math.floor(p.length / 2);
+    const width = Math.min(Math.max(w, 0.005), 0.2);
+    // An anchored line: its points are worked out from its anchors anew, whatever
+    // was sent – the two can't part. Anchors that are no anchors go, and
+    // the line stays an ordinary one; so does one that doesn't fit whole.
+    const anchors = cleanAnchors(a, DRAWING_LIMITS.anchors);
+    const line = anchors && lineStroke(width, anchors, closed === true);
+    if (line) {
+      const size = (line.p.length + line.a.length) / 2;
+      if (points + size <= DRAWING_LIMITS.points) {
+        points += size;
+        clean.push(line);
+        continue;
+      }
+    }
+    const from = line ? line.p : p;
+    const pairs = Math.floor(from.length / 2);
     const take = Math.min(pairs, DRAWING_LIMITS.points - points);
     if (take < 1) break;
-    const coords = p.slice(0, take * 2).map((n) => unit(n));
+    const coords = from.slice(0, take * 2).map((n) => unit(n));
     points += take;
-    clean.push({ w: Math.min(Math.max(w, 0.005), 0.2), p: coords });
+    clean.push({ w: width, p: coords });
   }
   if (!(clean.length || areas.length)) return null;
   const { inverted, rim, special } = value as {

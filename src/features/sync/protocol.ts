@@ -69,7 +69,8 @@ export type Person = { id: string; name: string };
 export type SyncResponse = {
   /** Send it as `since` next time. */
   now: string;
-  me: Person & { email: string; locale: string };
+  /** `pendingEmail`: a new address waiting for its confirmation, if any. */
+  me: Person & { email: string; locale: string; pendingEmail?: string | null };
   /** All calendars the account belongs to – anything else goes. */
   calendarIds: string[];
   /** The members of those calendars, by name. */

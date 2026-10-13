@@ -33,6 +33,8 @@ import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import {
+  DONE_SIGN,
+  LineMarks,
   Marks,
   REMOVE_SIGN,
   TOOL_KEYS,
@@ -42,6 +44,7 @@ import {
 } from "./draw-tools";
 import { InkBlot } from "./ink-blot";
 import { Sheet } from "./sheet";
+import { useLine } from "./use-line";
 import { type Locate, NUDGE, useSelect } from "./use-select";
 
 /** The line widths to draw with, relative to the stamp. */
@@ -94,9 +97,9 @@ const TILE =
 const BLANK: Art = { strokes: [], fills: [] };
 
 /**
- * Every step of the drawing (a line, a picture, clearing, an erasing, a
- * move, a removal) can be taken back and done again: the ones before `now`
- * and the ones taken back after it.
+ * Every step of the drawing (a line, a point of one, a picture, clearing,
+ * an erasing, a move, a removal) can be taken back and done again: the ones
+ * before `now` and the ones taken back after it.
  */
 type History = { past: Art[]; now: Art; future: Art[] };
 
@@ -202,7 +205,8 @@ export const StampDrawer = ({
   const [name, setName] = useState("");
   const [shared, setShared] = useState(false);
   const [error, setError] = useState(false);
-  // Drawing, erasing or picking and moving – the pen to begin with.
+  // Drawing – freehand or point by point –, erasing, picking and moving,
+  // or editing a line's points: the pen to begin with.
   const [tool, setTool] = useState<Tool>("pen");
   const drawing = useRef(false);
   // An erasing under way: what it began with, the eraser, what it shows.
@@ -241,26 +245,56 @@ export const StampDrawer = ({
     };
   };
 
+  const changes = {
+    live: (next: Art) => setHistory(meanwhile(next)),
+    settle: (before: Art) => setHistory(settled(before)),
+    put: (next: Art) => setHistory((history) => step(history, () => next)),
+  };
   const select = useSelect({
     on: draws && tool === "move",
     area,
     art: history.now,
     locate,
-    live: (next) => setHistory(meanwhile(next)),
-    settle: (before) => setHistory(settled(before)),
-    put: (next) => setHistory((history) => step(history, () => next)),
+    ...changes,
+    // Twice on a line with anchors: its points.
+    onEdit: (stroke) => {
+      setTool("points");
+      line.edit(stroke);
+    },
   });
+  const line = useLine({
+    mode: draws && (tool === "line" || tool === "points") ? tool : null,
+    area,
+    art: history.now,
+    width: WIDTHS[width],
+    locate,
+    ...changes,
+    onLeave: (stroke) => leavePoints(stroke),
+  });
+  // The one line with anchors that is picked – its points can be edited.
+  const anchored =
+    tool === "move" &&
+    select.picked &&
+    !select.picked.items.fills.length &&
+    select.picked.items.strokes.length === 1 &&
+    history.now.strokes[select.picked.items.strokes[0]]?.a
+      ? select.picked.items.strokes[0]
+      : null;
 
   // The keys, while drawing and not in a field: ⌘Z / Ctrl+Z a step back,
-  // with ⇧ (or Ctrl+Y) forward again; P or B the pen, E the eraser, V
-  // picking – ⌘A all of it. With something picked: Escape lets go (before
-  // the sheet hears it and closes), Delete removes it, the arrows move it,
-  // ⌘D a copy, ⌘C/⌘X/⌘V within the editor.
+  // with ⇧ (or Ctrl+Y) forward again; P or B the pen, L the line, E the
+  // eraser, V picking, A a line's points – ⌘A all of it. With something
+  // picked: Escape lets go (before the sheet hears it and closes), Delete
+  // removes it, the arrows move it, ⌘D a copy, ⌘C/⌘X/⌘V within the editor.
+  // A line being drawn: Enter or Escape ends it, ⌫ takes its last point.
+  // Editing points: Delete takes the picked one, Escape or Enter is done.
   const keys = useRef<(event: KeyboardEvent) => void>(() => {});
   keys.current = (event) => {
     if (typing(event.target)) return;
     const key = event.key.toLowerCase();
     const chosen = tool === "move" && select.picked;
+    const removes = key === "delete" || key === "backspace";
+    const ends = key === "enter" || key === "escape";
     if (event.metaKey || event.ctrlKey) {
       if (event.altKey) return;
       if (key === "z") setHistory(event.shiftKey ? forward : back);
@@ -278,12 +312,23 @@ export const StampDrawer = ({
     }
     if (event.altKey) return;
     if (key === "p" || key === "b") chooseTool("pen");
+    else if (key === "l") chooseTool("line");
     else if (key === "e") chooseTool("eraser");
     else if (key === "v") chooseTool("move");
-    else if (chosen && key === "escape") {
+    else if (key === "a") editPoints();
+    else if (tool === "line" && line.active && ends) {
+      line.finish();
+      event.stopImmediatePropagation();
+    } else if (tool === "line" && line.active && removes) line.back();
+    else if (tool === "points" && ends) {
+      leavePoints(line.editing);
+      event.stopImmediatePropagation();
+    } else if (tool === "points" && line.anchor !== null && removes) {
+      line.removePoint();
+    } else if (chosen && key === "escape") {
       select.clear();
       event.stopImmediatePropagation();
-    } else if (chosen && (key === "delete" || key === "backspace")) {
+    } else if (chosen && removes) {
       select.remove();
     } else if (chosen && key.startsWith("arrow")) {
       const by = event.shiftKey ? NUDGE.big : NUDGE.small;
@@ -352,6 +397,11 @@ export const StampDrawer = ({
       select.down(event);
       return;
     }
+    if (tool === "line" || tool === "points") {
+      setRefused(false);
+      line.down(event);
+      return;
+    }
     if (event.pointerType === "mouse" && event.button !== 0) return;
     showTip(event);
     const p = point(event);
@@ -379,6 +429,10 @@ export const StampDrawer = ({
   const onMove = (event: PointerEvent<HTMLDivElement>) => {
     if (tool === "move") {
       select.move(event);
+      return;
+    }
+    if (tool === "line" || tool === "points") {
+      line.move(event);
       return;
     }
     showTip(event);
@@ -429,18 +483,35 @@ export const StampDrawer = ({
 
   const onUp = (event: PointerEvent<HTMLDivElement>) => {
     if (tool === "move") select.up(event);
+    else if (tool === "line" || tool === "points") line.up();
     else stop();
   };
 
   const onLeave = () => {
     if (tool === "move") select.leave();
+    else if (tool === "line" || tool === "points") line.leave();
     else stop();
     hideTip();
   };
 
+  // Another tool ends what the one before was at – a line being drawn
+  // stays as far as it got.
   const chooseTool = (next: Tool) => {
     stop();
     setTool(next);
+  };
+
+  // A line's points: the picked line's, if it is one with anchors – else
+  // the next one clicked.
+  const editPoints = () => {
+    chooseTool("points");
+    if (anchored !== null) line.edit(anchored);
+  };
+
+  // Done with the points: back to picking, the line picked.
+  const leavePoints = (stroke: number | null) => {
+    chooseTool("move");
+    if (stroke !== null) select.pick({ strokes: [stroke], fills: [] });
   };
 
   // A step of its own – it can be taken back, too.
@@ -579,9 +650,9 @@ export const StampDrawer = ({
           className={cn(
             STAGE,
             "touch-none md:col-start-1 md:row-span-2 md:row-start-1",
-            // The tip shows where the pen is – no arrow on top of it. Picking
-            // and moving, the pointer says what a press would do.
-            draws && tool !== "move" && "cursor-none"
+            // The tip shows where the pen is – no arrow on top of it. With
+            // the other tools the pointer says what a press would do.
+            draws && (tool === "pen" || tool === "eraser") && "cursor-none"
           )}
           onPointerCancel={draws ? onUp : undefined}
           onPointerDown={draws ? onDown : undefined}
@@ -601,7 +672,7 @@ export const StampDrawer = ({
             filled
             shape={shape}
           />
-          {draws && tool !== "move" && (
+          {draws && (tool === "pen" || tool === "eraser") && (
             <span
               aria-hidden="true"
               className={cn(
@@ -632,6 +703,14 @@ export const StampDrawer = ({
               lines={select.lines}
               marquee={select.marquee}
               picked={select.picked}
+            />
+          )}
+          {draws && (tool === "line" || tool === "points") && (
+            <LineMarks
+              className="absolute inset-3 h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)]"
+              lines={line.lines}
+              marks={line.marks}
+              touch={select.knob}
             />
           )}
           {draws && special && !empty && (
@@ -699,7 +778,10 @@ export const StampDrawer = ({
                     <button
                       aria-keyshortcuts={TOOL_KEYS[each]}
                       aria-label={label}
-                      aria-pressed={tool === each}
+                      // Editing points belongs to picking.
+                      aria-pressed={
+                        tool === each || (each === "move" && tool === "points")
+                      }
                       className={cn(TILE, "w-10 p-2")}
                       key={each}
                       onClick={() => chooseTool(each)}
@@ -742,9 +824,10 @@ export const StampDrawer = ({
                 ))}
               </div>
             </div>
-            {/* How thick the pen or the eraser is – or, picking, the picked
-              lines (none pressed when they differ); and a way to remove
-              what is picked. */}
+            {/* How thick the pen, the line or the eraser is – or, picking,
+              the picked lines (none pressed when they differ), editing
+              points, that line; and what the tool has to finish or
+              remove. */}
             <div className="flex min-h-10 items-center justify-between gap-2">
               <fieldset
                 className="flex gap-1.5"
@@ -761,14 +844,18 @@ export const StampDrawer = ({
                     aria-pressed={
                       tool === "move" && select.picked
                         ? select.width === WIDTHS[w]
-                        : width === w
+                        : tool === "points" && line.editing !== null
+                          ? line.width === WIDTHS[w]
+                          : width === w
                     }
                     className={cn(TILE, "w-10 disabled:opacity-40")}
                     key={w}
                     onClick={() =>
                       tool === "move" && select.picked
                         ? select.restroke(WIDTHS[w])
-                        : setWidth(w)
+                        : tool === "points" && line.editing !== null
+                          ? line.restroke(WIDTHS[w])
+                          : setWidth(w)
                     }
                     title={t.app.draw.widths[w]}
                     type="button"
@@ -792,34 +879,88 @@ export const StampDrawer = ({
                   </button>
                 ))}
               </fieldset>
-              {tool === "move" && (
-                <Button
-                  aria-keyshortcuts="Delete"
-                  aria-label={t.app.draw.removeSelection}
-                  className="shrink-0 px-2.5"
-                  disabled={!select.picked}
-                  onClick={select.remove}
-                  size="sm"
-                  title={`${t.app.draw.removeSelection} (⌫)`}
-                  variant="ghost"
-                >
-                  <Sign className="h-5 w-5" d={REMOVE_SIGN} />
-                  {t.app.draw.remove}
-                </Button>
-              )}
+              <div className="flex shrink-0 gap-0.5">
+                {anchored !== null && (
+                  <Button
+                    aria-keyshortcuts={TOOL_KEYS.points}
+                    aria-label={t.app.draw.points}
+                    className="px-2.5"
+                    onClick={editPoints}
+                    size="sm"
+                    title={`${t.app.draw.points} (${TOOL_KEYS.points})`}
+                    variant="ghost"
+                  >
+                    <Sign className="h-5 w-5" d={TOOL_SIGNS.points} />
+                  </Button>
+                )}
+                {tool === "move" && (
+                  <Button
+                    aria-keyshortcuts="Delete"
+                    aria-label={t.app.draw.removeSelection}
+                    className="px-2.5"
+                    disabled={!select.picked}
+                    onClick={select.remove}
+                    size="sm"
+                    title={`${t.app.draw.removeSelection} (⌫)`}
+                    variant="ghost"
+                  >
+                    <Sign className="h-5 w-5" d={REMOVE_SIGN} />
+                    {t.app.draw.remove}
+                  </Button>
+                )}
+                {tool === "points" && (
+                  <Button
+                    aria-keyshortcuts="Delete"
+                    aria-label={t.app.draw.removePoint}
+                    className="px-2.5"
+                    disabled={line.anchor === null}
+                    onClick={line.removePoint}
+                    size="sm"
+                    title={`${t.app.draw.removePoint} (⌫)`}
+                    variant="ghost"
+                  >
+                    <Sign className="h-5 w-5" d={REMOVE_SIGN} />
+                  </Button>
+                )}
+                {/* No Enter on a phone: a button ends the line, or the
+                  editing. */}
+                {(tool === "line" || tool === "points") && (
+                  <Button
+                    aria-keyshortcuts="Enter"
+                    className="px-2.5"
+                    disabled={tool === "line" && !line.active}
+                    onClick={() =>
+                      tool === "line"
+                        ? line.finish()
+                        : leavePoints(line.editing)
+                    }
+                    size="sm"
+                    variant="ghost"
+                  >
+                    <Sign className="h-5 w-5" d={DONE_SIGN} />
+                    {t.app.draw.finish}
+                  </Button>
+                )}
+              </div>
             </div>
             {/* A line on how the tool goes – keys with a keyboard, gestures
               on touch. */}
             <p className="-mt-1 min-h-8 text-muted text-xs leading-snug">
-              {tool === "move"
-                ? select.knob
-                  ? t.app.draw.moveHintTouch
-                  : t.app.draw.moveHint
-                : tool === "eraser"
-                  ? t.app.draw.eraserHint
-                  : select.knob
-                    ? ""
-                    : t.app.draw.penHint}
+              {
+                {
+                  pen: select.knob ? "" : t.app.draw.penHint,
+                  line: select.knob
+                    ? t.app.draw.lineHintTouch
+                    : t.app.draw.lineHint,
+                  eraser: t.app.draw.eraserHint,
+                  move: select.knob
+                    ? t.app.draw.moveHintTouch
+                    : t.app.draw.moveHint,
+                  points: select.knob
+                    ? t.app.draw.pointsHintTouch
+                    : t.app.draw.pointsHint,
+                }[tool]
+              }
             </p>
             {/* Blots of the stamp colors, the one picked ringed – like the
               day's stamp pads. */}

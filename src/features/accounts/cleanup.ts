@@ -3,6 +3,7 @@ import { expiredInvites } from "@/features/calendar/invite-expiry";
 import { sweepInvites } from "@/features/calendar/invites";
 import { sweepFeeds } from "@/features/ical/store";
 import { sendMail } from "@/lib/mail";
+import { sweepEmailChanges } from "./email-change";
 import { inactiveMail } from "./emails";
 import {
   deleteFrom,
@@ -18,9 +19,10 @@ import { patchAccount } from "./seen";
 
 /**
  * The daily cleanup (/next/cron/cleanup) – by the rules of retention.ts:
- * invitations that are over go, sign-ups never confirmed go, accounts long
- * unused get their mail and, a month later, go. Deleting is deleting an
- * account like any other: its calendars, stamps and prints along
+ * invitations that are over go, new addresses nobody confirmed go (the
+ * accounts keep the ones they have), sign-ups never confirmed go, accounts
+ * long unused get their mail and, a month later, go. Deleting is deleting
+ * an account like any other: its calendars, stamps and prints along
  * (`removeData`, collection.ts). The other half of “long unused” is
  * seen.ts: noting whenever an account is there.
  */
@@ -144,6 +146,8 @@ export type CleanupResult = {
   invites: number;
   /** Calendar feeds whose account is no longer in the calendar. */
   feeds: number;
+  /** New addresses asked for and never confirmed – the accounts stay. */
+  emailChanges: number;
   unverified: { deleted: number; failed: number; left: number };
   inactive: InactivityTally;
 };
@@ -168,6 +172,7 @@ export const runCleanup = async (
         ).totalDocs
       : await sweepInvites(payload),
     feeds: await sweepFeeds(payload, { dry }),
+    emailChanges: await sweepEmailChanges(payload, { now, dry }),
     unverified: await sweepUnverified(payload, { now, dry }),
     inactive: await tendUnused(payload, { now, dry }),
   };

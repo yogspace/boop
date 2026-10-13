@@ -16,7 +16,14 @@ import {
   SESSION_COOKIE,
   SESSION_ONLY_SECONDS,
 } from "./cookie";
+import {
+  askEmailChange,
+  confirmEmailChange,
+  dropEmailChange,
+} from "./email-change";
+import { emailChangedMail, newEmailMail } from "./emails";
 import { collectExport, exportName } from "./export";
+import { pendingEmailOf } from "./retention";
 import { noteSeen } from "./seen";
 
 /**
@@ -31,15 +38,21 @@ import { noteSeen } from "./seen";
  * the app calls finds its account with `sessionAccount(req)`.
  *
  * Here, too, are the account's ways out: its data as a file, and deleting
- * it – with the password, once more.
+ * it – with the password, once more. And its way to a new address
+ * (email-change.ts): asked for with the password as well, noted, and its
+ * own only once the link in a mail to it was opened.
  */
 
 const ADMIN_COOKIE = "boop-token";
 
-// Guessing the password at the delete button, and reading everything out
-// again and again – both per account, far above what anyone needs.
-const tooManyDeletes = rateLimit({ limit: 5, windowMs: 15 * 60 * 1000 });
+// Guessing the password where it is asked once more – at the delete button
+// and at the new address, both from one count – and reading everything out
+// again and again: per account, far above what anyone needs.
+const tooManyPasswords = rateLimit({ limit: 5, windowMs: 15 * 60 * 1000 });
 const tooManyExports = rateLimit({ limit: 10, windowMs: 60 * 60 * 1000 });
+// A new address is one someone merely typed in, and it gets a mail: a few
+// an hour per account, so nobody's inbox is filled from here.
+const tooManyAddresses = rateLimit({ limit: 5, windowMs: 60 * 60 * 1000 });
 
 export type SessionAccount = {
   id: string | number;
@@ -186,7 +199,26 @@ const publicAccount = (user: Record<string, unknown>) => ({
   name: user.name ?? "",
   email: user.email ?? "",
   locale: user.locale ?? "de",
+  // A new address still waiting for its confirmation – never its token.
+  pendingEmail: pendingEmailOf(user),
 });
+
+/**
+ * Sends a mail behind the answer, which neither waits for it nor fails with
+ * it – so how long an answer takes says nothing about whether one went out.
+ * A mail that didn't is only logged.
+ */
+const mailLater = (
+  req: PayloadRequest,
+  to: string,
+  mail: Promise<{ subject: string; html: string }>
+) => {
+  void mail
+    .then((made) => req.payload.sendEmail({ to, ...made }))
+    .catch((error) =>
+      req.payload.logger.warn({ err: error, msg: "[accounts] mail" })
+    );
+};
 
 export const sessionEndpoints: Endpoint[] = [
   {
@@ -257,7 +289,7 @@ export const sessionEndpoints: Endpoint[] = [
     },
   },
   {
-    // Name and language – the address stays (see the collection's hook).
+    // Name and language – the address has a way of its own (/me/email).
     path: "/me",
     method: "patch",
     handler: async (req) => {
@@ -296,7 +328,7 @@ export const sessionEndpoints: Endpoint[] = [
       const account = await sessionAccount(req);
       if (!account)
         return respond(req, { error: "Not logged in." }, { status: 401 });
-      if (tooManyDeletes(String(account.id))) {
+      if (tooManyPasswords(String(account.id))) {
         return respond(req, { error: "Too many tries." }, { status: 429 });
       }
       const { password } = await json(req);
@@ -315,6 +347,113 @@ export const sessionEndpoints: Endpoint[] = [
         return failure(req, error);
       }
       return respond(req, { ok: true }, { cookies: logoutCookies() });
+    },
+  },
+  {
+    // A new address (email-change.ts). Being logged in is not enough here
+    // either: the password, once more. The answer is the same whether the
+    // address is free or someone else's – for that one no mail goes out.
+    path: "/me/email",
+    method: "post",
+    handler: async (req) => {
+      const account = await sessionAccount(req);
+      if (!account)
+        return respond(req, { error: "Not logged in." }, { status: 401 });
+      if (tooManyPasswords(String(account.id))) {
+        return respond(req, { error: "Too many tries." }, { status: 429 });
+      }
+      const { email, password } = await json(req);
+      const refused = await passwordRefused(req, account, password);
+      if (refused) {
+        const error = refused === 429 ? "Too many tries." : "Wrong password.";
+        return respond(req, { error }, { status: refused });
+      }
+      if (tooManyAddresses(String(account.id))) {
+        return respond(req, { error: "Too many tries." }, { status: 429 });
+      }
+      try {
+        const asked = await askEmailChange(req.payload, account, email);
+        if (!asked.ok) {
+          const error =
+            asked.reason === "same" ? "Same address." : "No email address.";
+          return respond(req, { error, reason: asked.reason }, { status: 400 });
+        }
+        if (asked.token) {
+          mailLater(
+            req,
+            asked.pendingEmail,
+            newEmailMail({ token: asked.token, user: account })
+          );
+        }
+        return respond(req, {
+          user: {
+            ...publicAccount(account as unknown as Record<string, unknown>),
+            pendingEmail: asked.pendingEmail,
+          },
+        });
+      } catch (error) {
+        return failure(req, error);
+      }
+    },
+  },
+  {
+    // Not after all: what was noted goes, and its link is dead.
+    path: "/me/email",
+    method: "delete",
+    handler: async (req) => {
+      const account = await sessionAccount(req);
+      if (!account)
+        return respond(req, { error: "Not logged in." }, { status: 401 });
+      try {
+        await dropEmailChange(req.payload, account.id);
+        return respond(req, {
+          user: {
+            ...publicAccount(account as unknown as Record<string, unknown>),
+            pendingEmail: null,
+          },
+        });
+      } catch (error) {
+        return failure(req, error);
+      }
+    },
+  },
+  {
+    // The link in the mail to a new address (/[locale]/change-email passes
+    // its token on). No login asked: the token is the key, and whoever has
+    // it has the mailbox. It logs nobody in – a login here stays as it is,
+    // on every device: the token names the account, not the address.
+    path: "/change-email",
+    method: "post",
+    handler: async (req) => {
+      const { token } = await json(req);
+      try {
+        const confirmed = await confirmEmailChange(req.payload, token);
+        if (!confirmed.ok) {
+          const status = { invalid: 404, expired: 410, taken: 409 } as const;
+          return respond(
+            req,
+            { error: "Not confirmed.", reason: confirmed.reason },
+            { status: status[confirmed.reason] }
+          );
+        }
+        // Invitations to the new address become memberships now, as at a
+        // login.
+        await joinInvitedCalendars(req, confirmed.account).catch(
+          () => undefined
+        );
+        // The address it had hears of it – should this not have been the
+        // account's own doing.
+        if (confirmed.was) {
+          mailLater(
+            req,
+            confirmed.was,
+            emailChangedMail({ user: confirmed.account })
+          );
+        }
+        return respond(req, { ok: true });
+      } catch (error) {
+        return failure(req, error);
+      }
     },
   },
   {
@@ -363,12 +502,24 @@ export const sessionEndpoints: Endpoint[] = [
           ...result.user,
           id: String(result.user.id),
         });
+        // A new address still waiting goes with the old password: whoever
+        // asked for it knew that one.
+        await dropEmailChange(req.payload, String(result.user.id)).catch(
+          (error) =>
+            req.payload.logger.warn({
+              err: error,
+              msg: "[accounts] new address",
+            })
+        );
         return respond(
           req,
           {
-            user: publicAccount(
-              result.user as unknown as Record<string, unknown>
-            ),
+            user: {
+              ...publicAccount(
+                result.user as unknown as Record<string, unknown>
+              ),
+              pendingEmail: null,
+            },
           },
           { cookies: loginCookies(result.token, remembered()) }
         );
