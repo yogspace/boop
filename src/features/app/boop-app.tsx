@@ -563,14 +563,17 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                     {t.app.accountSheet.title}
                     {/* The invitations wait in there. */}
                     {boop.invitations.length > 0 && (
-                      <span
-                        aria-label={t.app.invitations.count(
-                          boop.invitations.length
-                        )}
-                        className="flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-ink px-1 font-black text-[10px] text-white leading-none"
-                      >
-                        {boop.invitations.length}
-                      </span>
+                      <>
+                        <span
+                          aria-hidden="true"
+                          className="flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-ink px-1 font-black text-[10px] text-white leading-none"
+                        >
+                          {boop.invitations.length}
+                        </span>
+                        <span className="sr-only">
+                          {t.app.invitations.count(boop.invitations.length)}
+                        </span>
+                      </>
                     )}
                   </Button>
                   <Button
