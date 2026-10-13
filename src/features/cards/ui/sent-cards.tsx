@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Bang, Check } from "@/components/doodles";
-import { Button, Notice } from "@/components/ui";
+import { Button, buttonClass, Notice } from "@/components/ui";
 import { deleteCard, myCards } from "@/features/cards/client";
 import { type CardSent, cardPath } from "@/features/cards/protocol";
 import type { Locale } from "@/i18n/config";
@@ -170,6 +170,16 @@ export const SentCards = ({
                 >
                   {text.withdraw}
                 </Button>
+                {/* As everyone with the link sees it – in a tab of its own:
+                    the app stays open. */}
+                <a
+                  className={buttonClass({ variant: "ghost", size: "sm" })}
+                  href={cardPath(locale, card.id)}
+                  rel="noopener"
+                  target="_blank"
+                >
+                  {text.view}
+                </a>
                 <Button onClick={() => copy(card.id)} size="sm" variant="plain">
                   {copied === card.id ? (
                     <>

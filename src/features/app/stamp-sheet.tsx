@@ -214,7 +214,12 @@ export const StampSheet = ({
             </div>
           </div>
         ) : (
-          <Button onClick={() => setSure(true)} size="sm" variant="ghost">
+          <Button
+            className="self-start"
+            onClick={() => setSure(true)}
+            size="sm"
+            variant="danger"
+          >
             {t.app.stamp.delete}
           </Button>
         ))}

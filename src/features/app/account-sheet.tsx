@@ -2,6 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 import { Bang, Dot, Mail } from "@/components/doodles";
+import { LocaleSwitch } from "@/components/locale-switch";
 import { Button, buttonClass, Field, Notice } from "@/components/ui";
 import {
   cancelEmailChange,
@@ -25,7 +26,7 @@ import { Sheet } from "./sheet";
 /**
  * One's own account – opened from the account's menu (boop-app.tsx): the
  * invitations waiting for an answer, if any (invitations.tsx), its name,
- * its address (`Address`), what is stored about it, and the ways out (the
+ * its address (`Address`), the app's language, what is stored about it, and the ways out (the
  * data as a file, deleting it). All need a connection: the server has
  * the data, and the last word. Where an admin ticked the account's box in
  * the CMS, a link leads there – a shortcut and no more: the CMS asks for
@@ -37,9 +38,14 @@ import { Sheet } from "./sheet";
 export const AccountSheet = ({
   locale,
   onClose,
+  onLocale,
+  addressIn,
 }: {
   locale: Locale;
   onClose: () => void;
+  /** The app's language, changed in place (boop-app.tsx) – and its address in the other. */
+  onLocale: (locale: Locale) => void;
+  addressIn: (locale: Locale) => string;
 }) => {
   const t = dictionaryOf(locale);
   const text = t.app.accountSheet;
@@ -119,6 +125,11 @@ export const AccountSheet = ({
         />
         {nameError && <Notice tone="error">{nameError}</Notice>}
         <Address locale={locale} />
+        {/* The app's language – here, not in the bar: it is rarely changed. */}
+        <p className="flex items-center gap-3 font-medium text-muted text-sm">
+          {text.language}
+          <LocaleSwitch hrefOf={addressIn} locale={locale} onPick={onLocale} />
+        </p>
         {/* In a tab of its own: the app stays open, with what waits in it. */}
         {me?.admin && (
           <a

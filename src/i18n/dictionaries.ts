@@ -644,7 +644,7 @@ const de = {
         title: "Als Karte verschicken",
         text: "Wer den Link bekommt, sieht deinen Stempel – und kann ihn mit einem Boop-Konto in die eigenen Stempel übernehmen. Deiner bleibt, wie er ist.",
         message: "Ein paar Worte dazu (optional)",
-        messagePlaceholder: "Für deine Tage am Meer …",
+        messagePlaceholder: "Hab dir was gezeichnet …",
         create: "Karte erstellen",
         share: "Karte teilen",
         another: "Noch eine Karte",
@@ -652,6 +652,7 @@ const de = {
         // The cards made of a stamp, as their giver sees them – and taking
         // one back.
         sent: "Karten",
+        view: "Ansehen",
         sentNone: "Noch keine Karte verschickt.",
         sentOffline:
           "Offline – welche Karten unterwegs sind, siehst du mit Verbindung.",
@@ -710,6 +711,7 @@ const de = {
     account: "Konto",
     accountSheet: {
       title: "Konto",
+      language: "Sprache",
       name: "Dein Name – so sehen dich die anderen",
       nameFailed:
         "Der Name ließ sich nicht speichern. Versuch es bitte noch einmal.",
@@ -781,16 +783,16 @@ const de = {
     ),
     description:
       "Übernimm ihn in deine Stempel und boop ihn auf deine Tage – mit Boop, dem Doodle-Stempelkalender.",
-    take: "In meine Stempel",
-    taken: "Schon in deinen Stempeln",
+    take: "Stempel speichern",
+    taken: "Schon gespeichert – er liegt bei deinen Stempeln",
     mine: "Deine Karte",
     mineText:
       "So sieht sie für alle aus, die den Link bekommen. Schick ihn weiter, wem du magst.",
     copy: "Link kopieren",
     copied: "Kopiert!",
-    login: "Anmelden und übernehmen",
+    login: "Anmelden und speichern",
     signedOut:
-      "Mit einem kostenlosen Boop-Konto übernimmst du ihn in deine Stempel und boopst ihn auf deine Tage.",
+      "Mit einem kostenlosen Boop-Konto speicherst du ihn bei deinen Stempeln und boopst ihn auf deine Tage.",
     goneTitle: "Diese Karte gibt es nicht (mehr)",
     goneText:
       "Vielleicht wurde der Stempel gelöscht – oder der Link ist nicht ganz vollständig. Frag einfach nach einer neuen Karte.",
@@ -1385,12 +1387,13 @@ const en: Shape<typeof de> = {
         title: "Send as a card",
         text: "Whoever gets the link sees your stamp – and with a Boop account can take it into their own stamps. Yours stays as it is.",
         message: "A few words with it (optional)",
-        messagePlaceholder: "For your days by the sea …",
+        messagePlaceholder: "Drew something for you …",
         create: "Make the card",
         share: "Share the card",
         another: "Another card",
         offline: "Offline – cards need a connection.",
         sent: "Cards",
+        view: "View",
         sentNone: "No card sent yet.",
         sentOffline: "Offline – the cards on their way show with a connection.",
         takenBy: {
@@ -1432,6 +1435,7 @@ const en: Shape<typeof de> = {
     account: "Account",
     accountSheet: {
       title: "Account",
+      language: "Language",
       name: "Your name – how the others see you",
       nameFailed: "The name couldn't be saved. Please try again.",
       email: "Logged in as {email}",
@@ -1482,16 +1486,16 @@ const en: Shape<typeof de> = {
     },
     description:
       "Take it into your stamps and boop it onto your days – with Boop, the doodle stamp calendar.",
-    take: "Add to my stamps",
-    taken: "Already in your stamps",
+    take: "Save stamp",
+    taken: "Saved already – it's with your stamps",
     mine: "Your card",
     mineText:
       "This is how everyone with the link sees it. Pass it on to whoever you like.",
     copy: "Copy link",
     copied: "Copied!",
-    login: "Log in and take it",
+    login: "Log in and save",
     signedOut:
-      "With a free Boop account you take it into your stamps and boop it onto your days.",
+      "With a free Boop account you save it with your stamps and boop it onto your days.",
     goneTitle: "This card doesn't exist (anymore)",
     goneText:
       "Maybe the stamp was deleted – or the link isn't quite complete. Just ask for a new card.",

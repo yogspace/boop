@@ -100,6 +100,10 @@ Stand: 13.10.2026
   sie nur dir), Karte machen, im CMS Content → Gifts Link einfügen, „Send
   to everyone…“; Popup in der App, Push, Kästchen im Konto. Glitzer und
   Metall in 3D ansehen (zwei Konstanten in `stickers/ink.ts`).
+- Kartenseite: ein Knopf „In meine Stempel“ (abgemeldet: erst danach
+  Anmelden / Konto erstellen), darunter „Für den 3D-Drucker (STL)“. Im
+  Stempel-Sheet bei jeder Karte „Ansehen“. Sprachwahl nur noch im
+  Konto-Sheet (nicht mehr in der Leiste/im Menü).
 - Regal: Umschalter „Neueste zuerst“ / „Nach Person“ (erscheint erst mit
   Stempeln von anderen).
 - Einladung zwischen zwei Konten (lief nie gegen echtes Payload): Popup

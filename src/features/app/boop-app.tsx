@@ -10,7 +10,6 @@ import {
   useState,
 } from "react";
 import { Ticks } from "@/components/doodles";
-import { LocaleSwitch } from "@/components/locale-switch";
 import { SPRING } from "@/components/motion";
 import { SiteFooter } from "@/components/site-footer";
 import { Button, Logo, Notice, PILL, ROUND_BUTTON } from "@/components/ui";
@@ -144,7 +143,8 @@ const PILL_ON_GROUND =
  * page and every sheet opened from it can wear them.
  */
 export const BoopApp = ({ locale: first }: { locale: Locale }) => {
-  // The language changes in place (LocaleSwitch's `onPick`): the words swap,
+  // The language changes in place (LocaleSwitch's `onPick`, in the account's
+  // sheet): the words swap,
   // nothing is built anew – the bar, the calendar's ground, an open month
   // all stay. Only the page's title has to follow by hand.
   const [locale, setLocale] = useState(first);
@@ -513,13 +513,6 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
             <Logo className="text-[32px]" />
           </Link>
           <div className="relative flex items-center gap-2">
-            {/* On a phone the bar is full – there it is in the menu. */}
-            <LocaleSwitch
-              className="mr-1 max-sm:hidden"
-              hrefOf={addressIn}
-              locale={locale}
-              onPick={setLocale}
-            />
             <button
               aria-expanded={menu}
               aria-label={t.app.account}
@@ -562,12 +555,6 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                     </p>
                   </div>
                   <SyncStatus locale={locale} />
-                  <LocaleSwitch
-                    className="sm:hidden"
-                    hrefOf={addressIn}
-                    locale={locale}
-                    onPick={setLocale}
-                  />
                   <Button
                     onClick={() => {
                       setMenu(false);
@@ -896,9 +883,11 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
       <AnimatePresence>
         {account && (
           <AccountSheet
+            addressIn={addressIn}
             key="account"
             locale={locale}
             onClose={closeStep(() => setAccount(false))}
+            onLocale={setLocale}
           />
         )}
       </AnimatePresence>

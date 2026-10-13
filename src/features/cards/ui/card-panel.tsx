@@ -3,16 +3,15 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { Star, Ticks } from "@/components/doodles";
 import { Button, LinkButton, Notice } from "@/components/ui";
-import { ONLY_SIGNED_IN, ONLY_SIGNED_OUT } from "@/features/accounts/signed-in";
 import { trackEvent } from "@/features/analytics/client";
 import { loadCard, takeCard } from "@/features/cards/client";
 import { type CardView, cardPath } from "@/features/cards/protocol";
 import { demoStamp } from "@/features/stickers/demo";
+import { stampStl, stlName } from "@/features/stickers/export-stl";
 import { Sticker } from "@/features/stickers/sticker";
 import { useTransitionRouter } from "@/features/transitions/link";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
-import { cn } from "@/lib/cn";
 import { cardArrived, cardToTake } from "./pending";
 import { ShareLink } from "./share-link";
 import { StampShow } from "./stamp-show";
@@ -24,13 +23,15 @@ import { Wallpaper } from "./wallpaper";
  * of its own prints (wallpaper.tsx). Whoever is logged in takes it into
  * their stamps, and is in the app next; whoever is not logs in or signs up
  * first – the card waits on the device meanwhile (pending.ts), and the app
- * takes it (features/app/gifts.tsx).
+ * takes it (features/app/gifts.tsx). One button for all of it: the ways in
+ * show only once it is pressed, so the stamp and the words have the page.
+ * And for anyone: the stamp as a file for a 3D printer.
  *
  * `card`: as the server read it for everyone – null for no such card,
  * undefined when it couldn't ask: then the browser asks. Who looks at it
  * the server's page doesn't know: logged in on this device (the document's
  * `data-in`, accounts/signed-in.ts), the browser asks again – whether the
- * card is one's own, or taken already.
+ * card is one's own, or taken already. Until it has, the button waits.
  */
 export const CardPanel = ({
   locale,
@@ -51,6 +52,9 @@ export const CardPanel = ({
   const [online, setOnline] = useState(true);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Not logged in, and asked to take it: the ways in.
+  const [asking, setAsking] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   useEffect(() => {
     const look = () => setOnline(navigator.onLine);
@@ -121,13 +125,29 @@ export const CardPanel = ({
       return;
     }
     setBusy(false);
-    if (result.reason === "login") setViewer("out");
-    else if (result.reason === "gone") setCard(null);
+    if (result.reason === "login") {
+      setViewer("out");
+      setAsking(true);
+    } else if (result.reason === "gone") setCard(null);
     else setFailed(true);
   };
 
   const { stamp } = card;
   const giver = card.from.split(" ")[0] ?? "";
+
+  const download = async () => {
+    setPrinting(true);
+    try {
+      const url = URL.createObjectURL(await stampStl(stamp));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = stlName(stamp.name);
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } finally {
+      setPrinting(false);
+    }
+  };
   // Logging in or signing up was the yes: the card is taken right after.
   const later = () => cardToTake.set(id);
   const ways = (
@@ -165,52 +185,55 @@ export const CardPanel = ({
           </p>
         )}
         <div className="flex flex-col gap-2.5 pt-1">
-          {viewer === null && (
-            // Before the browser knows: by the document's mark.
+          {viewer === "in" && card.mine ? (
             <>
-              <div className={cn("flex flex-col gap-2.5", ONLY_SIGNED_OUT)}>
-                {ways}
+              <div className="text-left">
+                <h2 className="font-black text-lg">{t.card.mine}</h2>
+                <p className="font-medium text-muted text-sm">
+                  {t.card.mineText}
+                </p>
               </div>
-              <Button className={ONLY_SIGNED_IN} disabled size="lg">
-                {t.card.take}
+              <ShareLink
+                locale={locale}
+                text={t.app.stamp.card.shareText(stamp.name)}
+                url={`${window.location.origin}${cardPath(locale, id)}`}
+              />
+              {toApp}
+            </>
+          ) : viewer === "in" && card.taken ? (
+            <>
+              <Notice tone="success">{t.card.taken}</Notice>
+              {toApp}
+            </>
+          ) : asking ? (
+            ways
+          ) : (
+            <>
+              {failed && <Notice tone="error">{t.auth.failed}</Notice>}
+              <Button
+                disabled={viewer === null || busy || !online}
+                onClick={viewer === "in" ? take : () => setAsking(true)}
+                size="lg"
+              >
+                {busy ? t.auth.working : t.card.take}
               </Button>
+              {!online && (
+                <p className="font-medium text-muted text-xs">
+                  {t.auth.offline}
+                </p>
+              )}
             </>
           )}
-          {viewer === "out" && ways}
-          {viewer === "in" &&
-            (card.mine ? (
-              <>
-                <div className="text-left">
-                  <h2 className="font-black text-lg">{t.card.mine}</h2>
-                  <p className="font-medium text-muted text-sm">
-                    {t.card.mineText}
-                  </p>
-                </div>
-                <ShareLink
-                  locale={locale}
-                  text={t.app.stamp.card.shareText(stamp.name)}
-                  url={`${window.location.origin}${cardPath(locale, id)}`}
-                />
-                {toApp}
-              </>
-            ) : card.taken ? (
-              <>
-                <Notice tone="success">{t.card.taken}</Notice>
-                {toApp}
-              </>
-            ) : (
-              <>
-                {failed && <Notice tone="error">{t.auth.failed}</Notice>}
-                <Button disabled={busy || !online} onClick={take} size="lg">
-                  {busy ? t.auth.working : t.card.take}
-                </Button>
-                {!online && (
-                  <p className="font-medium text-muted text-xs">
-                    {t.auth.offline}
-                  </p>
-                )}
-              </>
-            ))}
+          {/* For anyone, with an account or without. */}
+          <Button
+            className="self-center"
+            disabled={printing}
+            onClick={download}
+            size="sm"
+            variant="ghost"
+          >
+            {printing ? t.auth.working : t.app.stamp.print3d}
+          </Button>
         </div>
       </Paper>
     </>
