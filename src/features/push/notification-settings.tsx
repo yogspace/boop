@@ -34,8 +34,7 @@ export const NotificationSettings = ({
   const t = dictionaryOf(locale).app.push;
   const { online, me } = useBoop();
   const account = me?.id;
-  const { state, device, setDevice, failed, setFailed, save } =
-    usePush(online);
+  const { state, device, setDevice, failed, setFailed, save } = usePush(online);
   const [busy, setBusy] = useState(false);
   // The time while it is being picked – kept when the picker lets go.
   const [time, setTime] = useState<string | null>(null);

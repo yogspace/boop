@@ -12,6 +12,9 @@ import {
   createBundle,
   createThrottle,
   enteredIn,
+  invitedMessage,
+  invitedOf,
+  invitedTargets,
   isPushEndpoint,
   isPushKey,
   localClock,
@@ -30,6 +33,8 @@ import {
   stampedMessage,
   stampedTargets,
   switchesOf,
+  wasAdded,
+  withInvited,
   withSwitch,
 } from "../../src/features/push/rules";
 
@@ -248,6 +253,35 @@ describe("the switches", () => {
   });
 });
 
+describe("the account's own switch", () => {
+  it("is on until switched off – nothing kept, or from before it", () => {
+    expect(invitedOf(null)).toBe(true);
+    expect(invitedOf({})).toBe(true);
+    expect(invitedOf({ invited: null })).toBe(true);
+    expect(
+      invitedOf({
+        reminderAt: "07:15",
+        calendars: [{ calendar: FAMILY, stamped: false }],
+      })
+    ).toBe(true);
+    expect(invitedOf({ invited: false })).toBe(false);
+  });
+
+  it("keeps only what differs – an off; on again, nothing is left", () => {
+    expect(withInvited(null, false)).toBe(false);
+    expect(withInvited({ invited: false }, true)).toBeNull();
+    expect(withInvited(null, true)).toBeNull();
+    // A yes kept from somewhere goes, too.
+    expect(withInvited({ invited: true }, true)).toBeNull();
+  });
+
+  it("stays as it was when something else is saved", () => {
+    expect(withInvited({ invited: false })).toBe(false);
+    expect(withInvited({ reminderAt: "07:15" })).toBeNull();
+    expect(withInvited(null)).toBeNull();
+  });
+});
+
 describe("a device's login", () => {
   it("must still be there – logged out, it hears nothing", () => {
     const phone = device("phone", ANNA);
@@ -335,6 +369,103 @@ describe("who hears that someone stamped", () => {
         now: EVENING,
       })
     ).toEqual([]);
+  });
+});
+
+describe("who hears that they were added to a calendar", () => {
+  // Anna's calendar, Carl in it already – she adds Ben.
+  const before = [ANNA, CARL];
+  const devices = [
+    device("anna-phone", ANNA),
+    device("ben-phone", BEN),
+    device("ben-laptop", BEN, { locale: "en" }),
+    device("ben-old", BEN, { session: "logged-out" }),
+    device("carl-phone", CARL),
+  ];
+  const sessions = {
+    [ANNA]: loggedIn(ANNA),
+    [BEN]: loggedIn(BEN),
+    [CARL]: loggedIn(CARL),
+  };
+  const targets = (more: Partial<Parameters<typeof invitedTargets>[0]> = {}) =>
+    invitedTargets({
+      who: BEN,
+      by: ANNA,
+      before,
+      devices,
+      settings: {},
+      sessions,
+      now: EVENING,
+      ...more,
+    }).map((d) => d.id);
+
+  it("is the one added, on every device they are logged in on", () => {
+    // Not who added them, not who was in it – and not their own old one.
+    expect(targets()).toEqual(["ben-phone", "ben-laptop"]);
+  });
+
+  it("is nobody once they switched it off – it is on until then", () => {
+    expect(targets({ settings: { [BEN]: { invited: false } } })).toEqual([]);
+    // Someone else's off is theirs, and a calendar's switches are for
+    // calendars one is in.
+    expect(
+      targets({
+        settings: {
+          [ANNA]: { invited: false },
+          [BEN]: {
+            invited: null,
+            calendars: [{ calendar: FAMILY, reminder: false, stamped: false }],
+          },
+        },
+      })
+    ).toEqual(["ben-phone", "ben-laptop"]);
+  });
+
+  it("leaves a logged-out device quiet", () => {
+    expect(targets({ sessions: { [ANNA]: loggedIn(ANNA) } })).toEqual([]);
+    expect(
+      targets({ devices: [device("ben-old", BEN, { session: "gone" })] })
+    ).toEqual([]);
+  });
+
+  it("is nobody when they were in it already – nothing happened", () => {
+    expect(targets({ before: [ANNA, BEN, CARL] })).toEqual([]);
+    expect(wasAdded({ who: BEN, by: ANNA, before: [ANNA, BEN] })).toBe(false);
+    expect(wasAdded({ who: BEN, by: ANNA, before })).toBe(true);
+  });
+
+  it("is nobody when they came in by themselves – an invitation's link", () => {
+    expect(targets({ by: BEN })).toEqual([]);
+    expect(wasAdded({ who: BEN, by: BEN, before })).toBe(false);
+  });
+
+  it("is heard once: as a change it goes to the others, never to them", () => {
+    const calendar = { id: FAMILY, name: "Familie", members: before };
+    const changes = calendarChanges({
+      operation: "update",
+      doc: { ...calendar, members: [...before, BEN] },
+      previous: calendar,
+      by: ANNA,
+    });
+    expect(changes).toEqual([{ kind: "joined", who: BEN }]);
+    // Even with “someone changed something” on, kept from an earlier stay.
+    const on = { calendars: [{ calendar: FAMILY, changed: true }] };
+    expect(
+      changedTargets({
+        calendar: FAMILY,
+        members: [...before, BEN],
+        by: ANNA,
+        about: aboutOf(changes),
+        devices,
+        settings: { [BEN]: on, [CARL]: on },
+        sessions,
+        now: EVENING,
+      }).map((d) => d.id)
+    ).toEqual(["carl-phone"]);
+    expect(targets({ settings: { [BEN]: on, [CARL]: on } })).toEqual([
+      "ben-phone",
+      "ben-laptop",
+    ]);
   });
 });
 
@@ -481,6 +612,44 @@ describe("what a notification says", () => {
         calendar: { id: FAMILY, name: "Family" },
       }).body
     ).toBe("Someone stamped in “Family”.");
+  });
+
+  it("tells the one added who did it, and leads into the calendar", () => {
+    expect(
+      invitedMessage("de", {
+        name: "Anna",
+        calendar: { id: FAMILY, name: "Familie" },
+      })
+    ).toEqual({
+      title: "Boop!",
+      body: "Anna hat dich zu „Familie“ hinzugefügt.",
+      url: `/de/app/${FAMILY}`,
+      tag: `invited-${FAMILY}`,
+    });
+    expect(
+      invitedMessage("en", {
+        name: "Anna",
+        calendar: { id: FAMILY, name: "Family" },
+      })
+    ).toEqual({
+      title: "Boop!",
+      body: "Anna added you to “Family”.",
+      url: `/en/app/${FAMILY}`,
+      tag: `invited-${FAMILY}`,
+    });
+    // Without a name: someone.
+    expect(
+      invitedMessage("de", {
+        name: " ",
+        calendar: { id: FAMILY, name: "Familie" },
+      }).body
+    ).toBe("Jemand hat dich zu „Familie“ hinzugefügt.");
+    expect(
+      invitedMessage("en", {
+        name: "",
+        calendar: { id: FAMILY, name: "Family" },
+      }).body
+    ).toBe("Someone added you to “Family”.");
   });
 
   it("names the calendars still waiting, and leads to the first", () => {

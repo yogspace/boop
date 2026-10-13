@@ -129,7 +129,7 @@ const protectAccount: CollectionBeforeChangeHook = ({
         ...(neverDelete === true && { deletionWarnedAt: null }),
       }
     : {};
-  const next =
+  const next: Record<string, unknown> =
     operation === "create"
       ? { ...rest, _verified: false, admin: false, neverDelete: false }
       : { ...rest, ...boxes };

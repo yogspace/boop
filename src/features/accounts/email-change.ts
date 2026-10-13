@@ -216,7 +216,7 @@ export const confirmEmailChange = async (
         resetPasswordExpiration: null,
       },
       select: { name: true, locale: true },
-    })) as Row | null;
+    })) as unknown as Row | null;
   } catch (error) {
     // Taken in this very moment – the database allows one account per
     // address.

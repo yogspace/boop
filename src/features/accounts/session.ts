@@ -145,6 +145,7 @@ const endSession = async (
   if (typeof sid !== "string" || !sid) return;
   try {
     const doc = await req.payload.db.findOne<{
+      id: string | number;
       sessions?: { id?: string }[] | null;
     }>({
       collection: "accounts",
