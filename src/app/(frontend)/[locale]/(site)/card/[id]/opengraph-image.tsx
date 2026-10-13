@@ -32,14 +32,17 @@ const FRAME =
 const DOT =
   "M12.2 3.4C17.3 3.2 20.9 7 20.6 12.1C20.3 17 16.8 20.7 11.8 20.6C6.9 20.5 3.3 16.9 3.4 11.9C3.5 7.2 7.3 3.6 12.2 3.4Z";
 
-/** The prints: the card's own, big – and pale ones scattered about. */
+/**
+ * The prints: the card's own, big – and pale ones scattered about it, all
+ * inside the frame and none under the big one.
+ */
 const PRINTS = [
   { x: 716, y: 112, size: 400, turn: -7, opacity: 1 },
-  { x: 596, y: 44, size: 112, turn: 14, opacity: 0.2 },
-  { x: 1052, y: 20, size: 124, turn: -16, opacity: 0.2 },
-  { x: 1070, y: 468, size: 132, turn: 10, opacity: 0.2 },
-  { x: 604, y: 486, size: 104, turn: -11, opacity: 0.2 },
-  { x: 480, y: 500, size: 84, turn: 18, opacity: 0.2 },
+  { x: 596, y: 64, size: 112, turn: 14, opacity: 0.2 },
+  { x: 1044, y: 60, size: 108, turn: -16, opacity: 0.2 },
+  { x: 1034, y: 452, size: 112, turn: 10, opacity: 0.2 },
+  { x: 604, y: 468, size: 104, turn: -11, opacity: 0.2 },
+  { x: 480, y: 478, size: 84, turn: 18, opacity: 0.2 },
 ] as const;
 
 type Look = { shape: StampShape; drawing: Drawing | null };

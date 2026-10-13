@@ -57,7 +57,13 @@ export const SentCards = ({
     if (!online) return;
     let live = true;
     void myCards().then((all) => {
-      if (live) setCards(all.filter((card) => card.stamp === stamp));
+      if (!live) return;
+      // This stamp's – the latest first.
+      setCards(
+        all
+          .filter((card) => card.stamp === stamp)
+          .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+      );
     });
     return () => {
       live = false;

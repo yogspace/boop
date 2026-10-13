@@ -7,11 +7,11 @@ import type { Access, PayloadRequest } from "payload";
  *
  * The CMS is there to run Boop – settings, the legal text, the statistics,
  * looking after accounts – not to read what people keep in it. What they
- * made (calendars, stamps, prints, notes, invitations, their notification
- * devices) is therefore closed over REST for admins too (`sealed`). The app
- * reaches it through its own server code – the sync, the member and
- * invitation endpoints, hooks, crons – which checks the account itself and
- * then reads and writes with `overrideAccess`.
+ * made (calendars, stamps, prints, notes, cards, invitations, their
+ * notification devices) is therefore closed over REST for admins too
+ * (`sealed`). The app reaches it through its own server code – the sync,
+ * the member, invitation and card endpoints, hooks, crons – which checks
+ * the account itself and then reads and writes with `overrideAccess`.
  */
 
 /** Someone logged in to the admin. */

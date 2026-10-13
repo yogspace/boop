@@ -44,8 +44,9 @@ export const cardIdOf = (value: unknown): string | null => {
 
 /**
  * A card's few words as they are kept: trimmed, no control characters but
- * line breaks, at most one empty line in a row, and `MESSAGE_MAX`
- * characters at most – cut between characters, never inside one.
+ * line breaks, at most one empty line in a row, and `MESSAGE_MAX` long at
+ * most – counted as a text field counts (an emoji is two), and cut between
+ * characters, never inside one.
  */
 export const cleanMessage = (value: unknown): string => {
   if (typeof value !== "string") return "";
@@ -58,7 +59,12 @@ export const cleanMessage = (value: unknown): string => {
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-  return [...text].slice(0, MESSAGE_MAX).join("").trim();
+  let kept = "";
+  for (const character of text) {
+    if (kept.length + character.length > MESSAGE_MAX) break;
+    kept += character;
+  }
+  return kept.trim();
 };
 
 /** A relationship as an id, populated or not – null for none. */

@@ -112,8 +112,8 @@ export const Cards: CollectionConfig = {
       },
     },
     {
-      // Taken back: the link is dead. Its giver's call alone – and to
-      // anyone else no word on whether there is such a card.
+      // Taken back: the link is dead from here on. Its giver's call alone;
+      // the stamps taken from it stay where they are.
       path: "/:id",
       method: "delete",
       handler: async (req) => {
@@ -188,27 +188,8 @@ export const Cards: CollectionConfig = {
         const card = await liveCard(req, String(req.routeParams?.id));
         if (!card) return notFound();
         const account = await sessionAccount(req);
-        const giver = await req.payload.findByID({
-          collection: "accounts",
-          id: card.from,
-          select: { name: true },
-          depth: 0,
-          disableErrors: true,
-          overrideAccess: true,
-          req,
-        });
         const view: CardView = {
-          id: card.id,
-          stamp: {
-            name: card.look.name,
-            color: card.look.color,
-            shape: card.look.shape,
-            drawing: (card.look.drawing ??
-              null) as CardView["stamp"]["drawing"],
-          },
-          message: card.message,
-          from: String((giver as Doc | null)?.name ?? ""),
-          createdAt: card.createdAt,
+          ...(await cardView(req, card)),
           ...(account && {
             mine: card.from === String(account.id),
             taken: Boolean(await copyOf(req, card.id, String(account.id))),
@@ -239,7 +220,7 @@ export const Cards: CollectionConfig = {
 };
 
 /** A card as the endpoints use it. */
-type CardRow = {
+export type CardRow = {
   id: string;
   stamp: string;
   from: string;
@@ -300,6 +281,37 @@ export const liveCard = async (
   };
 };
 
+/**
+ * A card as anyone with its link sees it – the giver by the name they have
+ * now. For the endpoint, and for the card's page read on the server.
+ */
+export const cardView = async (
+  req: PayloadRequest,
+  card: CardRow
+): Promise<CardView> => {
+  const giver = (await req.payload.findByID({
+    collection: "accounts",
+    id: card.from,
+    select: { name: true },
+    depth: 0,
+    disableErrors: true,
+    overrideAccess: true,
+    req,
+  })) as Doc | null;
+  return {
+    id: card.id,
+    stamp: {
+      name: card.look.name,
+      color: card.look.color,
+      shape: card.look.shape,
+      drawing: (card.look.drawing ?? null) as CardView["stamp"]["drawing"],
+    },
+    message: card.message,
+    from: typeof giver?.name === "string" ? giver.name : "",
+    createdAt: card.createdAt,
+  };
+};
+
 /** The account's copy of a card's stamp – if it took the card, and kept it. */
 const copyOf = async (req: PayloadRequest, card: string, account: string) => {
   const { docs } = await req.payload.find({
@@ -325,7 +337,7 @@ const copyOf = async (req: PayloadRequest, card: string, account: string) => {
  * Names only – as members of a calendar see each other. Whoever deleted
  * their copy, or their account, is none of them any more.
  */
-export const sentBy = async (
+const sentBy = async (
   req: PayloadRequest,
   account: string
 ): Promise<CardSent[]> => {

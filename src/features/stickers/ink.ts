@@ -173,19 +173,20 @@ vec3 metalOf(vec3 c, vec3 n, float level) {
   return mix(curved, streaked, level);
 }
 
-// Glitter in the ink: small flecks stuck to the stamp – a few of the cells
-// of a fine grid hold one – that twinkle out of step where it is live. Each
-// one soft at its edge by how big the grid shows (not by the distance's own
-// change, which leaps at the cells' borders).
+// Glitter in the ink: flecks stuck to the stamp – a few of the cells of a
+// grid hold one, a little diamond – that twinkle out of step where it is
+// live. Each one soft at its edge by how big the grid shows (not by the
+// distance's own change, which leaps at the cells' borders).
 float flecks(vec3 p) {
   vec3 cell = floor(p);
   float h = hash(cell);
-  vec3 at = 0.5 + 0.3 * (vec3(hash(cell + 1.7), hash(cell + 3.1), hash(cell + 5.3)) - 0.5);
-  float d = length(fract(p) - at);
-  float r = 0.14 + 0.1 * hash(cell + 7.9);
+  vec3 at = 0.5 + 0.2 * (vec3(hash(cell + 1.7), hash(cell + 3.1), hash(cell + 5.3)) - 0.5);
+  vec3 off = abs(fract(p) - at);
+  float d = off.x + off.y + off.z;
+  float r = 0.24 + 0.14 * hash(cell + 7.9);
   float aa = 0.7 * length(fwidth(p));
   float beat = 0.55 + 0.45 * sin(time * (1.6 + 2.4 * h) + h * 40.0);
-  return step(0.78, h) * (1.0 - smoothstep(r - aa, r + aa, d)) * mix(0.85, beat, twinkle);
+  return step(0.7, h) * (1.0 - smoothstep(r - aa, r + aa, d)) * mix(0.85, beat, twinkle);
 }
 
 void main() {
@@ -235,7 +236,9 @@ void main() {
     seen = mix(seen, metalOf(seen, normalize(vNormal), level), metal * finish);
   }
   if (glitter > 0.0) {
-    seen = mix(seen, WHITE, 0.8 * flecks(vLocal * 34.0) * glitter * finish);
+    // Half a cell off: the face (z = 0) lies in the middle of a layer of
+    // cells, not on the border between two.
+    seen = mix(seen, WHITE, 0.85 * flecks(vLocal * 13.0 + 0.5) * glitter * finish);
   }
   outColor = vec4(seen, 1.0);
   outData = vec4(part / 16.0, wobble(vLocal), deep, 1.0);

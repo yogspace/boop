@@ -3,7 +3,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { Star, Ticks } from "@/components/doodles";
 import { Button, LinkButton, Notice } from "@/components/ui";
-import { ONLY_SIGNED_OUT } from "@/features/accounts/signed-in";
+import { ONLY_SIGNED_IN, ONLY_SIGNED_OUT } from "@/features/accounts/signed-in";
 import { trackEvent } from "@/features/analytics/client";
 import { loadCard, takeCard } from "@/features/cards/client";
 import { type CardView, cardPath } from "@/features/cards/protocol";
@@ -171,11 +171,7 @@ export const CardPanel = ({
               <div className={cn("flex flex-col gap-2.5", ONLY_SIGNED_OUT)}>
                 {ways}
               </div>
-              <Button
-                className="hidden [[data-in]_&]:inline-flex"
-                disabled
-                size="lg"
-              >
+              <Button className={ONLY_SIGNED_IN} disabled size="lg">
                 {t.card.take}
               </Button>
             </>

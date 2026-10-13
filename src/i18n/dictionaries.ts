@@ -660,8 +660,7 @@ const de = {
             some: "Übernommen von {names}",
             none: "Noch von niemandem übernommen",
           },
-          (say) => (names: string) =>
-            names ? say.some({ names }) : say.none()
+          (say) => (names: string) => (names ? say.some({ names }) : say.none())
         ),
         withdraw: "Zurückziehen",
         withdrawConfirm:

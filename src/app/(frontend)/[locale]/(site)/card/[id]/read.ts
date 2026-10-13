@@ -1,7 +1,7 @@
 import config from "@payload-config";
 import { createLocalReq, getPayload } from "payload";
 import { cache } from "react";
-import { liveCard } from "@/features/cards/cards";
+import { cardView, liveCard } from "@/features/cards/cards";
 import { CARD_ID, type CardView } from "@/features/cards/protocol";
 
 /**
@@ -21,28 +21,7 @@ export const readCard = cache(
       const payload = await getPayload({ config });
       const req = await createLocalReq({}, payload);
       const card = await liveCard(req, id);
-      if (!card) return null;
-      const giver = (await payload.findByID({
-        collection: "accounts",
-        id: card.from,
-        select: { name: true },
-        depth: 0,
-        disableErrors: true,
-        overrideAccess: true,
-        req,
-      })) as { name?: unknown } | null;
-      return {
-        id: card.id,
-        stamp: {
-          name: card.look.name,
-          color: card.look.color,
-          shape: card.look.shape,
-          drawing: (card.look.drawing ?? null) as CardView["stamp"]["drawing"],
-        },
-        message: card.message,
-        from: typeof giver?.name === "string" ? giver.name : "",
-        createdAt: card.createdAt,
-      };
+      return card ? await cardView(req, card) : null;
     } catch (error) {
       console.error("[card] could not read the card:", error);
       return undefined;

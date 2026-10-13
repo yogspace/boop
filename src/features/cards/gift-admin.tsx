@@ -7,7 +7,7 @@ import {
   useFormFields,
 } from "@payloadcms/ui";
 import type { TextFieldClientComponent } from "payload";
-import { type CSSProperties, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Drawing, StampShape } from "@/features/calendar/model";
 import { isShape } from "@/features/calendar/model";
 import { DEFAULT_PALETTE, type StampColor } from "@/features/calendar/palette";
@@ -46,17 +46,6 @@ const useStampColors = (api: string) => {
   return colors;
 };
 
-const swatch = (hex: string): CSSProperties => ({
-  display: "inline-block",
-  width: "0.9rem",
-  height: "0.9rem",
-  marginRight: "0.5rem",
-  verticalAlign: "-0.1rem",
-  borderRadius: "50%",
-  background: hex,
-  boxShadow: "0 0 0 1px var(--theme-elevation-250)",
-});
-
 /** The color: one of the CMS's, by name – or none, the card's. */
 export const GiftColorField: TextFieldClientComponent = ({ path, field }) => {
   const {
@@ -68,15 +57,10 @@ export const GiftColorField: TextFieldClientComponent = ({ path, field }) => {
   const { value, setValue, showError, errorMessage } = useField<string>({
     path,
   });
+  // By name, as plain text – so typing in the field finds one.
   const options = colors.map((color) => ({
     value: color.key,
-    label: () => (
-      <span>
-        <i style={swatch(color.hex)} />
-        {color.name.en} · {color.key}
-        {color.special && " – not public"}
-      </span>
-    ),
+    label: `${color.name.en} · ${color.key}${color.special ? " – not public" : ""}`,
   }));
   return (
     <SelectInput
@@ -117,19 +101,24 @@ export const GiftPreview = () => {
     drawing: all.drawing?.value,
   }));
   const id = cardIdOf(fields.card);
-  const [card, setCard] = useState<CardView | null>(null);
+  // The card last asked for, by its id – null: there is none (any more).
+  const [asked, setAsked] = useState<{
+    id: string;
+    card: CardView | null;
+  } | null>(null);
   useEffect(() => {
-    setCard(null);
     if (!id) return;
     let on = true;
     fetch(`${api}/cards/${id}`)
       .then((response) => (response.ok ? response.json() : null))
-      .then((found: CardView | null) => on && setCard(found))
-      .catch(() => undefined);
+      .catch(() => null)
+      .then((card: CardView | null) => on && setAsked({ id, card }));
     return () => {
       on = false;
     };
   }, [api, id]);
+  const answered = Boolean(id) && asked?.id === id;
+  const card = answered ? (asked?.card ?? null) : null;
 
   const drawing = (card?.stamp.drawing ??
     (fields.drawing as Drawing | null | undefined) ??
@@ -144,8 +133,8 @@ export const GiftPreview = () => {
   if (!drawing) {
     return (
       <p style={{ color: "var(--theme-elevation-650)" }}>
-        {id && !card
-          ? "No card with this link (any more)."
+        {id
+          ? answered && "No card with this link (any more)."
           : "Paste a card's link to see the stamp."}
       </p>
     );

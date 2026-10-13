@@ -62,8 +62,10 @@ describe("a card's few words", () => {
     expect(cleanMessage("x".repeat(MESSAGE_MAX + 50))).toHaveLength(
       MESSAGE_MAX
     );
-    const hearts = cleanMessage("💛".repeat(MESSAGE_MAX + 5));
-    expect([...hearts]).toHaveLength(MESSAGE_MAX);
+    // Counted as a text field counts: a heart is two – and stays whole.
+    const hearts = cleanMessage(`x${"💛".repeat(MESSAGE_MAX)}`);
+    expect(hearts.length).toBeLessThanOrEqual(MESSAGE_MAX);
+    expect([...hearts]).toHaveLength(MESSAGE_MAX / 2);
     expect(hearts.endsWith("💛")).toBe(true);
   });
 });
