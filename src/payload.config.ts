@@ -68,6 +68,11 @@ export default buildConfig({
       icons: [{ rel: "icon", type: "image/svg+xml", url: "/icon.svg" }],
     },
     components: {
+      // Boop's word mark over the login, its “b” on top of every page.
+      graphics: {
+        Logo: "@/features/admin/graphics#AdminLogo",
+        Icon: "@/features/admin/graphics#AdminIcon",
+      },
       // Support mode on (ADMIN_SUPPORT, src/access): said on every page.
       header: ["@/features/admin/support-banner#SupportBanner"],
       afterNavLinks: ["@/features/admin/seeds/seeds-nav-link#SeedsNavLink"],

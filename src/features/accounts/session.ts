@@ -7,6 +7,7 @@ import {
   type PayloadRequest,
 } from "payload";
 import { joinInvitedCalendars } from "@/features/calendar/invites";
+import { nudge } from "@/features/sync/live";
 import { rateLimit } from "@/lib/rate-limit";
 import {
   expired,
@@ -110,6 +111,12 @@ export const sessionAccount = async (
 const remembered = (exp?: number) =>
   new Date(exp ? exp * 1000 : Date.now() + REMEMBER_SECONDS * 1000);
 
+/** What a token says – read, not checked: only of one Payload just signed. */
+const claimsOf = (token: string) =>
+  JSON.parse(
+    Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8")
+  ) as Record<string, unknown>;
+
 /**
  * The token of a login for this browser session only (“stay logged in”
  * unticked). Payload signs every login for the collection's 30 days; this
@@ -117,13 +124,7 @@ const remembered = (exp?: number) =>
  * leaves the server.
  */
 const shortToken = async (req: PayloadRequest, token: string) => {
-  const {
-    iat: _iat,
-    exp: _exp,
-    ...fields
-  } = JSON.parse(
-    Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8")
-  ) as Record<string, unknown>;
+  const { iat: _iat, exp: _exp, ...fields } = claimsOf(token);
   const signed = await jwtSign({
     fieldsToSign: fields,
     secret: req.payload.secret,
@@ -133,10 +134,44 @@ const shortToken = async (req: PayloadRequest, token: string) => {
 };
 
 /**
+ * Ends one login of an account, by its session's id – the others stay.
+ * Never in the way: a failure is only logged.
+ */
+const endSession = async (
+  req: PayloadRequest,
+  id: string | number,
+  sid: unknown
+) => {
+  if (typeof sid !== "string" || !sid) return;
+  try {
+    const doc = await req.payload.db.findOne<{
+      sessions?: { id?: string }[] | null;
+    }>({
+      collection: "accounts",
+      where: { id: { equals: id } },
+      select: { sessions: true },
+    });
+    const sessions = doc?.sessions ?? [];
+    const others = sessions.filter((session) => session.id !== sid);
+    if (others.length === sessions.length) return;
+    await req.payload.db.updateOne({
+      collection: "accounts",
+      id,
+      data: { sessions: others, updatedAt: null },
+      returning: false,
+    });
+  } catch (error) {
+    req.payload.logger.warn({ err: error, msg: "[accounts] session" });
+  }
+};
+
+/**
  * Is this the account's password? Asked the way a login asks – Payload's
- * own check, with its count of wrong tries (the login it makes on the way
- * is never handed out). Null when it is – or the status to refuse with:
- * 403 for a wrong one, 429 once the wrong ones locked the account.
+ * own check, with its count of wrong tries. The login it makes on the way
+ * is never handed out, and ended again at once: the account stays logged in
+ * where it was, and nowhere else. Null when it is the password – or the
+ * status to refuse with: 403 for a wrong one, 429 once the wrong ones
+ * locked the account.
  */
 const passwordRefused = async (
   req: PayloadRequest,
@@ -147,11 +182,13 @@ const passwordRefused = async (
     return 403;
   }
   try {
-    const { user } = await req.payload.login({
+    const { user, token } = await req.payload.login({
       collection: "accounts",
       data: { email: account.email, password },
     });
-    return String(user?.id) === String(account.id) ? null : 403;
+    if (String(user?.id) !== String(account.id)) return 403;
+    if (token) await endSession(req, account.id, claimsOf(token).sid);
+    return null;
   } catch (error) {
     return error instanceof LockedAuth ? 429 : 403;
   }
