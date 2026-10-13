@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { ArrowLeft, Sparkle } from "@/components/doodles";
+import { ArrowLeft, Bang, Sparkle } from "@/components/doodles";
 import { Button, Checkbox, Field, Notice } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import type { Art } from "@/features/calendar/art";
@@ -168,6 +168,8 @@ export const StampDrawer = ({
   calendar,
   locale,
   onClose,
+  onDrawn,
+  ask = 0,
 }: {
   /**
    * The calendar it is drawn in, if its members may get to stamp with it too
@@ -176,6 +178,10 @@ export const StampDrawer = ({
   calendar: string | null;
   locale: Locale;
   onClose: () => void;
+  /** Told whether something is drawn – the browser's back asks then too. */
+  onDrawn?: (drawn: boolean) => void;
+  /** Counts up when the browser's back wants to leave: it asks. */
+  ask?: number;
 }) => {
   const t = dictionaryOf(locale);
   const area = useRef<HTMLDivElement>(null);
@@ -555,6 +561,31 @@ export const StampDrawer = ({
     setShown(false);
   };
 
+  // Something drawn: closing would throw it away, so it asks first – the X,
+  // Escape, and the browser's back (`ask`). Asked, they take the question
+  // back again.
+  const drawn = strokes.length > 0 || fills.length > 0;
+  const [leaving, setLeaving] = useState(false);
+  const question = useRef<HTMLDivElement>(null);
+  useEffect(() => onDrawn?.(drawn), [drawn, onDrawn]);
+  useEffect(() => () => onDrawn?.(false), [onDrawn]);
+  useEffect(() => {
+    if (ask) setLeaving(true);
+  }, [ask]);
+  useEffect(() => {
+    if (leaving) question.current?.scrollIntoView({ block: "nearest" });
+  }, [leaving]);
+  const close = () => {
+    if (leaving) setLeaving(false);
+    else if (drawn) setLeaving(true);
+    else onClose();
+  };
+  /** Gone for good – saved, or thrown away. */
+  const leave = () => {
+    onDrawn?.(false);
+    onClose();
+  };
+
   const onSave = async () => {
     setError(false);
     try {
@@ -573,7 +604,7 @@ export const StampDrawer = ({
         sharedWith: shared && calendar ? [calendar] : [],
       });
       trackEvent("stamp-created");
-      onClose();
+      leave();
     } catch {
       setError(true);
     }
@@ -582,9 +613,40 @@ export const StampDrawer = ({
   return (
     <Sheet
       className="md:max-w-3xl"
-      onClose={onClose}
+      onClose={close}
       title={draws ? t.app.draw.title : t.app.draw.done}
     >
+      {/* Watch out, like the other questions that throw something away: a
+          thick frame and an exclamation mark. */}
+      {leaving && (
+        <div
+          className="scribble scribble-bold flex animate-fade flex-col gap-3 rounded-2xl p-4"
+          ref={question}
+          role="alertdialog"
+          aria-labelledby="leave-title"
+        >
+          <p className="flex items-start gap-2.5 font-bold" id="leave-title">
+            <Bang className="h-6 w-6 shrink-0" />
+            {t.app.draw.leaveTitle}
+          </p>
+          <p className="font-medium text-muted text-sm">
+            {t.app.draw.leaveText}
+          </p>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button onClick={leave} size="sm" variant="ghost">
+              {t.app.draw.leaveGo}
+            </Button>
+            <Button
+              autoFocus
+              onClick={() => setLeaving(false)}
+              size="sm"
+              variant="plain"
+            >
+              {t.app.draw.leaveStay}
+            </Button>
+          </div>
+        </div>
+      )}
       {/* On a phone one under the other. Wider, side by side – the stage on
           the left, everything to set beside it – so nothing needs scrolling. */}
       <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_19.5rem] md:items-start md:gap-x-6">

@@ -1437,7 +1437,7 @@ export interface Translation {
      */
     noCalendar?: string | null;
     /**
-     * DE: Mein Kalender  ·  EN: Mein Kalender
+     * DE: Mein Kalender  ·  EN: My calendar
      */
     firstCalendar?: string | null;
     /**

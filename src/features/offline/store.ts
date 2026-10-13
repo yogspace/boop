@@ -24,6 +24,7 @@ import { cleanNote, noteId, sameNote } from "@/features/calendar/note";
 import { shownColor } from "@/features/calendar/tint";
 import type {
   Change,
+  InvitationDoc,
   SyncRequest,
   SyncResponse,
   SyncType,
@@ -80,6 +81,8 @@ export type BoopState = {
    * and `colorOf`, never directly (“Own settings” below).
    */
   prefs: Docs<CalendarPrefs>;
+  /** Open invitations to the account, oldest first (“Invitations” below). */
+  invitations: InvitationDoc[];
 };
 
 const KIND = {
@@ -110,6 +113,7 @@ export const boop = proxy<BoopState>({
   notes: {},
   people: {},
   prefs: {},
+  invitations: [],
 });
 
 let outbox: OutboxEntry[] = [];
@@ -154,6 +158,7 @@ export const start = async () => {
     savedSince,
     savedKnown,
     prefs,
+    invitations,
   ] = await Promise.all([
     getAll<CalendarDoc>("calendars"),
     getAll<KeptStampDoc>("stamps"),
@@ -165,6 +170,7 @@ export const start = async () => {
     getMeta<string>("since"),
     getMeta<string[]>("known"),
     getMeta<Docs<CalendarPrefs>>(PREFS),
+    getMeta<InvitationDoc[]>(INVITATIONS),
   ]);
   outbox = entries.sort((a, b) => a.seq - b.seq);
   since = savedSince ?? null;
@@ -185,6 +191,7 @@ export const start = async () => {
     notes: byId(notes),
     people: people ?? {},
     prefs: prefs ?? {},
+    invitations: invitations ?? [],
     me: me ?? null,
   });
 
@@ -234,6 +241,7 @@ export const signedIn = async (account: Me) => {
     outbox = [];
     since = null;
     known = [];
+    answered.clear();
     set({
       calendars: {},
       stamps: {},
@@ -241,6 +249,7 @@ export const signedIn = async (account: Me) => {
       notes: {},
       people: {},
       prefs: {},
+      invitations: [],
     });
   }
   await write([{ store: "meta", put: account, key: "me" }]);
@@ -711,6 +720,101 @@ const tidyPrefs = (): Op[] => {
   return [{ store: "meta", put: plain(boop.prefs), key: PREFS }];
 };
 
+// ── Invitations ─────────────────────────────────────────────────────────────
+
+/**
+ * Invitations to the account come with every sync, all of them (sync/
+ * protocol.ts), and are kept on the device like the rest – in the store's
+ * `invitations` and in IndexedDB (`meta`, under `INVITATIONS`): offline they
+ * still show. Saying yes or no needs a connection – the server decides
+ * (calendar/endpoints/invitations.ts) – and a sync follows.
+ */
+const INVITATIONS = "invitations";
+
+/**
+ * Answered here – kept out of what a sync asked for before the answer may
+ * still bring, until one comes without them.
+ */
+const answered = new Set<string>();
+
+/** The server's invitations, less those answered here meanwhile. */
+const openInvitations = (incoming: InvitationDoc[]) => {
+  for (const id of answered) {
+    if (!incoming.some((invitation) => invitation.id === id)) {
+      answered.delete(id);
+    }
+  }
+  return incoming.filter((invitation) => !answered.has(invitation.id));
+};
+
+/** An invitation off the device – answered, or gone on the server. */
+const dropInvitation = async (id: string) => {
+  answered.add(id);
+  boop.invitations = boop.invitations.filter(
+    (invitation) => invitation.id !== id
+  );
+  await write([
+    { store: "meta", put: plain(boop.invitations), key: INVITATIONS },
+  ]);
+};
+
+/** The server's answer – none without a connection. */
+const answer = (id: string, what: "accept" | "decline") =>
+  fetch(`/api/invitations/${encodeURIComponent(id)}/${what}`, {
+    method: "POST",
+    credentials: "include",
+  }).catch(() => null);
+
+/** Not found, or over: the invitation is no more – taken back, perhaps. */
+const isGone = (response: Response) =>
+  response.status === 404 || response.status === 410;
+
+/**
+ * Says yes to an invitation – a member of its calendar from now on. The
+ * calendar comes with the sync: once it is on the device, its id comes
+ * back. “gone”: the invitation is no more (taken back, over, the calendar
+ * deleted) – it leaves the device too.
+ */
+export const acceptInvitation = async (
+  id: string
+): Promise<
+  { ok: true; calendar: string } | { ok: false; reason: "gone" | "failed" }
+> => {
+  const response = await answer(id, "accept");
+  if (response && isGone(response)) {
+    await dropInvitation(id);
+    void sync();
+    return { ok: false, reason: "gone" };
+  }
+  const body = (await response?.json().catch(() => null)) as {
+    calendar?: unknown;
+  } | null;
+  if (!(response?.ok && typeof body?.calendar === "string")) {
+    return { ok: false, reason: "failed" };
+  }
+  const { calendar } = body;
+  await dropInvitation(id);
+  // A sync under way may have been asked for before the calendar was the
+  // account's – then the next one brings it.
+  for (let round = 0; round < 3 && !boop.calendars[calendar]; round++) {
+    await sync();
+  }
+  return { ok: true, calendar };
+};
+
+/**
+ * Says no to an invitation: it goes, and nothing else happens. One that is
+ * no more is as good as turned down. False when the server couldn't be
+ * asked.
+ */
+export const declineInvitation = async (id: string) => {
+  const response = await answer(id, "decline");
+  if (!(response && (response.ok || isGone(response)))) return false;
+  await dropInvitation(id);
+  void sync();
+  return true;
+};
+
 // ── Sync ────────────────────────────────────────────────────────────────────
 
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -884,6 +988,7 @@ const merge = async (result: SyncResponse) => {
   const people = Object.fromEntries(
     result.people.map((person) => [person.id, person.name])
   );
+  const invitations = result.invitations && openInvitations(result.invitations);
   since = result.now;
   known = result.calendarIds;
   ops.push(
@@ -892,8 +997,11 @@ const merge = async (result: SyncResponse) => {
     { store: "meta", put: people, key: "people" },
     { store: "meta", put: result.me, key: "me" }
   );
+  if (invitations) {
+    ops.push({ store: "meta", put: invitations, key: INVITATIONS });
+  }
   await write(ops);
-  set({ people, me: result.me });
+  set({ people, me: result.me, ...(invitations && { invitations }) });
 };
 
 // ── Logout ──────────────────────────────────────────────────────────────────
@@ -908,6 +1016,7 @@ export const logout = async () => {
   outbox = [];
   since = null;
   known = [];
+  answered.clear();
   set({
     status: "signedOut",
     me: null,
@@ -917,6 +1026,7 @@ export const logout = async () => {
     notes: {},
     people: {},
     prefs: {},
+    invitations: [],
   });
   return true;
 };

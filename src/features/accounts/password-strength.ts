@@ -230,7 +230,11 @@ const OWN_LENGTH = 3;
 const ownWords = ({ name, email }: Owner): string[] => {
   const local = (email ?? "").split("@")[0];
   const words = [name ?? "", local].flatMap((source) => {
-    const parts = source.normalize("NFC").toLowerCase().match(/\p{L}+|\p{N}+/gu) ?? [];
+    const parts =
+      source
+        .normalize("NFC")
+        .toLowerCase()
+        .match(/\p{L}+|\p{N}+/gu) ?? [];
     return [parts.join(""), ...parts];
   });
   return [...new Set(words)]

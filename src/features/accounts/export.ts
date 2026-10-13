@@ -20,11 +20,11 @@ import {
  * – no password hash, no token, no session id, no push address or key (only
  * whose push service it is), no calendar app's address (only that there is
  * one). And it is the account's own: its calendars, its stamps, the prints
- * it made, the notes it wrote last, the invitations it sent, its
- * notifications, its addresses for calendar apps. Of
- * other people only what the app shows it anyway – their names, as members
- * of its calendars and owners of the ones it is in. What they drew and
- * stamped is theirs.
+ * it made, the notes it wrote last, the invitations it sent and those to
+ * it, its notifications, its addresses for calendar apps. Of other people
+ * only what the app shows it anyway – their names, as members of its
+ * calendars, owners of the ones it is in and senders of its invitations.
+ * What they drew and stamped is theirs.
  */
 
 type Doc = Record<string, unknown>;
@@ -57,6 +57,7 @@ export const accountExport = ({
   placements,
   notes = [],
   invites,
+  invitingCalendars = [],
   pushSettings = null,
   pushDevices = [],
   calendarFeeds = [],
@@ -70,14 +71,17 @@ export const accountExport = ({
   placements: Doc[];
   /** The days' notes it wrote last. */
   notes?: Doc[];
+  /** The invitations it sent – and those to its address. */
   invites: Doc[];
+  /** The calendars it is invited to – for their names. */
+  invitingCalendars?: Doc[];
   /** What it wants to hear of (features/push) – none: all as by default. */
   pushSettings?: Doc | null;
   /** Its devices that get notifications. */
   pushDevices?: Doc[];
   /** Its addresses for calendar apps (features/ical). */
   calendarFeeds?: Doc[];
-  /** The people in those calendars – names by account id. */
+  /** The people in those calendars, and who invited it – names by id. */
   people: Record<string, string>;
   now?: Date;
 }) => {
@@ -87,6 +91,13 @@ export const accountExport = ({
     (calendar) => alive(calendar) && memberIds(calendar).includes(me)
   );
   const sessions = Array.isArray(account.sessions) ? account.sessions : [];
+  const email = String(account.email ?? "").toLowerCase();
+  const calendarNames = new Map(
+    invitingCalendars.map((calendar) => [
+      String(calendar.id),
+      String(calendar.name ?? ""),
+    ])
+  );
   return {
     exportedAt: now.toISOString(),
     account: {
@@ -194,6 +205,26 @@ export const accountExport = ({
         sentAt: when(invite.createdAt),
         expiresAt: when(inviteEnd(invite)),
       })),
+    /**
+     * The invitations to its address it hasn't answered – to which
+     * calendar, from whom, until when. Without their link.
+     */
+    invitedTo: invites
+      .filter(
+        (invite) =>
+          Boolean(email) &&
+          String(invite.email ?? "").toLowerCase() === email &&
+          !inviteExpired(invite, now.getTime())
+      )
+      .map((invite) => {
+        const calendar = ref(invite.calendar);
+        return {
+          calendar: { id: calendar, name: calendarNames.get(calendar) ?? "" },
+          from: person(ref(invite.invitedBy)),
+          sentAt: when(invite.createdAt),
+          expiresAt: when(inviteEnd(invite)),
+        };
+      }),
     /** Notifications: what it wants to hear of, and the devices that do. */
     notifications: {
       /** The evening's reminder, on each device's clock. */
@@ -280,7 +311,20 @@ export const collectExport = async (
   const notes = await find("notes", {
     and: [{ editedBy: { equals: me } }, kept],
   });
-  const invites = await find("invites", { invitedBy: { equals: me } });
+  // The ones it sent, and the ones to its address.
+  const email = String(account.email ?? "").toLowerCase();
+  const invites = await find("invites", {
+    or: [
+      { invitedBy: { equals: me } },
+      ...(email ? [{ email: { equals: email } }] : []),
+    ],
+  });
+  const invitedTo = invites.filter((invite) => invite.email === email);
+  const invitingCalendars = invitedTo.length
+    ? await find("calendars", {
+        id: { in: [...new Set(invitedTo.map((invite) => ref(invite.calendar)))] },
+      })
+    : [];
   const [pushSettings] = await find("push-settings", {
     account: { equals: me },
   });
@@ -291,8 +335,14 @@ export const collectExport = async (
     account: { equals: me },
   });
 
-  // The people in its calendars, by name – nothing else about them.
-  const ids = [...new Set(calendars.flatMap(memberIds))];
+  // The people in its calendars and who invited it, by name – nothing
+  // else about them.
+  const ids = [
+    ...new Set([
+      ...calendars.flatMap(memberIds),
+      ...invitedTo.map((invite) => ref(invite.invitedBy)),
+    ]),
+  ].filter(Boolean);
   const { docs } = ids.length
     ? await payload.find({
         collection: "accounts",
@@ -315,6 +365,7 @@ export const collectExport = async (
     placements,
     notes,
     invites,
+    invitingCalendars,
     pushSettings: pushSettings ?? null,
     pushDevices,
     calendarFeeds,
