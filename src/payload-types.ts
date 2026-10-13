@@ -1542,6 +1542,46 @@ export interface Translation {
        */
       clear?: string | null;
       /**
+       * DE: Werkzeuge  ·  EN: Tools
+       */
+      tools?: string | null;
+      /**
+       * DE: Stift  ·  EN: Pen
+       */
+      pen?: string | null;
+      /**
+       * DE: Radiergummi  ·  EN: Eraser
+       */
+      eraser?: string | null;
+      /**
+       * DE: Auswählen & verschieben  ·  EN: Select & move
+       */
+      move?: string | null;
+      /**
+       * DE: Neben einer Ecke ziehen dreht · ⇧ gerade, im Verhältnis, 15° · Alt kopiert · Entf löscht  ·  EN: Drag beside a corner to turn · ⇧ straight, in proportion, 15° · Alt copies · Del removes
+       */
+      moveHint?: string | null;
+      /**
+       * DE: Antippen wählt, ziehen schiebt · Griffe: Größe · Knopf oben: drehen  ·  EN: Tap picks, drag moves · handles: size · knob on top: turn
+       */
+      moveHintTouch?: string | null;
+      /**
+       * DE: Entfernen  ·  EN: Remove
+       */
+      remove_?: string | null;
+      /**
+       * DE: Auswahl entfernen  ·  EN: Remove selection
+       */
+      removeSelection?: string | null;
+      /**
+       * DE: ⇧ zieht eine gerade Linie  ·  EN: ⇧ draws a straight line
+       */
+      penHint?: string | null;
+      /**
+       * DE: Nimmt Linien und Flächen weg – den Rand nie  ·  EN: Takes away lines and areas – never the rim
+       */
+      eraserHint?: string | null;
+      /**
        * DE: Strichstärke  ·  EN: Line width
        */
       width?: string | null;
@@ -2748,6 +2788,16 @@ export interface TranslationsSelect<T extends boolean = true> {
               undo?: T;
               redo?: T;
               clear?: T;
+              tools?: T;
+              pen?: T;
+              eraser?: T;
+              move?: T;
+              moveHint?: T;
+              moveHintTouch?: T;
+              remove_?: T;
+              removeSelection?: T;
+              penHint?: T;
+              eraserHint?: T;
               width?: T;
               widths?:
                 | T

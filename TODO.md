@@ -121,7 +121,7 @@ Stand: 12.10.2026
   Abmelden wieder die Anmelde-Knöpfe. Wer schon vor diesem Stand angemeldet
   war, bekommt den Hinweis beim nächsten Öffnen der App.
 - Automatisches Löschen: vor dem ersten echten Lauf einmal
-  `/next/cron/cleanup?dry=1` aufrufen – der erste Lauf löscht unbestätigte
+  `/next/cron/cleanup?dry=1` aufrufen – de r erste Lauf löscht unbestätigte
   Konten, die älter als 30 Tage sind.
 
 ## Ideen am Rand
