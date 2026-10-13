@@ -176,6 +176,8 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   // throw it away – it stays, and the editor asks (`ask` counts up).
   const drawn = useRef(false);
   const [askLeave, setAskLeave] = useState(0);
+  // An invitation's popup over the app (invitations.tsx).
+  const [inviting, setInviting] = useState(false);
   const noteDrawn = useRef((now: boolean) => {
     drawn.current = now;
   }).current;
@@ -729,7 +731,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                     {view === "today" && (
                       <TodayView
                         calendar={calendar.id}
-                        keyboard={!covered}
+                        keyboard={!(covered || inviting)}
                         locale={locale}
                         stamps={myStamps}
                       />
@@ -967,6 +969,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
         hold={covered}
         locale={locale}
         onJoined={(id) => go(id, null)}
+        onShowing={setInviting}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Snapshot } from "valtio";
 import { Button, Notice } from "@/components/ui";
 import { hexOf } from "@/features/calendar/palette";
@@ -97,15 +97,19 @@ const Line = ({
  * `hold`: something else lies over the app (a sheet, the menu) – it waits
  * for that to go, as two sheets at once would undo each other's hold on the
  * page (sheet.tsx). `onJoined`: a yes, and the calendar is on the device.
+ * `onShowing`: whether it lies over the app now – the today view's keys
+ * rest meanwhile.
  */
 export const Invitations = ({
   locale,
   hold = false,
   onJoined,
+  onShowing,
 }: {
   locale: Locale;
   hold?: boolean;
   onJoined?: (calendar: string) => void;
+  onShowing?: (showing: boolean) => void;
 }) => {
   const { status, invitations } = useBoop();
   const [later, setLater] = useState(() =>
@@ -116,6 +120,8 @@ export const Invitations = ({
   const [gone, setGone] = useState<Invitation | null>(null);
   const next = invitations.find((invitation) => !later.includes(invitation.id));
   const shown = gone ?? (status === "ready" && !hold ? next : undefined);
+  const showing = Boolean(shown);
+  useEffect(() => onShowing?.(showing), [showing, onShowing]);
 
   const close = (id: string) => {
     setGone(null);
@@ -193,9 +199,10 @@ const InvitationSheet = ({
         !online && <Notice>{text.offline}</Notice>
       )}
       {failed && <Notice tone="error">{t.auth.failed}</Notice>}
-      <div className="flex flex-wrap justify-end gap-2">
+      {/* On a phone the yes on its own line, on top; wider, all in a row. */}
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
         {gone ? (
-          <Button onClick={onClose} variant="plain">
+          <Button className="col-span-2" onClick={onClose} variant="plain">
             {text.close}
           </Button>
         ) : (
@@ -210,7 +217,11 @@ const InvitationSheet = ({
             >
               {busy === "decline" ? t.auth.working : text.decline}
             </Button>
-            <Button disabled={Boolean(busy) || !online} onClick={accept}>
+            <Button
+              className="col-span-2 -order-1 sm:order-none"
+              disabled={Boolean(busy) || !online}
+              onClick={accept}
+            >
               {busy === "accept" ? t.auth.working : text.accept}
             </Button>
           </>
