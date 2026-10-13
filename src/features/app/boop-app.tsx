@@ -62,6 +62,7 @@ import { DaySheet } from "./day-sheet";
 import { CalendarSheet, ConfirmSheet } from "./dialogs";
 import { FADING, useFadingEdges } from "./fading-edges";
 import { useGround } from "./ground";
+import { Invitations } from "./invitations";
 import { MonthGrid } from "./month-grid";
 import { NameTag } from "./name-tag";
 import { ShareSheet } from "./share-sheet";
@@ -960,6 +961,13 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
           />
         )}
       </AnimatePresence>
+      {/* An invitation waiting – once nothing else lies over the app; a
+          yes shows the calendar. */}
+      <Invitations
+        hold={covered}
+        locale={locale}
+        onJoined={(id) => go(id, null)}
+      />
     </div>
   );
 };

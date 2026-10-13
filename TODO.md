@@ -4,12 +4,14 @@ Stand: 13.10.2026
 
 ## Offen
 
-- **Einladungen in der App** (als Nächstes): Popup und Liste im Konto mit
-  Annehmen/Ablehnen; wer ein Konto hat, ist erst nach dem Ja Mitglied.
 - **Nachziehen nach Mail-Wechsel, Kästchen und Einladungs-Push**:
   - Datenschutztext (`features/legal/seed-content.ts`): Adresse in der App
     ändern, die Kästchen „Admin“ / „Nie löschen“, ausstehende Adresse im
-    Export, Einladungs-Nachricht samt Abschalten im Konto.
+    Export, Einladungs-Nachricht samt Abschalten im Konto. Einladungen:
+    Nicht mehr „sofort hinzugefügt“ / „tritt beim Anmelden bei“ – jede
+    Einladung geht per Mail raus, mit Konto auch in der App und per Push;
+    dabei erst nach dem Ja, Ablehnen löscht sie. Export: offene
+    Einladungen an dich (`invitedTo`).
   - Neue Texte: im CMS einmal Seeds → Translations.
 - **Benachrichtigungen (Web Push)** – live: Schlüssel in GitHub, deployt,
   Cron für die Erinnerung eingetragen (alle 15 Minuten). Optional noch die
@@ -24,8 +26,6 @@ Stand: 13.10.2026
   (überschreibt eigene Änderungen im CMS).
 - **Rechtlich gegenlesen lassen**:
   - Einladungsmails an Leute ohne Konto (Werbesatz über Boop in der Mail).
-  - Konten lassen sich per E-Mail-Adresse ohne Zustimmung zu einem Kalender
-    hinzufügen; ihr Name wird dabei sichtbar.
   - Resend: AV-Vertrag, Drittland-Grundlage, deren Log-Fristen.
   - Server-Logfiles: Caddy schreibt kein Access-Log – der Absatz beschreibt
     womöglich Logs, die es nicht gibt. Backups fehlen im Text.
@@ -94,6 +94,11 @@ Stand: 13.10.2026
   jetzt den Login-Zustand.
 - Sync-Stand jetzt im Kontomenü (mit „Jetzt abgleichen“); am Konto-Kreis
   nur eine Zahl, wenn etwas wartet, bzw. ein Kreuz ohne Netz.
+- Einladung zwischen zwei Konten (lief nie gegen echtes Payload): Popup
+  beim Öffnen der App, „Später“, Liste ganz oben im Konto, Annehmen springt
+  in den Kalender, Ablehnen – beim Besitzer verschwindet sie aus
+  „ausstehend“; Mail-Link tritt bei; Anmelden tritt NICHT mehr von selbst
+  bei. Auf dem Phone rutscht „Annehmen“ im Popup in eine zweite Zeile.
 - Passwort-Warnung beim Registrieren und Zurücksetzen: erscheint kurz
   nach dem Tippen (z. B. „Passwort123!“), verschwindet bei einem langen.
 - Adressen für Offenes (mit dem echten Router, iPhone-Wischgeste zurück):
