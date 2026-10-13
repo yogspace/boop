@@ -98,7 +98,7 @@ Stand: 13.10.2026
   beim Öffnen der App, „Später“, Liste ganz oben im Konto, Annehmen springt
   in den Kalender, Ablehnen – beim Besitzer verschwindet sie aus
   „ausstehend“; Mail-Link tritt bei; Anmelden tritt NICHT mehr von selbst
-  bei. Auf dem Phone rutscht „Annehmen“ im Popup in eine zweite Zeile.
+  bei.
 - Passwort-Warnung beim Registrieren und Zurücksetzen: erscheint kurz
   nach dem Tippen (z. B. „Passwort123!“), verschwindet bei einem langen.
 - Adressen für Offenes (mit dem echten Router, iPhone-Wischgeste zurück):
