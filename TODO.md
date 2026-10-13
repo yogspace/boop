@@ -13,10 +13,6 @@ Stand: 13.10.2026
     ändern, die Kästchen „Admin“ / „Nie löschen“, ausstehende Adresse im
     Export, Einladungs-Nachricht samt Abschalten im Konto.
   - Neue Texte: im CMS einmal Seeds → Translations.
-- **Stempelfarben im CMS**: Wer die Zeilen unter „Site“ → Stamp colors
-  schon gespeichert hat, hat dort noch „Tinte“ als erste Farbe – von Hand
-  auf Rot ändern (Schlüssel `red`, `#ee3b33`).
-
 - **Benachrichtigungen (Web Push)** – live: Schlüssel in GitHub, deployt,
   Cron für die Erinnerung eingetragen (alle 15 Minuten). Optional noch die
   Variable `VAPID_SUBJECT` (z. B. `mailto:…`). Fehlt nur noch:
@@ -163,3 +159,4 @@ Stand: 13.10.2026
 ## Ideen am Rand
 
 refactor. manche files haben > 700 zeilen!
+die stempel in der monats/jahresansicht etwas chaotischer machen bzw. lustiger:)
