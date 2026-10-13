@@ -44,6 +44,7 @@ const fake = () => {
     notes: new Map(),
     placements: new Map(),
     stamps: new Map(),
+    invites: new Map(),
   };
   const payload = {
     findByID: async ({ collection, id }: { collection: string; id: string }) =>
@@ -238,11 +239,14 @@ describe("a day's note, written through the sync", () => {
     expect(db.notes.size).toBe(0);
   });
 
-  it("goes with its calendar", async () => {
+  it("goes with its calendar – and so do its open invitations", async () => {
     await write(hi, at(1));
     db.notes.set("other", { id: "other", calendar: ELSEWHERE });
+    db.invites.set("invite", { id: "invite", calendar: HOME });
+    db.invites.set("invite-other", { id: "invite-other", calendar: ELSEWHERE });
     await purgeCalendar(req, HOME);
     expect([...db.notes.keys()]).toEqual(["other"]);
+    expect([...db.invites.keys()]).toEqual(["invite-other"]);
   });
 });
 

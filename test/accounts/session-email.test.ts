@@ -17,7 +17,6 @@ import { fakeAccounts } from "./fake-accounts";
 
 // What the endpoints do beside the account – noted here.
 const beside = vi.hoisted(() => ({
-  joined: [] as unknown[],
   nudged: [] as string[],
 }));
 
@@ -30,11 +29,6 @@ vi.mock("@/features/translations/get-texts", async () => {
   const { dictionaryOf } = await import("../../src/i18n/dictionaries");
   return { getDictionary: async (locale: Locale) => dictionaryOf(locale) };
 });
-vi.mock("@/features/calendar/invites", () => ({
-  joinInvitedCalendars: async (_: unknown, account: unknown) => {
-    beside.joined.push(account);
-  },
-}));
 vi.mock("@/features/sync/live", () => ({
   nudge: (accounts: string[]) => {
     beside.nudged.push(...accounts);
@@ -63,7 +57,6 @@ beforeEach(() => {
   fake = fakeAccounts({ now: () => Date.now() });
   fake.put({ id: ANNA, email: "anna@example.com" });
   fake.put({ id: BEN, email: "ben@example.com", name: "Ben", locale: "en" });
-  beside.joined.length = 0;
   beside.nudged.length = 0;
 });
 
@@ -368,13 +361,10 @@ describe("confirming", () => {
     expect(fake.sent[0].html).not.toContain("ben.new");
   });
 
-  it("takes up the invitations to the new address, and nudges the open apps", async () => {
+  it("nudges the open apps – the invitations to the new address wait there for a yes", async () => {
     const token = await asked(ANNA, "anna.neu@example.com");
     beside.nudged.length = 0;
     await call("post", "/change-email", { body: { token } });
-    expect(beside.joined).toEqual([
-      { id: ANNA, email: "anna.neu@example.com", name: "Anna", locale: "de" },
-    ]);
     expect(beside.nudged).toEqual([ANNA]);
   });
 
@@ -383,12 +373,12 @@ describe("confirming", () => {
     await call("post", "/change-email", { body: { token } });
     await settle();
     fake.sent.length = 0;
-    beside.joined.length = 0;
+    beside.nudged.length = 0;
     const again = await call("post", "/change-email", { body: { token } });
     await settle();
     expect(again).toMatchObject({ status: 404, body: { reason: "invalid" } });
     expect(fake.sent).toEqual([]);
-    expect(beside.joined).toEqual([]);
+    expect(beside.nudged).toEqual([]);
   });
 
   it("is over after 24 hours – said as such", async () => {
@@ -415,7 +405,6 @@ describe("confirming", () => {
       pendingEmail: null,
     });
     expect(fake.sent).toEqual([]);
-    expect(beside.joined).toEqual([]);
   });
 
   it("knows no link it didn't send", async () => {

@@ -92,8 +92,9 @@ const WAS = {
       body: "Anna möchte den Kalender „Sport <3 & Co“ mit dir teilen. Boop ist ein Stempelkalender: Ihr malt eure eigenen Stempel und stempelt eure Tage – zusammen.",
       valid: "Die Einladung gilt 14 Tage.",
       button: "Einladung ansehen",
+      // Since then: invitations reach accounts too – nothing without a yes.
       footnote:
-        "Du kennst die Person nicht? Dann ignoriere diese Mail einfach – ohne Konto passiert nichts.",
+        "Du kennst die Person nicht? Dann ignoriere diese Mail einfach – ohne dein Ja passiert nichts.",
     },
   },
   en: {
@@ -133,7 +134,7 @@ const WAS = {
       valid: "The invitation is valid for 14 days.",
       button: "See the invitation",
       footnote:
-        "Don't know them? Then simply ignore this mail – nothing happens without an account.",
+        "Don't know them? Then simply ignore this mail – nothing happens unless you say yes.",
     },
   },
 } as const;
