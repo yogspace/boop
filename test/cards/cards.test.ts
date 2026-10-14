@@ -358,6 +358,8 @@ describe("taking a card", () => {
         name: "Anna",
         message: "Für dich!",
         card: id,
+        // The stamp it is a copy of – for the day a stamp can be changed.
+        stamp: HEART,
       },
       deleted: false,
     });
@@ -779,8 +781,10 @@ describe("a gift from Boop", () => {
           name: "Boop",
           message: "Frohes Stempeln!",
           gift: gift.id,
+          stamp: HEART,
         },
       });
+      expect(gift.stamp).toBe(HEART);
       // Anna keeps her own beside the copy that came back to her.
       expect(stampsOf(ANNA).map((stamp) => stamp.id)).toContain(HEART);
       expect(stampsOf(ANNA)).toHaveLength(2);
@@ -838,17 +842,30 @@ describe("a gift from Boop", () => {
       tick();
       for (let n = 0; n < 3; n++) {
         expect((await fromStamp(ANNA, HEART)).status).toBe(202);
+        await vi.waitFor(() => expect(gifts()[0]?.sentAt).toBeTruthy());
       }
       expect((await fromStamp(ANNA, HEART)).status).toBe(429);
-      expect(gifts()).toHaveLength(3);
-      await vi.waitFor(() =>
-        expect(gifts().every((gift) => gift.sentTo === 3)).toBe(true)
-      );
       later(61);
       expect((await fromStamp(ANNA, HEART)).status).toBe(202);
-      await vi.waitFor(() =>
-        expect(gifts().every((gift) => gift.sentTo === 3)).toBe(true)
-      );
+    });
+
+    it("sent again, is the same gift – for those who came since, nobody twice", async () => {
+      tick();
+      const first = await fromStamp(ANNA, HEART);
+      await vi.waitFor(() => expect(gifted()).toHaveLength(3));
+      // Nobody new: nobody gets it.
+      const again = await fromStamp(ANNA, HEART, "Andere Worte");
+      expect(again.body).toEqual({ gift: first.body.gift, sent: 0 });
+      // Dora signs up – the next sending is hers alone.
+      const DORA = `acc-dora-${run}`;
+      fake.account({ id: DORA, name: "Dora", email: "dora@example.com" });
+      const third = await fromStamp(ANNA, HEART);
+      expect(third.body).toEqual({ gift: first.body.gift, sent: 1 });
+      await vi.waitFor(() => expect(gifted()).toHaveLength(4));
+      expect(gifts()).toHaveLength(1);
+      const owners = gifted().map((copy) => copy.owner);
+      expect(new Set(owners).size).toBe(4);
+      expect(owners).toContain(DORA);
     });
   });
 
@@ -868,6 +885,8 @@ describe("a gift from Boop", () => {
       expect(await save({ name: "Kürbis", card: link })).toEqual({
         name: "Kürbis",
         card: id,
+        // The stamp the card was made of – the copies keep it.
+        stamp: HEART,
         shape: "diamond",
         drawing: DRAWING,
         color: "gold",

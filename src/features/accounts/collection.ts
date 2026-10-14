@@ -273,7 +273,7 @@ const removeData: CollectionBeforeDeleteHook = async ({ id, req }) => {
       collection: "stamps",
       id: copy.id,
       data: {
-        origin: { ...copy.origin, from: null, name: "" },
+        origin: { ...copy.origin, from: null, name: "", stamp: null },
         changedAt: now,
       },
       context: { sync: true },

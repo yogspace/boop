@@ -325,6 +325,7 @@ export interface Stamp {
     message?: string | null;
     card?: string | null;
     gift?: string | null;
+    stamp?: string | null;
   };
   changedAt: string;
   deleted?: boolean | null;
@@ -471,6 +472,7 @@ export interface Gift {
     | number
     | boolean
     | null;
+  stamp?: string | null;
   /**
    * When it last went out.
    */
@@ -794,6 +796,7 @@ export interface StampsSelect<T extends boolean = true> {
         message?: T;
         card?: T;
         gift?: T;
+        stamp?: T;
       };
   changedAt?: T;
   deleted?: T;
@@ -888,6 +891,7 @@ export interface GiftsSelect<T extends boolean = true> {
   color?: T;
   shape?: T;
   drawing?: T;
+  stamp?: T;
   sentAt?: T;
   sentTo?: T;
   updatedAt?: T;
@@ -2667,7 +2671,7 @@ export interface Translation {
          */
         send?: string | null;
         /**
-         * DE: Dieser Stempel geht an alle Boop-Konten – das lässt sich nicht zurückholen.  ·  EN: This stamp goes to every Boop account – it can't be taken back.
+         * DE: Dieser Stempel geht an alle Boop-Konten, die ihn noch nicht haben – auch an neue seit dem letzten Mal. Zurückholen lässt er sich nicht.  ·  EN: This stamp goes to every Boop account that doesn't have it yet – new ones since last time too. It can't be taken back.
          */
         confirm?: string | null;
         /**
@@ -2675,6 +2679,10 @@ export interface Translation {
          */
         yes?: string | null;
         sent?: {
+          /**
+           * DE: Alle haben ihn schon – seit dem letzten Mal ist niemand dazugekommen.  ·  EN: Everyone has it already – nobody new since last time.
+           */
+          none?: string | null;
           /**
            * DE: Unterwegs an 1 Konto  ·  EN: On its way to 1 account
            */
@@ -3887,6 +3895,7 @@ export interface TranslationsSelect<T extends boolean = true> {
                     sent?:
                       | T
                       | {
+                          none?: T;
                           one?: T;
                           many?: T;
                         };

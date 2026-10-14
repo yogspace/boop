@@ -183,5 +183,9 @@ Stand: 13.10.2026
 
 ## Ideen am Rand
 
+- Stempel bearbeitbar machen: Jede Kopie (Karte, Geschenk) kennt ihr Original
+  (`origin.stamp` an den Stempeln) – eine Änderung am Original kann dann an
+  alle Kopien gehen.
+
 refactor. manche files haben > 700 zeilen!
 die stempel in der monats/jahresansicht etwas chaotischer machen bzw. lustiger hihi

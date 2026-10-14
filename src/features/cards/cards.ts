@@ -424,6 +424,7 @@ const takeCard = async (req: PayloadRequest, card: CardRow, me: string) => {
         name: String(giver?.name ?? ""),
         message: card.message,
         card: card.id,
+        stamp: card.stamp,
       },
       changedAt: new Date().toISOString(),
       deleted: false,

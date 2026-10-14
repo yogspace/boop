@@ -109,6 +109,13 @@ export const Stamps: CollectionConfig = {
           type: "text",
           index: true,
         },
+        {
+          // The stamp it is a copy of – its maker's own. Kept for the day a
+          // stamp can be changed: then a change can reach every copy.
+          name: "stamp",
+          type: "text",
+          index: true,
+        },
       ],
     },
     ...syncFields,

@@ -687,11 +687,16 @@ const de = {
         messagePlaceholder: "Frohes Stempeln!",
         send: "An alle verschicken",
         confirm:
-          "Dieser Stempel geht an alle Boop-Konten – das lässt sich nicht zurückholen.",
+          "Dieser Stempel geht an alle Boop-Konten, die ihn noch nicht haben – auch an neue seit dem letzten Mal. Zurückholen lässt er sich nicht.",
         yes: "Ja, an alle",
         sent: template(
-          { one: "Unterwegs an 1 Konto", many: "Unterwegs an {n} Konten" },
-          (say) => (n: number) => (n === 1 ? say.one() : say.many({ n }))
+          {
+            none: "Alle haben ihn schon – seit dem letzten Mal ist niemand dazugekommen.",
+            one: "Unterwegs an 1 Konto",
+            many: "Unterwegs an {n} Konten",
+          },
+          (say) => (n: number) =>
+            n === 0 ? say.none() : n === 1 ? say.one() : say.many({ n })
         ),
         offline: "Offline – verschicken geht nur mit Verbindung.",
         tooMany:
@@ -1440,9 +1445,10 @@ const en: Shape<typeof de> = {
         messagePlaceholder: "Happy stamping!",
         send: "Send to everyone",
         confirm:
-          "This stamp goes to every Boop account – it can't be taken back.",
+          "This stamp goes to every Boop account that doesn't have it yet – new ones since last time too. It can't be taken back.",
         yes: "Yes, to everyone",
         sent: {
+          none: "Everyone has it already – nobody new since last time.",
           one: "On its way to 1 account",
           many: "On its way to {n} accounts",
         },

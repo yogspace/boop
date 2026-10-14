@@ -108,6 +108,8 @@ const takeDrawing: CollectionBeforeChangeHook = async ({
   const look = cardStampOf(found);
   return {
     ...next,
+    // The stamp the card was made of – the copies keep it (`origin.stamp`).
+    ...(found.stamp ? { stamp: idOf(found.stamp) } : {}),
     shape: look.shape,
     drawing: look.drawing,
     color: data.color || look.color,
@@ -162,6 +164,23 @@ const giftFromStamp: Endpoint["handler"] = async (req) => {
   if (tooMany(me)) {
     return Response.json({ error: "Too many gifts." }, { status: 429 });
   }
+  // Sent before: the same gift again – it reaches those without it (new
+  // accounts since), no one twice.
+  const { docs: before } = await payload.find({
+    collection: "gifts",
+    where: { stamp: { equals: String(stamp.id) } },
+    limit: 1,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  });
+  if (before[0]) {
+    const id = String(before[0].id);
+    return Response.json(
+      { gift: id, sent: await sendSoon(payload, id) },
+      { status: 202 }
+    );
+  }
   const look = cardStampOf(stamp);
   const colors = await stampColorsNow(req);
   const message = cleanMessage(body.message);
@@ -176,6 +195,7 @@ const giftFromStamp: Endpoint["handler"] = async (req) => {
     locale: first,
     data: {
       ...texts(first),
+      stamp: String(stamp.id),
       shape: look.shape,
       drawing: look.drawing,
       // A color the CMS no longer has shows as its first – there, too.
@@ -303,6 +323,9 @@ export const Gifts: CollectionConfig = {
       admin: { hidden: true },
     },
     { name: "drawing", type: "json", admin: { hidden: true } },
+    // The stamp it was made of – in the app, or the card's in the CMS.
+    // Sent from the app again, it is this gift again; its copies keep it.
+    { name: "stamp", type: "text", index: true, admin: { hidden: true } },
     {
       name: "sentAt",
       type: "date",
@@ -378,15 +401,24 @@ export const Gifts: CollectionConfig = {
  * accounts it goes: all with a confirmed address.
  */
 const sendSoon = async (payload: Payload, id: string) => {
-  const { totalDocs } = await payload.count({
-    collection: "accounts",
-    where: { _verified: { equals: true } },
-    overrideAccess: true,
-  });
+  const [accounts, copies] = await Promise.all([
+    payload.count({
+      collection: "accounts",
+      where: { _verified: { equals: true } },
+      overrideAccess: true,
+    }),
+    // Those who have it – or had it: a copy deleted stays a marker, and
+    // isn't given again.
+    payload.count({
+      collection: "stamps",
+      where: { "origin.gift": { equals: id } },
+      overrideAccess: true,
+    }),
+  ]);
   void sendGift(payload, id).catch((error) =>
     payload.logger.error({ err: error, msg: "[gifts] not sent" })
   );
-  return totalDocs;
+  return Math.max(0, accounts.totalDocs - copies.totalDocs);
 };
 
 const giftById = async (payload: Payload, id: string) =>
@@ -469,6 +501,8 @@ export const sendGift = async (
               name: BOOP,
               message: messages[locale],
               gift: id,
+              // The stamp it was made of, when there is one (`stamp` below).
+              ...(gift.stamp ? { stamp: String(gift.stamp) } : {}),
             },
             changedAt: new Date().toISOString(),
             deleted: false,
