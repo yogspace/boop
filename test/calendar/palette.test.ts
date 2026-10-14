@@ -13,6 +13,7 @@ import {
   nextKey,
   pickable,
   setPalette,
+  wornFinish,
 } from "../../src/features/calendar/palette";
 
 describe("the stamp colors", () => {
@@ -213,5 +214,13 @@ describe("the stamp colors", () => {
     expect(finishOf("glitter")).toBeUndefined();
     setPalette(DEFAULT_PALETTE);
     expect(finishOf("glitter")).toBe("glitter");
+  });
+
+  it("tells a color's finish as it is – the CMS's row being edited", () => {
+    expect(wornFinish({ special: true, finish: "wood" })).toBe("wood");
+    expect(wornFinish({ special: false, finish: "wood" })).toBeUndefined();
+    expect(wornFinish({ finish: "heat" })).toBeUndefined();
+    expect(wornFinish({ special: true, finish: "shiny" })).toBeUndefined();
+    expect(wornFinish({ special: true, finish: null })).toBeUndefined();
   });
 });

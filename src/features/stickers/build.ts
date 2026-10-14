@@ -7,7 +7,7 @@ import {
   type StampShape,
 } from "../calendar/model";
 import { outlinePoints, rimLine } from "../calendar/outline";
-import { finishOf, hexOf } from "../calendar/palette";
+import { type Finish, finishOf, hexOf } from "../calendar/palette";
 import { inkRubber, rgb, setFinish, tint, toonMaterial } from "./ink";
 
 /**
@@ -44,6 +44,11 @@ export type StickerInput = {
     /** A stamp for the big days – it glitters. */
     readonly special?: boolean;
   } | null;
+  /**
+   * A literal hex's finish (the CMS's preview, palette.ts `wornFinish`) – a
+   * color's key brings its own.
+   */
+  finish?: Finish;
 };
 
 /** The rubber: out to the rim's outer edge, its relief this high. */
@@ -699,7 +704,7 @@ export const buildSticker = (
   // From the face to the middle of the whole stamp.
   holder.userData.half = -(top - KNOB.height - KNOB.ball * 1.4) / 2;
   pivot(holder, 1);
-  paintSticker(holder, input.color);
+  paintSticker(holder, input.color, input.finish);
   return holder;
 };
 
@@ -718,13 +723,17 @@ export const pivot = (sticker: Three.Object3D, amount: number) => {
  * exactly the drawing's (stamp-svg.tsx) – a special ink in its finish, on
  * the rim and doodle only. Quick – only a few values change.
  */
-export const paintSticker = (sticker: Three.Object3D, ink: ColorName) => {
+export const paintSticker = (
+  sticker: Three.Object3D,
+  ink: ColorName,
+  finish = finishOf(ink)
+) => {
   const rubber = sticker.getObjectByName("rubber") as Three.Mesh | undefined;
   if (!rubber) return;
   const hex = hexOf(ink);
   const material = rubber.material as Three.Material;
   inkRubber(material, rgb(hex), tint(hex, GROUND));
-  setFinish(material, finishOf(ink));
+  setFinish(material, finish);
 };
 
 /** Frees what the stamp's meshes hold on the GPU. */

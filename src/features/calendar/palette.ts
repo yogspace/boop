@@ -245,12 +245,21 @@ export const hexOf = (color: string): string =>
  * The finish a color's ink wears – what is drawn in it: the raised doodle
  * and rim of a stamp in 3D (stickers/ink.ts), a print (stamp-svg.tsx). Only
  * a special color's: a public one stays plain, even with a finish set in the
- * CMS – and so do a literal hex and a key the palette doesn't have
- * (anymore).
+ * CMS. Of a color as it is – the CMS's row being edited, too.
+ */
+export const wornFinish = (color: {
+  special?: boolean;
+  finish?: unknown;
+}): Finish | undefined =>
+  color.special && isFinish(color.finish) ? color.finish : undefined;
+
+/**
+ * The finish a color's ink wears, by its key (`wornFinish`) – none for a
+ * literal hex or a key the palette doesn't have (anymore).
  */
 export const finishOf = (color: string): Finish | undefined => {
   const known = byKey.get(color);
-  return known?.special ? known.finish : undefined;
+  return known && wornFinish(known);
 };
 
 /**

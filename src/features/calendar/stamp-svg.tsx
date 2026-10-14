@@ -125,6 +125,7 @@ export const StampSvg = ({
   print = false,
   seed = 7,
   filled = false,
+  finish: own,
 }: {
   drawing: ReadonlyDrawing | null;
   color: ColorName;
@@ -137,11 +138,16 @@ export const StampSvg = ({
   seed?: number;
   /** The body tinted in its color – the drawing surface. */
   filled?: boolean;
+  /**
+   * A literal hex's finish (the CMS's preview, palette.ts `wornFinish`) – a
+   * color's key brings its own.
+   */
+  finish?: Finish;
 }) => {
   const id = useId();
   const ink = hexOf(color);
   // What the print is inked with: the color – or its finish, if it has one.
-  const finish = print ? finishOf(color) : undefined;
+  const finish = print ? (own ?? finishOf(color)) : undefined;
   const paint = finish ? `url(#${id}-finish)` : ink;
   const fade = { transition: "stroke 400ms, fill 400ms" };
   // Something drawn? Lines or filled areas – an empty drawing is none.
@@ -479,8 +485,8 @@ const FinishPaint = ({
   switch (finish) {
     case "metal": {
       // Light, the color, its dark – a sharp pale glint – and back again.
-      const light = lighter(hex, 0.5);
-      const glint = lighter(hex, 0.82);
+      const light = lighter(hex, 0.35);
+      const glint = lighter(hex, 0.78);
       const dark = deeper(hex);
       return (
         <linearGradient
@@ -610,46 +616,67 @@ const FinishPaint = ({
       );
     }
     case "marble": {
-      // Soft swirls of its light, fine veins of its dark and light.
-      const vein = (from: number, wave: number, phase: number) =>
+      // Soft clouds of its light, swirled, and veins winding through them –
+      // fine dark ones, finer light ones – each its own way.
+      const vein = ([from, tilt, wave, phase]: number[]) =>
         wavy(
           (x) =>
             from +
-            x * 0.55 +
-            wave * Math.sin(x * 7 + phase) +
-            wave * 0.5 * Math.sin(x * 17 + phase * 2)
+            x * tilt +
+            wave * Math.sin(x * 5.3 + phase) +
+            wave * 0.6 * Math.sin(x * 12.7 + phase * 1.7) +
+            wave * 0.25 * Math.sin(x * 29 + phase)
         );
+      const lines = (
+        veins: number[][],
+        kind: string,
+        stroke: string,
+        width: number,
+        opacity = 1
+      ) =>
+        veins.map((at) => (
+          <path
+            d={vein(at)}
+            fill="none"
+            key={`${kind}-${at.join()}`}
+            stroke={stroke}
+            strokeLinecap="round"
+            strokeOpacity={opacity}
+            strokeWidth={width}
+          />
+        ));
       return (
         <Tile ground={hex} id={id} size={1}>
-          {[-0.2, 0.15, 0.48].map((from, i) => (
-            <path
-              d={vein(from, 0.05, i * 2.1)}
-              fill="none"
-              key={`swirl-${from}`}
-              stroke={lighter(hex, 0.45)}
-              strokeLinecap="round"
-              strokeOpacity={0.8}
-              strokeWidth={0.09}
-            />
-          ))}
-          {[-0.05, 0.3, 0.62].map((from, i) => (
-            <path
-              d={vein(from, 0.04, i * 1.3 + 1)}
-              fill="none"
-              key={`dark-${from}`}
-              stroke={deeper(hex)}
-              strokeWidth={0.012}
-            />
-          ))}
-          {[0.05, 0.4].map((from, i) => (
-            <path
-              d={vein(from, 0.03, i * 2.7 + 2)}
-              fill="none"
-              key={`light-${from}`}
-              stroke={lighter(hex, 0.7)}
-              strokeWidth={0.008}
-            />
-          ))}
+          {lines(
+            [
+              [-0.05, 0.4, 0.1, 0],
+              [0.4, -0.2, 0.12, 2.3],
+              [0.75, 0.3, 0.09, 4.1],
+            ],
+            "cloud",
+            lighter(hex, 0.45),
+            0.14,
+            0.55
+          )}
+          {lines(
+            [
+              [0.1, 0.55, 0.07, 1],
+              [0.55, -0.35, 0.08, 3.2],
+              [0.85, 0.15, 0.06, 5.5],
+            ],
+            "dark",
+            deeper(hex),
+            0.011
+          )}
+          {lines(
+            [
+              [0.3, 0.45, 0.06, 2.2],
+              [0.72, -0.25, 0.05, 0.7],
+            ],
+            "light",
+            lighter(hex, 0.7),
+            0.007
+          )}
         </Tile>
       );
     }

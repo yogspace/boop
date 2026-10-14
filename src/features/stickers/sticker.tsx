@@ -29,10 +29,11 @@ const useStickerImage = (input: StickerInput | null, kind: Pose = "face") => {
   const shape = input?.shape;
   const color = input?.color;
   const drawing = input?.drawing;
+  const finish = input?.finish;
   // Before the paint, so a picture that's there never blinks.
   useLayoutEffect(() => {
     if (!(shape && color)) return;
-    const stamp = { shape, color, drawing: drawing ?? null };
+    const stamp = { shape, color, drawing: drawing ?? null, finish };
     const ready = renderedStickerImage(stamp, kind);
     if (ready) {
       setPicture({ url: ready, fresh: false, failed: false });
@@ -47,7 +48,7 @@ const useStickerImage = (input: StickerInput | null, kind: Pose = "face") => {
     return () => {
       live = false;
     };
-  }, [shape, color, drawing, kind]);
+  }, [shape, color, drawing, finish, kind]);
   return picture;
 };
 
@@ -80,14 +81,14 @@ export const Sticker = ({
 }) => {
   const { url, fresh, failed } = useStickerImage(stamp, pose);
   const box = useRef<HTMLSpanElement>(null);
-  const { shape, color, drawing } = stamp;
+  const { shape, color, drawing, finish } = stamp;
   // Only the face looks – and only once its picture is there.
   const looks = pose === "face" && look !== "never" ? look : null;
   useEffect(() => {
     const host = box.current;
     if (!(host && url && looks)) return;
-    return watchLook(host, { shape, color, drawing }, looks);
-  }, [url, looks, shape, color, drawing]);
+    return watchLook(host, { shape, color, drawing, finish }, looks);
+  }, [url, looks, shape, color, drawing, finish]);
   return (
     <span
       className={cn("relative block aspect-square", className)}

@@ -1,9 +1,19 @@
 "use client";
 
-import { TextField, useField, useRowLabel } from "@payloadcms/ui";
+import {
+  TextField,
+  useField,
+  useFormFields,
+  useRowLabel,
+} from "@payloadcms/ui";
 import type { TextFieldClientComponent } from "payload";
 import { type RefObject, useEffect, useRef, useState } from "react";
-import { DEFAULT_PALETTE, isHex } from "@/features/calendar/palette";
+import {
+  DEFAULT_PALETTE,
+  type Finish,
+  isHex,
+  wornFinish,
+} from "@/features/calendar/palette";
 import { StampSvg } from "@/features/calendar/stamp-svg";
 import { demoStamp } from "@/features/stickers/demo";
 import { Sticker } from "@/features/stickers/sticker";
@@ -54,12 +64,30 @@ const useRested = <T,>(value: T, ms = 250) => {
 };
 
 /**
+ * The finish the row's color wears – as its “Public” box and its finish are
+ * set right now (palette.ts `wornFinish`): none while it is public.
+ */
+const useRowFinish = (path: string): Finish | undefined => {
+  const row = path.slice(0, path.lastIndexOf("."));
+  const open = useFormFields(([fields]) => fields[`${row}.public`]?.value);
+  const finish = useFormFields(([fields]) => fields[`${row}.finish`]?.value);
+  return wornFinish({ special: open === false, finish });
+};
+
+/**
  * A stamp in the color, the ways the app shows one: being drawn, printed on
  * a day, as the ink to dip into, and in 3D – lying in the tray and coming
  * down. The app's parts take a color's key – and, through `hexOf`
- * (palette.ts), a literal hex as it is: so they draw any color, saved or not.
+ * (palette.ts), a literal hex as it is: so they draw any color, saved or not
+ * – its finish given along, for a special one.
  */
-const StampColorPreview = ({ color }: { color: string }) => {
+const StampColorPreview = ({
+  color,
+  finish,
+}: {
+  color: string;
+  finish: Finish | undefined;
+}) => {
   const box = useRef<HTMLDivElement>(null);
   const seen = useSeen(box);
   // The 3D pictures render in the browser only (WebGL), and take a moment:
@@ -87,6 +115,7 @@ const StampColorPreview = ({ color }: { color: string }) => {
             className="scp-svg scp-print"
             color={color}
             drawing={drawing}
+            finish={finish}
             print
             shape={shape}
           />
@@ -106,7 +135,7 @@ const StampColorPreview = ({ color }: { color: string }) => {
           {ink && (
             <Sticker
               className="scp-sticker"
-              stamp={{ color: ink, drawing, shape }}
+              stamp={{ color: ink, drawing, shape, finish }}
             />
           )}
         </span>
@@ -118,7 +147,7 @@ const StampColorPreview = ({ color }: { color: string }) => {
             <Sticker
               className="scp-sticker"
               pose="press"
-              stamp={{ color: ink, drawing, shape }}
+              stamp={{ color: ink, drawing, shape, finish }}
             />
           )}
         </span>
@@ -132,6 +161,7 @@ const StampColorPreview = ({ color }: { color: string }) => {
 export const StampColorField: TextFieldClientComponent = (props) => {
   const { value, setValue } = useField<string>({ path: props.path });
   const color = isHex(value) ? value.toLowerCase() : FALLBACK;
+  const finish = useRowFinish(props.path);
   return (
     <div className="stamp-color-field">
       <div className="stamp-color-input">
@@ -145,7 +175,7 @@ export const StampColorField: TextFieldClientComponent = (props) => {
         />
         <TextField {...props} />
       </div>
-      <StampColorPreview color={color} />
+      <StampColorPreview color={color} finish={finish} />
     </div>
   );
 };
