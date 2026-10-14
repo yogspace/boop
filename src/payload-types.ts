@@ -995,9 +995,9 @@ export interface Site {
      */
     public?: boolean | null;
     /**
-     * How the rubber looks in 3D – empty: like any other.
+     * How what is drawn in it looks – the doodle and rim, on the stamp in 3D and on its prints. Only for a color that isn't public: a public one stays plain. Empty: like any other.
      */
-    finish?: ('metal' | 'glitter') | null;
+    finish?: ('metal' | 'glitter' | 'holo' | 'wood' | 'confetti' | 'stars' | 'marble' | 'heat') | null;
     id?: string | null;
   }[];
   links: {
@@ -2786,6 +2786,10 @@ export interface Translation {
        */
       language?: string | null;
       /**
+       * DE: Abgleich  ·  EN: Sync
+       */
+      sync?: string | null;
+      /**
        * DE: Dein Name – so sehen dich die anderen  ·  EN: Your name – how the others see you
        */
       name?: string | null;
@@ -3926,6 +3930,7 @@ export interface TranslationsSelect<T extends boolean = true> {
               profile?: T;
               device?: T;
               language?: T;
+              sync?: T;
               name?: T;
               nameFailed?: T;
               email?: T;

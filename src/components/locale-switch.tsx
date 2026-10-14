@@ -5,7 +5,8 @@ import NextLink from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SPRING } from "@/components/motion";
-import { LOCALES, type Locale } from "@/i18n/config";
+import { PILL } from "@/components/ui";
+import { LOCALE_NAMES, LOCALES, type Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
 
 /**
@@ -23,11 +24,15 @@ import { cn } from "@/lib/cn";
  * is in words than the language (the app's view: /de/app/familie/heute is
  * /en/app/familie/today), the page says what it is in the other one
  * (`hrefOf`).
+ *
+ * `pills`: in a sheet rather than a bar (the app's account sheet) – each
+ * language by its name, on a pill of its own, the one in use filled.
  */
 export const LocaleSwitch = ({
   locale,
   onPick,
   hrefOf,
+  pills = false,
   className,
 }: {
   locale: Locale;
@@ -35,6 +40,7 @@ export const LocaleSwitch = ({
   onPick?: (locale: Locale) => void;
   /** The page's path in another language – else only the language swaps. */
   hrefOf?: (locale: Locale) => string;
+  pills?: boolean;
   className?: string;
 }) => {
   const pathname = usePathname() ?? `/${locale}`;
@@ -49,7 +55,12 @@ export const LocaleSwitch = ({
   useEffect(() => setPicked(locale), [locale]);
   return (
     <span
-      className={cn("flex gap-2 font-medium text-muted text-sm", className)}
+      className={cn(
+        pills
+          ? "flex flex-wrap gap-2.5"
+          : "flex gap-2 font-medium text-muted text-sm",
+        className
+      )}
     >
       {LOCALES.map((other) => {
         const href = `${hrefOf ? hrefOf(other) : `/${other}${rest}`}${tail}`;
@@ -57,8 +68,11 @@ export const LocaleSwitch = ({
           <NextLink
             aria-current={other === locale ? "page" : undefined}
             className={cn(
-              "relative font-black uppercase transition-colors hover:text-ink",
-              other === picked && "text-ink"
+              pills
+                ? cn(PILL, "px-5 py-2.5 text-base")
+                : "relative font-black uppercase transition-colors hover:text-ink",
+              pills && other === picked && "scribble-ink",
+              !pills && other === picked && "text-ink"
             )}
             href={href}
             hrefLang={other}
@@ -83,8 +97,8 @@ export const LocaleSwitch = ({
             }}
             scroll={false}
           >
-            {other}
-            {other === picked && (
+            {pills ? LOCALE_NAMES[other] : other}
+            {!pills && other === picked && (
               <m.span
                 aria-hidden="true"
                 className="scribble-underline pointer-events-none absolute! inset-0 [--scribble-width:2.5px]"

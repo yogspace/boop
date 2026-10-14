@@ -47,12 +47,26 @@ describe("the stamp colors as the CMS keeps them", () => {
           finish: "metal",
         },
         { key: "fog", color: "#cccccc", name: "Nebel", finish: null },
+        {
+          key: "oak",
+          color: "#b5793f",
+          name: "Eiche",
+          public: false,
+          finish: "wood",
+        },
+        { key: "lava", color: "#e0461c", name: "Lava", finish: "heat" },
+        { key: "foil", color: "#9aa6d8", name: "Folie", finish: "shiny" },
       ]).map(({ key, special, finish }) => ({ key, special, finish }))
     ).toEqual([
       { key: "moss", special: undefined, finish: undefined },
       { key: "coral", special: undefined, finish: undefined },
       { key: "gold", special: true, finish: "metal" },
       { key: "fog", special: undefined, finish: undefined },
+      { key: "oak", special: true, finish: "wood" },
+      // Kept as the CMS has it – a public color wears it nowhere (finishOf).
+      { key: "lava", special: undefined, finish: "heat" },
+      // No finish the code knows.
+      { key: "foil", special: undefined, finish: undefined },
     ]);
   });
 

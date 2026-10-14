@@ -1,5 +1,5 @@
 import type * as Three from "three";
-import type { Finish } from "../calendar/palette";
+import { FINISHES, type Finish } from "../calendar/palette";
 
 /**
  * How a stamp is drawn – like a cartoon: flat colors, a touch of shade, and
@@ -41,8 +41,8 @@ const SHADE: Rgb = [0.93, 0.9, 0.98];
 /**
  * What every stamp's materials read, set right before it is drawn: how much
  * of the cartoon there is (0 – just the flat colors, as the drawing), the
- * clock (s) and the line's width (px) – for the glitter – and whether it
- * twinkles.
+ * clock (s) and the line's width (px) – for the sparkles (glitter.ts) and a
+ * special ink's finish – and whether they twinkle.
  */
 export const inkState = {
   amount: { value: 1 },
@@ -87,7 +87,9 @@ const CODE: Record<Part, number> = {
 const VERTEX = /* glsl */ `
 #ifdef RUBBER
 attribute float relief;
+attribute float core;
 varying float vRelief;
+varying float vCore;
 #endif
 #ifdef KNOB
 varying float vDeep;
@@ -98,6 +100,7 @@ varying vec3 vFacing;
 void main() {
 #ifdef RUBBER
   vRelief = relief;
+  vCore = core;
 #endif
   vLocal = position;
   vFacing = normal;
@@ -118,16 +121,16 @@ uniform vec3 color;
 uniform vec3 shade;
 uniform float code;
 uniform float amount;
-uniform float metal;
-uniform float glitter;
-uniform float time;
-uniform float twinkle;
 #ifdef RUBBER
 uniform vec3 ink;
 uniform vec3 inkShade;
 uniform vec3 ground;
 uniform vec3 groundShade;
+uniform int finish;
+uniform float time;
+uniform float twinkle;
 varying float vRelief;
+varying float vCore;
 #endif
 #ifdef KNOB
 varying float vDeep;
@@ -148,8 +151,36 @@ float wobble(vec3 p) {
     + 0.2 * sin(dot(p, vec3(-6.3, 15.7, -8.1)) + 4.1);
 }
 
+#ifdef RUBBER
+// A special color's finish (palette.ts), on what is inked: the rim and the
+// doodle. Drawn like the rest – flat tones, hard edges, a few pixels soft –
+// and all of it stuck to the stamp; what moves with the view moves as it
+// turns. Where it twinkles, it does so out of step.
+
 float hash(vec3 p) {
   return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+}
+
+vec3 hash3(vec3 p) {
+  return vec3(hash(p + 1.7), hash(p + 3.1), hash(p + 5.3));
+}
+
+// Smooth noise over the face, about one bump per unit.
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(hash(vec3(i, 0.0)), hash(vec3(i + vec2(1.0, 0.0), 0.0)), u.x),
+    mix(hash(vec3(i + vec2(0.0, 1.0), 0.0)), hash(vec3(i + 1.0, 0.0)), u.x),
+    u.y
+  );
+}
+
+// 0 below e, 1 above – the step a pixel wide.
+float above(float e, float x) {
+  float aa = fwidth(x);
+  return smoothstep(e - aa, e + aa, x);
 }
 
 // 1 inside a stripe of half-width w round c, smooth at its edges.
@@ -158,36 +189,224 @@ float band(float x, float c, float w) {
   return 1.0 - smoothstep(w - aa, w + aa, abs(x - c));
 }
 
-// A metal ink, drawn like a cartoon: a round part takes the sky above the
-// horizon (lighter), a darker band below it and one hard glint; a flat one
-// two light streaks across it.
-vec3 metalOf(vec3 c, vec3 n, float level) {
-  float up = n.y + 0.3 * n.x;
-  float aa = fwidth(up);
-  vec3 curved = mix(c * 0.66, mix(c, WHITE, 0.4), smoothstep(-aa, aa, up - 0.04));
-  float glint = dot(n, normalize(vec3(-0.5, 0.6, 0.62)));
-  float ga = fwidth(glint);
-  curved = mix(curved, WHITE, 0.85 * smoothstep(0.95 - ga, 0.95 + ga, glint));
-  float d = (vLocal.x + vLocal.y) * 0.7071;
-  vec3 streaked = mix(c, WHITE, 0.5 * max(band(d, 0.1, 0.06), band(d, 0.26, 0.022)));
-  return mix(curved, streaked, level);
+// Thin stripes, w wide, wherever x passes a whole number.
+float stripes(float x, float w) {
+  float aa = fwidth(x);
+  return 1.0 - smoothstep(w - aa, w + aa, abs(fract(x + 0.5) - 0.5));
 }
 
-// Glitter in the ink: flecks stuck to the stamp – a few of the cells of a
-// grid hold one, a little diamond – that twinkle out of step where it is
-// live. Each one soft at its edge by how big the grid shows (not by the
-// distance's own change, which leaps at the cells' borders).
-float flecks(vec3 p) {
-  vec3 cell = floor(p);
-  float h = hash(cell);
-  vec3 at = 0.5 + 0.2 * (vec3(hash(cell + 1.7), hash(cell + 3.1), hash(cell + 5.3)) - 0.5);
-  vec3 off = abs(fract(p) - at);
-  float d = off.x + off.y + off.z;
-  float r = 0.3 + 0.16 * hash(cell + 7.9);
-  float aa = 0.7 * length(fwidth(p));
-  float beat = 0.55 + 0.45 * sin(time * (1.6 + 2.4 * h) + h * 40.0);
-  return step(0.5, h) * (1.0 - smoothstep(r - aa, r + aa, d)) * mix(0.9, beat, twinkle);
+// A color of the rainbow, 0–1 round.
+vec3 hue(float h) {
+  return clamp(abs(fract(h + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0, 0.0, 1.0);
 }
+
+// The color deeper and fuller – its dark tone.
+vec3 deeper(vec3 c) {
+  return c * mix(c, vec3(1.0), 0.25) * 0.85;
+}
+
+// Gently up and down, each at its own pace (h) – still where nothing moves.
+float beat(float h, float pace) {
+  return mix(1.0, 0.5 + 0.5 * sin(time * pace * (1.4 + 2.0 * h) + h * 40.0), twinkle);
+}
+
+// A dot in each cell of a grid round p, placed and sized at random: how
+// much of it covers p – soft at its edge by how big the grid shows, not by
+// the distance's own change, which leaps at the cells' borders – and its
+// own random number (h).
+float dotAt(vec3 p, float size, out float h) {
+  vec3 cell = floor(p);
+  h = hash(cell);
+  vec3 at = 0.5 + 0.5 * (hash3(cell) - 0.5);
+  float r = size * (0.7 + 0.6 * hash(cell + 7.9));
+  float aa = 0.7 * length(fwidth(p));
+  return 1.0 - smoothstep(r - aa, r + aa, length(fract(p) - at));
+}
+
+// A shape's outline as cover: inside (d < 0) 1, soft by aa.
+float inside(float d, float aa) {
+  return 1.0 - smoothstep(-aa, aa, d);
+}
+
+// A four-pointed sparkle, its points r out.
+float sparkle(vec2 p, float r) {
+  float k = pow(abs(p.x) / r, 0.55) + pow(abs(p.y) / r, 0.55);
+  return inside(k - 1.0, fwidth(k));
+}
+
+// How far from a five-pointed star, its points r out (Inigo Quilez' sdStar5).
+float star(vec2 p, float r, float sharp) {
+  const vec2 k1 = vec2(0.809016994375, -0.587785252292);
+  const vec2 k2 = vec2(-k1.x, k1.y);
+  p.x = abs(p.x);
+  p -= 2.0 * max(dot(k1, p), 0.0) * k1;
+  p -= 2.0 * max(dot(k2, p), 0.0) * k2;
+  p.x = abs(p.x);
+  p.y -= r;
+  vec2 ba = sharp * vec2(-k1.y, k1.x) - vec2(0.0, 1.0);
+  float h = clamp(dot(p, ba) / dot(ba, ba), 0.0, r);
+  return length(p - ba * h) * sign(p.y * ba.x - p.x * ba.y);
+}
+
+// Metal, drawn like chrome in a cartoon: the face mirrors a sky over a
+// horizon – light above it, one hard white glint, a deep band below and the
+// ground lighter again further down – and the lines are deeper at their
+// edges, round like wire. The rubber's side, round itself, takes the sky
+// above and the deep band below, and its glint where it faces the light.
+vec3 metal(vec3 c, vec3 n, float level) {
+  float y = dot(vLocal.xy, vec2(-0.26, 0.97)) + 0.5 * n.y - 0.08 * n.x;
+  const float H = 0.05;
+  vec3 sky = mix(mix(c, WHITE, 0.55), mix(c, WHITE, 0.2), above(H + 0.17, y));
+  vec3 below = mix(mix(c, WHITE, 0.3), c, above(H - 0.34, y));
+  below = mix(below, deeper(c), above(H - 0.15, y));
+  vec3 face = mix(below, sky, above(H, y));
+  face = mix(face, deeper(face), 0.55 * (1.0 - above(0.8, vCore)));
+  face = mix(face, WHITE, 0.95 * band(y, H + 0.035, 0.013));
+  float up = n.y + 0.3 * n.x;
+  vec3 side = mix(deeper(c), mix(c, WHITE, 0.45), above(0.04, up));
+  float glint = dot(n, normalize(vec3(-0.5, 0.6, 0.62)));
+  side = mix(side, WHITE, 0.9 * above(0.95, glint));
+  return mix(side, face, level);
+}
+
+// Glitter: a fleck in every cell of a fine grid – the ink's dark and light
+// tones, a few pale ones – bigger light flakes over them, a few white, and
+// now and then a little sparkle on the face. Turning, flecks catch the
+// light and flash white; where it is live, the flakes and sparkles twinkle.
+// Half a cell off: the face (z = 0) lies in the middle of a layer of cells,
+// not on the border between two.
+vec3 glitter(vec3 c, vec3 n, float level) {
+  vec3 light = mix(c, WHITE, 0.45);
+  vec3 pale = mix(c, WHITE, 0.75);
+  vec3 toward = normalize(normalize(LIGHT) + vec3(0.0, 0.0, 1.0));
+  vec3 seen = mix(c, deeper(c), 0.18);
+  float h;
+  vec3 p = vLocal * 70.0 + 0.5;
+  float dust = dotAt(p, 0.36, h);
+  vec3 fleck = h < 0.42 ? deeper(c) : h < 0.86 ? light : pale;
+  vec3 tilt = normalize(n + 0.55 * (hash3(floor(p) + 9.1) - 0.5));
+  fleck = mix(fleck, WHITE, smoothstep(0.93, 0.97, dot(tilt, toward)));
+  seen = mix(seen, fleck, dust);
+  float g;
+  p = vLocal * 26.0 + 17.5;
+  float flake = dotAt(p, 0.3, g) * step(0.62, g) * beat(g, 1.2);
+  tilt = normalize(n + 0.6 * (hash3(floor(p)) - 0.5));
+  vec3 flakeColor = mix(g > 0.9 ? WHITE : pale, WHITE, smoothstep(0.9, 0.96, dot(tilt, toward)));
+  seen = mix(seen, flakeColor, flake);
+  vec2 q = vLocal.xy * 9.0 + 41.5;
+  vec2 cell = floor(q);
+  float s = hash(vec3(cell, 11.3));
+  vec2 off = fract(q) - 0.5 - 0.2 * (hash3(vec3(cell, 2.2)).xy - 0.5);
+  float r = (0.28 + 0.14 * hash(vec3(cell, 4.4))) * (0.25 + 0.75 * beat(s, 1.0));
+  return mix(seen, WHITE, step(0.75, s) * sparkle(off, r) * level);
+}
+
+// A hologram: the colors of the rainbow, pale, laid over the ink in bands
+// on a slant – they wander across it as it turns – and a white glint.
+vec3 holo(vec3 c, vec3 n) {
+  float t = dot(vLocal.xy, vec2(0.62, 0.78)) * 1.3 + 0.9 * (n.x + n.y)
+    + 0.06 * sin(vLocal.x * 11.0 + vLocal.y * 7.0);
+  float x = t * 6.0;
+  float aa = fwidth(x);
+  float step6 = floor(x) + smoothstep(1.0 - aa, 1.0, fract(x));
+  vec3 seen = mix(c, mix(hue(step6 / 6.0), WHITE, 0.5), 0.55);
+  return mix(seen, WHITE, 0.85 * band(fract(t * 0.5 + 0.25), 0.5, 0.03));
+}
+
+// Wood: the grain – long rings round a middle far below, lighter and darker
+// in turn, a fine dark line between two, wavering – bending round a knot.
+vec3 wood(vec3 c) {
+  vec2 q = vLocal.xy;
+  float knot = length((q - vec2(0.16, -0.12)) * vec2(1.0, 1.8));
+  float r = length((q - vec2(-0.3, -1.7)) * vec2(0.5, 1.0)) * 15.0
+    + 0.7 * noise(q * vec2(2.5, 8.0)) + 1.6 * exp(-knot * knot * 70.0);
+  vec3 seen = mix(c, mix(c, WHITE, 0.18), 0.7 * above(0.5, fract(r * 0.5 + 0.1)));
+  seen = mix(seen, deeper(c), stripes(r, 0.07));
+  float rings = stripes(knot * 55.0, 0.12) * (1.0 - smoothstep(0.045, 0.06, knot));
+  return mix(seen, deeper(c), max(rings, 1.0 - smoothstep(0.012, 0.016, knot)));
+}
+
+// Confetti: on the face, in most cells of a grid, a dot or a little strip,
+// turned any way, in one of a few cheerful colors.
+vec3 confetti(vec3 c, float level) {
+  vec2 q = vLocal.xy * 20.0 + 0.5;
+  vec2 cell = floor(q);
+  vec3 h = hash3(vec3(cell, 3.0));
+  float a = h.x * 6.2832;
+  vec2 off = mat2(cos(a), sin(a), -sin(a), cos(a)) * (fract(q) - 0.5 - 0.3 * (h.yz - 0.5));
+  vec2 box = abs(off) - vec2(0.28, 0.07);
+  float d = hash(vec3(cell, 7.0)) < 0.55
+    ? length(max(box, 0.0)) + min(max(box.x, box.y), 0.0) - 0.03
+    : length(off) - 0.14;
+  float bit = inside(d, 0.7 * length(fwidth(q))) * step(0.3, hash(vec3(cell, 9.0)));
+  float pick = hash(vec3(cell, 13.0)) * 6.0;
+  vec3 tone = pick < 1.0 ? vec3(0.95, 0.25, 0.22)
+    : pick < 2.0 ? vec3(1.0, 0.8, 0.18)
+    : pick < 3.0 ? vec3(0.16, 0.78, 0.58)
+    : pick < 4.0 ? vec3(0.27, 0.65, 1.0)
+    : pick < 5.0 ? vec3(1.0, 0.42, 0.7)
+    : WHITE;
+  return mix(c, tone, bit * level);
+}
+
+// Stars: on the face, in about half the cells of a grid, a little star –
+// white or a pale yellow – that softly breathes where it is live; between
+// them a fine dust of the ink's light tone.
+vec3 stars(vec3 c, float level) {
+  vec3 seen = mix(c, deeper(c), 0.3);
+  vec2 q = vLocal.xy * 13.0 + 0.5;
+  vec2 cell = floor(q);
+  vec3 h = hash3(vec3(cell, 21.0));
+  float r = (0.24 + 0.1 * h.z) * (0.8 + 0.2 * beat(h.x, 0.8));
+  float a = (h.y - 0.5) * 0.6;
+  vec2 off = mat2(cos(a), sin(a), -sin(a), cos(a)) * (fract(q) - 0.5 - 0.3 * (h.xy - 0.5));
+  float lit = inside(star(off, r, 0.45), 0.7 * length(fwidth(q))) * step(0.42, h.x);
+  seen = mix(seen, mix(WHITE, vec3(1.0, 0.92, 0.55), step(0.5, h.z)), lit * level);
+  float g;
+  float dust = dotAt(vLocal * 40.0 + 0.5, 0.22, g) * step(0.7, g) * beat(g, 1.0);
+  return mix(seen, mix(c, WHITE, 0.6), dust);
+}
+
+// Marble: soft clouds of the ink's light and dark tones, swirled, and veins
+// along them – a fine dark one, a finer light one.
+vec3 marble(vec3 c) {
+  vec2 q = vLocal.xy * 3.0;
+  vec2 swirl = vec2(noise(q + 1.3), noise(q + 7.7));
+  float f = 0.65 * noise(q * 1.2 + 2.2 * swirl)
+    + 0.35 * noise(q * 2.7 + 3.0 * swirl + 4.0);
+  float aa = 1.5 * fwidth(f);
+  vec3 seen = mix(c, mix(c, WHITE, 0.45), smoothstep(0.52, 0.72, f));
+  seen = mix(seen, deeper(c), 0.45 * smoothstep(0.42, 0.25, f));
+  seen = mix(seen, deeper(c), 0.8 * (1.0 - smoothstep(0.008, 0.008 + aa, abs(f - 0.47))));
+  return mix(seen, mix(c, WHITE, 0.75), 0.8 * (1.0 - smoothstep(0.005, 0.005 + aa, abs(f - 0.62))));
+}
+
+// Heat: it glows like hot iron – deep in its lines and towards the face's
+// middle white-hot, then yellow, orange and red at the edges and the rim,
+// the ink only giving them a tone. Where it is live, it flickers a little.
+vec3 heat(vec3 c) {
+  float flicker = twinkle * 0.07
+    * sin(time * 3.3 + 6.0 * noise(vLocal.xy * 6.0 + time * 0.6));
+  float t = 0.62 * smoothstep(0.6, 1.0, vCore)
+    + 0.38 * (1.0 - length(vLocal.xy) * 2.0) + flicker;
+  vec3 seen = mix(mix(vec3(0.82, 0.12, 0.07), c, 0.25), mix(vec3(1.0, 0.45, 0.08), c, 0.12), above(0.38, t));
+  seen = mix(seen, vec3(1.0, 0.83, 0.26), above(0.6, t));
+  return mix(seen, vec3(1.0, 0.97, 0.78), above(0.8, t));
+}
+
+// The ink in its finish (FINISHES' place + 1). level: how much it faces
+// out of the face – the rubber's side doesn't.
+vec3 finished(vec3 c, vec3 n, float level) {
+  if (finish == 1) return metal(c, n, level);
+  if (finish == 2) return glitter(c, n, level);
+  if (finish == 3) return holo(c, n);
+  if (finish == 4) return wood(c);
+  if (finish == 5) return confetti(c, level);
+  if (finish == 6) return stars(c, level);
+  if (finish == 7) return marble(c);
+  return heat(c);
+}
+#endif
 
 void main() {
   float light = dot(normalize(vNormal), normalize(LIGHT));
@@ -196,11 +415,6 @@ void main() {
   float part = code;
   vec3 fill = color;
   vec3 shadow = shade;
-  // How much of it wears the finish: the ink – all of the knob, the
-  // rubber's raised parts.
-  float inked = 1.0;
-  // How level it is – the rubber's face, against the round knob.
-  float level = 0.0;
 #ifdef RUBBER
   // Ink on the raised parts only, sharp – the ground pale.
   float edge = clamp((vRelief - 0.5) / max(fwidth(vRelief), 1e-4) + 0.5, 0.0, 1.0);
@@ -208,8 +422,6 @@ void main() {
   shadow = mix(groundShade, inkShade, edge);
   // Raised or not – the side goes with the rim, inked as far as it is.
   if (vRelief > 0.5) part += 1.0;
-  inked = edge;
-  level = 1.0;
 #endif
 #ifdef BLOCK
   // Its back (extruded towards the face, so −Z) – the rest, the rounded
@@ -229,42 +441,38 @@ void main() {
   deep = 0.5 + vDeep * DEEP;
 #endif
   vec3 seen = mix(fill, shadow, dark);
-  // A special color's finish – nothing of it without the cartoon (the
-  // drawing's flat colors) – and no lines: they are only light.
-  float finish = inked * amount;
-  if (metal > 0.0) {
-    seen = mix(seen, metalOf(seen, normalize(vNormal), level), metal * finish);
+#ifdef RUBBER
+  // The finish on the ink – nothing of it without the cartoon (the
+  // drawing's flat colors) – and no lines: it is only color.
+  if (finish > 0) {
+    vec3 inked = finished(
+      mix(ink, inkShade, dark),
+      normalize(vNormal),
+      smoothstep(0.35, 0.65, vFacing.z)
+    );
+    seen = mix(seen, inked, edge * amount);
   }
-  if (glitter > 0.0) {
-    // Half a cell off: the face (z = 0) lies in the middle of a layer of
-    // cells, not on the border between two.
-    // Two sizes of it: a fine dust, and fewer big flakes over it – seen
-    // from across the shelf, too.
-    float dust = flecks(vLocal * 11.0 + 0.5);
-    float flakes = flecks(vLocal * 5.5 + 0.5 + 17.0);
-    seen = mix(seen, WHITE, 0.95 * max(dust, flakes) * glitter * finish);
-  }
+#endif
   outColor = vec4(seen, 1.0);
   outData = vec4(part / 16.0, wobble(vLocal), deep, 1.0);
 }
 `;
 
-/** No finish to begin with – a material's own, `setFinish` changes it. */
-const finishUniforms = () => ({ metal: { value: 0 }, glitter: { value: 0 } });
+/** No finish to begin with – `setFinish` gives the rubber one. */
+const finishUniforms = () => ({ finish: { value: 0 } });
 
 /**
- * The finish of a special color (palette.ts) on a material – metal or
- * glitter, or none: the plain cartoon colors. Only the ink wears it: the
- * knob all over, the rubber on its raised parts.
+ * The finish of a special color (palette.ts `finishOf`) on the rubber's
+ * material – or none: the plain cartoon colors. Only its ink wears it: the
+ * rim and the doodle.
  */
 export const setFinish = (
   material: Three.Material,
   finish: Finish | undefined
 ) => {
   const { uniforms } = material as Three.ShaderMaterial;
-  if (!uniforms?.metal) return;
-  uniforms.metal.value = finish === "metal" ? 1 : 0;
-  uniforms.glitter.value = finish === "glitter" ? 1 : 0;
+  if (!uniforms?.finish) return;
+  uniforms.finish.value = finish ? FINISHES.indexOf(finish) + 1 : 0;
 };
 
 /**
@@ -298,7 +506,7 @@ export const toonMaterial = (
       amount: inkState.amount,
       time: inkState.time,
       twinkle: inkState.twinkle,
-      ...finishUniforms(),
+      ...(part === "rubber" && finishUniforms()),
       ink: { value: new THREE.Vector3() },
       inkShade: { value: new THREE.Vector3() },
       ground: { value: new THREE.Vector3() },
@@ -392,7 +600,7 @@ export type Ink = {
    * Draws the scene: `unit` – how many of the canvas' pixels one stamp unit
    * spans on screen (the lines follow it); `amount` – how much cartoon (0:
    * flat colors only, drawn straight, smooth-edged – like the drawing);
-   * `time` (s) and `twinkle` for the glitter.
+   * `time` (s) and `twinkle` for the sparkles and the finishes.
    */
   render: (
     scene: Three.Scene,

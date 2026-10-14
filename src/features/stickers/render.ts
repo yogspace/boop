@@ -1,9 +1,8 @@
 import type * as Three from "three";
-import { hexOf } from "@/features/calendar/palette";
+import { finishOf, hexOf } from "@/features/calendar/palette";
 import {
   buildSticker,
   disposeSticker,
-  finishOf,
   type StickerInput,
   stage,
 } from "./build";

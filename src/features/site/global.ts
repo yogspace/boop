@@ -3,12 +3,25 @@ import { adminOnly, anyone } from "@/access";
 import {
   DEFAULT_PALETTE,
   FINISHES,
+  type Finish,
   isColorKey,
   isHex,
 } from "@/features/calendar/palette";
 import { isLocale } from "@/i18n/config";
 import { expireOnChange, TAGS } from "@/lib/cache";
 import { SITE_DEFAULTS, SITE_LINK_LABELS, type SiteLinks } from "./defaults";
+
+/** The finishes as the select names them. */
+const FINISH_LABELS: Record<Finish, string> = {
+  metal: "Metal",
+  glitter: "Glitter",
+  holo: "Holo – a rainbow shimmer",
+  wood: "Wood grain",
+  confetti: "Confetti",
+  stars: "Little stars",
+  marble: "Marble",
+  heat: "Heat – glowing like hot iron",
+};
 
 const link = (name: keyof SiteLinks, description: string): Field => ({
   name,
@@ -163,10 +176,13 @@ export const Site: GlobalConfig = {
             {
               name: "finish",
               type: "select",
-              options: [...FINISHES],
+              options: FINISHES.map((value) => ({
+                label: FINISH_LABELS[value],
+                value,
+              })),
               admin: {
                 description:
-                  "How the rubber looks in 3D – empty: like any other.",
+                  "How what is drawn in it looks – the doodle and rim, on the stamp in 3D and on its prints. Only for a color that isn't public: a public one stays plain. Empty: like any other.",
               },
             },
           ],

@@ -7,7 +7,7 @@ import {
   type StampShape,
 } from "../calendar/model";
 import { outlinePoints, rimLine } from "../calendar/outline";
-import { type Finish, getPalette, hexOf } from "../calendar/palette";
+import { finishOf, hexOf } from "../calendar/palette";
 import { inkRubber, rgb, setFinish, tint, toonMaterial } from "./ink";
 
 /**
@@ -16,8 +16,8 @@ import { inkRubber, rgb, setFinish, tint, toonMaterial } from "./ink";
  * the rubber with the rim and the doodle standing out of it – inked, so the
  * face looks just like the drawing (FACE: the same outline, rim and lines).
  * A small plate on top carries “boop”, engraved. One unit wide. Drawn like
- * a cartoon – flat colors, ink lines (ink.ts); a special color's ink in its
- * finish, metal or glitter (`finishOf`).
+ * a cartoon – flat colors, ink lines (ink.ts); what is inked on the rubber in
+ * a special color's finish, metal or glitter (palette.ts `finishOf`).
  *
  * Built lying on its back: the rubber face looks along +Z, its raised parts
  * at z = 0, the knob points to −Z. `pivot()` sets what it turns around,
@@ -83,6 +83,8 @@ const STEPS = 420;
 const OUTLINE = 360;
 /** Resolution of the height maps the surfaces are read from. */
 const MAP = 512;
+/** How far (map px) the face's `core` blurs: about half a line's width. */
+const CORE = 6;
 
 type Point = [number, number];
 
@@ -143,15 +145,47 @@ const soften = (data: Float32Array, passes = 2) => {
 };
 
 /**
- * A height map drawn on a canvas in the unit square (0–1, y down, like the
- * drawing): white is 1. Read back in local units (−0.5…0.5, y up).
+ * Blurs a map far – a box `radius` px wide each way, three times over, the
+ * sums running along. What stood raised fades towards its edges: deep inside
+ * a line it is still 1, at its edge about half.
  */
-const heightMap = (draw: (ctx: CanvasRenderingContext2D) => void) => {
+const blur = (data: Float32Array, radius: number) => {
+  const out = new Float32Array(data.length);
+  const width = 2 * radius + 1;
+  // Along a row or a column (`step` apart), from `from` on.
+  const line = (
+    from: Float32Array,
+    to: Float32Array,
+    at: number,
+    step: number
+  ) => {
+    const read = (i: number) =>
+      from[at + Math.min(MAP - 1, Math.max(0, i)) * step];
+    let sum = 0;
+    for (let i = -radius; i <= radius; i++) sum += read(i);
+    for (let i = 0; i < MAP; i++) {
+      to[at + i * step] = sum / width;
+      sum += read(i + radius + 1) - read(i - radius);
+    }
+  };
+  for (let n = 0; n < 3; n++) {
+    for (let y = 0; y < MAP; y++) line(data, out, y * MAP, 1);
+    for (let x = 0; x < MAP; x++) line(out, data, x, MAP);
+  }
+  return data;
+};
+
+/**
+ * A map drawn on a canvas in the unit square (0–1, y down, like the
+ * drawing): white is 1, black 0.
+ */
+const drawMap = (draw: (ctx: CanvasRenderingContext2D) => void) => {
   const canvas = document.createElement("canvas");
   canvas.width = MAP;
   canvas.height = MAP;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return () => 0;
+  const data = new Float32Array(MAP * MAP);
+  if (!ctx) return data;
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, MAP, MAP);
   ctx.scale(MAP, MAP);
@@ -161,15 +195,17 @@ const heightMap = (draw: (ctx: CanvasRenderingContext2D) => void) => {
   ctx.lineJoin = "round";
   draw(ctx);
   const pixels = ctx.getImageData(0, 0, MAP, MAP).data;
-  const data = new Float32Array(MAP * MAP);
   for (let i = 0; i < data.length; i++) data[i] = pixels[i * 4] / 255;
-  soften(data);
+  return data;
+};
+
+/** A map read back in local units (−0.5…0.5, y up) – bilinear, smooth. */
+const sampler = (data: Float32Array) => {
   const at = (x: number, y: number) =>
     data[
       Math.min(MAP - 1, Math.max(0, y)) * MAP +
         Math.min(MAP - 1, Math.max(0, x))
     ];
-  // Bilinear, so the walls run smooth.
   return (x: number, y: number) => {
     const fx = (x + 0.5) * MAP - 0.5;
     const fy = (0.5 - y) * MAP - 0.5;
@@ -182,6 +218,10 @@ const heightMap = (draw: (ctx: CanvasRenderingContext2D) => void) => {
     return top * (1 - ty) + bottom * ty;
   };
 };
+
+/** A height map, softened – the walls run smooth. */
+const heightMap = (draw: (ctx: CanvasRenderingContext2D) => void) =>
+  sampler(soften(drawMap(draw)));
 
 /** The shape's outline as a canvas path, in the unit square. */
 const tracePath = (
@@ -204,9 +244,13 @@ const tracePath = (
  * other way round: the whole face stands, the doodle and the rim's pattern
  * are cut into it. Mirrored for printing: a real stamp's face reads
  * the other way round.
+ *
+ * And how deep inside what stands a spot lies (`core`): 1 well inside a line
+ * or an area, about half at its edge – for a finish that follows the lines
+ * (ink.ts).
  */
-const faceMap = (input: StickerInput, mirror: boolean) =>
-  heightMap((ctx) => {
+const faceMap = (input: StickerInput, mirror: boolean) => {
+  const raw = drawMap((ctx) => {
     if (mirror) {
       ctx.translate(1, 0);
       ctx.scale(-1, 1);
@@ -280,12 +324,17 @@ const faceMap = (input: StickerInput, mirror: boolean) =>
       ctx.stroke();
     }
   });
+  return {
+    core: sampler(blur(raw.slice(), CORE)),
+    relief: sampler(soften(raw)),
+  };
+};
 
 /**
  * A closed slab in a convex `outline` whose top (facing +Z) lies at
  * `surface(x, y)` (≤ 0), with a softly rounded edge; flat below at
  * z = −thickness. Rings around the middle, so the outline stays exact. Each
- * vertex keeps its `relief` (0–1) – what gets inked.
+ * vertex keeps its `relief` (0–1) – what gets inked – and its `core`.
  */
 const shapedSlab = (
   THREE: typeof Three,
@@ -296,12 +345,19 @@ const shapedSlab = (
   }: {
     outline: Point[];
     thickness: number;
-    /** Height of the top at a point – and how raised it is there (0–1). */
-    surface: (x: number, y: number) => { z: number; relief: number };
+    /**
+     * Height of the top at a point – how raised it is there (0–1), and how
+     * deep inside what is raised.
+     */
+    surface: (
+      x: number,
+      y: number
+    ) => { z: number; relief: number; core?: number };
   }
 ) => {
   const positions: number[] = [];
   const relief: number[] = [];
+  const core: number[] = [];
   const index: number[] = [];
   const edge = Math.min(0.008, thickness * 0.3);
   const top = (x: number, y: number, f: number) => {
@@ -310,6 +366,7 @@ const shapedSlab = (
     const at = surface(x, y);
     positions.push(x, y, at.z - edge * t * t);
     relief.push(at.relief);
+    core.push(at.core ?? 0);
   };
   // Top: the middle, then rings outwards.
   const reaches = Array.from({ length: STEPS }, (_, j) =>
@@ -343,6 +400,7 @@ const shapedSlab = (
     const v = (rim + j) * 3;
     positions.push(positions[v], positions[v + 1], -thickness);
     relief.push(relief[rim + j]);
+    core.push(core[rim + j]);
   }
   for (let j = 0; j < STEPS; j++) {
     const k = (j + 1) % STEPS;
@@ -352,6 +410,7 @@ const shapedSlab = (
   const center = positions.length / 3;
   positions.push(0, 0, -thickness);
   relief.push(0);
+  core.push(0);
   for (let j = 0; j < STEPS; j++) {
     index.push(center, low + ((j + 1) % STEPS), low + j);
   }
@@ -361,6 +420,7 @@ const shapedSlab = (
     new THREE.Float32BufferAttribute(positions, 3)
   );
   geometry.setAttribute("relief", new THREE.Float32BufferAttribute(relief, 1));
+  geometry.setAttribute("core", new THREE.Float32BufferAttribute(core, 1));
   geometry.setIndex(index);
   geometry.computeVertexNormals();
   return geometry;
@@ -578,8 +638,12 @@ export const buildSticker = (
       outline: localOutline(input.shape, RUBBER.grow),
       thickness: RUBBER.thickness,
       surface: (x, y) => {
-        const relief = face(x, y);
-        return { z: RUBBER.relief * (relief - 1), relief };
+        const relief = face.relief(x, y);
+        return {
+          z: RUBBER.relief * (relief - 1),
+          relief,
+          core: face.core(x, y),
+        };
       },
     }),
     rubberMaterial
@@ -622,12 +686,10 @@ export const buildSticker = (
   const top = back - PLATE.thickness;
 
   // The knob: neck and ball in one piece, standing on the plate – in the
-  // stamp's own ink, finish and all.
-  const knobMaterial = toonMaterial(THREE, "knob", knob);
-  setFinish(knobMaterial, finishOf(input.color));
+  // stamp's color, plain: a finish is the ink's, on the rubber only.
   const handle = new THREE.Mesh(
     turnedSolid(THREE, knobProfile(), KNOB.steps),
-    knobMaterial
+    toonMaterial(THREE, "knob", knob)
   );
   handle.position.z = top;
   stamp.add(handle);
@@ -652,17 +714,9 @@ export const pivot = (sticker: Three.Object3D, amount: number) => {
 };
 
 /**
- * How a color's ink looks in 3D besides its hex: a special color's finish
- * (palette.ts) – none for the others, a literal hex, or a key the palette
- * doesn't have (anymore).
- */
-export const finishOf = (color: ColorName): Finish | undefined =>
-  getPalette().find((known) => known.key === color)?.finish;
-
-/**
  * Inks the rubber: rim and doodle in the ink, the ground a pale tint of it –
- * exactly the drawing's (stamp-svg.tsx) – a special ink in its finish.
- * Quick – only a few values change.
+ * exactly the drawing's (stamp-svg.tsx) – a special ink in its finish, on
+ * the rim and doodle only. Quick – only a few values change.
  */
 export const paintSticker = (sticker: Three.Object3D, ink: ColorName) => {
   const rubber = sticker.getObjectByName("rubber") as Three.Mesh | undefined;

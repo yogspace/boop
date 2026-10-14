@@ -30,20 +30,39 @@ export type StampColor = {
    * (features/cards). Everyone sees it on what wears it, like any other.
    */
   special?: boolean;
-  /** How the rubber of a color looks in 3D – none: like any other. */
+  /**
+   * How its ink looks – none: like any other. Worn by a special color only
+   * (`finishOf`): a public one stays plain, whatever is set here.
+   */
   finish?: Finish;
 };
 
-/** The rubber's looks besides the plain one (`StampColor.finish`). */
-export const FINISHES = ["metal", "glitter"] as const;
+/**
+ * The inks' looks besides the plain one (`StampColor.finish`) – what is
+ * drawn in such a color shines like metal, glitters, shimmers like a
+ * hologram, has the grain of wood, carries confetti or little stars, is
+ * veined like marble, or glows like hot iron. In this order: a stamp's
+ * shader knows them by their place (stickers/ink.ts).
+ */
+export const FINISHES = [
+  "metal",
+  "glitter",
+  "holo",
+  "wood",
+  "confetti",
+  "stars",
+  "marble",
+  "heat",
+] as const;
 export type Finish = (typeof FINISHES)[number];
 
 const isFinish = (value: unknown): value is Finish =>
   typeof value === "string" && (FINISHES as readonly string[]).includes(value);
 
 /**
- * The last two are not public – for Boop's gifts: the CMS starts with them,
- * and whatever it holds then is what counts.
+ * The ones after the first seven are not public – for Boop's gifts, one in
+ * each finish: the CMS starts with them, and whatever it holds then is what
+ * counts.
  */
 export const DEFAULT_PALETTE: StampColor[] = [
   { key: "red", hex: "#ee3b33", name: { de: "Rot", en: "Red" } },
@@ -66,6 +85,48 @@ export const DEFAULT_PALETTE: StampColor[] = [
     name: { de: "Glitzer", en: "Glitter" },
     special: true,
     finish: "glitter",
+  },
+  {
+    key: "holo",
+    hex: "#9aa6d8",
+    name: { de: "Holo", en: "Holo" },
+    special: true,
+    finish: "holo",
+  },
+  {
+    key: "wood",
+    hex: "#b5793f",
+    name: { de: "Holz", en: "Wood" },
+    special: true,
+    finish: "wood",
+  },
+  {
+    key: "confetti",
+    hex: "#5b3cc4",
+    name: { de: "Konfetti", en: "Confetti" },
+    special: true,
+    finish: "confetti",
+  },
+  {
+    key: "stars",
+    hex: "#26307a",
+    name: { de: "Sterne", en: "Stars" },
+    special: true,
+    finish: "stars",
+  },
+  {
+    key: "marble",
+    hex: "#2e8b74",
+    name: { de: "Marmor", en: "Marble" },
+    special: true,
+    finish: "marble",
+  },
+  {
+    key: "heat",
+    hex: "#e0461c",
+    name: { de: "Hitze", en: "Heat" },
+    special: true,
+    finish: "heat",
   },
 ];
 
@@ -179,6 +240,18 @@ const colorOf = (key: string) => byKey.get(key) ?? palette[0];
  */
 export const hexOf = (color: string): string =>
   isHex(color) ? color.toLowerCase() : colorOf(color).hex;
+
+/**
+ * The finish a color's ink wears – what is drawn in it: the raised doodle
+ * and rim of a stamp in 3D (stickers/ink.ts), a print (stamp-svg.tsx). Only
+ * a special color's: a public one stays plain, even with a finish set in the
+ * CMS – and so do a literal hex and a key the palette doesn't have
+ * (anymore).
+ */
+export const finishOf = (color: string): Finish | undefined => {
+  const known = byKey.get(color);
+  return known?.special ? known.finish : undefined;
+};
 
 /**
  * A color's name in a language – for a literal hex the palette color with

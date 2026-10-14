@@ -735,6 +735,7 @@ const de = {
       profile: "Profil",
       device: "App",
       language: "Sprache",
+      sync: "Abgleich",
       name: "Dein Name – so sehen dich die anderen",
       nameFailed:
         "Der Name ließ sich nicht speichern. Versuch es bitte noch einmal.",
@@ -1478,6 +1479,7 @@ const en: Shape<typeof de> = {
       profile: "Profile",
       device: "App",
       language: "Language",
+      sync: "Sync",
       name: "Your name – how the others see you",
       nameFailed: "The name couldn't be saved. Please try again.",
       email: "Logged in as {email}",

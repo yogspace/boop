@@ -4,6 +4,8 @@ import {
   colorKeys,
   colorName,
   DEFAULT_PALETTE,
+  FINISHES,
+  finishOf,
   getPalette,
   hexOf,
   isColorKey,
@@ -26,6 +28,12 @@ describe("the stamp colors", () => {
       "pink",
       "gold",
       "glitter",
+      "holo",
+      "wood",
+      "confetti",
+      "stars",
+      "marble",
+      "heat",
     ]);
     expect(hexOf("mint")).toBe("#22c993");
     expect(colorName("mint", "de")).toBe("Minze");
@@ -79,6 +87,19 @@ describe("the stamp colors", () => {
       { key: "moss", special: undefined, finish: undefined },
       { key: "fog", special: undefined, finish: "glitter" },
     ]);
+  });
+
+  it("keeps every finish the CMS can give", () => {
+    expect(
+      cleanPalette(
+        FINISHES.map((finish) => ({
+          key: finish,
+          hex: "#123456",
+          special: true,
+          finish,
+        }))
+      ).map((color) => color.finish)
+    ).toEqual([...FINISHES]);
   });
 
   it("lets anyone pick the public colors – an admin all of them", () => {
@@ -163,5 +184,34 @@ describe("the stamp colors", () => {
     ]);
     expect(nextKey([], withGold)).toBe("mint");
     expect(nextKey(["mint"], withGold)).toBe("mint");
+  });
+
+  it("gives a finish to special colors only", () => {
+    // The code's own: one special color in each finish, the public plain.
+    for (const color of DEFAULT_PALETTE) {
+      expect(finishOf(color.key)).toBe(
+        color.special ? color.finish : undefined
+      );
+    }
+    expect(DEFAULT_PALETTE.filter((color) => finishOf(color.key))).toHaveLength(
+      FINISHES.length
+    );
+    setPalette([
+      { key: "gold", hex: "#d4a72c", special: true, finish: "metal" },
+      // Public, with a finish set in the CMS all the same: plain.
+      { key: "shiny", hex: "#3fa9ff", finish: "glitter" },
+      { key: "fog", hex: "#cccccc", special: false, finish: "holo" },
+      // Special without a finish: plain too.
+      { key: "plain", hex: "#335533", special: true },
+    ]);
+    expect(finishOf("gold")).toBe("metal");
+    expect(finishOf("shiny")).toBeUndefined();
+    expect(finishOf("fog")).toBeUndefined();
+    expect(finishOf("plain")).toBeUndefined();
+    // A literal hex – even a special color's – and a key that is gone.
+    expect(finishOf("#d4a72c")).toBeUndefined();
+    expect(finishOf("glitter")).toBeUndefined();
+    setPalette(DEFAULT_PALETTE);
+    expect(finishOf("glitter")).toBe("glitter");
   });
 });

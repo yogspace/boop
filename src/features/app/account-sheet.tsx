@@ -136,16 +136,17 @@ export const AccountSheet = ({
         {/* The app on this device: its language (rarely changed – so here,
             not in the bar) and how it stands with the server. */}
         <Part title={text.device}>
-          <div className="flex items-center justify-between gap-4">
-            <p className="font-bold">{text.language}</p>
+          <Labeled label={text.language}>
             <LocaleSwitch
-              className="text-base"
               hrefOf={addressIn}
               locale={locale}
               onPick={onLocale}
+              pills
             />
-          </div>
-          <SyncStatus locale={locale} />
+          </Labeled>
+          <Labeled label={text.sync}>
+            <SyncStatus locale={locale} />
+          </Labeled>
           {/* In a tab of its own: the app stays open, with what waits in it. */}
           {me?.admin && (
             <a
@@ -266,10 +267,26 @@ export const AccountSheet = ({
 
 /** One of the sheet's parts, under its heading. */
 const Part = ({ title, children }: { title: string; children: ReactNode }) => (
-  <section className="flex flex-col gap-3">
+  <section className="flex flex-col gap-5">
     <h3 className="font-black text-lg">{title}</h3>
     {children}
   </section>
+);
+
+/** One thing in a part: its small heading, and it. */
+const Labeled = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) => (
+  <div className="flex flex-col gap-2.5">
+    <p className="font-black text-muted text-xs uppercase tracking-wide">
+      {label}
+    </p>
+    {children}
+  </div>
 );
 
 /**
