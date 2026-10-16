@@ -300,13 +300,6 @@ const de = {
       namePlaceholder: "z. B. Sport, Regentag, Kuss …",
       color: "Farbe",
       shape: "Form",
-      shapes: {
-        circle: "Rund",
-        square: "Eckig",
-        octagon: "Achteck",
-        triangle: "Dreieck",
-        diamond: "Raute",
-      },
       undo: "Zurück",
       redo: "Wiederholen",
       clear: "Leeren",
@@ -325,7 +318,10 @@ const de = {
         "Antippen wählt, ziehen schiebt · Griffe: Größe · Knopf oben: drehen",
       remove: "Entfernen",
       removeSelection: "Auswahl entfernen",
-      penHint: "⇧ zieht eine gerade Linie",
+      penHint:
+        "⇧ zieht eine gerade Linie · ⌘/Strg + Scrollen zoomt, Leertaste + Ziehen verschiebt",
+      penHintTouch: "Mit zwei Fingern zoomen und verschieben",
+      zoomReset: "Zurück auf 100 %",
       eraserHint: "Nimmt Linien und Flächen weg – den Rand nie",
       line: "Linie",
       lineHint:
@@ -339,8 +335,23 @@ const de = {
       pointsHintTouch:
         "Punkte und Griffe ziehen · auf die Linie tippen: neuer Punkt",
       removePoint: "Punkt entfernen",
+      // A point of a line: its handles together (round) or apart (corner).
+      anchor: "Punkt",
+      anchorSmooth: "Rund",
+      anchorCorner: "Ecke",
+      anchorSmoothHint: "Griffe gekoppelt",
+      anchorCornerHint: "Griffe getrennt",
       width: "Strichstärke",
-      widths: { thin: "Fein", medium: "Mittel", thick: "Dick" },
+      widths: {
+        hair: "Haarfein",
+        thin: "Fein",
+        medium: "Mittel",
+        thick: "Dick",
+      },
+      // Shapes to drag into the drawing (Site → Drawing templates).
+      templates: "Formen zum Hineinziehen",
+      templatesHint: "In die Fläche ziehen oder anklicken",
+      templatesHintTouch: "Antippen legt sie in die Mitte",
       upload: "SVG hochladen",
       inverted: "Invertiert",
       special: "Special – glitzert",
@@ -367,15 +378,27 @@ const de = {
     day: {
       empty: "Noch nichts los – wähl einen Stempel und tipp auf den Tag.",
       tray: "Stempel antippen, dann auf den Tag tippen",
-      held: "Tipp auf den Tag – oder tunk ihn in ein Stempelkissen.",
-      wheel: "Das Mausrad dreht den Stempel.",
+      // The stamp in hand, by its name – one without: “Stempel”.
+      holding: template(
+        {
+          named:
+            "{name} in der Hand – tipp auf den Tag oder ein Stempelkissen.",
+          unnamed:
+            "Stempel in der Hand – tipp auf den Tag oder ein Stempelkissen.",
+        },
+        (say) => (name: string) => (name ? say.named({ name }) : say.unnamed())
+      ),
+      wheel: "Das Mausrad dreht ihn.",
       turnLeft: "Nach links drehen",
       turnRight: "Nach rechts drehen",
       inHand: "In der Hand",
       picked: "Abdruck markiert.",
       pickedKeys: "Entf oder ⌫ entfernt ihn.",
       remove: "Abdruck entfernen",
+      // Taking steps back and forth, under one heading.
+      history: "Verlauf",
       undo: "Rückgängig",
+      redo: "Wiederholen",
       print: "Abdruck",
       ink: "Stempelkissen",
     },
@@ -475,6 +498,9 @@ const de = {
         colorMember:
           "Nur bei dir, auf diesem Gerät – die anderen sehen ihre eigene Farbe.",
         colorReset: "Wie der Kalender",
+        start: "Startansicht",
+        startText:
+          "So öffnet sich der Kalender auf diesem Gerät – umschalten kannst du jederzeit.",
       },
       deleteShared: template(
         {
@@ -704,11 +730,14 @@ const de = {
         forbidden: "Dieses Konto darf keine Geschenke verschicken.",
       },
     },
-    // The shelf's order – kept on the device (features/app/shelf.ts).
+    // The shelf's order, the day's tray's too – kept on the device
+    // (features/app/shelf.ts).
     shelf: {
       order: "Ordnen",
+      recent: "Zuletzt benutzt",
       newest: "Neueste zuerst",
       person: "Nach Person",
+      color: "Nach Farbe",
       mine: "Meine",
       boop: "Boop",
       gifted: "Geschenkt",
@@ -1173,13 +1202,6 @@ const en: Shape<typeof de> = {
       namePlaceholder: "e.g. workout, rainy day, kiss …",
       color: "Color",
       shape: "Shape",
-      shapes: {
-        circle: "Round",
-        square: "Square",
-        octagon: "Octagon",
-        triangle: "Triangle",
-        diamond: "Diamond",
-      },
       undo: "Undo",
       redo: "Redo",
       clear: "Clear",
@@ -1197,7 +1219,10 @@ const en: Shape<typeof de> = {
         "Tap picks, drag moves · handles: size · knob on top: turn",
       remove: "Remove",
       removeSelection: "Remove selection",
-      penHint: "⇧ draws a straight line",
+      penHint:
+        "⇧ draws a straight line · ⌘/Ctrl + scroll zooms, space + drag moves",
+      penHintTouch: "Two fingers zoom and move",
+      zoomReset: "Back to 100%",
       eraserHint: "Takes away lines and areas – never the rim",
       line: "Line",
       lineHint:
@@ -1210,8 +1235,21 @@ const en: Shape<typeof de> = {
         "Drag points and handles · Alt-click: smooth or corner · click the line: new point · Del removes",
       pointsHintTouch: "Drag points and handles · tap the line: new point",
       removePoint: "Remove point",
+      anchor: "Point",
+      anchorSmooth: "Round",
+      anchorCorner: "Corner",
+      anchorSmoothHint: "Handles together",
+      anchorCornerHint: "Handles apart",
       width: "Line width",
-      widths: { thin: "Thin", medium: "Medium", thick: "Thick" },
+      widths: {
+        hair: "Hairline",
+        thin: "Thin",
+        medium: "Medium",
+        thick: "Thick",
+      },
+      templates: "Shapes to drag in",
+      templatesHint: "Drag onto the drawing or click",
+      templatesHintTouch: "Tap to put one in the middle",
       upload: "Upload SVG",
       inverted: "Inverted",
       special: "Special – sparkly",
@@ -1238,15 +1276,20 @@ const en: Shape<typeof de> = {
     day: {
       empty: "Nothing here yet – pick a stamp and tap the day.",
       tray: "Tap a stamp, then tap the day",
-      held: "Tap the day – or dip it into an ink pad.",
-      wheel: "Scroll to turn the stamp.",
+      holding: {
+        named: "{name} in your hand – tap the day or an ink pad.",
+        unnamed: "Stamp in your hand – tap the day or an ink pad.",
+      },
+      wheel: "Scroll to turn it.",
       turnLeft: "Turn left",
       turnRight: "Turn right",
       inHand: "In your hand",
       picked: "Print selected.",
       pickedKeys: "Delete or ⌫ removes it.",
       remove: "Remove print",
+      history: "History",
       undo: "Undo",
+      redo: "Redo",
       print: "Print",
       ink: "Ink pad",
     },
@@ -1314,6 +1357,9 @@ const en: Shape<typeof de> = {
         colorMember:
           "Only for you, on this device – the others see their own color.",
         colorReset: "Same as the calendar",
+        start: "Opens in",
+        startText:
+          "How the calendar opens on this device – you can switch any time.",
       },
       deleteShared: {
         one: "It'll be gone for the other person in it, too.",
@@ -1459,8 +1505,10 @@ const en: Shape<typeof de> = {
     },
     shelf: {
       order: "Order",
+      recent: "Recently used",
       newest: "Newest first",
       person: "By person",
+      color: "By color",
       mine: "Mine",
       boop: "Boop",
       gifted: "Gifts",

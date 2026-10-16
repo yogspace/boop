@@ -16,7 +16,7 @@ import {
   spans,
   strokeBox,
 } from "./art";
-import { lineStroke } from "./bezier";
+import { ANCHOR, lineStroke } from "./bezier";
 import { DRAWING_LIMITS } from "./model";
 
 /**
@@ -328,14 +328,18 @@ export const touching = (art: Art, box: Box): Selection | null => {
 };
 
 /**
- * The selection's points, flat pairs – what must stay on the face: of a
- * anchored line its anchors and handles (its curve lies between them).
+ * The selection's points, flat pairs – what must stay on the face: of an
+ * anchored line its curve and its anchors (its handles may reach beyond,
+ * bezier.ts).
  */
 export const pointsOf = (art: Art, selection: Selection) => {
   const out: number[] = [];
   for (const i of selection.strokes) {
     const stroke = art.strokes[i];
-    out.push(...(stroke?.a ?? stroke?.p ?? []));
+    if (!stroke) continue;
+    out.push(...stroke.p);
+    const a = stroke.a ?? [];
+    for (let k = 0; k + 1 < a.length; k += ANCHOR) out.push(a[k], a[k + 1]);
   }
   for (const i of selection.fills) {
     for (const ring of art.fills[i]?.p ?? []) out.push(...ring);

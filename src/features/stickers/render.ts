@@ -1,5 +1,6 @@
 import type * as Three from "three";
 import { finishOf, hexOf } from "@/features/calendar/palette";
+import { outlineOf } from "@/features/calendar/shapes";
 import {
   buildSticker,
   disposeSticker,
@@ -126,12 +127,14 @@ let queue: Promise<unknown> = Promise.resolve();
 export const stickerKey = (input: StickerInput, kind: Pose = "face") => {
   let hash = 0;
   // By the color it shows in, not its name – the CMS may change it, and a
-  // special one's finish with it.
-  const text = `${kind}|${input.shape}|${hexOf(input.color)}|${input.finish ?? finishOf(input.color) ?? ""}|${JSON.stringify(input.drawing)}`;
+  // special one's finish with it; by the outline its shape has, likewise.
+  const outline = outlineOf(input.shape);
+  const text = `${kind}|${outline}|${hexOf(input.color)}|${input.finish ?? finishOf(input.color) ?? ""}|${JSON.stringify(input.drawing)}`;
   for (let i = 0; i < text.length; i++) {
     hash = (hash * 31 + text.charCodeAt(i)) | 0;
   }
-  return `${VERSION}-${kind}-${input.shape}-${input.color}-${text.length}-${hash}`;
+  const name = typeof input.shape === "string" ? input.shape : "outline";
+  return `${VERSION}-${kind}-${name}-${input.color}-${text.length}-${hash}`;
 };
 
 /** The stamp's picture (an object URL) – rendered once, then kept. */

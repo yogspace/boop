@@ -43,6 +43,7 @@ import {
   snapMove,
   snapPoint,
 } from "@/features/calendar/guides";
+import type { ShapeLike } from "@/features/calendar/shapes";
 
 /** How near (px) a pointer must come to a thing or a handle – a finger more. */
 const REACH = { mouse: 7, touch: 18 };
@@ -148,6 +149,7 @@ export const useSelect = ({
   on,
   area,
   art,
+  shape,
   locate,
   live,
   settle,
@@ -157,6 +159,8 @@ export const useSelect = ({
   on: boolean;
   area: RefObject<HTMLElement | null>;
   art: Art;
+  /** The stamp's shape – its rim's inner edge is a guide. */
+  shape?: ShapeLike;
   locate: Locate;
   live: (next: Art) => void;
   settle: (before: Art) => void;
@@ -248,7 +252,11 @@ export const useSelect = ({
     const point: Point = [at.x, at.y];
     const touch = event.pointerType !== "mouse";
     setTouchy(touch);
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // A pointer the browser no longer knows – it goes on all the same.
+    }
     fingers.current.set(event.pointerId, point);
     const now = latest.current;
     const current = now.picked?.art === now.art ? now.picked : null;
@@ -429,7 +437,7 @@ export const useSelect = ({
       }
       const box = boxOf(g.start, g.items);
       if (snapping && box) {
-        g.guides ??= guidesFor(g.start, g.items);
+        g.guides ??= guidesFor(g.start, g.items, shape);
         [dx, dy] = snapMove(box, dx, dy, g.guides, reach, free);
       }
       [dx, dy] = moveWithin(g.points, dx, dy);
@@ -452,7 +460,7 @@ export const useSelect = ({
       // An upright frame's dragged side snaps, too.
       const upright = Math.abs(Math.sin(g.frame.angle)) < 1e-9;
       if (snapping && upright) {
-        g.guides ??= guidesFor(g.start, g.items);
+        g.guides ??= guidesFor(g.start, g.items, shape);
         const x = g.frame.cx + (hx * g.frame.w) / 2 + point[0] - g.origin[0];
         const y = g.frame.cy + (hy * g.frame.h) / 2 + point[1] - g.origin[1];
         const snapped = snapPoint(x, y, g.guides, reach, {
@@ -540,6 +548,19 @@ export const useSelect = ({
 
   const leave = () => setHover(null);
 
+  /**
+   * Whatever is under way stops – two fingers took over (they zoom): what
+   * it changed so far stays, as one step.
+   */
+  const cancel = () => {
+    const g = gesture.current;
+    gesture.current = null;
+    fingers.current.clear();
+    setMarquee(null);
+    setLines(null);
+    if (g && g.kind !== "marquee" && g.changed) settle(g.before);
+  };
+
   /** One step at once – the selection carried along. */
   const change = (next: Art, items: Selection | null) => {
     latest.current.art = next;
@@ -557,6 +578,9 @@ export const useSelect = ({
     move,
     up,
     leave,
+    cancel,
+    /** Two fingers turn and size what is picked – they don't zoom. */
+    pinching: () => gesture.current?.kind === "pinch",
     clear: () => choose(null),
     all: () => chooseIn(art, everything(art)),
     /** These lines and areas picked – as they are, not what touches them. */

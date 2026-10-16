@@ -167,3 +167,26 @@
     color: var(--theme-elevation-500);
   }
 }
+
+// A shape's or template's row, closed: its outline as a little picture.
+.stamp-shape-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 0.08;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  overflow: visible;
+}
+
+// The path's field, the shape it makes below it (stamp-shape-field.tsx).
+.stamp-shape-field textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+}
+
+.stamp-shape-none {
+  margin: 0.5rem 0 0;
+  color: var(--theme-elevation-500);
+}

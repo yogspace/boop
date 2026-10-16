@@ -1,13 +1,9 @@
 import { useId, useMemo } from "react";
 import { cn } from "@/lib/cn";
-import {
-  type ColorName,
-  FACE,
-  type RimPattern,
-  type StampShape,
-} from "./model";
+import { type ColorName, FACE, type RimPattern } from "./model";
 import { outlinePath, outlinePoints, type RimLine, rimLine } from "./outline";
 import { FINISHES, type Finish, finishOf, hexOf } from "./palette";
+import type { ShapeLike } from "./shapes";
 
 /**
  * A stamp flat, as SVG – the drawing while it is being made (its rim and the
@@ -57,9 +53,9 @@ const fillPath = (fill: ReadonlyFill) =>
     .join("");
 
 /**
- * The face's outline in the unit square (outline.ts): one path, with the same
- * points for every shape – so changing the shape morphs (CSS transition on
- * `d`; Safari ignores it and simply switches).
+ * The face's outline in the unit square (outline.ts): one path – changing
+ * the shape morphs where two have as many points (CSS transition on `d`;
+ * elsewhere, and in Safari, it simply switches).
  */
 const MORPH = "d 460ms cubic-bezier(.3,1.4,.5,1), fill 400ms, stroke 400ms";
 
@@ -67,7 +63,7 @@ export const ShapeOutline = ({
   shape,
   style,
   ...props
-}: { shape: StampShape } & React.SVGProps<SVGPathElement>) => {
+}: { shape: ShapeLike } & React.SVGProps<SVGPathElement>) => {
   const d = outlinePath(shape);
   return (
     <path
@@ -129,7 +125,8 @@ export const StampSvg = ({
 }: {
   drawing: ReadonlyDrawing | null;
   color: ColorName;
-  shape?: StampShape;
+  /** Its shape's key – or, not saved yet (the CMS's preview), its outline. */
+  shape?: ShapeLike;
   className?: string;
   title?: string;
   /** Inked like a rubber stamp's print – a little imperfect. */
@@ -803,7 +800,7 @@ type Spot = { x: number; y: number; size: number; delay: number };
  */
 const glitterOf = (
   drawing: ReadonlyDrawing,
-  shape: StampShape,
+  shape: ShapeLike,
   seed: number,
   still: boolean
 ) => {
@@ -889,7 +886,7 @@ export const Glitter = ({
 }: {
   drawing: ReadonlyDrawing;
   color: ColorName;
-  shape?: StampShape;
+  shape?: ShapeLike;
   seed?: number;
   still?: boolean;
   sheen?: boolean;

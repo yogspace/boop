@@ -12,8 +12,8 @@ import {
   useState,
 } from "react";
 import type { Snapshot } from "valtio";
-import { Sparkle } from "@/components/doodles";
-import { BADGE, Button, ROUND_BUTTON } from "@/components/ui";
+import { Plus, Sparkle } from "@/components/doodles";
+import { ROUND_BUTTON } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import {
   type ColorName,
@@ -42,6 +42,8 @@ import { newId } from "@/lib/id";
 import { FADING, useFadingEdges } from "./fading-edges";
 import { InkBlot } from "./ink-blot";
 import { NameTag } from "./name-tag";
+import type { ShelfOrder } from "./shelf";
+import { NAME_UNDER, OrderMenu } from "./stamp-shelf";
 
 type Stamp = Snapshot<StampDoc>;
 type Print = Snapshot<PlacementDoc>;
@@ -70,13 +72,24 @@ const STEP = 15;
 export const seedOf = (id: string) =>
   (Number.parseInt(id.slice(0, 6), 16) || 7) % 997;
 
+/** Where a print lies – what moving it changes. */
+type Spot = Pick<PlacementDoc, "x" | "y" | "z">;
+
 /**
- * What can be taken back, newest last. `id` is the print as it is now: one
- * that comes back after a removal is a new one (restorePlacement).
+ * What can be taken back – and, taken back, done again. `id` is the print as
+ * it is now: one that comes back (a removal taken back, a print placed
+ * again) is a new one (restorePlacement), and every step that meant the
+ * old one means it from then on. A print placed keeps what it was placed
+ * with, a removed one what it was – to come back as just that.
  */
 type Step =
-  | { kind: "place"; id: string }
-  | { kind: "move"; id: string; x: number; y: number; z: number }
+  | {
+      kind: "place";
+      id: string;
+      print: Omit<Parameters<typeof placeStamp>[0], "id">;
+    }
+  | { kind: "move"; id: string; from: Spot; to: Spot }
+  | { kind: "turn"; id: string; from: number; to: number }
   | { kind: "remove"; id: string; print: Print };
 
 const within = (value: number) => Math.min(Math.max(value, 0), 1);
@@ -87,6 +100,16 @@ const tidy = (degrees: number) => {
   if (turned > 180) return turned - 360;
   return turned < -180 ? turned + 360 : turned;
 };
+
+/** An angle as it reads: “15°”, “−30°” – a real minus. */
+const angleOf = (degrees: number) =>
+  `${degrees < 0 ? "−" : ""}${Math.abs(degrees)}°`;
+
+/** The word over a group of buttons – and over the inks, the stamps. */
+const CAPTION = "font-bold text-muted text-sm";
+
+/** How far the stamp in hand (or the print picked) is turned. */
+const ANGLE = "w-12 text-center font-black text-sm tabular-nums";
 
 /**
  * How far a wheel event turns the stamp, in degrees: a notch (about 100 px)
@@ -109,6 +132,28 @@ const typing = (event: KeyboardEvent) => {
   );
 };
 
+/** The tray's – handed on as they are by the today view and the day's sheet. */
+export type TrayProps = {
+  /** In the order picked – the shelf's (shelf.ts). */
+  stamps: readonly Stamp[];
+  order: ShelfOrder;
+  onOrder: (order: ShelfOrder) => void;
+  /** Draw a new stamp – the tray's last tile. */
+  onNew: () => void;
+  /**
+   * The shelf stands beside the page from `lg` on (the today view in the
+   * app, boop-app.tsx) – with a tile of its own for a new stamp, so there
+   * the tray has none.
+   */
+  shelfBeside?: boolean;
+  /**
+   * A stamp to take into the hand – one just drawn from here. Told with
+   * `onGiven` once it is in it.
+   */
+  give?: string | null;
+  onGiven?: () => void;
+};
+
 /**
  * A day's page of a calendar, with the prints on it, the inks and the tray
  * of stamps – in the day's sheet (day-sheet.tsx) and, for today, right in
@@ -117,8 +162,14 @@ const typing = (event: KeyboardEvent) => {
  * the page shows the print it will leave; the wheel (or the two buttons, or
  * ← →) turns it. Tap the page – it comes down right there, as previewed;
  * tap an ink – the stamp takes that ink. With no stamp in hand the prints
- * can be moved, picked (a tap; Enter or Space) and, picked, removed (the
- * button; Delete or Backspace). Every step can be taken back.
+ * can be moved, picked (a tap; Enter or Space) and, picked, turned (the
+ * same two buttons, ← →) and removed (its button; Delete or Backspace).
+ * Every step can be taken back, and done again (⌘Z, ⇧⌘Z or Ctrl+Y).
+ *
+ * The tray's stamps are in the shelf's order (shelf.ts) – picked here or
+ * there, it is the same choice. Its last tile draws a new one: `onNew`,
+ * and back here it comes into the hand (`give`) – none where the shelf
+ * stands beside the page with its own (`shelfBeside`).
  *
  * Whose a finger on the page is: with no stamp in hand, the page's and the
  * sheet's – a swipe up or down scrolls them, right across the prints
@@ -131,16 +182,22 @@ const typing = (event: KeyboardEvent) => {
  * The keys listen on the whole window – `keyboard` false keeps them off
  * while something else lies over the page (a sheet over the today view).
  *
- * Narrow (a phone, the day's sheet), all is one column: `heading`, the
- * page, the inks, the tray. With room enough – the today view on a wider
- * screen – the rest stands beside the page, and the page is as large as
- * the window lets it be: page, inks and tray all in sight at once.
+ * All is one column, on a phone as on a wide screen: `heading`, the page –
+ * as large as the width lets it be, and no higher than the window has room
+ * for it and the tools –, the tools right under it (the inks, the stamp in
+ * hand, the steps), what to do now, and the tray.
  */
 export const DayPage = ({
   calendar,
   date,
   locale,
   stamps,
+  order,
+  onOrder,
+  onNew,
+  shelfBeside = false,
+  give = null,
+  onGiven,
   heading,
   keyboard = true,
   className,
@@ -148,11 +205,10 @@ export const DayPage = ({
   calendar: string;
   date: DayKey;
   locale: Locale;
-  stamps: readonly Stamp[];
   heading?: ReactNode;
   keyboard?: boolean;
   className?: string;
-}) => {
+} & TrayProps) => {
   const t = dictionaryOf(locale);
   const boop = useBoop();
   const page = useRef<HTMLDivElement>(null);
@@ -160,7 +216,17 @@ export const DayPage = ({
   // Going – the view it is in gives way to another, its sheet closes.
   const leaving = !useIsPresent();
   // The stamps' row, where it scrolls sideways: it fades where it goes on.
-  const tray = useFadingEdges("x");
+  const fade = useFadingEdges("x");
+  // The inks' row on a phone, the same – once there are more than fit.
+  const inkRow = useFadingEdges("x");
+  const row = useRef<HTMLDivElement | null>(null);
+  const tray = useCallback(
+    (box: HTMLDivElement | null) => {
+      row.current = box;
+      return fade(box);
+    },
+    [fade]
+  );
   // The stamp in hand – with none, the prints can be moved and picked.
   const [held, setHeld] = useState<string | null>(null);
   const inHand = stamps.find((s) => s.id === held) ?? null;
@@ -178,6 +244,8 @@ export const DayPage = ({
   const [next, setNext] = useState(newId);
   const nextId = useRef(next);
   const [picked, setPicked] = useState<string | null>(null);
+  // The order's menu open over the tray: Escape is its, first.
+  const [sorting, setSorting] = useState(false);
   // A print being moved – written once it is let go. It keeps where it was
   // taken hold of (`grab`, from its middle). `loose`: it may be moved – by
   // the mouse any print, by a finger only the picked one. `strayed`: the
@@ -229,39 +297,81 @@ export const DayPage = ({
       open.includes(color) || color.key === ink || color.key === inHand?.color
   );
 
-  // Undo: the steps of this visit, and a line they queue up in – a step is
-  // noted before the next undo looks, also while its print is still saving.
-  const steps = useRef<Step[]>([]);
+  // Undo and redo: the steps of this visit – done (`done`, newest last) and
+  // taken back (`undone`, the last taken back last) – and a line they queue
+  // up in: a step is noted before the next undo looks, also while its print
+  // is still saving. A new step leaves nothing to do again.
+  const done = useRef<Step[]>([]);
+  const undone = useRef<Step[]>([]);
   const line = useRef<Promise<void>>(Promise.resolve());
-  const [undoable, setUndoable] = useState(false);
-  const note = useCallback((step: Step) => {
-    line.current = line.current.then(() => {
-      steps.current.push(step);
-      setUndoable(true);
-    });
-  }, []);
-  const undo = useCallback(() => {
-    line.current = line.current
-      .then(async () => {
-        const step = steps.current.pop();
-        setUndoable(steps.current.length > 0);
-        if (!step) return;
-        if (step.kind === "place") {
-          setPicked((id) => (id === step.id ? null : id));
-          await removePlacement(step.id);
-        } else if (step.kind === "move") {
-          setGlide(step.id);
-          await movePlacement(step.id, { x: step.x, y: step.y, z: step.z });
-        } else {
-          // Back as a new print – earlier steps now mean that one.
-          const id = await restorePlacement(step.print);
-          for (const earlier of steps.current) {
-            if (earlier.id === step.id) earlier.id = id;
+  const [can, setCan] = useState({ undo: false, redo: false });
+  const tell = useCallback(
+    () =>
+      setCan({
+        undo: done.current.length > 0,
+        redo: undone.current.length > 0,
+      }),
+    []
+  );
+  const note = useCallback(
+    (step: Step) => {
+      line.current = line.current.then(() => {
+        undone.current = [];
+        const last = done.current.at(-1);
+        // Turning a print on and on is one step – taken back at once.
+        if (
+          step.kind === "turn" &&
+          last?.kind === "turn" &&
+          last.id === step.id
+        )
+          last.to = step.to;
+        else done.current.push(step);
+        tell();
+      });
+    },
+    [tell]
+  );
+  /** Takes the last step back (`back`) – or does the last taken back again. */
+  const travel = useCallback(
+    (back: boolean) => {
+      line.current = line.current
+        .then(async () => {
+          const [from, to] = back
+            ? [done.current, undone.current]
+            : [undone.current, done.current];
+          const step = from.pop();
+          if (!step) return;
+          to.push(step);
+          tell();
+          if (step.kind === "move") {
+            setGlide(step.id);
+            await movePlacement(step.id, back ? step.from : step.to);
+          } else if (step.kind === "turn") {
+            await movePlacement(step.id, {
+              rotation: back ? step.from : step.to,
+            });
+          } else if ((step.kind === "place") === back) {
+            // A print goes: one placed, taken back – one removed, again.
+            setPicked((id) => (id === step.id ? null : id));
+            await removePlacement(step.id);
+          } else {
+            // A print comes – a removal taken back, one placed again: as a
+            // new print, which the steps that meant the old one now mean.
+            const id =
+              step.kind === "place"
+                ? await placeStamp(step.print)
+                : await restorePlacement(step.print);
+            for (const other of [...done.current, ...undone.current]) {
+              if (other.id === step.id) other.id = id;
+            }
           }
-        }
-      })
-      .catch(() => undefined);
-  }, []);
+        })
+        .catch(() => undefined);
+    },
+    [tell]
+  );
+  const undo = useCallback(() => travel(true), [travel]);
+  const redo = useCallback(() => travel(false), [travel]);
 
   /** Puts the preview where the stamp is aimed, turned like it – no render. */
   const preview = useCallback(() => {
@@ -279,6 +389,13 @@ export const DayPage = ({
     if (holding) preview();
   }, [holding, preview]);
 
+  // How far the stamp in hand is turned, in words beside its buttons –
+  // written as it turns, like the preview: no render.
+  const angle = useRef<HTMLSpanElement | null>(null);
+  const showAngle = useCallback(() => {
+    if (angle.current) angle.current.textContent = angleOf(tidy(turn.current));
+  }, []);
+
   /** Turns the stamp in hand – its preview turns, the 3D stamp spins along. */
   const turnBy = useCallback(
     (degrees: number) => {
@@ -286,9 +403,10 @@ export const DayPage = ({
       // Turned by button or key, it shows where the stamp was last aimed.
       aim.current.on = true;
       preview();
+      showAngle();
       hand.current?.turn(Math.round(turn.current));
     },
-    [preview]
+    [preview, showAngle]
   );
 
   /**
@@ -304,10 +422,31 @@ export const DayPage = ({
       turn.current = 0;
       aim.current.on = false;
       preview();
+      showAngle();
       hand.current?.turn(0);
     },
-    [preview, stamps]
+    [preview, showAngle, stamps]
   );
+
+  // A stamp handed in – one just drawn from this tray: into the hand as
+  // soon as it is among the stamps, and into sight in the row (sideways
+  // only – the page stays where it is).
+  useEffect(() => {
+    if (!(give && stamps.some((s) => s.id === give))) return;
+    take(give);
+    onGiven?.();
+    const box = row.current;
+    const item = box?.querySelector<HTMLElement>(`[data-stamp="${give}"]`);
+    if (!(box && item)) return;
+    const left =
+      item.getBoundingClientRect().left -
+      box.getBoundingClientRect().left +
+      box.scrollLeft;
+    box.scrollTo({
+      left: left - (box.clientWidth - item.offsetWidth) / 2,
+      behavior: "smooth",
+    });
+  }, [give, stamps, take, onGiven]);
 
   // The wheel turns the stamp in hand, and the page doesn't scroll
   // meanwhile – which React's own (passive) wheel listener couldn't stop.
@@ -326,20 +465,27 @@ export const DayPage = ({
 
   // Escape puts the stamp down first – only then it closes a sheet the page
   // is in (which listens on the window too, so this one goes ahead of it).
-  // ⌘Z / Ctrl+Z takes a step back; ← → and [ ] turn the stamp in hand.
+  // ⌘Z / Ctrl+Z takes a step back, ⇧⌘Z / Ctrl+Y (and Ctrl+⇧Z) does it
+  // again; ← → and [ ] turn the stamp in hand.
   useEffect(() => {
     if (!keyboard) return;
     const onKey = (event: KeyboardEvent) => {
       const mod = event.metaKey || event.ctrlKey;
-      if (mod && !event.shiftKey && !event.altKey && event.key === "z") {
-        // Typing, ⌘Z takes back the typing.
+      const key = event.key.toLowerCase();
+      const again =
+        (mod && event.shiftKey && key === "z") ||
+        (event.ctrlKey && !event.metaKey && !event.shiftKey && key === "y");
+      if (!event.altKey && (again || (mod && !event.shiftKey && key === "z"))) {
+        // Typing, they are the typing's.
         if (typing(event)) return;
         event.preventDefault();
-        undo();
+        if (again) redo();
+        else undo();
         return;
       }
       if (!holding || mod) return;
       if (event.key === "Escape") {
+        if (sorting) return;
         event.stopImmediatePropagation();
         take(null);
       } else if (event.key === "ArrowLeft" || event.key === "[") {
@@ -354,7 +500,7 @@ export const DayPage = ({
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [keyboard, holding, take, turnBy, undo]);
+  }, [keyboard, holding, sorting, take, turnBy, undo, redo]);
 
   const placements = useMemo(
     () =>
@@ -377,27 +523,44 @@ export const DayPage = ({
     [note]
   );
 
-  // A picked print: Delete or Backspace takes it off the page, Escape lets
-  // go of it – and, like putting the stamp down, goes ahead of a sheet's
-  // own Escape, which would close it.
+  /** Turns a print on the page – noted, so it can be taken back. */
+  const turnPrint = useCallback(
+    (print: Print, degrees: number) => {
+      const to = tidy(print.rotation + degrees);
+      note({ kind: "turn", id: print.id, from: print.rotation, to });
+      void movePlacement(print.id, { rotation: to });
+    },
+    [note]
+  );
+
+  // A picked print: Delete or Backspace takes it off the page, ← → and [ ]
+  // turn it, Escape lets go of it – and, like putting the stamp down, goes
+  // ahead of a sheet's own Escape, which would close it.
   useEffect(() => {
     if (!(marked && keyboard)) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (event.key === "Escape") {
+        if (sorting) return;
         event.stopImmediatePropagation();
         setPicked(null);
-      } else if (
-        (event.key === "Delete" || event.key === "Backspace") &&
-        !typing(event)
-      ) {
+        return;
+      }
+      if (typing(event)) return;
+      if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
         remove(marked);
+      } else if (event.key === "ArrowLeft" || event.key === "[") {
+        event.preventDefault();
+        turnPrint(marked, -STEP);
+      } else if (event.key === "ArrowRight" || event.key === "]") {
+        event.preventDefault();
+        turnPrint(marked, STEP);
       }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [keyboard, marked, remove]);
+  }, [keyboard, marked, sorting, remove, turnPrint]);
 
   /**
    * A point on the page (0–1) – also beyond it, for whoever clamps. Inside
@@ -438,16 +601,16 @@ export const DayPage = ({
     const id = nextId.current;
     nextId.current = newId();
     setNext(nextId.current);
-    note({ kind: "place", id });
-    void placeStamp({
-      id,
+    const placed = {
       calendar,
       date,
       stamp: stamp.id,
       ...at,
       rotation,
       ink: inked,
-    });
+    };
+    note({ kind: "place", id, print: placed });
+    void placeStamp({ id, ...placed });
     trackEvent("stamp-placed");
   };
 
@@ -559,25 +722,37 @@ export const DayPage = ({
     onPointerMove: carry,
   };
 
+  /** A button that turns the stamp in hand – or, with none, the print picked. */
+  const turnButton = (degrees: number, label: string, keys: string) => (
+    <button
+      aria-keyshortcuts={keys}
+      aria-label={label}
+      className={cn(ROUND_BUTTON, "h-11 w-11")}
+      onClick={() => {
+        if (inHand) turnBy(degrees);
+        else if (marked) turnPrint(marked, degrees);
+      }}
+      title={label}
+      type="button"
+    >
+      {/* The same arrow, the other way round. */}
+      <TurnSign className={cn("h-5 w-5", degrees > 0 && "-scale-x-100")} />
+    </button>
+  );
+
   return (
-    // How it is laid out goes by its own width (a container – the queries
-    // read the box around, so the layout is the box inside). Beside the
-    // page: as wide as is left of the room, 15rem at least; the page as
-    // high as the window has room under the app's bar, the greeting and the
-    // calendar's name (23rem) – 16rem at least.
     <div className={cn("@container", className)}>
-      <div className="flex flex-col gap-4 @lg:grid @lg:grid-cols-[auto_minmax(0,1fr)] @lg:grid-rows-[auto_1fr] @lg:gap-x-5">
-        {heading && (
-          <div className="@lg:col-start-2 @lg:row-start-1">{heading}</div>
-        )}
+      <div className="flex flex-col gap-4">
+        {heading}
         {/* A sheet of dotted paper, drawn round with the marker – the frame
           outside, the page inside it clipping the prints at its edge. It is
           the calendar's own paper (`PAPER`, in the shades the app's frame
           hands down): pale in its color, the dots its pencil's. */}
         <div
-          // Not stretched to the column beside it (`self-start`): the frame
-          // hugs the square page, however tall the inks and the tray are.
-          className="scribble rounded-[27px] p-[3px] @lg:col-start-1 @lg:row-span-2 @lg:row-start-1 @lg:w-[clamp(16rem,calc(100dvh_-_23rem),calc(100cqw_-_15rem))] @lg:self-start"
+          // As wide as there is room – but no higher than the window, with
+          // the heading over it and the tools under it in sight too (11rem);
+          // 16rem at least.
+          className="scribble w-full max-w-[max(16rem,calc(100dvh_-_11rem))] rounded-[27px] p-[3px]"
           style={PAPER as CSSProperties}
           {...showHand}
         >
@@ -698,18 +873,18 @@ export const DayPage = ({
                       if (drag.strayed) return;
                       if (drag.moved) {
                         const top = Math.max(...placements.map((q) => q.z)) + 1;
+                        const to = {
+                          x: drag.x,
+                          y: drag.y,
+                          z: p.z < top - 1 ? top : p.z,
+                        };
                         note({
                           kind: "move",
                           id: p.id,
-                          x: p.x,
-                          y: p.y,
-                          z: p.z,
+                          from: { x: p.x, y: p.y, z: p.z },
+                          to,
                         });
-                        void movePlacement(p.id, {
-                          x: drag.x,
-                          y: drag.y,
-                          ...(p.z < top - 1 && { z: top }),
-                        });
+                        void movePlacement(p.id, to);
                       } else setPicked(picked === p.id ? null : p.id);
                     }}
                     type="button"
@@ -768,21 +943,36 @@ export const DayPage = ({
           </div>
         </div>
 
-        {/* What is beside the page – or under it. */}
-        <div className="flex min-w-0 flex-col gap-4 @lg:col-start-2 @lg:row-start-2">
-          <fieldset className="min-w-0" {...showHand}>
-            <legend className="mb-2 font-bold text-muted text-sm">
-              {t.app.day.ink}
-            </legend>
-            {/* Flat blots of ink, in a row that wraps – nothing scrolls, so
-              the marker ring round the one in use is never cut. */}
-            <div className="flex flex-wrap gap-1.5">
+        {/* The tools, right under the page, each under its word: the inks,
+          the stamp in hand (or the print picked, which the same two buttons
+          turn) and the steps back and forth. With room enough all in a row
+          – the inks in a narrow block on the left, two or three rows of
+          them –, else the inks on top. The stamp's group keeps its place
+          while there is nothing to turn: nothing moves as it comes and
+          goes. */}
+        <div className="flex flex-col gap-3 @xl:grid @xl:grid-cols-[1fr_auto_1fr] @xl:items-start @xl:gap-4">
+          <fieldset className="min-w-0 @xl:w-46" {...showHand}>
+            <legend className={cn(CAPTION, "mb-1.5")}>{t.app.day.ink}</legend>
+            {/* Flat blots of ink. On a phone in one row: more than there is
+              room for, it scrolls sideways (only – up and down the swipe is
+              the page's) and fades where it goes on (fading-edges.ts), with
+              room all round inside the scroller, so the marker ring round the
+              one in use, lifted, isn't cut. Wider, closer together – one
+              set of pads – they wrap: nothing scrolls, cuts or fades. In a
+              row with the rest, four to a row, centered in their block. */}
+            <div
+              className={cn(
+                "-m-4 flex gap-1.5 overflow-x-auto overflow-y-hidden overscroll-x-contain p-4 sm:m-0 sm:flex-wrap sm:gap-0.5 sm:overflow-visible sm:mask-none sm:p-0 @xl:justify-center",
+                FADING.x
+              )}
+              ref={inkRow}
+            >
               {pads.map(({ key: c, hex, name: names }, i) => (
                 <button
                   aria-label={names[locale]}
                   aria-pressed={ink === c}
                   className={cn(
-                    "relative flex h-11 w-11 items-center justify-center rounded-full transition-transform",
+                    "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform",
                     ink === c ? "scale-110" : "hover:-rotate-6 hover:scale-110"
                   )}
                   key={c}
@@ -795,133 +985,180 @@ export const DayPage = ({
             </div>
           </fieldset>
 
-          {/* Beside the page there is too little room for the words beside the
-          buttons: they go above them. */}
-          <div className="flex min-h-10 items-center justify-between gap-2 @lg:flex-col @lg:items-start">
-            <p className="font-bold text-muted text-sm">
-              {inHand
-                ? t.app.day.held
-                : marked
-                  ? t.app.day.picked
-                  : t.app.day.tray}
-              {(inHand || marked) && (
-                // Only where there is likely a wheel – and a keyboard.
-                <span className="hidden [@media(hover:hover)]:inline">
-                  {" "}
-                  {inHand ? t.app.day.wheel : t.app.day.pickedKeys}
-                </span>
-              )}
-            </p>
-            <div className="flex shrink-0 items-center gap-3">
-              {inHand && (
-                // Turning without a wheel – a pair, apart from undo's arrow.
-                <div className="flex gap-1">
-                  {(
-                    [
-                      [-STEP, t.app.day.turnLeft, ""],
-                      // The same arrow, the other way round.
-                      [STEP, t.app.day.turnRight, "-scale-x-100"],
-                    ] as const
-                  ).map(([degrees, label, flip]) => (
-                    <button
-                      aria-label={label}
-                      className={ROUND_BUTTON}
-                      key={degrees}
-                      onClick={() => turnBy(degrees)}
-                      title={label}
-                      type="button"
-                    >
-                      <svg
-                        aria-hidden="true"
-                        className={cn("h-4.5 w-4.5", flip)}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2.6"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                        <path d="M3 3v5h5" />
-                      </svg>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {marked && (
-                <Button
-                  aria-keyshortcuts="Delete Backspace"
-                  onClick={() => remove(marked)}
-                  size="sm"
-                  variant="plain"
-                >
-                  {t.app.day.remove}
-                </Button>
-              )}
-              <button
-                aria-label={t.app.day.undo}
-                className={ROUND_BUTTON}
-                disabled={!undoable}
-                onClick={undo}
-                title={t.app.day.undo}
-                type="button"
-              >
-                <svg
-                  aria-hidden="true"
-                  className="h-4.5 w-4.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2.8"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M9 14 4 9l5-5" />
-                  <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {stamps.length === 0 ? (
-            <p className="text-muted text-sm">{t.app.noStamps}</p>
-          ) : (
-            // A row to swipe – sideways only: up and down the swipe is the
-            // page's. No bar; it fades where it goes on (fading-edges.ts).
-            // Room all round inside the scroller (it clips both ways): a stamp
-            // can lift, turn and wear its badge and focus ring without losing a
-            // corner – 20px above and below, all a frame, a turned one and
-            // the badge reach: with less, the row would scroll up and down by
-            // what sticks out. The one in hand: lifted, its line drawn thick.
-            // Beside the page the column is narrow – there they wrap, all in
-            // sight, nothing scrolls, cuts or fades.
-            <div
+          {/* Under the inks: the stamp's group, the steps at the far side. In
+            a row with the inks – where there is room for it – the stamp's in
+            the very middle (`contents`: the two are the row's own). */}
+          <div className="flex items-end justify-between gap-5 @xl:contents">
+            <fieldset
               className={cn(
-                "-m-4 flex gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain px-4 py-5 @lg:m-0 @lg:flex-wrap @lg:gap-y-3 @lg:overflow-visible @lg:mask-none @lg:p-0",
-                FADING.x
+                "min-w-0 @xl:justify-self-center",
+                !(inHand || marked) && "invisible"
               )}
-              ref={tray}
             >
-              {stamps.map((s) => (
-                // Its name on a tag when pointed at – in the top layer, so the
-                // scroller doesn't clip it. (Another anchor than the shelf's.)
-                <NameTag id={`tray-${s.id}`} key={s.id} text={s.name}>
+              <legend className={cn(CAPTION, "mb-1.5")}>
+                {marked && !inHand ? t.app.day.print : t.app.day.inHand}
+              </legend>
+              <div className="relative flex items-center gap-1">
+                {turnButton(-STEP, t.app.day.turnLeft, "ArrowLeft [")}
+                {/* How far it is turned. */}
+                {inHand ? (
+                  <span
+                    className={ANGLE}
+                    key="hand"
+                    ref={(box) => {
+                      angle.current = box;
+                      showAngle();
+                    }}
+                  />
+                ) : (
+                  <span className={ANGLE} key="print">
+                    {angleOf(marked?.rotation ?? 0)}
+                  </span>
+                )}
+                {turnButton(STEP, t.app.day.turnRight, "ArrowRight ]")}
+                {marked && !inHand && (
+                  <button
+                    aria-keyshortcuts="Delete Backspace"
+                    aria-label={t.app.day.remove}
+                    // In the middle it hangs beside the group, which stays put.
+                    // Red, like every button that deletes something.
+                    className={cn(
+                      ROUND_BUTTON,
+                      "scribble-danger ml-1 h-11 w-11 @xl:absolute @xl:top-0 @xl:left-full"
+                    )}
+                    onClick={() => remove(marked)}
+                    title={t.app.day.remove}
+                    type="button"
+                  >
+                    <BinSign className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+            </fieldset>
+            <fieldset className="min-w-0 @xl:justify-self-end">
+              <legend className={cn(CAPTION, "mb-1.5")}>
+                {t.app.day.history}
+              </legend>
+              <div className="flex items-center gap-2">
+                {(
+                  [
+                    [undo, can.undo, t.app.day.undo, "Meta+Z Control+Z", ""],
+                    // The same arrow, the other way round.
+                    [
+                      redo,
+                      can.redo,
+                      t.app.day.redo,
+                      "Meta+Shift+Z Control+Shift+Z Control+Y",
+                      "-scale-x-100",
+                    ],
+                  ] as const
+                ).map(([go, able, label, keys, flip]) => (
+                  <button
+                    aria-keyshortcuts={keys}
+                    aria-label={label}
+                    // Filled while there is a step to take – it should be
+                    // seen; faint while there is none.
+                    className={cn(
+                      ROUND_BUTTON,
+                      "h-12 w-12",
+                      able && "scribble-ink"
+                    )}
+                    disabled={!able}
+                    key={label}
+                    onClick={go}
+                    title={label}
+                    type="button"
+                  >
+                    <StepSign className={cn("h-6 w-6", flip)} />
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        </div>
+
+        {/* What to do now – with the stamp in hand by its name. Always as
+          high – on a phone two lines, wider one: what lies under it
+          doesn't move as it changes. */}
+        <p className="line-clamp-2 min-h-10 font-medium text-muted text-sm sm:line-clamp-1 sm:min-h-5">
+          {inHand
+            ? t.app.day.holding(inHand.name)
+            : marked
+              ? t.app.day.picked
+              : t.app.day.tray}
+          {(inHand || marked) && (
+            // Only where there is likely a wheel – and a keyboard.
+            <span className="hidden [@media(hover:hover)]:inline">
+              {" "}
+              {inHand ? t.app.day.wheel : t.app.day.pickedKeys}
+            </span>
+          )}
+        </p>
+
+        {/* The stamps: their order beside their word, to pick (one choice
+          with the shelf's), a new one last. */}
+        <div className="flex min-w-0 flex-col gap-2">
+          <div className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1">
+            <span className={CAPTION}>{t.app.stamps}</span>
+            {stamps.length > 1 && (
+              <OrderMenu
+                locale={locale}
+                onPick={onOrder}
+                onShow={setSorting}
+                order={order}
+              />
+            )}
+          </div>
+          {stamps.length === 0 && (
+            <p className="text-muted text-sm">{t.app.noStamps}</p>
+          )}
+          {/* The stamps stand free, no frame each: the one in hand is lifted
+              and ringed with the marker. A new one is drawn from the last
+              tile. Where nothing points (a finger), each wears its name right
+              under it – one line, always there, so the rows are as high with
+              names as without.
+              On a phone, two rows to swipe – sideways only: up and down the
+              swipe is the page's. No bar; it fades where it goes on
+              (fading-edges.ts). Room all round inside the scroller (it clips
+              both ways): a stamp can lift, turn and wear its ring and focus
+              ring without losing a corner – 20px above and below: with less,
+              the rows would scroll up and down by what sticks out. Wider,
+              a little larger, they wrap – as many to a row as fit, close
+              together from the left, all in sight: nothing scrolls, cuts or
+              fades. */}
+          <div
+            className={cn(
+              "-m-4 grid auto-cols-[4.75rem] grid-flow-col grid-rows-2 items-start gap-x-3 gap-y-2 overflow-x-auto overflow-y-hidden overscroll-x-contain px-4 py-5 sm:m-0 sm:grid-flow-row sm:grid-cols-[repeat(auto-fill,5.5rem)] sm:grid-rows-none sm:gap-4 sm:overflow-visible sm:mask-none sm:px-0 sm:py-2",
+              FADING.x
+            )}
+            ref={tray}
+          >
+            {stamps.map((s) => (
+              <div
+                className="flex w-19 shrink-0 flex-col sm:w-22"
+                data-stamp={s.id}
+                key={s.id}
+              >
+                {/* Its name on a tag when pointed at – in the top layer, so
+                    the scroller doesn't clip it. (Another anchor than the
+                    shelf's.) */}
+                <NameTag id={`tray-${s.id}`} text={s.name}>
                   {({ onClick: hideTag, ...anchor }) => (
                     <button
                       {...anchor}
                       aria-label={s.name || t.app.day.print}
                       aria-pressed={held === s.id}
                       className={cn(
-                        "scribble scribble-thin relative h-20 w-20 shrink-0 rounded-3xl p-1 transition-transform duration-150 ease-out",
+                        "scribble scribble-clear relative h-19 w-19 shrink-0 rounded-[26px] p-0.5 transition-transform duration-150 ease-out [--scribble-inset:-4px] sm:h-22 sm:w-22",
                         held === s.id
-                          ? "scribble-bold -translate-y-1.5"
-                          : "hover:-rotate-6 hover:scribble-boil active:scale-90"
+                          ? "scribble-bold -translate-y-1"
+                          : "scribble-bare hover:-rotate-6 hover:scribble-soft active:scale-90"
                       )}
                       onClick={(event) => {
                         hideTag();
-                        // By keyboard there is no pointing at the page: the stamp
-                        // comes down somewhere on it – in the hand's ink if it is
-                        // the one held, else in its own.
+                        // By keyboard there is no pointing at the page: the
+                        // stamp comes down somewhere on it – in the hand's
+                        // ink if it is the one held, else in its own.
                         if (event.detail === 0) {
                           const spot = () => 0.25 + Math.random() * 0.5;
                           print(
@@ -941,27 +1178,39 @@ export const DayPage = ({
                       </span>
                       {s.drawing?.special && (
                         // A stamp for the big days.
-                        <Sparkle className="pointer-events-none absolute top-1 right-1 h-3.5 w-3.5 text-ink" />
-                      )}
-                      {held === s.id && (
-                        // (A frame is `relative` – the badge goes in a box that isn't.)
-                        <span className="absolute -bottom-3 left-1/2 flex -translate-x-1/2 animate-fade">
-                          <span
-                            className={cn(
-                              BADGE,
-                              "scribble-ink whitespace-nowrap px-1.5 text-[10px]"
-                            )}
-                          >
-                            {t.app.day.inHand}
-                          </span>
-                        </span>
+                        <Sparkle className="pointer-events-none absolute top-0.5 right-0.5 h-3.5 w-3.5 text-ink" />
                       )}
                     </button>
                   )}
                 </NameTag>
-              ))}
-            </div>
-          )}
+                {/* Said by the button already. */}
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    NAME_UNDER,
+                    "hidden h-4 [@media(hover:none)]:block",
+                    held === s.id && "text-ink"
+                  )}
+                >
+                  {s.name}
+                </span>
+              </div>
+            ))}
+            {/* A new one, last – drawn, it comes back into the hand. */}
+            <button
+              className={cn(
+                "scribble scribble-dashed group flex h-19 w-19 shrink-0 flex-col items-center justify-center gap-1 rounded-3xl px-1 text-center font-bold text-[11px] leading-tight transition-transform duration-150 ease-out hover:-translate-y-0.5 hover:scribble-boil active:translate-y-px active:scale-[0.97] sm:h-22 sm:w-22",
+                shelfBeside && "lg:hidden"
+              )}
+              onClick={onNew}
+              type="button"
+            >
+              <span className="scribble scribble-sm scribble-ink flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-200 group-hover:rotate-90">
+                <Plus className="h-4 w-4" />
+              </span>
+              {t.app.newStamp}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -977,3 +1226,66 @@ export const DayPage = ({
     </div>
   );
 };
+
+type Sign = { className?: string };
+
+/** A stamp, a little askew, and an arrow over it – turned to the left. */
+const TurnSign = ({ className }: Sign) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2.4"
+    viewBox="0 0 24 24"
+  >
+    <rect
+      height="9"
+      rx="2"
+      transform="rotate(-12 15 15)"
+      width="9"
+      x="10.5"
+      y="10.5"
+    />
+    <path d="M15 4.5A10.5 10.5 0 0 0 4.5 15" />
+    <path d="m1.8 12.4 2.7 3 2.7-3" />
+  </svg>
+);
+
+/** A hooked arrow – a step back. */
+const StepSign = ({ className }: Sign) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2.8"
+    viewBox="0 0 24 24"
+  >
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+  </svg>
+);
+
+/** A bin – off the page. */
+const BinSign = ({ className }: Sign) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2.4"
+    viewBox="0 0 24 24"
+  >
+    <path d="M4 6.5h16" />
+    <path d="M9 6.5V4h6v2.5" />
+    <path d="M6 6.5 7 19a2 2 0 0 0 2 1.8h6A2 2 0 0 0 17 19l1-12.5" />
+    <path d="M10 10.5v6M14 10.5v6" />
+  </svg>
+);

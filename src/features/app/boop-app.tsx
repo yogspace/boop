@@ -15,11 +15,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { Button, Logo, Notice, PILL, ROUND_BUTTON } from "@/components/ui";
 import { saveLocale } from "@/features/accounts/client";
 import { trackEvent } from "@/features/analytics/client";
-import {
-  type ColorName,
-  type DayKey,
-  stampsOf,
-} from "@/features/calendar/model";
+import type { ColorName, DayKey } from "@/features/calendar/model";
 import { hexOf, nextKey } from "@/features/calendar/palette";
 import { GROUND, PAPER, tintOf, tintVars } from "@/features/calendar/tint";
 import {
@@ -28,7 +24,6 @@ import {
   createCalendar,
   logout,
   prefOf,
-  setCalendarPref,
   start,
   useBoop,
 } from "@/features/offline/store";
@@ -47,6 +42,7 @@ import {
   type Panel,
   readAddress,
   slugsOf,
+  viewShown,
 } from "./address";
 import { CalendarSettings, PersonPlus, Sliders } from "./calendar-settings";
 import { DaySheet } from "./day-sheet";
@@ -58,16 +54,9 @@ import { Invitations } from "./invitations";
 import { MonthGrid } from "./month-grid";
 import { NameTag } from "./name-tag";
 import { ShareSheet } from "./share-sheet";
-import {
-  byPerson,
-  keepOrder,
-  newestFirst,
-  readOrder,
-  type ShelfOrder,
-} from "./shelf";
 import { StampDrawer } from "./stamp-drawer";
 import { StampSheet } from "./stamp-sheet";
-import { SHELF_ID, StampShelf } from "./stamp-shelf";
+import { SHELF_ID, StampShelf, useShelf } from "./stamp-shelf";
 import { SyncMark } from "./sync-badge";
 import { TodayView } from "./today-view";
 import { useDismiss } from "./use-dismiss";
@@ -157,9 +146,9 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   // The calendar and the view showing live in the address, so a reload
   // stays on them, and a link opens them. The calendar: its id once found,
   // before that what the address named (a slug, or an id). The view: null
-  // for the one last chosen for that calendar – or today. The server
-  // renders none – no matter: until the device's copy is open (status
-  // "loading", always so while hydrating) no calendar shows.
+  // for the one the calendar opens in (`viewShown`) – once it shows, held
+  // too. The server renders none – no matter: until the device's copy is
+  // open (status "loading", always so while hydrating) no calendar shows.
   const [shown, setShown] = useState(asked);
   // A day open in the month or the year – in the address too, so a reload
   // or a link opens it again, in its month.
@@ -170,6 +159,15 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     return { year: now.getFullYear(), month: now.getMonth() };
   });
   const [drawing, setDrawing] = useState(false);
+  // A new stamp drawn from a day's page (its tray's first tile): back on
+  // that day it is in the hand – `handed`, once saved, until the page has
+  // taken it. A day's sheet and the editor take turns, one gone before the
+  // other comes (`dayUp`, `drawerUp`: there, or still on its way out) – two
+  // at once would undo each other's hold on the page behind (sheet.tsx).
+  const fromDay = useRef(false);
+  const [handed, setHanded] = useState<string | null>(null);
+  const [dayUp, setDayUp] = useState(false);
+  const [drawerUp, setDrawerUp] = useState(false);
   // Something drawn in the new stamp's editor: the browser's back doesn't
   // throw it away – it stays, and the editor asks (`ask` counts up).
   const drawn = useRef(false);
@@ -178,11 +176,9 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   // came to the account, greeted (gifts.tsx). One at a time.
   const [inviting, setInviting] = useState(false);
   const [arriving, setArriving] = useState(false);
-  // The shelf's order – the device's choice (shelf.ts). Read right away:
-  // nothing of the shelf shows before the device's copy is open.
-  const [order, setOrder] = useState<ShelfOrder>(() =>
-    typeof window === "undefined" ? "newest" : readOrder()
-  );
+  // The stamps, in the order the device keeps – the shelf's and the day's
+  // tray's, one choice for both (stamp-shelf.tsx).
+  const shelf = useShelf();
   const noteDrawn = useRef((now: boolean) => {
     drawn.current = now;
   }).current;
@@ -275,12 +271,17 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   const named = calendarOf(shown.calendar, slugs[locale]);
   const calendar =
     calendars.find((c) => c.id === named) ?? calendars[0] ?? null;
-  // Found, it is held by its id: renamed, it stays.
-  if (calendar && shown.calendar !== calendar.id) {
-    setShown({ ...shown, calendar: calendar.id });
+  // The view the address asks for – else the one the calendar opens in
+  // (its settings), else the month.
+  const view = viewShown(
+    shown.view,
+    calendar && prefOf(boop, calendar.id).start
+  );
+  // Found, it is held by its id: renamed, it stays. And in the view it
+  // opened in: a start view picked meanwhile is for the next time.
+  if (calendar && (shown.calendar !== calendar.id || shown.view !== view)) {
+    setShown({ ...shown, calendar: calendar.id, view });
   }
-  const view: CalendarView =
-    shown.view ?? (calendar && prefOf(boop, calendar.id).view) ?? "today";
   // The today view is a day of its own – none opens over it.
   const openDay = view === "today" ? null : day;
   if (asking && boop.status === "ready" && calendar) {
@@ -305,34 +306,16 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
         : shownId && (sharing ?? shareNext.current) === shownId
           ? "share"
           : null;
+  // A day's sheet and the editor: one at a time – each waits until the
+  // other is gone (`drawFromDay`).
+  const showDay = Boolean(calendar && openDay) && !drawing && !drawerUp;
+  const showDrawer = drawing && !dayUp;
+  if (showDay && !dayUp) setDayUp(true);
+  if (showDrawer && !drawerUp) setDrawerUp(true);
   // The calendar's color as this account sees it – and the ground in it,
   // once there is something to show.
   const color = calendar ? hexOf(colorOf(boop, calendar)) : null;
   useGround(boop.status === "ready" && color ? tintOf(color).bg : null);
-  // The same in every calendar: mine, and what others share with me – in
-  // the shelf's order (shelf.ts): the latest first, all in one, or in
-  // sections by person. The day's tray goes by it too.
-  const shelf = useMemo(() => {
-    const all = stampsOf(
-      Object.values(boop.stamps),
-      me,
-      Object.keys(boop.calendars)
-    );
-    return order === "person"
-      ? byPerson(all, me, (id) => boop.people[id] ?? "")
-      : [
-          {
-            key: "all",
-            kind: "mine" as const,
-            name: "",
-            stamps: newestFirst(all),
-          },
-        ];
-  }, [boop.stamps, boop.calendars, boop.people, me, order]);
-  const myStamps = useMemo(
-    () => shelf.flatMap((group) => group.stamps),
-    [shelf]
-  );
 
   // Whatever shows is in the address – /de/app/familie/heute (address.ts).
   // A step of one's own (another calendar, the other view) is a new entry
@@ -404,14 +387,14 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   }
 
   /**
-   * Shows a calendar – in `next` view, or the one last chosen for it – as a
-   * step of its own: back goes to what showed before.
+   * Shows a calendar – in `next` view, or the one it opens in – as a step
+   * of its own: back goes to what showed before.
    */
   const go = (id: string, next: CalendarView | null) => {
     const path = addressOf(
       locale,
       slugs[locale].get(id),
-      next ?? prefOf(boop, id).view ?? "today"
+      viewShown(next, prefOf(boop, id).start)
     );
     const { pathname, search, hash } = window.location;
     if (pathname !== path) {
@@ -425,11 +408,13 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     setDay(null);
   };
 
-  /** The other view – kept for the calendar, it opens in it next time. */
+  /**
+   * The other view – in the address only: the calendar still opens in its
+   * own (its settings, `start`).
+   */
   const pick = (next: CalendarView) => {
     if (!calendar || next === view) return;
     go(calendar.id, next);
-    void setCalendarPref(calendar.id, { view: next });
   };
 
   /**
@@ -461,6 +446,28 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     stepTo({ day: key });
     setDay(key);
     trackEvent("day-opened");
+  };
+
+  /**
+   * A new stamp, from a day's page – a step over that day's own: back, or
+   * the editor closing, is that day again (the today view, or its sheet
+   * once the editor is gone), and a stamp saved is in the hand there.
+   */
+  const drawFromDay = () => {
+    fromDay.current = true;
+    stepTo({ panel: "draw" });
+    setDay(null);
+    setDrawing(true);
+  };
+
+  // The day's tray – in the today view and a day's sheet alike.
+  const tray = {
+    stamps: shelf.stamps,
+    order: shelf.order,
+    onOrder: shelf.pick,
+    onNew: drawFromDay,
+    give: handed,
+    onGiven: () => setHanded(null),
   };
 
   const onNewCalendar = async (name: string, color: ColorName) => {
@@ -747,10 +754,10 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                   >
                     {view === "today" && (
                       <TodayView
+                        {...tray}
                         calendar={calendar.id}
                         keyboard={!(covered || inviting || arriving)}
                         locale={locale}
-                        stamps={myStamps}
                       />
                     )}
                     {view === "month" && (
@@ -787,7 +794,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
           </div>
 
           <StampShelf
-            groups={shelf}
+            groups={shelf.groups}
             locale={locale}
             me={me}
             onNew={() => {
@@ -795,11 +802,8 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
               setDrawing(true);
             }}
             onOpen={setOpened}
-            onOrder={(next) => {
-              setOrder(next);
-              keepOrder(next);
-            }}
-            order={order}
+            onOrder={shelf.pick}
+            order={shelf.order}
             people={boop.people}
           />
         </div>
@@ -813,20 +817,31 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
       </div>
 
       {/* Each sheet in its own presence – there it can go the way it came. */}
-      <AnimatePresence>
-        {calendar && openDay && (
+      <AnimatePresence
+        onExitComplete={() => {
+          setDayUp(false);
+          // Gone: the shelf may show what was stamped there.
+          shelf.settle();
+        }}
+      >
+        {calendar && openDay && showDay && (
           <DaySheet
+            {...tray}
             calendar={calendar.id}
             date={openDay}
             key="day"
             locale={locale}
             onClose={closeStep(() => setDay(null))}
-            stamps={myStamps}
           />
         )}
       </AnimatePresence>
-      <AnimatePresence>
-        {drawing && (
+      <AnimatePresence
+        onExitComplete={() => {
+          setDrawerUp(false);
+          fromDay.current = false;
+        }}
+      >
+        {showDrawer && (
           <StampDrawer
             ask={askLeave}
             calendar={
@@ -836,6 +851,9 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
             locale={locale}
             onClose={closeStep(() => setDrawing(false))}
             onDrawn={noteDrawn}
+            onSaved={(id) => {
+              if (fromDay.current) setHanded(id);
+            }}
           />
         )}
       </AnimatePresence>

@@ -18,17 +18,21 @@ const VIEWS = [
  * A calendar's views side by side in a drawn pill: today's page, the month,
  * the year. The one showing is marked with the highlighter, in the
  * calendar's color (`--cal-mark`, like its name beside it) – picked, the
- * stroke slides over to the other.
+ * stroke slides over to the other. Its name, read out, says what the pick
+ * is for (`label`): by default the view showing; in the calendar's
+ * settings the one it opens in.
  */
 export const ViewSwitch = ({
   view,
   locale,
   onPick,
+  label,
   className,
 }: {
   view: CalendarView;
   locale: Locale;
   onPick: (view: CalendarView) => void;
+  label?: string;
   className?: string;
 }) => {
   const t = dictionaryOf(locale);
@@ -39,7 +43,7 @@ export const ViewSwitch = ({
         className
       )}
     >
-      <legend className="sr-only">{t.app.view.label}</legend>
+      <legend className="sr-only">{label ?? t.app.view.label}</legend>
       {VIEWS.map((v) => (
         <button
           aria-pressed={view === v}

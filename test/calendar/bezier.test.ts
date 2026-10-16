@@ -20,6 +20,7 @@ import {
   pointOn,
   pullHandles,
   removeAnchor,
+  smoothen,
   snap45,
   toggleSmooth,
 } from "../../src/features/calendar/bezier";
@@ -146,12 +147,19 @@ describe("an anchored line from a device", () => {
     ).toBeUndefined();
   });
 
-  it("keeps anchors in the square, rounded", () => {
+  it("keeps anchors in the square, their handles within reach, rounded", () => {
     const wild = [...corner(-0.2, 0.33333), ...corner(1.4, 0.5)];
     expect(sent({ w: 0.05, p: [], a: wild })?.a).toEqual([
-      ...corner(0, 0.333),
-      ...corner(1, 0.5),
+      0, 0.333, -0.2, 0.333, -0.2, 0.333, 1, 0.5, 1.4, 0.5, 1.4, 0.5,
     ]);
+    // Handles out as far as HANDLE_REACH – the drawn line stays inside.
+    const far = [0.1, 0.5, 0.1, 0.5, -3, 0.9, 0.9, 0.5, 0.9, 0.5, 0.9, 0.5];
+    const line = sent({ w: 0.05, p: [], a: far });
+    expect(line?.a?.slice(4, 6)).toEqual([-1, 0.9]);
+    for (const v of line?.p ?? []) {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+    }
   });
 
   it("drops anchors that are none – the line stays an ordinary one", () => {
@@ -241,21 +249,35 @@ describe("moving an anchored line about", () => {
 });
 
 describe("editing an anchored line's points", () => {
+  it("makes a corner round again – its handles in one line, mirrored", () => {
+    // A corner: its handle in straight up, its handle out to the right.
+    const a = [0.2, 0.5, 0.2, 0.5, 0.2, 0.5, 0.5, 0.5, 0.5, 0.3, 0.7, 0.5];
+    const round = smoothen(a, false, 1);
+    expect(round.slice(6, 12)).toEqual([0.5, 0.5, 0.3, 0.5, 0.7, 0.5]);
+    expect(isSmooth(round, 1)).toBe(true);
+    // One without handles gets them, along the way from its neighbours.
+    const bare = [
+      0.2, 0.5, 0.2, 0.5, 0.2, 0.5, 0.5, 0.2, 0.5, 0.2, 0.5, 0.2, 0.8, 0.5, 0.8,
+      0.5, 0.8, 0.5,
+    ];
+    expect(isSmooth(smoothen(bare, false, 1), 1)).toBe(true);
+  });
+
   it("knows smooth points from corners", () => {
     expect(isSmooth(arch, 0)).toBe(false);
     expect(isSmooth(arch, 1)).toBe(true);
   });
 
-  it("moves an anchor with its handles – in the square", () => {
+  it("moves an anchor with its handles – the anchor up to the edge", () => {
     const moved = moveAnchor(arch, 1, 0.6, 0.4);
     expect(moved.slice(ANCHOR, 2 * ANCHOR)).toEqual([
       0.6, 0.4, 0.45, 0.4, 0.75, 0.4,
     ]);
     expect(moved.slice(0, ANCHOR)).toEqual(arch.slice(0, ANCHOR));
-    // Its handle out would leave the square: it stops there.
+    // The anchor stops at the edge, its handle out goes on beyond it.
     const far = moveAnchor(arch, 1, 2, 0.3);
     expect(far.slice(ANCHOR, 2 * ANCHOR)).toEqual([
-      0.85, 0.3, 0.7, 0.3, 1, 0.3,
+      1, 0.3, 0.85, 0.3, 1.15, 0.3,
     ]);
   });
 

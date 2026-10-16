@@ -1,5 +1,6 @@
 import type { Payload } from "payload";
 import { seedLegal } from "@/features/legal/seed";
+import { seedDrawingTemplates, seedStampShapes } from "@/features/site/seed";
 import { syncTranslations } from "@/features/translations/seed";
 import type { SeedKey } from "./definitions";
 
@@ -29,6 +30,10 @@ const runners: Record<
       .map(([locale, result]) => `${locale.toUpperCase()} ${result}`)
       .join(", ");
   },
+  shapes: (payload, replace) =>
+    seedStampShapes(payload, replace ? "replace" : "fill"),
+  templates: (payload, replace) =>
+    seedDrawingTemplates(payload, replace ? "replace" : "fill"),
 };
 
 export const runSeed = (key: SeedKey, payload: Payload, replace: boolean) =>

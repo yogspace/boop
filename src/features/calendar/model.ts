@@ -33,20 +33,15 @@ import { cleanAnchors, lineStroke } from "./bezier";
 export type ColorName = string;
 
 /**
- * The stamp's body – its outline (outline.ts). The doodle is drawn onto it
- * and stands out of it – embossed – when the stamp is shown in 3D.
+ * The stamp's body – the KEY of a stamp shape, e.g. “heart”: its outline
+ * (shapes.ts, outline.ts). The doodle is drawn onto it and stands out of it
+ * – embossed – when the stamp is shown in 3D. Which shapes there are comes
+ * from the CMS, like the colors; a key it doesn't have (any more) is no
+ * error: it shows as the first shape.
  */
-export const SHAPES = [
-  "circle",
-  "square",
-  "octagon",
-  "triangle",
-  "diamond",
-] as const;
-export type StampShape = (typeof SHAPES)[number];
+export type StampShape = string;
 
-export const isShape = (value: unknown): value is StampShape =>
-  typeof value === "string" && (SHAPES as readonly string[]).includes(value);
+export { isShapeKey } from "./shapes";
 
 /**
  * The stamp's face in the unit square – the same in the drawing, in its print

@@ -1,15 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Snapshot } from "valtio";
-import {
-  type DayKey,
-  type StampDoc,
-  todayKey,
-} from "@/features/calendar/model";
+import { type DayKey, todayKey } from "@/features/calendar/model";
 import type { Locale } from "@/i18n/config";
 import { DayNote } from "./day-note";
-import { DayPage } from "./day-page";
+import { DayPage, type TrayProps } from "./day-page";
 
 /**
  * Today's date – and the next one's, once midnight has passed: with the
@@ -55,19 +50,18 @@ export const useToday = (): DayKey => {
  * days before are in the month.
  *
  * `keyboard`: the page's keys (day-page.tsx) – off while something lies
- * over it.
+ * over it. The tray's (`TrayProps`) go on to the page as they are.
  */
 export const TodayView = ({
   calendar,
   locale,
-  stamps,
   keyboard,
+  ...tray
 }: {
   calendar: string;
   locale: Locale;
-  stamps: readonly Snapshot<StampDoc>[];
   keyboard: boolean;
-}) => {
+} & TrayProps) => {
   const today = useToday();
   const date = new Date(`${today}T12:00:00`);
   return (
@@ -75,6 +69,7 @@ export const TodayView = ({
     // stays with the day before.
     <div className="flex animate-fade flex-col gap-5" key={today}>
       <DayPage
+        {...tray}
         calendar={calendar}
         date={today}
         heading={
@@ -90,7 +85,7 @@ export const TodayView = ({
         }
         keyboard={keyboard}
         locale={locale}
-        stamps={stamps}
+        shelfBeside
       />
       <DayNote calendar={calendar} date={today} locale={locale} />
     </div>

@@ -6,7 +6,7 @@
  * is missing; “Replace” – where offered, behind a confirmation – sets it back
  * to the code's version.
  */
-export const SEEDS = ["translations", "legal"] as const;
+export const SEEDS = ["translations", "legal", "shapes", "templates"] as const;
 
 export type SeedKey = (typeof SEEDS)[number];
 
@@ -18,6 +18,8 @@ export const seedCanReplace: Record<SeedKey, boolean> = {
   // Never: what is written in the admin wins (features/translations/seed.ts).
   translations: false,
   legal: true,
+  shapes: true,
+  templates: true,
 };
 
 /** The page's path in the admin. */
@@ -43,5 +45,19 @@ export const SEED_TEXTS: Record<
       "The imprint and privacy policy as written in the code, in German and English. Fill only sets a language that has no text yet.",
     replaceWarning:
       "The imprint and privacy policy go back to the code's version in both languages. Edits made to them are lost.",
+  },
+  shapes: {
+    title: "Stamp shapes",
+    description:
+      "The shapes a stamp can have, as the code draws them (Site → Stamp shapes). Fill adds the ones the list hasn't got – by key – at its end; the others stay as they are.",
+    replaceWarning:
+      "Site → Stamp shapes becomes the code's list again. Shapes added or changed in the admin are lost – stamps in a shape no longer there show in the first one.",
+  },
+  templates: {
+    title: "Drawing templates",
+    description:
+      "The shapes to drag into a drawing, as the code draws them (Site → Drawing templates). Fill adds the ones the list hasn't got – by key – at its end; the others stay as they are.",
+    replaceWarning:
+      "Site → Drawing templates becomes the code's list again. Templates added or changed in the admin are lost.",
   },
 };

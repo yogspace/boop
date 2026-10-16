@@ -7,6 +7,7 @@ import { SIGNED_IN_SCRIPT } from "@/features/accounts/signed-in";
 import { SignedInMark } from "@/features/accounts/signed-in-mark";
 import { PageViewTracker } from "@/features/analytics/page-view-tracker";
 import { PaletteProvider } from "@/features/calendar/palette-provider";
+import { ShapesProvider } from "@/features/calendar/shapes-provider";
 import { ServiceWorker } from "@/features/pwa/service-worker";
 import { getSite } from "@/features/site/get-site";
 import { TransitionDone } from "@/features/transitions/link";
@@ -63,8 +64,8 @@ export const viewport: Viewport = {
 };
 
 /**
- * The frame of every page in a language: fonts, the stamp colors, the
- * texts, statistics, offline.
+ * The frame of every page in a language: fonts, the stamp colors and
+ * shapes, the texts, statistics, offline.
  */
 const LocaleLayout = async ({
   children,
@@ -72,11 +73,12 @@ const LocaleLayout = async ({
 }: Props & { children: ReactNode }) => {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
-  // The CMS's colors and texts, in the page itself – so they are there from
+  // The CMS's colors, shapes and texts, in the page itself – so they are there from
   // the first paint, and offline too (the service worker keeps the page).
   // The texts of both languages, as far as they differ from the code's: the
   // app switches its language without loading anew (get-texts.ts).
-  const [{ stampColors }, texts] = await Promise.all([getSite(), getTexts()]);
+  const [{ stampColors, stampShapes, drawingTemplates }, texts] =
+    await Promise.all([getSite(), getTexts()]);
   return (
     // `data-in` is set by the script below, before React – not a mismatch –
     // and kept by `SignedInMark` when this frame is built anew.
@@ -100,7 +102,11 @@ const LocaleLayout = async ({
         <ScribbleDefs />
         <MotionProvider>
           <TextsProvider texts={texts}>
-            <PaletteProvider colors={stampColors}>{children}</PaletteProvider>
+            <PaletteProvider colors={stampColors}>
+              <ShapesProvider shapes={stampShapes} templates={drawingTemplates}>
+                {children}
+              </ShapesProvider>
+            </PaletteProvider>
           </TextsProvider>
         </MotionProvider>
         <SignedInMark />

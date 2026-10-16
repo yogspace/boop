@@ -22,6 +22,7 @@ import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { seedOf } from "./day-page";
+import { layoutPrints, type Room, varietyFirst } from "./pile";
 import { useToday } from "./today-view";
 import { keyOf, stepOf } from "./year-keys";
 
@@ -32,9 +33,13 @@ type Print = {
   z: number;
   ink: ColorName;
   stamp: Snapshot<StampDoc> | undefined;
+  special: boolean;
 };
 
-/** What a day's cell shows: its prints, top first – and whether a note. */
+/**
+ * What a day's cell shows: its prints, top first (different stamps before
+ * a second print of one already there) – and whether a note.
+ */
 type Day = { prints: Print[]; note: boolean };
 
 const DAYS = 31;
@@ -42,23 +47,28 @@ const DAYS = 31;
 /** The days' numbers down the left (px – the cells' widths are worked out). */
 const NUMBERS = 24;
 
-/** A print in the table is never smaller than this (px) – more go to “+n”. */
-const SMALLEST = 12;
-
-/** Between two prints in a cell, and round them (px). */
-const GAP = 1;
-
 /**
  * How the table is measured out, from its width: how wide a month's column
- * is, how high a day's row, and how many prints fit side by side in a
- * cell. Rows are high enough for one print to be made out: a little higher
- * where the columns are wide.
+ * is, how high a day's row – high enough for one print to be made out, a
+ * little higher where the columns are wide – and the room a day's prints
+ * have there (pile.ts): a few, overlapping, never smaller than this; a
+ * hair over the day's line at most – the rows are close.
  */
 const layoutOf = (width: number) => {
   const column = Math.max(0, (width - NUMBERS) / 12);
   const row = column >= 40 ? 28 : 24;
-  const fit = Math.max(1, Math.floor((column - GAP) / (SMALLEST + GAP)));
-  return { column, row, fit };
+  const room: Room = {
+    width: column,
+    height: row,
+    inset: 1,
+    over: 1.5,
+    // Where “+n” is, when not all fit.
+    badge: { width: 16, height: 11 },
+    smallest: 13,
+    biggest: row - 4,
+    most: 8,
+  };
+  return { column, row, room };
 };
 
 type Layout = ReturnType<typeof layoutOf>;
@@ -66,9 +76,10 @@ type Layout = ReturnType<typeof layoutOf>;
 /**
  * The year as one table, ruled with the marker like the month: a column per
  * month (their names on top), a row per day (the numbers down the left).
- * A stamped day shows its prints side by side, top first – as many as fit
- * across, smaller the more there are (“+3” for the rest); on a phone, where
- * the columns are narrow, one or two. So the year grows colorful as it
+ * A stamped day shows its prints in a little pile like the month's, each a
+ * little turned and off its place – smaller and overlapping the more there
+ * are, up to eight (“+3” for the rest); on a phone, where the columns are
+ * narrow, four (pile.ts). So the year grows colorful as it
  * fills, and the table itself stays quiet: days a month doesn't have are
  * hatched, the weekend washed, today marked with the calendar's
  * highlighter, a day with a note gets a little stroke of writing.
@@ -128,6 +139,7 @@ export const YearGrid = ({
         z: p.z,
         ink: p.ink ?? stamp?.color ?? "red",
         stamp,
+        special: Boolean(stamp?.drawing?.special),
       });
     }
     for (const note of Object.values(notes ?? {})) {
@@ -136,7 +148,12 @@ export const YearGrid = ({
       dayOf(note.date).note = true;
     }
     for (const days of all) {
-      for (const day of days.values()) day.prints.sort((a, b) => b.z - a.z);
+      for (const day of days.values()) {
+        day.prints = varietyFirst(
+          day.prints.sort((a, b) => b.z - a.z),
+          (p) => `${p.stamp?.id}:${p.ink}`
+        );
+      }
     }
     return all.map((days, i) => {
       const before = kept.current[i];
@@ -164,9 +181,7 @@ export const YearGrid = ({
     const measure = () => {
       const next = layoutOf(box.clientWidth);
       setLayout((was) =>
-        Math.abs(was.column - next.column) < 0.5 &&
-        was.row === next.row &&
-        was.fit === next.fit
+        Math.abs(was.column - next.column) < 0.5 && was.row === next.row
           ? was
           : next
       );
@@ -339,23 +354,6 @@ const same = (a: Map<DayKey, Day>, b: Map<DayKey, Day>) => {
 };
 
 /**
- * The prints a cell has room for, top first – but different stamps before a
- * second print of one already there, so a busy day shows its variety.
- */
-const shownOf = (prints: Print[], room: number) => {
-  if (prints.length <= room) return prints;
-  const seen = new Set<string>();
-  const first: Print[] = [];
-  const again: Print[] = [];
-  for (const p of prints) {
-    const kind = `${p.stamp?.id}:${p.ink}`;
-    (seen.has(kind) ? again : first).push(p);
-    seen.add(kind);
-  }
-  return [...first, ...again].slice(0, room);
-};
-
-/**
  * A month in the year's table: its short name on top (which opens it),
  * then its days down the column.
  */
@@ -389,7 +387,7 @@ const MonthColumn = memo(function MonthColumn({
 }) {
   const t = dictionaryOf(locale);
   const length = new Date(year, month + 1, 0).getDate();
-  const { column, row, fit } = layout;
+  const { row, room } = layout;
   return (
     <div className="flex flex-col">
       <button
@@ -403,15 +401,9 @@ const MonthColumn = memo(function MonthColumn({
       {Array.from({ length }, (_, i) => {
         const date = keyOf(year, month, i + 1);
         const day = days.get(date);
-        const prints = day ? shownOf(day.prints, fit) : [];
-        const more = (day?.prints.length ?? 0) - prints.length;
-        // As large as a row allows, smaller the more share the cell.
-        const size = prints.length
-          ? Math.min(
-              row - 4,
-              (column - GAP - (prints.length - 1) * GAP) / prints.length
-            )
-          : 0;
+        // As large as a row allows, smaller and overlapping the more share
+        // the cell – each a little turned and off its place.
+        const { laid, more } = layoutPrints(day?.prints ?? [], room, date);
         const weekday = new Date(year, month, i + 1).getDay();
         const label = named.format(new Date(year, month, i + 1));
         return (
@@ -419,7 +411,7 @@ const MonthColumn = memo(function MonthColumn({
             aria-current={date === today ? "date" : undefined}
             aria-label={label}
             className={cn(
-              "relative isolate flex shrink-0 items-center justify-center",
+              "relative isolate shrink-0",
               // The weekend's wash – in each column somewhere else.
               (weekday === 0 || weekday === 6) && "bg-soft/70",
               "hover:bg-[color-mix(in_oklab,var(--color-line)_40%,transparent)]",
@@ -432,7 +424,7 @@ const MonthColumn = memo(function MonthColumn({
             onClick={() => onDay(date)}
             onFocus={() => onVisit(date)}
             onKeyDown={(event) => onKey(date, event)}
-            style={{ height: row, gap: GAP }}
+            style={{ height: row }}
             // One stop for all the days – the arrows go on from it.
             tabIndex={date === stop ? 0 : -1}
             title={label}
@@ -445,15 +437,19 @@ const MonthColumn = memo(function MonthColumn({
                 className="scribble scribble-bare scribble-sm absolute inset-0.5 -z-10 -rotate-1 rounded-md [--scribble-fill:var(--cal-mark,var(--color-soft))]"
               />
             )}
-            {prints.map((p) => (
+            {/* A special stamp's print stands out a little: larger, on top
+                (pile.ts). */}
+            {laid.map(({ print: p, x, y, size, turn }) => (
               <span
-                className={cn(
-                  "pointer-events-none flex shrink-0 mix-blend-multiply",
-                  // A special stamp's print stands out a little.
-                  p.stamp?.drawing?.special && "z-10 scale-[1.18]"
-                )}
+                className="pointer-events-none absolute flex mix-blend-multiply"
                 key={p.id}
-                style={{ width: size, height: size }}
+                style={{
+                  left: x - size / 2,
+                  top: y - size / 2,
+                  width: size,
+                  height: size,
+                  transform: `rotate(${turn}deg)`,
+                }}
               >
                 <StampSvg
                   className="h-full w-full"
@@ -466,7 +462,8 @@ const MonthColumn = memo(function MonthColumn({
               </span>
             ))}
             {more > 0 && (
-              <span className="pointer-events-none absolute right-px bottom-px rounded-full bg-ink px-0.75 font-black text-[7px] text-white leading-2.25">
+              // Quietly, as on the month: the calendar's ink on its paper.
+              <span className="pointer-events-none absolute right-px bottom-px rounded-full bg-(--cal-soft,var(--color-card)) px-px font-black text-[8px] text-(--cal-ink,var(--color-ink)) leading-2.5">
                 +{more}
               </span>
             )}

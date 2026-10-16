@@ -3,7 +3,7 @@ import { idOf } from "@/features/calendar/membership";
 import {
   cleanDrawing,
   isDayKey,
-  isShape,
+  isShapeKey,
   sharedWithOf,
   unit,
 } from "@/features/calendar/model";
@@ -65,6 +65,11 @@ export type ApplyContext = {
   special?: ReadonlySet<string>;
   /** The account has the admin box: it may wear those, too. */
   admin?: boolean;
+  /**
+   * The shapes a stamp may be in – the CMS's and the code's, the first the
+   * default. None: any well-formed key.
+   */
+  shapes?: readonly string[];
 };
 
 type Outcome = { ok: true } | { ok: false; reason: string };
@@ -233,7 +238,10 @@ const applyStamp = async (
   const fields = {
     name: text(data.name, 40),
     color: colorFor(ctx, data.color, existing?.color),
-    shape: isShape(data.shape) ? data.shape : undefined,
+    shape:
+      isShapeKey(data.shape) && (ctx.shapes?.includes(data.shape) ?? true)
+        ? data.shape
+        : undefined,
     drawing: "drawing" in data ? cleanDrawing(data.drawing) : undefined,
     sharedWith,
   };
@@ -241,7 +249,7 @@ const applyStamp = async (
     await write({
       ...defined(fields),
       name: fields.name ?? "",
-      shape: fields.shape ?? "circle",
+      shape: fields.shape ?? ctx.shapes?.[0] ?? "circle",
       owner: ctx.me,
       deleted: false,
     });

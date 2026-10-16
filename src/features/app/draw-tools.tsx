@@ -64,8 +64,18 @@ export const REMOVE_SIGN =
  */
 const GUIDE = "#e5007e";
 
-/** A pointer's px from a point on the face (its square, with the rim). */
-const toPx = (size: number) => (u: number) => ((u + 0.02) / 1.04) * size;
+/** How the drawing is zoomed and moved (use-zoom.ts) – none: all of it. */
+type ViewLike = { s: number; x: number; y: number };
+const WHOLE_VIEW: ViewLike = { s: 1, x: 0, y: 0 };
+
+/**
+ * A pointer's px from a point on the face (its square, with the rim) – in
+ * the view as it is zoomed and moved, along x or y.
+ */
+const toPx =
+  (size: number, view: ViewLike = WHOLE_VIEW, axis: "x" | "y" = "x") =>
+  (u: number) =>
+    (view[axis] + (view.s * (u + 0.02)) / 1.04) * size;
 
 /** A closed outline through flat pairs. */
 const ringPath = (p: readonly number[]) => {
@@ -108,15 +118,17 @@ const Line = ({ d, dashed }: { d: string; dashed?: boolean }) => (
 const GuideLines = ({
   lines,
   px,
+  py,
   size,
 }: {
   lines: Guides;
   px: (u: number) => number;
+  py: (u: number) => number;
   size: number;
 }) => {
   const d = [
     ...lines.x.map((x) => `M${px(x).toFixed(1)} 0V${size}`),
-    ...lines.y.map((y) => `M0 ${px(y).toFixed(1)}H${size}`),
+    ...lines.y.map((y) => `M0 ${py(y).toFixed(1)}H${size}`),
   ].join("");
   return (
     <>
@@ -131,20 +143,24 @@ const Outlines = ({
   art,
   items,
   px,
+  py,
 }: {
   art: Art;
   items: Selection;
   px: (u: number) => number;
+  py: (u: number) => number;
 }) => {
+  const pair = (p: readonly number[]) =>
+    p.map((v, i) => (i % 2 ? py(v) : px(v)));
   const paths = [
     ...items.fills.flatMap((i) =>
       (art.fills[i]?.p ?? [])
         .filter((ring) => ring.length >= 6)
-        .map((ring) => ringPath(ring.map(px)))
+        .map((ring) => ringPath(pair(ring)))
     ),
     ...items.strokes.flatMap((i) => {
       const stroke = art.strokes[i];
-      return stroke ? [strokePath(stroke.p.map(px))] : [];
+      return stroke ? [strokePath(pair(stroke.p))] : [];
     }),
   ].join("");
   return <Line d={paths} />;
@@ -166,6 +182,7 @@ export const Marks = ({
   marquee,
   lines,
   knob,
+  view,
   className,
 }: {
   art: Art;
@@ -174,15 +191,18 @@ export const Marks = ({
   marquee: Box | null;
   lines: Guides | null;
   knob: boolean;
+  /** How the drawing is zoomed and moved – the marks keep their size. */
+  view?: ViewLike;
   className?: string;
 }) => {
   const [box, size] = useSide();
-  const px = toPx(size);
-  const unit = size / 1.04;
+  const px = toPx(size, view, "x");
+  const py = toPx(size, view, "y");
+  const unit = (size * (view?.s ?? 1)) / 1.04;
   const frame = picked?.frame;
   const corner = (f: Frame, hx: number, hy: number) => {
     const [x, y] = outOfFrame(f, (hx * f.w) / 2, (hy * f.h) / 2);
-    return [px(x), px(y)] as const;
+    return [px(x), py(y)] as const;
   };
   const handle = knob ? 7 : 5;
   return (
@@ -200,8 +220,10 @@ export const Marks = ({
           strokeLinejoin="round"
           viewBox={`0 0 ${size} ${size}`}
         >
-          {hover && <Outlines art={art} items={hover} px={px} />}
-          {picked && <Outlines art={art} items={picked.items} px={px} />}
+          {hover && <Outlines art={art} items={hover} px={px} py={py} />}
+          {picked && (
+            <Outlines art={art} items={picked.items} px={px} py={py} />
+          )}
           {frame && (
             <>
               {(() => {
@@ -244,13 +266,13 @@ export const Marks = ({
                   return (
                     <>
                       <path
-                        d={`M${tx} ${ty}L${px(kx)} ${px(ky)}`}
+                        d={`M${tx} ${ty}L${px(kx)} ${py(ky)}`}
                         stroke="var(--color-ink)"
                         strokeWidth={2}
                       />
                       <circle
                         cx={px(kx)}
-                        cy={px(ky)}
+                        cy={py(ky)}
                         fill="white"
                         r={9}
                         stroke="var(--color-ink)"
@@ -261,7 +283,7 @@ export const Marks = ({
                         d="M-3.5 1.5a3.6 3.6 0 1 0 1-3.6M-3.3-4.2l.8 2.3 2.3-.7"
                         stroke="var(--color-ink)"
                         strokeWidth={1.6}
-                        transform={`translate(${px(kx)} ${px(ky)})`}
+                        transform={`translate(${px(kx)} ${py(ky)})`}
                       />
                     </>
                   );
@@ -285,18 +307,18 @@ export const Marks = ({
               })}
             </>
           )}
-          {lines && <GuideLines lines={lines} px={px} size={size} />}
+          {lines && <GuideLines lines={lines} px={px} py={py} size={size} />}
           {marquee && (
             <rect
               fill="var(--color-ink)"
               fillOpacity={0.05}
-              height={px(marquee.y1) - px(marquee.y0)}
+              height={py(marquee.y1) - py(marquee.y0)}
               stroke="var(--color-ink)"
               strokeDasharray="5 4"
               strokeWidth={1.5}
               width={px(marquee.x1) - px(marquee.x0)}
               x={px(marquee.x0)}
-              y={px(marquee.y0)}
+              y={py(marquee.y0)}
             />
           )}
         </svg>
@@ -317,18 +339,22 @@ export const LineMarks = ({
   marks,
   lines,
   touch,
+  view,
   className,
 }: {
   marks: LineMarking | null;
   lines: Guides | null;
   touch: boolean;
+  /** How the drawing is zoomed and moved – the marks keep their size. */
+  view?: ViewLike;
   className?: string;
 }) => {
   const [box, size] = useSide();
-  const px = toPx(size);
+  const px = toPx(size, view, "x");
+  const py = toPx(size, view, "y");
   const half = touch ? 5.5 : 4;
   const at = (x: number, y: number) =>
-    `${px(x).toFixed(1)} ${px(y).toFixed(1)}`;
+    `${px(x).toFixed(1)} ${py(y).toFixed(1)}`;
   const anchors = marks?.anchors ?? [];
   const count = anchorCount(anchors);
   const shows = (i: number) =>
@@ -348,9 +374,11 @@ export const LineMarks = ({
           strokeLinejoin="round"
           viewBox={`0 0 ${size} ${size}`}
         >
-          {lines && <GuideLines lines={lines} px={px} size={size} />}
+          {lines && <GuideLines lines={lines} px={px} py={py} size={size} />}
           {marks && marks.line.length >= 4 && (
-            <Line d={strokePath(marks.line.map(px))} />
+            <Line
+              d={strokePath(marks.line.map((v, i) => (i % 2 ? py(v) : px(v))))}
+            />
           )}
           {marks?.preview && (
             <Line
@@ -370,7 +398,7 @@ export const LineMarks = ({
                   />
                   <circle
                     cx={px(anchors[h])}
-                    cy={px(anchors[h + 1])}
+                    cy={py(anchors[h + 1])}
                     fill="white"
                     r={half - 0.5}
                     stroke="var(--color-ink)"
@@ -382,7 +410,7 @@ export const LineMarks = ({
           })}
           {Array.from({ length: count }, (_, i) => i).map((i) => {
             const x = px(anchors[i * ANCHOR]);
-            const y = px(anchors[i * ANCHOR + 1]);
+            const y = py(anchors[i * ANCHOR + 1]);
             return (
               <g key={i}>
                 {marks?.closing && i === 0 && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { LayoutGroup } from "motion/react";
 import { type FormEvent, type ReactNode, type SVGProps, useState } from "react";
 import type { Snapshot } from "valtio";
 import { Bang } from "@/components/doodles";
@@ -18,9 +19,11 @@ import {
 import { NotificationSettings } from "@/features/push/notification-settings";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
+import { START_VIEW } from "./address";
 import { ColorPicker, NameForm } from "./dialogs";
 import { LeaveCalendar, Members } from "./share-sheet";
 import { Sheet } from "./sheet";
+import { ViewSwitch } from "./view-switch";
 
 // ── Doodles ─────────────────────────────────────────────────────────────────
 // The two signs beside a calendar's name – drawn like the ones in
@@ -67,9 +70,10 @@ export const PersonPlus = (props: SVGProps<SVGSVGElement>) => (
  * - **For everyone** – the calendar itself: its name and who is in it. Its
  *   owner's to change – the server holds to that (sync/apply.ts); anyone
  *   else reads.
- * - **Just for you** – how one sees it oneself: its color, what one hears
- *   of it – the notifications (push/notification-settings.tsx) – and one's
- *   own address to have it in a calendar app (ical/calendar-feed.tsx).
+ * - **Just for you** – how one sees it oneself: its color, the view it
+ *   opens in, what one hears of it – the notifications
+ *   (push/notification-settings.tsx) – and one's own address to have it in
+ *   a calendar app (ical/calendar-feed.tsx).
  *
  * At the very end, below both, the way out: the owner deletes it (asked
  * twice), a member leaves it (asked once).
@@ -195,6 +199,26 @@ export const CalendarSettings = ({
             </Button>
           )}
         </ColorPicker>
+        {/* The view it opens in – the month, until another is picked. Kept
+            on this device like the color; switching views leaves it be. The
+            switch's stroke is its own: the one beside the calendar's name
+            is still there, behind the sheet. */}
+        <div className="flex flex-col gap-3">
+          <p aria-hidden="true" className="font-bold text-sm">
+            {t.app.settings.own.start}
+          </p>
+          <LayoutGroup id="start">
+            <ViewSwitch
+              label={t.app.settings.own.start}
+              locale={locale}
+              onPick={(start) => void setCalendarPref(calendar.id, { start })}
+              view={own.start ?? START_VIEW}
+            />
+          </LayoutGroup>
+          <p className="font-medium text-muted text-sm">
+            {t.app.settings.own.startText}
+          </p>
+        </div>
         {/* A reminder, “someone stamped” – each one's own. */}
         <NotificationSettings calendar={calendar} locale={locale} />
         {/* In a calendar app: one's own address to subscribe to, or a file. */}

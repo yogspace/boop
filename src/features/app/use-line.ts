@@ -11,12 +11,14 @@ import {
   ANCHOR,
   anchorCount,
   insertAnchor,
+  isSmooth,
   lineStroke,
   moveAnchor,
   moveHandle,
   pathGrip,
   pullHandles,
   removeAnchor,
+  smoothen,
   snap45,
   toggleSmooth,
 } from "@/features/calendar/bezier";
@@ -25,6 +27,7 @@ import {
   type Guides,
   snapPoint,
 } from "@/features/calendar/guides";
+import type { ShapeLike } from "@/features/calendar/shapes";
 import type { Locate } from "./use-select";
 
 /** How near (px) a pointer must come to an anchor or a handle – a finger more. */
@@ -90,6 +93,13 @@ const replaced = (art: Art, index: number, stroke: Art["strokes"][number]) => ({
  *   click on the line puts a point there, Delete takes the picked one away.
  *   A press beside the line edits another such line – or leaves
  *   (`onLeave`).
+ * - **Round or corner** without Alt (a finger has none): `setKind` – for
+ *   the anchors still to set while drawing, for the picked one while
+ *   editing. A corner's handles move each on its own; made round, they
+ *   line up again, mirrored.
+ *
+ * Handles go on beyond the face where they are dragged (bezier.ts – the
+ * curve itself stays on it).
  *
  * New and dragged anchors snap to the stamp's middle and level with or
  * above other anchors (guides.ts), unless ⌘ / Ctrl is held. Such a line –
@@ -100,6 +110,7 @@ export const useLine = ({
   mode,
   area,
   art,
+  shape,
   width,
   locate,
   live,
@@ -110,6 +121,8 @@ export const useLine = ({
   mode: "line" | "points" | null;
   area: RefObject<HTMLElement | null>;
   art: Art;
+  /** The stamp's shape – its rim's inner edge is a guide. */
+  shape?: ShapeLike;
   /** The width a new line is drawn with. */
   width: number;
   locate: Locate;
@@ -132,6 +145,11 @@ export const useLine = ({
   } | null>(null);
   const [lines, setLines] = useState<Guides | null>(null);
   const press = useRef<Press | null>(null);
+  // Round or corner: the anchors still to set, and those made corners while
+  // editing (by their line and place) – their handles move each on its own.
+  const [corner, setCorner] = useState(false);
+  const [free, setFree] = useState<ReadonlySet<string>>(new Set());
+  const freeKey = (stroke: number, i: number) => `${stroke}:${i}`;
 
   // The line being drawn is the drawing's last, an anchored line still open – a
   // step back that takes it away ends it.
@@ -203,7 +221,9 @@ export const useLine = ({
       setLines(null);
       return [inSquare(sx), inSquare(sy)] as const;
     }
-    return snapped(x, y, event, unit, () => anchorGuides(art, lone ?? []));
+    return snapped(x, y, event, unit, () =>
+      anchorGuides(art, lone ?? [], undefined, shape)
+    );
   };
 
   /** Whether a point is on the first anchor of a line that can close. */
@@ -365,7 +385,11 @@ export const useLine = ({
     if (press.current) return;
     const at = locate(event);
     if (!at) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // A pointer the browser no longer knows – it goes on all the same.
+    }
     const touch = event.pointerType !== "mouse";
     const reach = (touch ? REACH.touch : REACH.mouse) / at.unit;
     if (mode === "line") downLine(event, at, reach);
@@ -421,7 +445,8 @@ export const useLine = ({
       const [x, y] = event.shiftKey
         ? snap45(lone[0], lone[1], at.x, at.y)
         : [at.x, at.y];
-      setLone(pullHandles(lone, 0, inSquare(x), inSquare(y), event.altKey));
+      // Handles may reach beyond the face (bezier.ts) – followed out there.
+      setLone(pullHandles(lone, 0, x, y, event.altKey || corner));
       return;
     }
     const stroke = p.art.strokes[p.stroke];
@@ -432,21 +457,30 @@ export const useLine = ({
     let next: number[];
     if (p.kind === "anchor") {
       const [x, y] = snapped(at.x, at.y, event, p.unit, () =>
-        anchorGuides(p.art, [], { stroke: p.stroke, anchor: p.anchor })
+        anchorGuides(p.art, [], { stroke: p.stroke, anchor: p.anchor }, shape)
       );
       next = moveAnchor(a, p.anchor, x, y);
     } else {
-      // A handle: ⇧ in 45° steps about its anchor.
-      const [hx, hy] = event.shiftKey
+      // A handle: ⇧ in 45° steps about its anchor – followed beyond the
+      // face, where it may reach (bezier.ts).
+      const [x, y] = event.shiftKey
         ? snap45(a[k], a[k + 1], at.x, at.y)
         : [at.x, at.y];
-      const x = inSquare(hx);
-      const y = inSquare(hy);
-      if (p.kind === "new") next = pullHandles(a, p.anchor, x, y, event.altKey);
-      else if (p.kind === "close") {
+      if (p.kind === "new") {
+        next = pullHandles(a, p.anchor, x, y, event.altKey || corner);
+      } else if (p.kind === "close") {
         // Only the handle in – the first curve stays as it was drawn.
         next = moveHandle(a, 0, "in", 2 * a[0] - x, 2 * a[1] - y, true);
-      } else next = moveHandle(a, p.anchor, p.kind, x, y, event.altKey);
+      } else {
+        next = moveHandle(
+          a,
+          p.anchor,
+          p.kind,
+          x,
+          y,
+          event.altKey || free.has(freeKey(p.stroke, p.anchor))
+        );
+      }
     }
     p.changed = true;
     live(replaced(p.art, p.stroke, lineStroke(stroke.w, next, closed)));
@@ -459,6 +493,14 @@ export const useLine = ({
     setHover(null);
     setLines(null);
     press.current = null;
+  };
+
+  /** What is under way stops – two fingers took over; what it changed stays. */
+  const cancel = () => {
+    const p = press.current;
+    press.current = null;
+    setLines(null);
+    if (p?.changed && p.before) settle(p.before);
   };
 
   const up = () => {
@@ -523,6 +565,40 @@ export const useLine = ({
     down,
     move,
     up,
+    cancel,
+    /**
+     * Round or corner – the anchors still to set while drawing, the picked
+     * one while editing (null: nothing to say it of).
+     */
+    kind: ((): "smooth" | "corner" | null => {
+      if (mode === "line") return corner ? "corner" : "smooth";
+      if (!(stroke?.a && editing !== null && anchor !== null)) return null;
+      return isSmooth(stroke.a, anchor) && !free.has(freeKey(editing, anchor))
+        ? "smooth"
+        : "corner";
+    })(),
+    setKind: (kind: "smooth" | "corner") => {
+      if (mode === "line") {
+        setCorner(kind === "corner");
+        return;
+      }
+      if (!(stroke?.a && editing !== null && anchor !== null)) return;
+      const key = freeKey(editing, anchor);
+      const others = new Set([...free].filter((one) => one !== key));
+      if (kind === "corner") {
+        setFree(new Set([...others, key]));
+        return;
+      }
+      setFree(others);
+      const closed = Boolean(stroke.closed);
+      put(
+        replaced(
+          art,
+          editing,
+          lineStroke(stroke.w, smoothen(stroke.a, closed, anchor), closed)
+        )
+      );
+    },
     leave: () => {
       setHover(null);
       if (!press.current) setLines(null);

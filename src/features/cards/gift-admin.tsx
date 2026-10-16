@@ -8,11 +8,17 @@ import {
 } from "@payloadcms/ui";
 import type { TextFieldClientComponent } from "payload";
 import { useEffect, useState } from "react";
-import type { Drawing, StampShape } from "@/features/calendar/model";
-import { isShape } from "@/features/calendar/model";
+import type { Drawing } from "@/features/calendar/model";
 import { DEFAULT_PALETTE, type StampColor } from "@/features/calendar/palette";
+import {
+  DEFAULT_SHAPES,
+  isShapeKey,
+  knownShape,
+  type StampShapeDef,
+} from "@/features/calendar/shapes";
 import { StampSvg } from "@/features/calendar/stamp-svg";
 import { stampColorsOf } from "@/features/site/stamp-colors";
+import { stampShapesOf } from "@/features/site/stamp-shapes";
 import type { CardView } from "./protocol";
 import { cardIdOf } from "./rules";
 
@@ -23,28 +29,38 @@ import { cardIdOf } from "./rules";
  * way Site → Stamp colors shows its colors (site/admin.scss).
  */
 
-/** The CMS's colors – asked once per page. */
-let asked: Promise<StampColor[]> | null = null;
+type SiteLooks = { colors: StampColor[]; shapes: StampShapeDef[] };
 
-const useStampColors = (api: string) => {
-  const [colors, setColors] = useState<StampColor[]>(DEFAULT_PALETTE);
+/** The CMS's colors and shapes – asked once per page. */
+let asked: Promise<SiteLooks> | null = null;
+
+const CODE_LOOKS: SiteLooks = {
+  colors: DEFAULT_PALETTE,
+  shapes: DEFAULT_SHAPES,
+};
+
+const useSiteLooks = (api: string) => {
+  const [looks, setLooks] = useState<SiteLooks>(CODE_LOOKS);
   useEffect(() => {
     asked ??= fetch(`${api}/globals/site?depth=0&locale=all`, {
       credentials: "include",
     })
       .then((response) => (response.ok ? response.json() : {}))
-      .then((site: { stampColors?: unknown }) =>
-        stampColorsOf(site.stampColors)
-      )
-      .catch(() => DEFAULT_PALETTE);
+      .then((site: { stampColors?: unknown; stampShapes?: unknown }) => ({
+        colors: stampColorsOf(site.stampColors),
+        shapes: stampShapesOf(site.stampShapes),
+      }))
+      .catch(() => CODE_LOOKS);
     let on = true;
-    void asked.then((found) => on && setColors(found));
+    void asked.then((found) => on && setLooks(found));
     return () => {
       on = false;
     };
   }, [api]);
-  return colors;
+  return looks;
 };
+
+const useStampColors = (api: string) => useSiteLooks(api).colors;
 
 /** The color: one of the CMS's, by name – or none, the card's. */
 export const GiftColorField: TextFieldClientComponent = ({ path, field }) => {
@@ -93,7 +109,7 @@ export const GiftPreview = () => {
       routes: { api },
     },
   } = useConfig();
-  const colors = useStampColors(api);
+  const { colors, shapes } = useSiteLooks(api);
   const fields = useFormFields(([all]) => ({
     card: all.card?.value,
     color: all.color?.value,
@@ -123,13 +139,19 @@ export const GiftPreview = () => {
   const drawing = (card?.stamp.drawing ??
     (fields.drawing as Drawing | null | undefined) ??
     null) as Drawing | null;
-  const shape: StampShape =
-    card?.stamp.shape ?? (isShape(fields.shape) ? fields.shape : "circle");
+  // The shape's outline itself – the admin has no shapes of the app's.
   const key =
+    card?.stamp.shape ??
+    (isShapeKey(fields.shape) ? fields.shape : shapes[0].key);
+  const shape = {
+    d: (shapes.find((one) => one.key === knownShape(key, shapes)) ?? shapes[0])
+      .d,
+  };
+  const colorKey =
     typeof fields.color === "string" && fields.color
       ? fields.color
       : card?.stamp.color;
-  const color = colors.find((one) => one.key === key) ?? colors[0];
+  const color = colors.find((one) => one.key === colorKey) ?? colors[0];
   if (!drawing) {
     return (
       <p style={{ color: "var(--theme-elevation-650)" }}>

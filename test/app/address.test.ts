@@ -9,6 +9,7 @@ import {
   slugsOf,
   VIEW_SLUGS,
   viewOf,
+  viewShown,
 } from "../../src/features/app/address";
 
 const ID = "0b3e7c1a-5d2f-4c8e-9a1b-2c3d4e5f6a7b";
@@ -224,6 +225,21 @@ describe("the address", () => {
     expect(addressOf("de", "familie", "year")).toBe("/de/app/familie/jahr");
     expect(addressOf("en", "family", "year")).toBe("/en/app/family/year");
     expect(addressOf("en", null, "month")).toBe("/en/app");
+  });
+
+  it("shows the view the address asks for, else the calendar's start view, else the month", () => {
+    expect(viewShown("year", "today")).toBe("year");
+    expect(viewShown("today", undefined)).toBe("today");
+    expect(viewShown(null, "today")).toBe("today");
+    expect(viewShown(null, "year")).toBe("year");
+    expect(viewShown(null, undefined)).toBe("month");
+    expect(viewShown(undefined, null)).toBe("month");
+    // An address without a view – the calendar's own start.
+    expect(viewShown(readAddress("/de/app/familie").view, "year")).toBe("year");
+    expect(viewShown(readAddress("/de/app").view, undefined)).toBe("month");
+    expect(viewShown(readAddress("/en/app/family/today").view, "year")).toBe(
+      "today"
+    );
   });
 
   it("reads back what it writes", () => {

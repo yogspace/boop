@@ -55,8 +55,11 @@ type OutboxEntry = { seq: number; change: Change };
 export type CalendarPrefs = {
   /** Their own color for it – none: the calendar's. */
   color?: ColorName;
-  /** The view it opens in – none: today. */
-  view?: CalendarView;
+  /**
+   * The view it opens in (its settings) – none: the month. Switching views
+   * leaves it be: that is in the address only (app/address.ts `viewShown`).
+   */
+  start?: CalendarView;
 };
 
 /** How a calendar shows: today's page, the month, or the whole year. */
@@ -694,6 +697,17 @@ export const colorOf = (
 ): ColorName => shownColor(calendar, prefOf(state, calendar.id).color);
 
 /**
+ * What the own settings hold. Anything else a device kept from before goes
+ * with the next change: `view`, the view last switched to, which a
+ * calendar opened in until it got a start view of its own (`start`) – not
+ * read any more, so every calendar opens in the month until one is picked.
+ */
+const PREF_KEYS: Record<keyof CalendarPrefs, true> = {
+  color: true,
+  start: true,
+};
+
+/**
  * Sets some of the account's own settings for a calendar – `null` takes one
  * back. At once, like every change here; nothing to send.
  */
@@ -704,7 +718,7 @@ export const setCalendarPref = async (
   if (!boop.calendars[id]) return;
   const next = Object.fromEntries(
     Object.entries({ ...boop.prefs[id], ...patch }).filter(
-      ([, value]) => value != null
+      ([key, value]) => value != null && key in PREF_KEYS
     )
   ) as CalendarPrefs;
   if (Object.keys(next).length) boop.prefs[id] = next;

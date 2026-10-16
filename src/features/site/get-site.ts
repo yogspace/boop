@@ -4,6 +4,7 @@ import { getPayload } from "payload";
 import { TAGS } from "@/lib/cache";
 import { SITE_DEFAULTS, type SiteContent } from "./defaults";
 import { stampColorsOf } from "./stamp-colors";
+import { drawingTemplatesOf, stampShapesOf } from "./stamp-shapes";
 
 /**
  * A group of the global, each empty or missing line filled with the code's
@@ -25,7 +26,10 @@ const filled = <T extends Record<string, string>>(
   ) as T;
 };
 
-/** Address, links and stamp colors from the “Site” global (global.ts). */
+/**
+ * Address, links, the stamp colors and shapes and the drawing templates
+ * from the “Site” global (global.ts).
+ */
 const readSite = unstable_cache(
   async (): Promise<SiteContent> => {
     const payload = await getPayload({ config });
@@ -41,6 +45,8 @@ const readSite = unstable_cache(
       links: filled(SITE_DEFAULTS.links, site.links),
       address: filled(SITE_DEFAULTS.address, site.address),
       stampColors: stampColorsOf(site.stampColors),
+      stampShapes: stampShapesOf(site.stampShapes),
+      drawingTemplates: drawingTemplatesOf(site.drawingTemplates),
     };
   },
   ["site"],
@@ -62,7 +68,8 @@ const retrySoon = unstable_cache(async () => null, ["site-retry"], {
 });
 
 /**
- * Address, links and stamp colors – cached until the global is saved, the
+ * Address, links, stamp colors and shapes, drawing templates – cached until
+ * the global is saved, the
  * code's own without a database (down, or the build). A failure is not
  * cached, and the page showing it is rendered again within a minute.
  */

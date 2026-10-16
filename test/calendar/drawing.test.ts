@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
-import {
-  cleanDrawing,
-  FACE,
-  RIMS,
-  SHAPES,
-} from "../../src/features/calendar/model";
+import { cleanDrawing, FACE, RIMS } from "../../src/features/calendar/model";
 import { outlinePoints, rimLine } from "../../src/features/calendar/outline";
+import { DEFAULT_SHAPES } from "../../src/features/calendar/shapes";
+
+const SHAPES = DEFAULT_SHAPES.map((shape) => shape.key);
 
 const strokes = [{ w: 0.05, p: [0.2, 0.2, 0.8, 0.8] }];
 
@@ -48,13 +46,17 @@ const parts = (d: string) =>
         .map((pair) => pair.trim().split(" ").map(Number) as [number, number])
     );
 
-/** Whether a point lies inside a convex outline (clockwise on screen). */
-const inside = ([x, y]: [number, number], outline: [number, number][]) =>
-  outline.every(([ax, ay], i) => {
+/** Whether a point lies inside an outline – any shape (even-odd). */
+const inside = ([x, y]: [number, number], outline: [number, number][]) => {
+  let crossings = 0;
+  outline.forEach(([ax, ay], i) => {
     const [bx, by] = outline[(i + 1) % outline.length];
-    // Clockwise with y down: the inside is to the right of every edge.
-    return (bx - ax) * (y - ay) - (by - ay) * (x - ax) >= -1e-9;
+    if (ay > y !== by > y && x < ax + ((y - ay) / (by - ay)) * (bx - ax)) {
+      crossings++;
+    }
   });
+  return crossings % 2 === 1;
+};
 
 const median = (values: number[]) =>
   [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
@@ -69,7 +71,7 @@ describe("the rim's patterns", () => {
           const room = outlinePoints(
             shape,
             FACE.rim / 2 - width / 2 + 0.001,
-            360
+            1440
           );
           for (const points of parts(d)) {
             for (const point of points) {

@@ -2,9 +2,10 @@
 
 import { type Ref, useEffect, useImperativeHandle, useState } from "react";
 import type * as Three from "three";
-import type { ColorName, StampShape } from "@/features/calendar/model";
+import type { ColorName } from "@/features/calendar/model";
 import { outlinePoints } from "@/features/calendar/outline";
 import { colorKeys } from "@/features/calendar/palette";
+import type { ShapeLike } from "@/features/calendar/shapes";
 import {
   buildSticker,
   disposeSticker,
@@ -169,7 +170,7 @@ const settle = (t: number) => 1 + 2 * (t - 1) ** 3 + (t - 1) ** 2;
  * down. A shape that isn't (a triangle) is held the other way round: its
  * outline over the print's comes first.
  */
-const facingOf = (shape: StampShape) => {
+const facingOf = (shape: ShapeLike) => {
   // The points face evenly round, so each has its mirror image in the list.
   const points = outlinePoints(shape, 0, 48);
   const same = points.every(([px, py], i) => {

@@ -3,7 +3,11 @@ import { hiddenUnlessSupport, sealed } from "@/access";
 import { dropCards } from "@/features/cards/cards";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
 import { colorField } from "../color-field";
-import { SHAPES } from "../model";
+import { isShapeKey } from "../shapes";
+
+/** A shape's key – its form; which shapes there are is the CMS's to say. */
+const shapeKey = (value: unknown) =>
+  isShapeKey(value) || "A shape's key (Site → Stamp shapes), e.g. “heart”";
 
 /**
  * The stamps people drew – one color each, a doodle as strokes (model.ts).
@@ -38,12 +42,13 @@ export const Stamps: CollectionConfig = {
     { name: "name", type: "text", maxLength: 40 },
     colorField("color", "red"),
     {
-      // The stamp's body the doodle is drawn on.
+      // The stamp's body the doodle is drawn on – a shape's key (Site →
+      // Stamp shapes).
       name: "shape",
-      type: "select",
+      type: "text",
       required: true,
       defaultValue: "circle",
-      options: [...SHAPES],
+      validate: shapeKey,
     },
     {
       // { v: 1, strokes: [{ w, p: [x0, y0, x1, y1, …] }] } in a unit square.

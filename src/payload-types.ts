@@ -296,7 +296,7 @@ export interface Stamp {
    * A stamp color's key (“Site” → Stamp colors), e.g. “mint”.
    */
   color: string;
-  shape: 'circle' | 'square' | 'octagon' | 'triangle' | 'diamond';
+  shape: string;
   drawing?:
     | {
         [k: string]: unknown;
@@ -411,7 +411,7 @@ export interface Card {
   from: string | Account;
   name?: string | null;
   color: string;
-  shape: 'circle' | 'square' | 'octagon' | 'triangle' | 'diamond';
+  shape: string;
   drawing?:
     | {
         [k: string]: unknown;
@@ -462,7 +462,7 @@ export interface Gift {
    * Empty: the card's color.
    */
   color?: string | null;
-  shape?: ('circle' | 'square' | 'octagon' | 'triangle' | 'diamond') | null;
+  shape?: string | null;
   drawing?:
     | {
         [k: string]: unknown;
@@ -962,7 +962,7 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   createdAt?: T;
 }
 /**
- * The owner's address for the imprint and privacy policy, the link to mxwr.de, and the colors to stamp with.
+ * The owner's address for the imprint and privacy policy, the link to mxwr.de, the colors and shapes to stamp with, and the shapes to drag into a drawing.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "site".
@@ -1004,6 +1004,45 @@ export interface Site {
     finish?: ('metal' | 'glitter' | 'holo' | 'wood' | 'confetti' | 'stars' | 'marble' | 'heat') | null;
     id?: string | null;
   }[];
+  /**
+   * The bodies a stamp can have – offered in this order when drawing one. The first is the default – and the shape of any stamp whose own is gone. Everything else – the rim along it, the rubber and block in 3D, the file for a 3D printer – is worked out from the outline. Seeds: “Stamp shapes” brings the code's.
+   */
+  stampShapes: {
+    /**
+     * The shape's identity – stamps refer to it, e.g. “heart”. Never change or delete a key once it is in use: its stamps would turn into the first shape. To change a shape, change its outline and keep the key.
+     */
+    key: string;
+    /**
+     * Shown when pointing at it, read out aloud – one per language (switch at the top).
+     */
+    name: string;
+    /**
+     * An SVG path (its “d”), in a 100 × 100 box with y down – fit into the stamp as large as it goes, centered, so the box's size doesn't matter. Its largest closed piece (… Z) is the outline. Below: the shape as the app shows it.
+     */
+    d: string;
+    id?: string | null;
+  }[];
+  /**
+   * Shapes to drag into a drawing – a heart, a star, a speech bubble – in this order. Dropped in, they are lines in the pen's width (each piece of the path one, to edit point by point), or filled areas. Seeds: “Drawing templates” brings the code's.
+   */
+  drawingTemplates?:
+    | {
+        key: string;
+        /**
+         * Shown when pointing at it, read out aloud.
+         */
+        name: string;
+        /**
+         * An SVG path (its “d”), in a 100 × 100 box with y down – each piece (M …, closed with Z or open) one line. Below: what it drops into a drawing.
+         */
+        d: string;
+        /**
+         * Dropped in as filled areas – its closed pieces, holes where they overlap. Unticked: as lines.
+         */
+        filled?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
   links: {
     /**
      * The legal text's “Site link”. Keep the utm part – it shows where visits came from.
@@ -1979,12 +2018,18 @@ export interface Translation {
        * DE: Stempel antippen, dann auf den Tag tippen  ·  EN: Tap a stamp, then tap the day
        */
       tray?: string | null;
+      holding?: {
+        /**
+         * DE: {name} in der Hand – tipp auf den Tag oder ein Stempelkissen.  ·  EN: {name} in your hand – tap the day or an ink pad.  ·  Keeps {name}
+         */
+        named?: string | null;
+        /**
+         * DE: Stempel in der Hand – tipp auf den Tag oder ein Stempelkissen.  ·  EN: Stamp in your hand – tap the day or an ink pad.
+         */
+        unnamed?: string | null;
+      };
       /**
-       * DE: Tipp auf den Tag – oder tunk ihn in ein Stempelkissen.  ·  EN: Tap the day – or dip it into an ink pad.
-       */
-      held?: string | null;
-      /**
-       * DE: Das Mausrad dreht den Stempel.  ·  EN: Scroll to turn the stamp.
+       * DE: Das Mausrad dreht ihn.  ·  EN: Scroll to turn it.
        */
       wheel?: string | null;
       /**
@@ -2012,9 +2057,17 @@ export interface Translation {
        */
       remove_?: string | null;
       /**
+       * DE: Verlauf  ·  EN: History
+       */
+      history?: string | null;
+      /**
        * DE: Rückgängig  ·  EN: Undo
        */
       undo?: string | null;
+      /**
+       * DE: Wiederholen  ·  EN: Redo
+       */
+      redo?: string | null;
       /**
        * DE: Abdruck  ·  EN: Print
        */
@@ -2240,6 +2293,14 @@ export interface Translation {
          * DE: Wie der Kalender  ·  EN: Same as the calendar
          */
         colorReset?: string | null;
+        /**
+         * DE: Startansicht  ·  EN: Opens in
+         */
+        start?: string | null;
+        /**
+         * DE: So öffnet sich der Kalender auf diesem Gerät – umschalten kannst du jederzeit.  ·  EN: How the calendar opens on this device – you can switch any time.
+         */
+        startText?: string | null;
       };
       deleteShared?: {
         /**
@@ -2712,6 +2773,10 @@ export interface Translation {
        */
       order?: string | null;
       /**
+       * DE: Zuletzt benutzt  ·  EN: Recently used
+       */
+      recent?: string | null;
+      /**
        * DE: Neueste zuerst  ·  EN: Newest first
        */
       newest?: string | null;
@@ -2719,6 +2784,10 @@ export interface Translation {
        * DE: Nach Person  ·  EN: By person
        */
       person?: string | null;
+      /**
+       * DE: Nach Farbe  ·  EN: By color
+       */
+      color?: string | null;
       /**
        * DE: Meine  ·  EN: Mine
        */
@@ -3277,6 +3346,23 @@ export interface SiteSelect<T extends boolean = true> {
         finish?: T;
         id?: T;
       };
+  stampShapes?:
+    | T
+    | {
+        key?: T;
+        name?: T;
+        d?: T;
+        id?: T;
+      };
+  drawingTemplates?:
+    | T
+    | {
+        key?: T;
+        name?: T;
+        d?: T;
+        filled?: T;
+        id?: T;
+      };
   links?:
     | T
     | {
@@ -3648,7 +3734,12 @@ export interface TranslationsSelect<T extends boolean = true> {
           | {
               empty?: T;
               tray?: T;
-              held?: T;
+              holding?:
+                | T
+                | {
+                    named?: T;
+                    unnamed?: T;
+                  };
               wheel?: T;
               turnLeft?: T;
               turnRight?: T;
@@ -3656,7 +3747,9 @@ export interface TranslationsSelect<T extends boolean = true> {
               picked?: T;
               pickedKeys?: T;
               remove_?: T;
+              history?: T;
               undo?: T;
+              redo?: T;
               print?: T;
               ink?: T;
             };
@@ -3744,6 +3837,8 @@ export interface TranslationsSelect<T extends boolean = true> {
                     text?: T;
                     colorMember?: T;
                     colorReset?: T;
+                    start?: T;
+                    startText?: T;
                   };
               deleteShared?:
                 | T
@@ -3908,8 +4003,10 @@ export interface TranslationsSelect<T extends boolean = true> {
           | T
           | {
               order?: T;
+              recent?: T;
               newest?: T;
               person?: T;
+              color?: T;
               mine?: T;
               boop?: T;
               gifted?: T;

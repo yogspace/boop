@@ -1,13 +1,16 @@
 import type * as Three from "three";
 // Relative, not `@/…`: the unit tests import this without the app's aliases.
+import { type ColorName, FACE, type RimPattern } from "../calendar/model";
 import {
-  type ColorName,
-  FACE,
-  type RimPattern,
-  type StampShape,
-} from "../calendar/model";
-import { outlinePoints, rimLine } from "../calendar/outline";
+  outlineCount,
+  outlineDistance,
+  outlinePoints,
+  rimLine,
+  ringDistance,
+} from "../calendar/outline";
 import { type Finish, finishOf, hexOf } from "../calendar/palette";
+import { corners } from "../calendar/path";
+import { DEFAULT_SHAPES, outlineOf, type ShapeLike } from "../calendar/shapes";
 import { inkRubber, rgb, setFinish, tint, toonMaterial } from "./ink";
 
 /**
@@ -27,7 +30,8 @@ import { inkRubber, rgb, setFinish, tint, toonMaterial } from "./ink";
  */
 
 export type StickerInput = {
-  shape: StampShape;
+  /** Its shape's key – or, not saved yet (the CMS's preview), its outline. */
+  shape: ShapeLike;
   color: ColorName;
   drawing: {
     readonly strokes: readonly {
@@ -76,16 +80,22 @@ const KNOB = {
   steps: 64,
   curve: 12,
 };
-const PLATE = { size: 0.78, thickness: 0.02, groove: 0.012 };
+/**
+ * The plate on the back: this size of the stamp – or, where that doesn't fit
+ * on its back, this far in from its edge.
+ */
+const PLATE = { size: 0.78, inset: 0.11, thickness: 0.02, groove: 0.012 };
 /** How much white the block's tint takes – a dark color more. */
 const BLOCK_TINT = { light: 0.45, dark: 0.68 };
 /** The rubber's ground: the ink with this much white – the drawing's. */
 const GROUND = 0.86;
-/** Resolution of the shaped surfaces: rings × steps around. */
-const RINGS = 150;
-const STEPS = 420;
-/** Points of the outlines in 3D. */
+/** The grid the shaped surfaces are built on – cells per unit. */
+const CELLS = 250;
+/** Their edge rounds off over this far in (units). */
+const EDGE = 0.015;
+/** Points of the outlines in 3D – at least, and per point an outline needs. */
 const OUTLINE = 360;
+const OUTLINE_PER = 2;
 /** Resolution of the height maps the surfaces are read from. */
 const MAP = 512;
 /** How far (map px) the face's `core` blurs: about half a line's width. */
@@ -93,37 +103,18 @@ const CORE = 6;
 
 type Point = [number, number];
 
+/** How many points an outline has in 3D. */
+const pointsOf = (shape: ShapeLike) =>
+  Math.max(OUTLINE, outlineCount(shape) * OUTLINE_PER);
+
 /**
  * The shape's outline (outline.ts) in the model's units: centered, y up,
- * `scale`d about the middle.
+ * `scale`d about the middle – counter-clockwise, as three.js likes it.
  */
-const localOutline = (shape: StampShape, grow: number, scale = 1) =>
-  outlinePoints(shape, grow, OUTLINE).map(
-    ([x, y]): Point => [(x - 0.5) * scale, (0.5 - y) * scale]
-  );
-
-const outline = (THREE: typeof Three, points: Point[]) =>
-  new THREE.Shape(points.map(([x, y]) => new THREE.Vector2(x, y)));
-
-/** How far a convex outline reaches from the middle, towards `angle`. */
-const reach = (points: Point[], angle: number) => {
-  const dx = Math.cos(angle);
-  const dy = Math.sin(angle);
-  let best = 0;
-  for (let i = 0; i < points.length; i++) {
-    const [px, py] = points[i];
-    const [qx, qy] = points[(i + 1) % points.length];
-    const ex = qx - px;
-    const ey = qy - py;
-    const det = dx * -ey + dy * ex;
-    if (Math.abs(det) < 1e-12) continue;
-    // middle + t·d = p + s·e
-    const t = (px * -ey + py * ex) / det;
-    const s = (dx * py - dy * px) / det;
-    if (t > 0 && s >= -1e-9 && s <= 1 + 1e-9) best = Math.max(best, t);
-  }
-  return best;
-};
+const localOutline = (shape: ShapeLike, grow: number, scale = 1) =>
+  outlinePoints(shape, grow, pointsOf(shape))
+    .map(([x, y]): Point => [(x - 0.5) * scale, (0.5 - y) * scale])
+    .reverse();
 
 /** Softens a height map a little – the walls slope like cut rubber. */
 const soften = (data: Float32Array, passes = 2) => {
@@ -231,11 +222,11 @@ const heightMap = (draw: (ctx: CanvasRenderingContext2D) => void) =>
 /** The shape's outline as a canvas path, in the unit square. */
 const tracePath = (
   ctx: CanvasRenderingContext2D,
-  shape: StampShape,
+  shape: ShapeLike,
   grow: number
 ) => {
   ctx.beginPath();
-  outlinePoints(shape, grow, OUTLINE).forEach(([x, y], i) => {
+  outlinePoints(shape, grow, pointsOf(shape)).forEach(([x, y], i) => {
     if (i) ctx.lineTo(x, y);
     else ctx.moveTo(x, y);
   });
@@ -335,11 +326,27 @@ const faceMap = (input: StickerInput, mirror: boolean) => {
   };
 };
 
+/** Points nearer than this to a straight line through their neighbours are on it. */
+const STRAIGHT = 1e-5;
+
+/** Twice the area a ring encloses – positive counter-clockwise (y up). */
+const areaOf = (ring: readonly Point[]) => {
+  let sum = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const [ax, ay] = ring[i];
+    const [bx, by] = ring[(i + 1) % ring.length];
+    sum += ax * by - bx * ay;
+  }
+  return sum;
+};
+
 /**
- * A closed slab in a convex `outline` whose top (facing +Z) lies at
- * `surface(x, y)` (≤ 0), with a softly rounded edge; flat below at
- * z = −thickness. Rings around the middle, so the outline stays exact. Each
- * vertex keeps its `relief` (0–1) – what gets inked – and its `core`.
+ * A closed slab in an `outline` (counter-clockwise, any shape) whose top
+ * (facing +Z) lies at `surface(x, y)` (≤ 0), with a softly rounded edge;
+ * flat below at z = −thickness. The top is a fine grid – its points inside
+ * the outline, and where its lines cross the outline – so the outline stays
+ * exact, whatever its shape. Each vertex keeps its `relief` (0–1) – what
+ * gets inked – and its `core`.
  */
 const shapedSlab = (
   THREE: typeof Three,
@@ -360,64 +367,214 @@ const shapedSlab = (
     ) => { z: number; relief: number; core?: number };
   }
 ) => {
+  const ring = areaOf(outline) < 0 ? [...outline].reverse() : outline;
+  const distance = ringDistance(ring);
   const positions: number[] = [];
   const relief: number[] = [];
   const core: number[] = [];
   const index: number[] = [];
   const edge = Math.min(0.008, thickness * 0.3);
-  const top = (x: number, y: number, f: number) => {
-    // The edge rounds off over the outer few percent.
-    const t = Math.max(0, (f - 0.97) / 0.03);
+  const top = (x: number, y: number) => {
+    // The edge rounds off over the outer bit.
+    const t = Math.max(0, 1 + distance(x, y) / EDGE);
     const at = surface(x, y);
     positions.push(x, y, at.z - edge * t * t);
     relief.push(at.relief);
     core.push(at.core ?? 0);
+    return positions.length / 3 - 1;
   };
-  // Top: the middle, then rings outwards.
-  const reaches = Array.from({ length: STEPS }, (_, j) =>
-    reach(outline, (j / STEPS) * Math.PI * 2)
+  // The grid – a little off any round number, so no corner of the outline
+  // lies right on one of its lines.
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of ring) {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+  const h = 1 / CELLS;
+  const x0 = minX - h * 0.737;
+  const y0 = minY - h * 0.613;
+  const nx = Math.ceil((maxX - x0) / h) + 1;
+  const ny = Math.ceil((maxY - y0) / h) + 1;
+  const xOf = (i: number) => x0 + i * h;
+  const yOf = (j: number) => y0 + j * h;
+  // Where the outline crosses each row and each column – sorted.
+  const crossings = (count: number, at: (k: number) => number, across: 0 | 1) =>
+    Array.from({ length: count }, (_, k) => {
+      const line = at(k);
+      const hits: number[] = [];
+      for (let i = 0; i < ring.length; i++) {
+        const a = ring[i];
+        const b = ring[(i + 1) % ring.length];
+        if (a[across] > line === b[across] > line) continue;
+        const t = (line - a[across]) / (b[across] - a[across]);
+        hits.push(a[1 - across] + t * (b[1 - across] - a[1 - across]));
+      }
+      return hits.sort((p, q) => p - q);
+    });
+  const rows = crossings(ny, yOf, 1);
+  const columns = crossings(nx, xOf, 0);
+  const isIn = (i: number, j: number) => {
+    const x = xOf(i);
+    let n = 0;
+    for (const c of rows[j]) if (c < x) n++;
+    return n % 2 === 1;
+  };
+  const inside = Array.from({ length: ny }, (_, j) =>
+    Array.from({ length: nx }, (_, i) => isIn(i, j))
   );
-  top(0, 0, 0);
-  for (let i = 1; i <= RINGS; i++) {
-    const f = i / RINGS;
-    for (let j = 0; j < STEPS; j++) {
-      const a = (j / STEPS) * Math.PI * 2;
-      const r = f * reaches[j];
-      top(Math.cos(a) * r, Math.sin(a) * r, f);
+  // The grid's points inside, and where its lines cross the outline – one
+  // vertex each, shared by the cells around it.
+  const corner = new Map<number, number>();
+  const cross = new Map<number, number>();
+  const cornerAt = (i: number, j: number) => {
+    const key = j * nx + i;
+    let v = corner.get(key);
+    if (v === undefined) {
+      v = top(xOf(i), yOf(j));
+      corner.set(key, v);
+    }
+    return v;
+  };
+  // Along row j from column i (`across`), or along column i from row j.
+  const crossAt = (i: number, j: number, along: "row" | "column") => {
+    const key = (j * nx + i) * 2 + (along === "row" ? 0 : 1);
+    let v = cross.get(key);
+    if (v === undefined) {
+      const fromIn = inside[j][i];
+      const lo = along === "row" ? xOf(i) : yOf(j);
+      const hits = (along === "row" ? rows[j] : columns[i]).filter(
+        (c) => c >= lo && c < lo + h
+      );
+      // The one nearest the inside end – or, should the two ways of
+      // looking disagree right at a corner, found by halving.
+      let c = fromIn ? hits[0] : hits[hits.length - 1];
+      if (c === undefined) {
+        let a = lo;
+        let b = lo + h;
+        const at = (u: number) =>
+          along === "row" ? distance(u, yOf(j)) : distance(xOf(i), u);
+        for (let n = 0; n < 30; n++) {
+          const m = (a + b) / 2;
+          if (at(m) < 0 === fromIn) a = m;
+          else b = m;
+        }
+        c = (a + b) / 2;
+      }
+      const [x, y] = along === "row" ? [c, yOf(j)] : [xOf(i), c];
+      const at = surface(x, y);
+      positions.push(x, y, at.z - edge);
+      relief.push(at.relief);
+      core.push(at.core ?? 0);
+      v = positions.length / 3 - 1;
+      cross.set(key, v);
+    }
+    return v;
+  };
+  /** The outline's pieces through the cells: from one crossing to the next. */
+  const next = new Map<number, number>();
+  for (let j = 0; j + 1 < ny; j++) {
+    for (let i = 0; i + 1 < nx; i++) {
+      // Corners counter-clockwise (y up): bottom left, bottom right, top
+      // right, top left – each followed by the edge to the next.
+      const ins = [
+        inside[j][i],
+        inside[j][i + 1],
+        inside[j + 1][i + 1],
+        inside[j + 1][i],
+      ];
+      if (!ins.some(Boolean)) continue;
+      const cornerV = [
+        () => cornerAt(i, j),
+        () => cornerAt(i + 1, j),
+        () => cornerAt(i + 1, j + 1),
+        () => cornerAt(i, j + 1),
+      ];
+      const edgeV = [
+        () => crossAt(i, j, "row"),
+        () => crossAt(i + 1, j, "column"),
+        () => crossAt(i, j + 1, "row"),
+        () => crossAt(i, j, "column"),
+      ];
+      const polygon: { v: number; edge: boolean }[] = [];
+      for (let k = 0; k < 4; k++) {
+        if (ins[k]) polygon.push({ v: cornerV[k](), edge: false });
+        if (ins[k] !== ins[(k + 1) % 4]) {
+          polygon.push({ v: edgeV[k](), edge: true });
+        }
+      }
+      const saddle =
+        ins[0] === ins[2] && ins[1] === ins[3] && ins[0] !== ins[1];
+      const parts =
+        saddle && distance(xOf(i) + h / 2, yOf(j) + h / 2) >= 0
+          ? // Apart: each inside corner with the crossings beside it.
+            polygon.flatMap((point, k) =>
+              point.edge
+                ? []
+                : [
+                    [
+                      polygon[(k + polygon.length - 1) % polygon.length],
+                      point,
+                      polygon[(k + 1) % polygon.length],
+                    ],
+                  ]
+            )
+          : [polygon];
+      for (const part of parts) {
+        for (let k = 1; k + 1 < part.length; k++) {
+          index.push(part[0].v, part[k].v, part[k + 1].v);
+        }
+        for (let k = 0; k < part.length; k++) {
+          const a = part[k];
+          const b = part[(k + 1) % part.length];
+          if (a.edge && b.edge) next.set(a.v, b.v);
+        }
+      }
     }
   }
-  const ringStart = (i: number) => 1 + (i - 1) * STEPS;
-  for (let j = 0; j < STEPS; j++) {
-    index.push(0, ringStart(1) + j, ringStart(1) + ((j + 1) % STEPS));
-  }
-  for (let i = 1; i < RINGS; i++) {
-    const a = ringStart(i);
-    const b = ringStart(i + 1);
-    for (let j = 0; j < STEPS; j++) {
-      const k = (j + 1) % STEPS;
-      index.push(a + j, b + j, b + k, a + j, b + k, a + k);
+  // Side and bottom, round each loop of the edge: the bottom needs only the
+  // edge's corners – where it runs straight on, the wall fans down to them.
+  const seen = new Set<number>();
+  const xyOf = (v: number): Point => [positions[v * 3], positions[v * 3 + 1]];
+  for (const start of next.keys()) {
+    if (seen.has(start)) continue;
+    const loop: number[] = [];
+    for (let v = start; !seen.has(v); v = next.get(v) ?? start) {
+      seen.add(v);
+      loop.push(v);
     }
-  }
-  // Side: the outer ring down to the bottom – inked as far as the rim is.
-  const rim = ringStart(RINGS);
-  const low = positions.length / 3;
-  for (let j = 0; j < STEPS; j++) {
-    const v = (rim + j) * 3;
-    positions.push(positions[v], positions[v + 1], -thickness);
-    relief.push(relief[rim + j]);
-    core.push(core[rim + j]);
-  }
-  for (let j = 0; j < STEPS; j++) {
-    const k = (j + 1) % STEPS;
-    index.push(rim + j, low + j, low + k, rim + j, low + k, rim + k);
-  }
-  // Bottom: a flat fan, facing down.
-  const center = positions.length / 3;
-  positions.push(0, 0, -thickness);
-  relief.push(0);
-  core.push(0);
-  for (let j = 0; j < STEPS; j++) {
-    index.push(center, low + ((j + 1) % STEPS), low + j);
+    const kept = corners(loop.map(xyOf), STRAIGHT);
+    // Below each corner kept, a vertex of the bottom – inked as far as the
+    // rim is.
+    const low = kept.map((k) => {
+      const v = loop[k];
+      positions.push(positions[v * 3], positions[v * 3 + 1], -thickness);
+      relief.push(relief[v]);
+      core.push(core[v]);
+      return positions.length / 3 - 1;
+    });
+    kept.forEach((from, m) => {
+      const to = kept[(m + 1) % kept.length];
+      const below = low[m];
+      // The top edge from this corner on to the next, fanned to the one below.
+      for (let k = from; k !== to; k = (k + 1) % loop.length) {
+        index.push(loop[k], below, loop[(k + 1) % loop.length]);
+      }
+      index.push(loop[to], below, low[(m + 1) % low.length]);
+    });
+    const flat = low.map((v) => new THREE.Vector2(...xyOf(v)));
+    for (const [a, b, c] of THREE.ShapeUtils.triangulateShape(flat, [])) {
+      const turn =
+        (flat[b].x - flat[a].x) * (flat[c].y - flat[a].y) -
+        (flat[b].y - flat[a].y) * (flat[c].x - flat[a].x);
+      // Facing down.
+      if (turn > 0) index.push(low[a], low[c], low[b]);
+      else index.push(low[a], low[b], low[c]);
+    }
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
@@ -429,6 +586,83 @@ const shapedSlab = (
   geometry.setIndex(index);
   geometry.computeVertexNormals();
   return geometry;
+};
+
+/**
+ * The block: the shape's outline drawn up into a solid `depth` deep, its
+ * edges rounded – `bevel` wide and deep each side, the outline `base` grown
+ * at its faces and grown on by `bevel` round its middle. Every ring of it is
+ * the outline grown exactly that far (outline.ts), so it never folds, round
+ * a hollow either. Flat-shaded, like three.js' own extrusion.
+ */
+const blockSolid = (
+  THREE: typeof Three,
+  shape: ShapeLike,
+  { base, bevel, depth }: { base: number; bevel: number; depth: number }
+) => {
+  const SEGMENTS = 5;
+  const rings: { grow: number; z: number }[] = [];
+  for (let b = 0; b <= SEGMENTS; b++) {
+    const t = (b / SEGMENTS) * (Math.PI / 2);
+    rings.push({ grow: base + bevel * Math.sin(t), z: -bevel * Math.cos(t) });
+  }
+  for (let b = SEGMENTS; b >= 0; b--) {
+    const t = (b / SEGMENTS) * (Math.PI / 2);
+    rings.push({
+      grow: base + bevel * Math.sin(t),
+      z: depth + bevel * Math.cos(t),
+    });
+  }
+  const outlines = rings.map(({ grow }) => localOutline(shape, grow));
+  const n = pointsOf(shape);
+  const positions: number[] = [];
+  rings.forEach(({ z }, r) => {
+    for (const [x, y] of outlines[r]) positions.push(x, y, z);
+  });
+  const index: number[] = [];
+  for (let r = 0; r + 1 < rings.length; r++) {
+    for (let k = 0; k < n; k++) {
+      const a = r * n + k;
+      const b = r * n + ((k + 1) % n);
+      const a1 = a + n;
+      const b1 = b + n;
+      index.push(a, b, b1, a, b1, a1);
+    }
+  }
+  // The faces: the back one looking down, the front one up – laid between
+  // the outline's corners; where it runs straight on, flat fans close up to
+  // its every point (no triangle-filler keeps points in a straight row).
+  const ring = outlines[0];
+  const kept = corners(ring, STRAIGHT);
+  const flat = kept.map((k) => new THREE.Vector2(...ring[k]));
+  const face: [number, number, number][] = [];
+  kept.forEach((from, m) => {
+    const to = kept[(m + 1) % kept.length];
+    for (let k = (from + 1) % n; k !== to; k = (k + 1) % n) {
+      face.push([from, k, (k + 1) % n]);
+    }
+  });
+  for (const [a, b, c] of THREE.ShapeUtils.triangulateShape(flat, [])) {
+    const turn =
+      (flat[b].x - flat[a].x) * (flat[c].y - flat[a].y) -
+      (flat[b].y - flat[a].y) * (flat[c].x - flat[a].x);
+    face.push(
+      turn > 0 ? [kept[a], kept[b], kept[c]] : [kept[a], kept[c], kept[b]]
+    );
+  }
+  const last = (rings.length - 1) * n;
+  for (const [a, b, c] of face)
+    index.push(a, c, b, last + a, last + b, last + c);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(positions, 3)
+  );
+  geometry.setIndex(index);
+  const faceted = geometry.toNonIndexed();
+  geometry.dispose();
+  faceted.computeVertexNormals();
+  return faceted;
 };
 
 /** Points on a circle round `center`, from one angle to another – both in. */
@@ -579,15 +813,68 @@ const LETTERS: [number, number][][][] = [
 const ADVANCE = 0.72;
 
 /**
- * Where the watermark fits on a shape's plate: its baseline (`at`, towards
- * the stamp's +Y edge when positive) and its size. No room on the diamond.
+ * Where the watermark fits on a plate: its baseline (`at`, towards the
+ * stamp's +Y edge when positive) and its size – none where there is no room.
  */
-const MARK: Record<StampShape, { at: number; size: number } | null> = {
+type Mark = { at: number; size: number } | null;
+
+/** On the code's first shapes, as it always was. */
+const MARKS: Record<string, Mark> = {
   circle: { at: 0.31, size: 0.12 },
   square: { at: 0.31, size: 0.12 },
   octagon: { at: 0.3, size: 0.12 },
   triangle: { at: -0.25, size: 0.1 },
   diamond: null,
+};
+
+/** The watermark's width, as a share of its size. */
+const MARK_WIDTH = (LETTERS.length - 1) * ADVANCE + 0.54;
+
+/** Where the knob's foot spreads onto the plate – nothing goes nearer. */
+const footOf = () => {
+  const [foot] = knobProfile();
+  return foot[1][0];
+};
+
+const marks = new Map<string, Mark>();
+
+/**
+ * Where the watermark fits on a shape's plate (`plate`, its outline in the
+ * model's units): the biggest it can be, between the knob's foot and the
+ * plate's edge – above the knob if it can, else below.
+ */
+const markOf = (shape: ShapeLike, plate: Point[]): Mark => {
+  const d = outlineOf(shape);
+  const known = DEFAULT_SHAPES.find((own) => own.d === d);
+  if (known && known.key in MARKS) return MARKS[known.key];
+  const hit = marks.get(d);
+  if (hit !== undefined) return hit;
+  const distance = ringDistance(
+    areaOf(plate) < 0 ? [...plate].reverse() : plate
+  );
+  const foot = footOf() + 0.02;
+  let found: Mark = null;
+  for (let size = 0.12; size >= 0.06 && !found; size -= 0.005) {
+    for (const side of [1, -1]) {
+      for (let at = 0.15; at <= 0.48 && !found; at += 0.005) {
+        const a = side * at;
+        const turn = a > 0 ? -1 : 1;
+        const ys = [a + turn * -0.42 * size, a + turn * size];
+        let fits = true;
+        for (let i = 0; i <= 8 && fits; i++) {
+          for (let j = 0; j <= 4 && fits; j++) {
+            const x = (-MARK_WIDTH / 2 + (MARK_WIDTH * i) / 8) * size;
+            const y = ys[0] + ((ys[1] - ys[0]) * j) / 4;
+            if (distance(x, y) > -0.02 || Math.hypot(x, y) < foot) fits = false;
+          }
+        }
+        if (fits) found = { at: a, size };
+      }
+      if (found) break;
+    }
+  }
+  marks.set(d, found);
+  return found;
 };
 
 /**
@@ -597,13 +884,12 @@ const MARK: Record<StampShape, { at: number; size: number } | null> = {
  * baseline towards the edge – at the −Y edge upright; either way it rises
  * towards the knob.
  */
-const watermarkMap = (shape: StampShape) =>
+const watermarkMap = (mark: Mark) =>
   heightMap((ctx) => {
-    const mark = MARK[shape];
     if (!mark) return;
     const { at, size } = mark;
     const turn = at > 0 ? -1 : 1;
-    const width = (LETTERS.length - 1) * ADVANCE + 0.54;
+    const width = MARK_WIDTH;
     ctx.lineWidth = 0.032;
     LETTERS.forEach((letter, n) => {
       for (const points of letter) {
@@ -619,6 +905,20 @@ const watermarkMap = (shape: StampShape) =>
       }
     });
   });
+
+/**
+ * The plate's outline: the stamp's, smaller round its middle – or, where
+ * that would reach over the back's edge (a shape that bends round, a long
+ * thin one), the back's own drawn in.
+ */
+const plateOf = (shape: ShapeLike): Point[] => {
+  const scaled = localOutline(shape, RUBBER.grow, PLATE.size);
+  const distance = outlineDistance(shape);
+  const fits = scaled.every(
+    ([x, y]) => distance(0.5 + x, 0.5 - y) < RUBBER.grow - BLOCK.bevel - 0.01
+  );
+  return fits ? scaled : localOutline(shape, RUBBER.grow - PLATE.inset);
+};
 
 export const buildSticker = (
   THREE: typeof Three,
@@ -659,16 +959,11 @@ export const buildSticker = (
   // The block behind it – its bevel grows to the rubber's outline.
   const blockFront = -RUBBER.thickness + 0.005;
   const block = new THREE.Mesh(
-    new THREE.ExtrudeGeometry(
-      outline(THREE, localOutline(input.shape, RUBBER.grow - BLOCK.bevel)),
-      {
-        depth: BLOCK.depth,
-        bevelEnabled: true,
-        bevelThickness: BLOCK.bevel,
-        bevelSize: BLOCK.bevel,
-        bevelSegments: 5,
-      }
-    ),
+    blockSolid(THREE, input.shape, {
+      base: RUBBER.grow - BLOCK.bevel,
+      bevel: BLOCK.bevel,
+      depth: BLOCK.depth,
+    }),
     blockMaterial
   );
   block.position.z = blockFront - BLOCK.depth - BLOCK.bevel;
@@ -676,10 +971,11 @@ export const buildSticker = (
   const back = blockFront - BLOCK.depth - 2 * BLOCK.bevel;
 
   // The plate on the back with “boop” pressed in – turned to face −Z.
-  const watermark = watermarkMap(input.shape);
+  const plateOutline = plateOf(input.shape);
+  const watermark = watermarkMap(markOf(input.shape, plateOutline));
   const plate = new THREE.Mesh(
     shapedSlab(THREE, {
-      outline: localOutline(input.shape, RUBBER.grow, PLATE.size),
+      outline: plateOutline,
       thickness: PLATE.thickness + 0.01,
       surface: (x, y) => ({ z: -PLATE.groove * watermark(x, y), relief: 0 }),
     }),

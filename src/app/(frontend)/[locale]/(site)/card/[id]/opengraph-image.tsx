@@ -1,7 +1,8 @@
 import { ImageResponse } from "next/og";
-import type { Drawing, StampShape } from "@/features/calendar/model";
+import type { Drawing } from "@/features/calendar/model";
 import { outlinePath, rimLine } from "@/features/calendar/outline";
 import { knownKey } from "@/features/calendar/palette";
+import { knownShape, type ShapeLike } from "@/features/calendar/shapes";
 import { strokePath } from "@/features/calendar/stamp-svg";
 import { getSite } from "@/features/site/get-site";
 import { demoStamp } from "@/features/stickers/demo";
@@ -45,7 +46,7 @@ const PRINTS = [
   { x: 480, y: 478, size: 84, turn: 18, opacity: 0.2 },
 ] as const;
 
-type Look = { shape: StampShape; drawing: Drawing | null };
+type Look = { shape: ShapeLike; drawing: Drawing | null };
 
 /** The SVG path of one filled area – each of its outlines, closed. */
 const fillPath = (rings: readonly (readonly number[])[]) =>
@@ -160,12 +161,22 @@ const Image = async ({
   const card = await readCard(id);
   // No such card (anymore): a stamp of Boop's own, and no name.
   const stamp = card?.stamp ?? { ...demoStamp("heart"), name: "" };
-  // The CMS's colors – one it lacks shows in its first.
-  const { stampColors } = await getSite();
+  // The CMS's colors and shapes – one it lacks shows in its first.
+  const { stampColors, stampShapes } = await getSite();
   const hex =
     stampColors.find(
       (color) => color.key === knownKey(stamp.color, stampColors)
     )?.hex ?? INK;
+  const look: Look = {
+    drawing: stamp.drawing as Drawing | null,
+    shape: {
+      d: (
+        stampShapes.find(
+          (one) => one.key === knownShape(stamp.shape, stampShapes)
+        ) ?? stampShapes[0]
+      ).d,
+    },
+  };
   return new ImageResponse(
     <div
       style={{
@@ -197,7 +208,7 @@ const Image = async ({
         />
       </svg>
       {PRINTS.map((print, n) => (
-        <Print hex={hex} key={print.x} look={stamp} n={n} {...print} />
+        <Print hex={hex} key={print.x} look={look} n={n} {...print} />
       ))}
       {/* The logo – drawn, as the image's default font has no black weight. */}
       <svg aria-hidden="true" height={94} viewBox="0 0 620 265" width={220}>

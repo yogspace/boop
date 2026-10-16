@@ -2,23 +2,25 @@ import { boxOf, groupsOf, type Selection } from "./arrange";
 import type { Art, Box } from "./art";
 import { ANCHOR } from "./bezier";
 import { FACE } from "./model";
+import { outlineBox } from "./outline";
+import type { ShapeLike } from "./shapes";
 
 /**
  * Smart guides, like Figma's: what is moved or sized snaps onto lines that
  * matter – the stamp's middle (centered, the case that counts most), the
- * inner edge of its rim, and the edges and middles of every other thing –
- * when it comes within a few px of one; the line shows while it is there.
+ * inner edge of its rim (where its shape's reaches furthest each way), and
+ * the edges and middles of every other thing – when it comes within a few
+ * px of one; the line shows while it is there.
  */
 
 /** Lines across the face: upright ones at these x, level ones at these y. */
 export type Guides = { x: number[]; y: number[] };
 
-/** The face's own lines: its middle and the rim's inner edge. */
-const FACE_LINES = [
-  0.5,
-  FACE.inset + FACE.rim / 2,
-  1 - FACE.inset - FACE.rim / 2,
-];
+/** The face's own lines: its middle and the rim's inner edge, each way. */
+const faceLines = (shape: ShapeLike): Guides => {
+  const inner = outlineBox(shape, -FACE.rim / 2);
+  return { x: [0.5, inner.x0, inner.x1], y: [0.5, inner.y0, inner.y1] };
+};
 
 /** A box's lines: its edges and its middle. */
 const linesOf = (box: Box) => ({
@@ -30,8 +32,12 @@ const linesOf = (box: Box) => ({
  * The lines something picked may snap to: the face's, and those of each
  * other thing (what touches is one – arrange.ts `groupsOf`).
  */
-export const guidesFor = (art: Art, picked: Selection): Guides => {
-  const guides: Guides = { x: [...FACE_LINES], y: [...FACE_LINES] };
+export const guidesFor = (
+  art: Art,
+  picked: Selection,
+  shape: ShapeLike = "circle"
+): Guides => {
+  const guides = faceLines(shape);
   const groups = groupsOf(art);
   const mine = new Set([
     ...picked.strokes.map((i) => groups.strokes[i]),
@@ -69,9 +75,10 @@ export const guidesFor = (art: Art, picked: Selection): Guides => {
 export const anchorGuides = (
   art: Art,
   more: readonly number[] = [],
-  but?: { stroke: number; anchor: number }
+  but?: { stroke: number; anchor: number },
+  shape: ShapeLike = "circle"
 ): Guides => {
-  const guides: Guides = { x: [...FACE_LINES], y: [...FACE_LINES] };
+  const guides = faceLines(shape);
   const add = (a: readonly number[], skip = -1) => {
     for (let i = 0; i * ANCHOR + 1 < a.length; i++) {
       if (i === skip) continue;

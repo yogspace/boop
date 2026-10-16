@@ -23,7 +23,8 @@ type Anchor = {
  * it or the keyboard comes to it – the stamps on the shelf. A popover in the
  * top layer, placed by anchor positioning (`.name-tag`, styles.css): the
  * shelf's stamps are tilted, and a tilted box would be the tag's whole world.
- * Nothing on touch – there the stamp's sheet shows its name.
+ * Nothing on touch – there the name stands under the stamp
+ * (`NAME_UNDER`, stamp-shelf.tsx).
  */
 export const NameTag = ({
   id,

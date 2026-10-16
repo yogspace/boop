@@ -1,6 +1,7 @@
 // Relative, not `@/…`: the unit tests import this without the app's aliases.
-import { isShape, type StampShape } from "../calendar/model";
+import type { StampShape } from "../calendar/model";
 import { DEFAULT_PALETTE, isColorKey } from "../calendar/palette";
+import { isShapeKey } from "../calendar/shapes";
 import { CARD_ID, MESSAGE_MAX, type StampOrigin } from "./protocol";
 
 /**
@@ -115,6 +116,7 @@ export type CardStamp = {
 export const cardStampOf = (doc: Record<string, unknown>): CardStamp => ({
   name: typeof doc.name === "string" ? doc.name.slice(0, 40) : "",
   color: isColorKey(doc.color) ? doc.color : DEFAULT_PALETTE[0].key,
-  shape: isShape(doc.shape) ? doc.shape : "circle",
+  // A shape the CMS has no more shows as its first – kept as it is.
+  shape: isShapeKey(doc.shape) ? doc.shape : "circle",
   drawing: doc.drawing ?? null,
 });

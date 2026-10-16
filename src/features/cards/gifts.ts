@@ -8,9 +8,10 @@ import {
 import { adminOnly, isAdmin } from "@/access";
 import { sessionAccount } from "@/features/accounts/session";
 import { idOf } from "@/features/calendar/membership";
-import { SHAPES } from "@/features/calendar/model";
+import { isShapeKey } from "@/features/calendar/shapes";
 import { notifyGifted } from "@/features/push/gifted";
 import { stampColorsNow } from "@/features/site/stamp-colors";
+import { shapeKeysNow } from "@/features/site/stamp-shapes";
 import { nudge } from "@/features/sync/live";
 import { isLocale, LOCALES, type Locale } from "@/i18n/config";
 import { isId, newId } from "@/lib/id";
@@ -225,6 +226,18 @@ const giftFromStamp: Endpoint["handler"] = async (req) => {
   );
 };
 
+/** The shape – one the CMS has, or the code's (shapes.ts). */
+const knownShape = async (
+  value: unknown,
+  { req }: { req: Parameters<typeof shapeKeysNow>[0] }
+) => {
+  if (value == null || value === "") return true;
+  return (
+    (isShapeKey(value) && (await shapeKeysNow(req)).includes(value)) ||
+    "A shape from Site → Stamp shapes."
+  );
+};
+
 /** The color – one the CMS has, public or not. Empty: the card's. */
 const knownColor = async (
   value: unknown,
@@ -317,10 +330,11 @@ export const Gifts: CollectionConfig = {
     },
     // Taken from the card (`takeDrawing`).
     {
+      // A shape's key (Site → Stamp shapes).
       name: "shape",
-      type: "select",
-      options: [...SHAPES],
+      type: "text",
       admin: { hidden: true },
+      validate: knownShape,
     },
     { name: "drawing", type: "json", admin: { hidden: true } },
     // The stamp it was made of – in the app, or the card's in the CMS.

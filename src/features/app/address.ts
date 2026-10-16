@@ -37,6 +37,19 @@ export const viewOf = (
   return null;
 };
 
+/** The view a calendar opens in until another is picked for it. */
+export const START_VIEW: CalendarView = "month";
+
+/**
+ * The view that shows: the one the address asks for – a link, a reload, a
+ * view switched to – else the one the calendar opens in (its own settings,
+ * `start`), else the month.
+ */
+export const viewShown = (
+  asked: CalendarView | null | undefined,
+  start: CalendarView | null | undefined
+): CalendarView => asked ?? start ?? START_VIEW;
+
 /** The sheets that have an address – each over the calendar's view. */
 export type Panel = "settings" | "share" | "account" | "draw";
 

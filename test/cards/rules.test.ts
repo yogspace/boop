@@ -166,7 +166,9 @@ describe("a stamp's look, for a card or a copy", () => {
         sharedWith: ["cal"],
       })
     ).toEqual({ name: "Herz", color: "gold", shape: "diamond", drawing });
-    expect(cardStampOf({ color: "Not A Key", shape: "blob" })).toEqual({
+    // A key the CMS doesn't know is kept – it shows as the first shape.
+    expect(cardStampOf({ shape: "blob" }).shape).toBe("blob");
+    expect(cardStampOf({ color: "Not A Key", shape: "Not A Key" })).toEqual({
       name: "",
       color: "red",
       shape: "circle",

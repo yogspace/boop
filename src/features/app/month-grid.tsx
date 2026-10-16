@@ -1,12 +1,25 @@
 "use client";
 
 import { AnimatePresence, m, type Variants } from "motion/react";
-import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type RefObject,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { Snapshot } from "valtio";
 import { ArrowLeft, ArrowRight, Sparkle } from "@/components/doodles";
 import { SPRING } from "@/components/motion";
 import { Ruling } from "@/components/ruling";
 import { buttonClass, ROUND_BUTTON } from "@/components/ui";
-import { type DayKey, todayKey } from "@/features/calendar/model";
+import {
+  type ColorName,
+  type DayKey,
+  type StampDoc,
+  todayKey,
+} from "@/features/calendar/model";
 import { cleanNote, notePreview } from "@/features/calendar/note";
 import { hexOf } from "@/features/calendar/palette";
 import { Glitter, StampSvg } from "@/features/calendar/stamp-svg";
@@ -16,8 +29,18 @@ import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { seedOf } from "./day-sheet";
 import { NameTag } from "./name-tag";
+import { layoutPrints, type Room, varietyFirst } from "./pile";
 
 type Month = { year: number; month: number };
+
+/** A print on a day of the month – what its pile needs (pile.ts). */
+type Print = {
+  id: string;
+  z: number;
+  ink: ColorName;
+  stamp: Snapshot<StampDoc> | undefined;
+  special: boolean;
+};
 
 const key = (year: number, month: number, day: number): DayKey =>
   `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -32,6 +55,55 @@ const DAY =
 
 /** The table's columns – a week, Monday first. */
 const WEEK = 7;
+
+/**
+ * A day on a phone and from `sm` on: its padding (`DAY`), its number's size
+ * and the corner “+n” takes (px) – and for its prints, how far one may
+ * reach over its line and how small one may get.
+ */
+const NARROW = {
+  inset: 4,
+  font: 11,
+  badge: { width: 19, height: 16 },
+  over: 3,
+  smallest: 13,
+};
+const WIDE = {
+  inset: 8,
+  font: 14,
+  badge: { width: 30, height: 21 },
+  over: 5,
+  smallest: 20,
+};
+
+/**
+ * “+n”, in the corner kept for it (`badge` above): the calendar's ink on its
+ * paper (calendar/tint.ts – 6.8:1 and more, on the wash too).
+ */
+const MORE =
+  "absolute right-0.5 bottom-0.5 z-10 rounded-full bg-(--cal-soft,var(--color-card)) px-0.5 font-black text-[10px] text-(--cal-ink,var(--color-ink)) leading-3.5 sm:right-1 sm:bottom-1 sm:px-1 sm:text-xs sm:leading-4";
+
+/**
+ * The room a day of `size` has for its pile of prints (pile.ts). The corner
+ * its number takes is kept clear – today's circle takes more of it – and,
+ * when not all fit, the one for “+n”.
+ */
+const roomOf = (size: number, wide: boolean, today: boolean): Room => {
+  const { inset, font, badge, over, smallest } = wide ? WIDE : NARROW;
+  return {
+    width: size,
+    height: size,
+    inset,
+    over,
+    corner: today
+      ? { width: inset + 1.8 * font, height: inset + 1.7 * font }
+      : { width: inset + 1.7 * font, height: inset + 1.25 * font },
+    badge,
+    smallest,
+    biggest: size * 0.6,
+    most: 16,
+  };
+};
 
 /**
  * The soft blob under the pointer – one for the whole table, lying under its
@@ -333,12 +405,14 @@ const MONTH_TURN: Variants = {
 };
 
 /**
- * A month of a calendar, Monday first; each day shows its prints. Drawn as a
- * table ruled with a marker: today's number is circled and marked with the
- * calendar's highlighter, the weekend is hatched. The prints bring the color
- * – and with a special one the frame its day gets, in that print's ink. A
- * day with a note has a line of scribbled writing at its foot; the mouse or
- * the keyboard on it hangs the note's start from it (`NameTag`).
+ * A month of a calendar, Monday first; each day shows its prints in a
+ * little pile, turned this way and that, now and then over its line
+ * (pile.ts). Drawn as a table ruled with a marker: today's number is
+ * circled and marked with the calendar's highlighter, the weekend is
+ * hatched. The prints bring the color – and with a special one the frame
+ * its day gets, in that print's ink. A day with a note has a line of
+ * scribbled writing at its foot; the mouse or the keyboard on it hangs the
+ * note's start from it (`NameTag`).
  */
 export const MonthGrid = ({
   calendar,
@@ -357,15 +431,31 @@ export const MonthGrid = ({
   const { placements, stamps, notes } = useBoop();
   const today = todayKey();
 
+  // Each day's prints, top first – different stamps before a second print
+  // of one already there: should not all fit, a busy day shows its variety.
   const byDay = useMemo(() => {
-    const days = new Map<DayKey, (typeof list)[number][]>();
-    const list = Object.values(placements).filter(
-      (p) => p.calendar === calendar
-    );
-    for (const p of list) days.set(p.date, [...(days.get(p.date) ?? []), p]);
-    for (const [, day] of days) day.sort((a, b) => b.z - a.z);
+    const days = new Map<DayKey, Print[]>();
+    for (const p of Object.values(placements)) {
+      if (p.calendar !== calendar) continue;
+      const stamp = stamps[p.stamp];
+      const print = {
+        id: p.id,
+        z: p.z,
+        ink: p.ink ?? stamp?.color ?? "red",
+        stamp,
+        special: Boolean(stamp?.drawing?.special),
+      };
+      days.set(p.date, [...(days.get(p.date) ?? []), print]);
+    }
+    for (const [date, day] of days) {
+      day.sort((a, b) => b.z - a.z);
+      days.set(
+        date,
+        varietyFirst(day, (p) => `${p.stamp?.id}:${p.ink}`)
+      );
+    }
     return days;
-  }, [placements, calendar]);
+  }, [placements, stamps, calendar]);
 
   // The days with a note – their start, on one line (checked once more).
   const noted = useMemo(() => {
@@ -404,6 +494,39 @@ export const MonthGrid = ({
   const dir = turn.index === index ? turn.dir : Math.sign(index - turn.index);
   const labelOf = ({ year, month }: Month) => `${t.app.months[month]} ${year}`;
   const table = useRef<HTMLDivElement>(null);
+
+  // How large a day is – the room its prints have goes by it. Measured
+  // before it shows, and again as the room changes; from `sm` on the days'
+  // padding and numbers are larger.
+  const [cell, setCell] = useState({ size: 0, wide: false });
+  useLayoutEffect(() => {
+    const box = table.current;
+    if (!box) return;
+    const wide = window.matchMedia("(min-width: 40rem)");
+    const measure = () => {
+      const next = { size: box.clientWidth / WEEK, wide: wide.matches };
+      setCell((was) =>
+        Math.abs(was.size - next.size) < 0.5 && was.wide === next.wide
+          ? was
+          : next
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    wide.addEventListener("change", measure);
+    return () => {
+      observer.disconnect();
+      wide.removeEventListener("change", measure);
+    };
+  }, []);
+  const rooms = useMemo(
+    () => ({
+      day: roomOf(cell.size, cell.wide, false),
+      today: roomOf(cell.size, cell.wide, true),
+    }),
+    [cell]
+  );
 
   return (
     <div>
@@ -507,8 +630,13 @@ export const MonthGrid = ({
               const wave = { dir, order: orderOf(offset + i, dir) };
               // A special stamp's print makes the day special – the top one
               // lends the frame its ink.
-              const big = day.find((p) => stamps[p.stamp]?.drawing?.special);
+              const big = day.find((p) => p.special);
               const note = noted.get(date);
+              const pile = layoutPrints(
+                day,
+                isToday ? rooms.today : rooms.day,
+                date
+              );
               return (
                 <NameTag id={`note-${date}`} key={date} text={note ?? ""}>
                   {(anchor) => (
@@ -528,14 +656,7 @@ export const MonthGrid = ({
                       type="button"
                       variants={DAY_TURN}
                     >
-                      {big && (
-                        <Special
-                          hex={hexOf(
-                            big.ink ?? stamps[big.stamp]?.color ?? "red"
-                          )}
-                          wave={wave}
-                        />
-                      )}
+                      {big && <Special hex={hexOf(big.ink)} wave={wave} />}
                       {note && (
                         <>
                           <Writing special={Boolean(big)} wave={wave} />
@@ -546,80 +667,69 @@ export const MonthGrid = ({
                       )}
                       <span
                         className={cn(
-                          "font-black text-[11px] leading-none sm:text-sm",
+                          // Over the prints – they keep clear of its corner,
+                          // and should one reach in, it is stamped under it.
+                          "relative z-10 font-black text-[11px] leading-none sm:text-sm",
                           // Today: circled, and marked with the highlighter in
                           // the calendar's color (`--cal-mark`, calendar/tint.ts)
                           // – paper grey where none is set. The circle reaches
-                          // over the number's line – the prints below keep
-                          // their room.
+                          // over the number's line; the prints keep clear of
+                          // it (`roomOf`).
                           isToday &&
                             "scribble scribble-sm scribble-thin -my-[0.4em] -ml-[0.3em] flex h-[2.1em] w-[2.1em] shrink-0 items-center justify-center self-start rounded-full [--scribble-fill:var(--cal-mark,var(--color-soft))]"
                         )}
                       >
                         {i + 1}
                       </span>
-                      {/* One print has the day to itself; more share it. The rows
-                    take what room there is – a day stays square. On a phone
-                    a day is too small to share: the top print shows, big,
-                    and a count says how many more there are. */}
+                      {/* The day's prints in a little pile, each where pile.ts
+                          lays it: the more, the smaller – overlapping, a few
+                          a little over the day's line. Each mixes with what
+                          it lies on, like ink. */}
                       <m.span
-                        className={cn(
-                          "grid min-h-0 flex-1 auto-rows-fr place-items-center max-sm:grid-cols-1 max-sm:[&>*:nth-child(n+2)]:hidden",
-                          day.length === 1 ? "grid-cols-1" : "grid-cols-2",
-                          // Clear of the frame's line – a big print reaches it.
-                          big && "mx-0.5 mb-0.5"
-                        )}
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0"
                         custom={wave}
                         variants={PRINT_TURN}
                       >
-                        {day.slice(0, 4).map((p, n) => {
-                          const stamp = stamps[p.stamp];
-                          const inked = p.ink ?? stamp?.color ?? "red";
-                          const print = (
+                        {pile.laid.map(({ print: p, x, y, size, turn }) => (
+                          <span
+                            className="absolute mix-blend-multiply"
+                            key={p.id}
+                            style={{
+                              left: x - size / 2,
+                              top: y - size / 2,
+                              width: size,
+                              height: size,
+                              transform: `rotate(${turn}deg)`,
+                            }}
+                          >
                             <StampSvg
-                              className={
-                                stamp?.drawing?.special
-                                  ? "h-full w-full"
-                                  : "h-[90%] w-[90%] mix-blend-multiply"
-                              }
-                              color={inked}
-                              drawing={stamp?.drawing ?? null}
-                              key={p.id}
+                              className="h-full w-full"
+                              color={p.ink}
+                              drawing={p.stamp?.drawing ?? null}
                               print
                               seed={seedOf(p.id)}
-                              shape={stamp?.shape}
-                              title={
-                                n === 3 && day.length > 4
-                                  ? `+${day.length - 3}`
-                                  : undefined
-                              }
+                              shape={p.stamp?.shape}
                             />
-                          );
-                          // A special one: as big as its room allows, with a few
-                          // sparkles that hold still – a month has many days.
-                          return stamp?.drawing?.special ? (
-                            <span
-                              className="relative h-full w-full mix-blend-multiply"
-                              key={p.id}
-                            >
-                              {print}
+                            {/* A special one: a few sparkles that hold still
+                                – a month has many days. */}
+                            {p.special && p.stamp?.drawing && (
                               <Glitter
-                                color={inked}
-                                drawing={stamp.drawing}
+                                color={p.ink}
+                                drawing={p.stamp.drawing}
                                 seed={seedOf(p.id)}
-                                shape={stamp.shape}
+                                shape={p.stamp.shape}
                                 still
                               />
-                            </span>
-                          ) : (
-                            print
-                          );
-                        })}
+                            )}
+                          </span>
+                        ))}
                       </m.span>
-                      {day.length > 1 && (
-                        <span className="absolute right-0.5 bottom-0.5 rounded-full bg-ink px-1 font-black text-[9px] text-white leading-3.5 sm:hidden">
-                          +{day.length - 1}
-                        </span>
+                      {/* Only when even the smallest won't fit: how many more,
+                          quietly – written in the calendar's ink on a patch
+                          of its paper (only the weekend's wash shows it). */}
+                      {pile.more > 0 && (
+                        <span className={MORE}>+{pile.more}</span>
                       )}
                     </m.button>
                   )}

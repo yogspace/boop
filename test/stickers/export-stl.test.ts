@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { SHAPES, type StampShape } from "../../src/features/calendar/model";
+import { DEFAULT_SHAPES } from "../../src/features/calendar/shapes";
 import type { StickerInput } from "../../src/features/stickers/build";
 import { PRINT_MM, stampStl } from "../../src/features/stickers/export-stl";
 
@@ -126,8 +126,10 @@ const triangles = async (file: Blob) => {
   });
 };
 
+const SHAPES = DEFAULT_SHAPES.map((shape) => shape.key);
+
 const stamp = (
-  shape: StampShape,
+  shape: string,
   drawing: StickerInput["drawing"] = { strokes: [] }
 ): StickerInput => ({ shape, color: "red", drawing });
 

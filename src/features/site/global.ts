@@ -7,6 +7,13 @@ import {
   isColorKey,
   isHex,
 } from "@/features/calendar/palette";
+import { readPath } from "@/features/calendar/path";
+import {
+  DEFAULT_SHAPES,
+  isOutline,
+  isShapeKey,
+} from "@/features/calendar/shapes";
+import { DEFAULT_TEMPLATES } from "@/features/calendar/templates";
 import { isLocale } from "@/i18n/config";
 import { expireOnChange, TAGS } from "@/lib/cache";
 import { SITE_DEFAULTS, SITE_LINK_LABELS, type SiteLinks } from "./defaults";
@@ -64,6 +71,23 @@ const colorKey = (value: unknown, { data }: { data?: unknown }) => {
 };
 
 /**
+ * A key of a list's rows – a shape's, a template's: its form, and only once
+ * among the rows.
+ */
+const rowKey =
+  (list: "stampShapes" | "drawingTemplates", what: string) =>
+  (value: unknown, { data }: { data?: unknown }) => {
+    if (!isShapeKey(value)) {
+      return "Lowercase letters, digits and dashes, starting with a letter – at most 24, e.g. “heart”";
+    }
+    const rows = (data as Record<string, unknown> | undefined)?.[list];
+    const same = Array.isArray(rows)
+      ? rows.filter((row) => (row as { key?: unknown } | null)?.key === value)
+      : [];
+    return same.length > 1 ? `Another ${what} has this key already` : true;
+  };
+
+/**
  * What the pages link to, the owner's address and the stamp colors – in one
  * place. The legal text shows address and link through its blocks
  * (“Address”, “Site link”), so a move changes one form, not every paragraph;
@@ -81,7 +105,7 @@ export const Site: GlobalConfig = {
   admin: {
     group: "Settings",
     description:
-      "The owner's address for the imprint and privacy policy, the link to mxwr.de, and the colors to stamp with.",
+      "The owner's address for the imprint and privacy policy, the link to mxwr.de, the colors and shapes to stamp with, and the shapes to drag into a drawing.",
   },
   fields: [
     {
@@ -186,6 +210,131 @@ export const Site: GlobalConfig = {
               },
             },
           ],
+        },
+      ],
+    },
+    {
+      name: "stampShapes",
+      type: "array",
+      label: "Stamp shapes",
+      labels: { singular: "Shape", plural: "Shapes" },
+      required: true,
+      minRows: 1,
+      // The code's shapes until the global is saved (shapes.ts).
+      defaultValue: ({ locale }) =>
+        DEFAULT_SHAPES.map(({ key, name, d }) => ({
+          key,
+          name: isLocale(locale) ? name[locale] : name,
+          d,
+        })),
+      admin: {
+        description:
+          "The bodies a stamp can have – offered in this order when drawing one. The first is the default – and the shape of any stamp whose own is gone. Everything else – the rim along it, the rubber and block in 3D, the file for a 3D printer – is worked out from the outline. Seeds: “Stamp shapes” brings the code's.",
+        initCollapsed: true,
+        components: {
+          RowLabel: "@/features/site/stamp-shape-field#StampShapeRowLabel",
+        },
+      },
+      fields: [
+        {
+          name: "key",
+          type: "text",
+          required: true,
+          admin: {
+            description:
+              "The shape's identity – stamps refer to it, e.g. “heart”. Never change or delete a key once it is in use: its stamps would turn into the first shape. To change a shape, change its outline and keep the key.",
+          },
+          validate: rowKey("stampShapes", "shape"),
+        },
+        {
+          name: "name",
+          type: "text",
+          required: true,
+          localized: true,
+          admin: {
+            description:
+              "Shown when pointing at it, read out aloud – one per language (switch at the top).",
+          },
+        },
+        {
+          name: "d",
+          type: "textarea",
+          label: "Outline",
+          required: true,
+          admin: {
+            description:
+              "An SVG path (its “d”), in a 100 × 100 box with y down – fit into the stamp as large as it goes, centered, so the box's size doesn't matter. Its largest closed piece (… Z) is the outline. Below: the shape as the app shows it.",
+            components: {
+              Field: "@/features/site/stamp-shape-field#StampShapeField",
+            },
+          },
+          validate: (value: unknown) =>
+            isOutline(value) ||
+            "An SVG path with a closed piece (… Z) that encloses something",
+        },
+      ],
+    },
+    {
+      name: "drawingTemplates",
+      type: "array",
+      label: "Drawing templates",
+      labels: { singular: "Template", plural: "Templates" },
+      // The code's templates until the global is saved (templates.ts).
+      defaultValue: ({ locale }) =>
+        DEFAULT_TEMPLATES.map(({ key, name, d, filled }) => ({
+          key,
+          name: isLocale(locale) ? name[locale] : name,
+          d,
+          filled,
+        })),
+      admin: {
+        description:
+          "Shapes to drag into a drawing – a heart, a star, a speech bubble – in this order. Dropped in, they are lines in the pen's width (each piece of the path one, to edit point by point), or filled areas. Seeds: “Drawing templates” brings the code's.",
+        initCollapsed: true,
+        components: {
+          RowLabel: "@/features/site/stamp-shape-field#DrawingTemplateRowLabel",
+        },
+      },
+      fields: [
+        {
+          name: "key",
+          type: "text",
+          required: true,
+          validate: rowKey("drawingTemplates", "template"),
+        },
+        {
+          name: "name",
+          type: "text",
+          required: true,
+          localized: true,
+          admin: {
+            description: "Shown when pointing at it, read out aloud.",
+          },
+        },
+        {
+          name: "d",
+          type: "textarea",
+          label: "Lines",
+          required: true,
+          admin: {
+            description:
+              "An SVG path (its “d”), in a 100 × 100 box with y down – each piece (M …, closed with Z or open) one line. Below: what it drops into a drawing.",
+            components: {
+              Field: "@/features/site/stamp-shape-field#DrawingTemplateField",
+            },
+          },
+          validate: (value: unknown) =>
+            Boolean(readPath(value)) || "An SVG path that draws something",
+        },
+        {
+          name: "filled",
+          type: "checkbox",
+          label: "Filled",
+          defaultValue: false,
+          admin: {
+            description:
+              "Dropped in as filled areas – its closed pieces, holes where they overlap. Unticked: as lines.",
+          },
         },
       ],
     },

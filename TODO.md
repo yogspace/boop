@@ -4,11 +4,16 @@ Stand: 13.10.2026
 
 ## Offen
 
+- **Als Nächstes, nach dem Deploy: Stempel bearbeitbar machen** – einen
+  gespeicherten Stempel wieder im Editor öffnen und ändern; die Änderung
+  geht an alle Kopien (Karten, Geschenke) über `origin.stamp`.
 - **Nach dem Deploy im CMS**:
   - Seeds → Translations (neue Texte).
   - Seeds → „Imprint & privacy“ mit „Replace“ – die Vorlage beschreibt jetzt
     Einladungen mit Zustimmung, Adresse ändern, „Admin“ / „Nie löschen“,
     Stempel-Karten, Geschenke von Boop und den Export.
+  - Seeds → „Stamp shapes“ und „Drawing templates“ (Fill) – sonst fehlen
+    auf Prod die neuen Formen und die Vorlagen zum Hineinziehen.
   - Site → Stamp colors: die Sonderfarben anlegen, „Public“ aus, „Finish“
     setzen – z. B. Gold `#d4a72c` (metal), Glitzer `#c264d6` (glitter).
 - **Benachrichtigungen (Web Push)** – live: Schlüssel in GitHub, deployt,
@@ -117,6 +122,15 @@ Stand: 13.10.2026
   in den Kalender, Ablehnen – beim Besitzer verschwindet sie aus
   „ausstehend“; Mail-Link tritt bei; Anmelden tritt NICHT mehr von selbst
   bei.
+- Editor auf dem iPhone: ruhige Striche, feine Stärken, Vollbild, Zoom mit
+  zwei Fingern, Lupe über dem Finger, Apple Pencil (Finger zoomen dann),
+  und vor allem: keine weißen Flecken mehr beim Malen (nur Headless-WebKit
+  geprüft). Bézier: „Rund/Ecke“, Griffe über den Rand ziehen.
+- Neue Formen (Oval, Blume, Herz, Wolke, Stern, Ticket, Briefmarke) in 2D,
+  3D und im STL-Slicer; Vorlagen hineinziehen (Desktop) bzw. antippen.
+- Monat/Jahr: Abdrücke als Haufen, „+n“ im Kalenderton; Startansicht in
+  den Kalender-Einstellungen. Tagesseite: Werkzeugzeile unter dem Blatt,
+  Sortieren, „Neuer Stempel“ am Ende, Namen unter den Stempeln (Touch).
 - Passwort-Warnung beim Registrieren und Zurücksetzen: erscheint kurz
   nach dem Tippen (z. B. „Passwort123!“), verschwindet bei einem langen.
 - Adressen für Offenes (mit dem echten Router, iPhone-Wischgeste zurück):
@@ -188,4 +202,4 @@ Stand: 13.10.2026
   alle Kopien gehen.
 
 refactor. manche files haben > 700 zeilen!
-die stempel in der monats/jahresansicht etwas chaotischer machen bzw. lustiger hihi
+Stempel bearbeitbar machen

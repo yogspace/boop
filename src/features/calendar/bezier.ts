@@ -4,8 +4,10 @@
  * them. A drawing keeps such a line – an anchored line – like any other: `p`, the points everything draws from (stamp-svg.tsx, the 3D
  * rubber, the STL) – and besides it `a`, its anchors, so it can be edited
  * again. Six numbers each: where the anchor is, then its handle in and its
- * handle out (x, y each), all in the unit square; a handle on its anchor is
- * none. `closed`: the last anchor runs on to the first.
+ * handle out (x, y each) – the anchor in the unit square, its handles as
+ * far beyond it as HANDLE_REACH (a curve along the edge needs its handle
+ * out there); a handle on its anchor is none. `closed`: the last anchor
+ * runs on to the first. What is drawn, `p`, always stays in the square.
  *
  * `p` is always worked out from `a` (`flatten`) – in the editor and again
  * by `cleanDrawing` – so the two never part. Plain numbers, no browser.
@@ -30,6 +32,18 @@ type Cubic = [number, number, number, number, number, number, number, number];
 /** Into the square, rounded like every point a drawing keeps. */
 const unitRound = (n: number) =>
   Math.round(Math.min(Math.max(n, 0), 1) * 1000) / 1000;
+
+/** How far beyond the square a handle may reach – each way. */
+export const HANDLE_REACH = 1;
+
+/** A handle's place: rounded, kept within HANDLE_REACH of the square. */
+const handleRound = (n: number) =>
+  Math.round(Math.min(Math.max(n, -HANDLE_REACH), 1 + HANDLE_REACH) * 1000) /
+  1000;
+
+/** Anchors rounded – each in the square, its handles within their reach. */
+const placeRound = (a: readonly number[]) =>
+  a.map((v, i) => (i % ANCHOR < 2 ? unitRound(v) : handleRound(v)));
 
 export const anchorCount = (a: readonly number[]) =>
   Math.floor(a.length / ANCHOR);
@@ -184,12 +198,13 @@ export const flatten = (a: readonly number[], closed = false): number[] => {
 };
 
 /**
- * An anchored line from its anchors – each number kept in the square and
- * rounded, `p` worked out from them. What the editor makes, what
+ * An anchored line from its anchors – each kept where it may be (an anchor
+ * in the square, its handles within reach) and rounded, `p` worked out from
+ * them. What the editor makes, what
  * `cleanDrawing` makes of what a device sends: the very same.
  */
 export const lineStroke = (w: number, a: readonly number[], closed = false) => {
-  const anchors = a.slice(0, anchorCount(a) * ANCHOR).map(unitRound);
+  const anchors = placeRound(a.slice(0, anchorCount(a) * ANCHOR));
   return {
     w,
     p: flatten(anchors, closed),
@@ -209,7 +224,7 @@ export const cleanAnchors = (value: unknown, most: number) => {
   if (!value.every((v) => typeof v === "number" && Number.isFinite(v))) {
     return null;
   }
-  return (value as number[]).map(unitRound);
+  return placeRound(value as number[]);
 };
 
 /** Whether an anchor's handles mirror each other – a smooth point. */
@@ -240,7 +255,10 @@ export const noHandle = (
 /** A move that keeps a value in the square. */
 const within = (v: number, d: number) => Math.min(Math.max(d, -v), 1 - v);
 
-/** An anchor moved to (x, y) – its handles along, all kept in the square. */
+/**
+ * An anchor moved to (x, y) – kept in the square, right up to its edge –
+ * its handles along, out beyond it if they go there.
+ */
 export const moveAnchor = (
   a: readonly number[],
   i: number,
@@ -248,16 +266,14 @@ export const moveAnchor = (
   y: number
 ) => {
   const k = i * ANCHOR;
-  let dx = x - a[k];
-  let dy = y - a[k + 1];
-  for (const j of [0, 2, 4]) {
-    dx = within(a[k + j], dx);
-    dy = within(a[k + j + 1], dy);
-  }
+  const dx = within(a[k], x - a[k]);
+  const dy = within(a[k + 1], y - a[k + 1]);
   const out = a.slice();
-  for (const j of [0, 2, 4]) {
-    out[k + j] = unitRound(a[k + j] + dx);
-    out[k + j + 1] = unitRound(a[k + j + 1] + dy);
+  out[k] = unitRound(a[k] + dx);
+  out[k + 1] = unitRound(a[k + 1] + dy);
+  for (const j of [2, 4]) {
+    out[k + j] = handleRound(a[k + j] + dx);
+    out[k + j + 1] = handleRound(a[k + j + 1] + dy);
   }
   return out;
 };
@@ -277,11 +293,11 @@ export const moveHandle = (
   const k = i * ANCHOR;
   const [own, other] = side === "in" ? [k + 2, k + 4] : [k + 4, k + 2];
   const out = a.slice();
-  out[own] = unitRound(x);
-  out[own + 1] = unitRound(y);
+  out[own] = handleRound(x);
+  out[own + 1] = handleRound(y);
   if (isSmooth(a, i) && !free) {
-    out[other] = unitRound(2 * a[k] - out[own]);
-    out[other + 1] = unitRound(2 * a[k + 1] - out[own + 1]);
+    out[other] = handleRound(2 * a[k] - out[own]);
+    out[other + 1] = handleRound(2 * a[k + 1] - out[own + 1]);
   }
   return out;
 };
@@ -299,11 +315,11 @@ export const pullHandles = (
 ) => {
   const k = i * ANCHOR;
   const out = a.slice();
-  out[k + 4] = unitRound(x);
-  out[k + 5] = unitRound(y);
+  out[k + 4] = handleRound(x);
+  out[k + 5] = handleRound(y);
   if (!free) {
-    out[k + 2] = unitRound(2 * a[k] - out[k + 4]);
-    out[k + 3] = unitRound(2 * a[k + 1] - out[k + 5]);
+    out[k + 2] = handleRound(2 * a[k] - out[k + 4]);
+    out[k + 3] = handleRound(2 * a[k + 1] - out[k + 5]);
   }
   return out;
 };
@@ -349,10 +365,28 @@ export const toggleSmooth = (
   }
   const reach =
     (Math.hypot(nx - x, ny - y) + Math.hypot(px - x, py - y)) / 6 || 0.05;
-  out[k + 4] = unitRound(x + dx * reach);
-  out[k + 5] = unitRound(y + dy * reach);
-  out[k + 2] = unitRound(x - dx * reach);
-  out[k + 3] = unitRound(y - dy * reach);
+  out[k + 4] = handleRound(x + dx * reach);
+  out[k + 5] = handleRound(y + dy * reach);
+  out[k + 2] = handleRound(x - dx * reach);
+  out[k + 3] = handleRound(y - dy * reach);
+  return out;
+};
+
+/**
+ * Anchor i made smooth – its handles in one line, mirrored: the one out
+ * kept (or the one in, if it has only that), the other opposite it; one
+ * without handles gets them as `toggleSmooth` gives them.
+ */
+export const smoothen = (a: readonly number[], closed: boolean, i: number) => {
+  if (isSmooth(a, i)) return a.slice();
+  const k = i * ANCHOR;
+  const hasOut = !noHandle(a, i, "out");
+  const hasIn = !noHandle(a, i, "in");
+  if (!(hasOut || hasIn)) return toggleSmooth(a, closed, i);
+  const out = a.slice();
+  const [from, to] = hasOut ? [k + 4, k + 2] : [k + 2, k + 4];
+  out[to] = handleRound(2 * a[k] - a[from]);
+  out[to + 1] = handleRound(2 * a[k + 1] - a[from + 1]);
   return out;
 };
 
@@ -423,9 +457,11 @@ export const insertAnchor = (
   const added = [left[6], left[7], left[4], left[5], right[2], right[3]];
   const at = i + 1;
   return {
-    a: [...out.slice(0, at * ANCHOR), ...added, ...out.slice(at * ANCHOR)].map(
-      unitRound
-    ),
+    a: placeRound([
+      ...out.slice(0, at * ANCHOR),
+      ...added,
+      ...out.slice(at * ANCHOR),
+    ]),
     index: at,
   };
 };

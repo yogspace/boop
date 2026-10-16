@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { byPerson, newestFirst } from "../../src/features/app/shelf";
+import {
+  byColor,
+  byPerson,
+  lastUsed,
+  newestFirst,
+  recentFirst,
+  shelve,
+} from "../../src/features/app/shelf";
 import type { StampOrigin } from "../../src/features/cards/protocol";
 
 const stamp = (
@@ -115,5 +122,117 @@ describe("byPerson", () => {
       nameOf
     );
     expect(groups.map((g) => g.kind)).toEqual(["mine"]);
+  });
+});
+
+const colored = (id: string, color: string, changedAt: string) => ({
+  ...stamp(id, "me", changedAt),
+  color,
+});
+
+const print = (stamp: string, changedAt: string, placedBy = "me") => ({
+  stamp,
+  placedBy,
+  changedAt,
+});
+
+describe("lastUsed", () => {
+  it("keeps each stamp's latest print of mine", () => {
+    const used = lastUsed(
+      [
+        print("a", "2026-10-01T10:00:00Z"),
+        print("a", "2026-10-03T10:00:00Z"),
+        print("a", "2026-10-02T10:00:00Z"),
+        print("b", "2026-10-05T10:00:00Z", "anna"),
+      ],
+      "me"
+    );
+    expect([...used]).toEqual([["a", Date.parse("2026-10-03T10:00:00Z")]]);
+  });
+
+  it("leaves out what was printed after `until`", () => {
+    const until = Date.parse("2026-10-02T00:00:00Z");
+    const used = lastUsed(
+      [
+        print("a", "2026-10-01T10:00:00Z"),
+        print("a", "2026-10-03T10:00:00Z"),
+        print("b", "2026-10-04T10:00:00Z"),
+      ],
+      "me",
+      until
+    );
+    expect([...used]).toEqual([["a", Date.parse("2026-10-01T10:00:00Z")]]);
+  });
+});
+
+describe("recentFirst", () => {
+  it("puts the last used first, a new one by when it came", () => {
+    const stamps = [
+      stamp("old-unused", "me", "2026-09-01T00:00:00Z"),
+      stamp("used-long-ago", "me", "2026-08-01T00:00:00Z"),
+      stamp("used-lately", "me", "2026-08-02T00:00:00Z"),
+      stamp("brand-new", "me", "2026-10-10T00:00:00Z"),
+    ];
+    const used = lastUsed(
+      [
+        print("used-long-ago", "2026-08-15T00:00:00Z"),
+        print("used-lately", "2026-10-05T00:00:00Z"),
+      ],
+      "me"
+    );
+    expect(recentFirst(stamps, used).map((s) => s.id)).toEqual([
+      "brand-new",
+      "used-lately",
+      "old-unused",
+      "used-long-ago",
+    ]);
+  });
+});
+
+describe("byColor", () => {
+  it("goes by the palette, a color it lost after it – each newest first", () => {
+    const stamps = [
+      colored("sky-old", "sky", "2026-10-01T00:00:00Z"),
+      colored("red", "red", "2026-10-02T00:00:00Z"),
+      colored("gone", "plum", "2026-10-09T00:00:00Z"),
+      colored("sky-new", "sky", "2026-10-05T00:00:00Z"),
+      colored("also-gone", "lime", "2026-10-03T00:00:00Z"),
+    ];
+    expect(byColor(stamps, ["red", "sky"]).map((s) => s.id)).toEqual([
+      "red",
+      "sky-new",
+      "sky-old",
+      "also-gone",
+      "gone",
+    ]);
+  });
+});
+
+describe("shelve", () => {
+  const stamps = [
+    colored("a", "sky", "2026-10-01T00:00:00Z"),
+    colored("b", "red", "2026-10-02T00:00:00Z"),
+    { ...colored("c", "red", "2026-10-03T00:00:00Z"), owner: "bo" },
+  ];
+  const options = {
+    me: "me",
+    nameOf,
+    used: new Map([["a", Date.parse("2026-10-05T00:00:00Z")]]),
+    colors: ["red", "sky"],
+  };
+  const ids = (order: Parameters<typeof shelve>[1]) =>
+    shelve(stamps, order, options).map((g) => [
+      g.key,
+      g.stamps.map((s) => s.id),
+    ]);
+
+  it("has all in one section but by person", () => {
+    expect(ids("recent")).toEqual([["all", ["a", "c", "b"]]]);
+    expect(ids("newest")).toEqual([["all", ["c", "b", "a"]]]);
+    expect(ids("color")).toEqual([["all", ["c", "b", "a"]]]);
+    expect(ids("person")).toEqual([
+      ["mine", ["b", "a"]],
+      ["person:bo", ["c"]],
+    ]);
   });
 });

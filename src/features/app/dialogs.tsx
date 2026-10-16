@@ -9,6 +9,7 @@ import { useBoop } from "@/features/offline/store";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
+import { FADING, useFadingEdges } from "./fading-edges";
 import { InkBlot } from "./ink-blot";
 import { Sheet } from "./sheet";
 
@@ -42,31 +43,43 @@ export const ColorPicker = ({
   const t = dictionaryOf(locale);
   const palette = usePalette();
   const { me } = useBoop();
+  const row = useFadingEdges("x");
   const shown = knownKey(value, palette);
   const open = pickable(palette, { admin: Boolean(me?.admin) });
   const colors = palette.filter(
     (color) => open.includes(color) || color.key === shown
   );
   return (
-    <fieldset className="flex flex-wrap items-center gap-3.5">
+    <fieldset className="flex min-w-0 flex-col">
       <legend className="mb-3 font-bold text-sm">{t.app.draw.color}</legend>
-      {/* Blots of ink, the one picked ringed – like the day's stamp pads. */}
-      {colors.map(({ key: c, hex, name: names }, i) => (
-        <button
-          aria-label={names[locale]}
-          aria-pressed={shown === c}
-          className={cn(
-            "relative flex h-10 w-10 items-center justify-center rounded-full transition-transform",
-            shown === c ? "scale-110" : "hover:-rotate-6 hover:scale-110"
-          )}
-          key={c}
-          onClick={() => onChange(c)}
-          type="button"
-        >
-          <InkBlot hex={hex} index={i} on={shown === c} />
-        </button>
-      ))}
-      {children && <div className="w-full">{children}</div>}
+      {/* Blots of ink, the one picked ringed – like the day's stamp pads.
+          On a phone one row, never two: what doesn't fit is swiped to, and
+          fades where it goes on – room all round inside the scroller (it
+          clips both ways) for a blot's ring and its lift. Wider, they wrap. */}
+      <div
+        className={cn(
+          "-m-3 flex items-center gap-3.5 overflow-x-auto overflow-y-hidden overscroll-x-contain p-3 sm:m-0 sm:flex-wrap sm:overflow-visible sm:mask-none sm:p-0",
+          FADING.x
+        )}
+        ref={row}
+      >
+        {colors.map(({ key: c, hex, name: names }, i) => (
+          <button
+            aria-label={names[locale]}
+            aria-pressed={shown === c}
+            className={cn(
+              "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform",
+              shown === c ? "scale-110" : "hover:-rotate-6 hover:scale-110"
+            )}
+            key={c}
+            onClick={() => onChange(c)}
+            type="button"
+          >
+            <InkBlot hex={hex} index={i} on={shown === c} />
+          </button>
+        ))}
+      </div>
+      {children && <div className="mt-3 w-full">{children}</div>}
     </fieldset>
   );
 };

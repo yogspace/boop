@@ -7,7 +7,7 @@ import type {
 import { hiddenUnlessSupport, sealed } from "@/access";
 import { sessionAccount } from "@/features/accounts/session";
 import { idOf } from "@/features/calendar/membership";
-import { SHAPES } from "@/features/calendar/model";
+import { isShapeKey } from "@/features/calendar/shapes";
 import { nudge } from "@/features/sync/live";
 import { isId, newId } from "@/lib/id";
 import { rateLimit } from "@/lib/rate-limit";
@@ -88,11 +88,12 @@ export const Cards: CollectionConfig = {
     { name: "name", type: "text", maxLength: 40 },
     { name: "color", type: "text", required: true },
     {
+      // A shape's key (Site → Stamp shapes).
       name: "shape",
-      type: "select",
+      type: "text",
       required: true,
       defaultValue: "circle",
-      options: [...SHAPES],
+      validate: (value: unknown) => isShapeKey(value) || "A shape's key",
     },
     { name: "drawing", type: "json" },
     { name: "message", type: "textarea", maxLength: MESSAGE_MAX },

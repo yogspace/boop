@@ -9,6 +9,7 @@ import { sessionAccount } from "@/features/accounts/session";
 import { calendarsOf } from "@/features/calendar/membership";
 import { sharedWithOf } from "@/features/calendar/model";
 import { stampColorsNow } from "@/features/site/stamp-colors";
+import { shapeKeysNow } from "@/features/site/stamp-shapes";
 import { isId } from "@/lib/id";
 import { rateLimit } from "@/lib/rate-limit";
 import { type ApplyContext, applyChange } from "./apply";
@@ -91,6 +92,8 @@ export const syncEndpoint: Endpoint = {
           )
         : new Set(),
       admin: (account as { admin?: unknown }).admin === true,
+      // The shapes a stamp may be in – the CMS's and the code's.
+      ...(changes.length && { shapes: await shapeKeysNow(req) }),
     };
     const touched: Record<SyncType, Set<string>> = {
       calendar: new Set(),

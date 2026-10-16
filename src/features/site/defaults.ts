@@ -1,10 +1,15 @@
 // Client-safe: plain data and types, no server code.
 
 import { DEFAULT_PALETTE, type StampColor } from "@/features/calendar/palette";
+import { DEFAULT_SHAPES, type StampShapeDef } from "@/features/calendar/shapes";
+import {
+  DEFAULT_TEMPLATES,
+  type DrawingTemplate,
+} from "@/features/calendar/templates";
 
 /**
- * The site's link, the owner's address and the stamp colors as the code
- * knows them – the defaults of the “Site” global (global.ts), and what the
+ * The site's link, the owner's address, the stamp colors and shapes and the
+ * drawing templates as the code knows them – the defaults of the “Site” global (global.ts), and what the
  * pages fall back to while the global is empty or the database is out of
  * reach.
  */
@@ -26,6 +31,10 @@ export type SiteContent = {
   address: SiteAddress;
   /** The inks to stamp with, names in every language (palette.ts). */
   stampColors: StampColor[];
+  /** The bodies a stamp can have (shapes.ts). */
+  stampShapes: StampShapeDef[];
+  /** The shapes to drag into a drawing (templates.ts). */
+  drawingTemplates: DrawingTemplate[];
 };
 
 export const SITE_DEFAULTS: SiteContent = {
@@ -41,6 +50,8 @@ export const SITE_DEFAULTS: SiteContent = {
     country: "Deutschland",
   },
   stampColors: DEFAULT_PALETTE,
+  stampShapes: DEFAULT_SHAPES,
+  drawingTemplates: DEFAULT_TEMPLATES,
 };
 
 export const SITE_LINK_LABELS: Record<keyof SiteLinks, string> = {

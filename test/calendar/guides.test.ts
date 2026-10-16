@@ -21,11 +21,23 @@ describe("smart guides", () => {
     const guides = guidesFor(art, { strokes: [0], fills: [] });
     const has = (list: number[], v: number) =>
       list.some((x) => Math.abs(x - v) < 1e-9);
-    for (const v of [0.5, 0.04, 0.96]) expect(has(guides.x, v)).toBe(true);
+    const near = (list: number[], v: number) =>
+      list.some((x) => Math.abs(x - v) < 1e-4);
+    for (const v of [0.5, 0.04, 0.96]) expect(near(guides.x, v)).toBe(true);
     // The bar's edges (its width counted) and middle – not the dot's own.
     for (const v of [0.69, 0.7, 0.71]) expect(has(guides.x, v)).toBe(true);
     for (const v of [0.29, 0.45, 0.61]) expect(has(guides.y, v)).toBe(true);
     expect(has(guides.x, 0.18)).toBe(false);
+  });
+
+  it("follow the shape – its rim's inner edge where it reaches furthest", () => {
+    const near = (list: number[], v: number) =>
+      list.some((x) => Math.abs(x - v) < 1e-3);
+    // The oval lies: wide as the face, two thirds as tall.
+    const guides = guidesFor(art, { strokes: [0], fills: [] }, "oval");
+    for (const v of [0.04, 0.96]) expect(near(guides.x, v)).toBe(true);
+    for (const v of [0.184, 0.816]) expect(near(guides.y, v)).toBe(true);
+    expect(near(guides.y, 0.04)).toBe(false);
   });
 
   it("pull a box's middle onto the face's – centered", () => {
