@@ -39,7 +39,7 @@ export const DaySheet = ({
     // Wider than a sheet's own on a large screen: the day's page wants the
     // room – the tools and the tray beside the page (day-page.tsx).
     <Sheet
-      className="md:max-w-3xl"
+      className="md:max-w-3xl lg:max-w-5xl"
       onClose={onClose}
       title={
         <span className="flex items-center gap-2">

@@ -115,6 +115,8 @@ const angleOf = (degrees: number) =>
  * the note (`main` – on a phone side by side, to swipe); and the tools and
  * the tray (`side`), under them – or, from a container 42rem wide, beside
  * them, all along, 20rem wide: the inks eight to a row, the stamps three.
+ * From 56rem (a day's sheet on a large screen) 28rem: all inks in a row,
+ * the stamps four.
  */
 const AREAS = {
   heading:
@@ -816,7 +818,7 @@ export const DayPage = ({
     <div className={cn("@container", className)}>
       <div
         className={cn(
-          "grid grid-cols-[minmax(0,1fr)] gap-4 @2xl:grid-cols-[minmax(0,1fr)_20rem] @2xl:gap-x-6",
+          "grid grid-cols-[minmax(0,1fr)] gap-4 @2xl:grid-cols-[minmax(0,1fr)_20rem] @2xl:gap-x-6 @4xl:grid-cols-[minmax(0,1fr)_28rem] @4xl:gap-x-8",
           heading ? AREAS.heading : dayNote ? AREAS.switch : AREAS.plain
         )}
       >
