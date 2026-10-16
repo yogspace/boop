@@ -352,6 +352,23 @@ describe("editing an anchored line's points", () => {
     });
   });
 
+  it("grabs a short handle beside its anchor – the anchor when about as near", () => {
+    const short = [...corner(0.2, 0.7), ...smooth(0.5, 0.3, 0.52, 0.3)];
+    // A finger's reach covers both: the one clearly nearer wins.
+    expect(pathGrip(short, false, 0.525, 0.3, 0.03)).toEqual({
+      kind: "out",
+      i: 1,
+    });
+    expect(pathGrip(short, false, 0.512, 0.3, 0.03)).toEqual({
+      kind: "anchor",
+      i: 1,
+    });
+    expect(pathGrip(short, false, 0.5, 0.31, 0.03)).toEqual({
+      kind: "anchor",
+      i: 1,
+    });
+  });
+
   it("snaps to 45° about a point", () => {
     const [x, y] = snap45(0.5, 0.5, 0.7, 0.52);
     expect(y).toBeCloseTo(0.5);

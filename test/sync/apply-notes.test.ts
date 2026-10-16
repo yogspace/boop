@@ -15,6 +15,10 @@ vi.mock(
   "@/features/calendar/palette",
   () => import("../../src/features/calendar/palette")
 );
+vi.mock(
+  "@/features/calendar/prefs",
+  () => import("../../src/features/calendar/prefs")
+);
 vi.mock("@/features/calendar/membership", () => ({
   idOf: (value: unknown) =>
     typeof value === "string"
@@ -45,6 +49,7 @@ const fake = () => {
     placements: new Map(),
     stamps: new Map(),
     invites: new Map(),
+    "calendar-prefs": new Map(),
   };
   const payload = {
     findByID: async ({ collection, id }: { collection: string; id: string }) =>

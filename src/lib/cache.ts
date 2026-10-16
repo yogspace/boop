@@ -3,13 +3,15 @@ import { revalidatePath, revalidateTag } from "next/cache";
 /**
  * What the pages take from the CMS, cached until it changes – one tag each.
  * Saving in the admin expires the tag (the `expireOnChange` hooks on the
- * globals), so the next visitor gets the new version.
+ * globals and collections), so the next visitor gets the new version.
  */
 export const TAGS = {
   site: "site",
   legal: "legal",
   /** The interface texts (features/translations). */
   texts: "texts",
+  /** The stamp shapes and drawing templates (features/site/collections.ts). */
+  shapes: "shapes",
 } as const;
 
 export type CacheTag = (typeof TAGS)[keyof typeof TAGS];

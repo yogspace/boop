@@ -46,11 +46,12 @@ export const useToday = (): DayKey => {
 /**
  * A calendar's today: the day's page right in the app – the one the day's
  * sheet has (day-page.tsx), to stamp on at once – and the day's note under
- * it. Only ever today: past midnight the next day's page comes in; the
+ * the page. Only ever today: past midnight the next day's page comes in; the
  * days before are in the month.
  *
  * `keyboard`: the page's keys (day-page.tsx) – off while something lies
- * over it. The tray's (`TrayProps`) go on to the page as they are.
+ * over it. The tray's (`TrayProps`) go on to the page as they are – but for
+ * its tile for a new stamp: here that is the shelf's (stamp-shelf.tsx).
  */
 export const TodayView = ({
   calendar,
@@ -67,15 +68,18 @@ export const TodayView = ({
   return (
     // A new day is a new page: what was in hand, picked or to be taken back
     // stays with the day before.
-    <div className="flex animate-fade flex-col gap-5" key={today}>
+    <div className="animate-fade" key={today}>
       <DayPage
         {...tray}
         calendar={calendar}
         date={today}
+        dayNote={<DayNote calendar={calendar} date={today} locale={locale} />}
         heading={
+          // On a phone the date under the weekday – the switch between the
+          // page and the note beside them (day-page.tsx).
           <h3 className="text-3xl leading-none">
             {date.toLocaleDateString(locale, { weekday: "long" })}{" "}
-            <span className="font-bold text-muted">
+            <span className="font-bold text-muted @max-md:block">
               {date.toLocaleDateString(locale, {
                 day: "numeric",
                 month: "long",
@@ -85,9 +89,8 @@ export const TodayView = ({
         }
         keyboard={keyboard}
         locale={locale}
-        shelfBeside
+        offerNew={false}
       />
-      <DayNote calendar={calendar} date={today} locale={locale} />
     </div>
   );
 };

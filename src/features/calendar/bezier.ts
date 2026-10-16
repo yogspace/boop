@@ -483,7 +483,10 @@ export type PathGrip =
 
 /**
  * What a point on an anchored line grabs within `reach`: the nearest anchor or
- * handle (handles only where there are some), else the line itself.
+ * handle (handles only where there are some), else the line itself. An
+ * anchor is a third of the reach ahead – a handle wins only where the press
+ * is clearly nearer it, so a short handle can be grabbed beside its anchor
+ * (a finger's reach covers both).
  */
 export const pathGrip = (
   a: readonly number[],
@@ -492,24 +495,22 @@ export const pathGrip = (
   y: number,
   reach: number
 ): PathGrip | null => {
+  const lead = reach / 3;
   let best: PathGrip | null = null;
-  let near = reach;
+  let score = Infinity;
   for (let i = 0; i < anchorCount(a); i++) {
     const k = i * ANCHOR;
     const d = Math.hypot(a[k] - x, a[k + 1] - y);
-    if (d <= near) {
-      near = d;
+    if (d <= reach && d - lead < score) {
+      score = d - lead;
       best = { kind: "anchor", i };
     }
-  }
-  if (best) return best;
-  for (let i = 0; i < anchorCount(a); i++) {
     for (const side of ["in", "out"] as const) {
       if (noHandle(a, i, side)) continue;
-      const k = i * ANCHOR + (side === "in" ? 2 : 4);
-      const d = Math.hypot(a[k] - x, a[k + 1] - y);
-      if (d <= near) {
-        near = d;
+      const h = k + (side === "in" ? 2 : 4);
+      const e = Math.hypot(a[h] - x, a[h + 1] - y);
+      if (e <= reach && e < score) {
+        score = e;
         best = { kind: side, i };
       }
     }

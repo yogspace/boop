@@ -12,6 +12,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import type { Snapshot } from "valtio";
 import { ArrowLeft, Bang, Cross, Sparkle } from "@/components/doodles";
 import { SPRING } from "@/components/motion";
 import { Button, Checkbox, Field, Notice, ROUND_BUTTON } from "@/components/ui";
@@ -29,10 +30,13 @@ import {
 import { importSvg } from "@/features/calendar/import-svg";
 import {
   type ColorName,
+  type Drawing,
   RIMS,
   type RimPattern,
+  type StampDoc,
   type StampShape,
 } from "@/features/calendar/model";
+import { MorphOutline } from "@/features/calendar/morph-outline";
 import { rimLine } from "@/features/calendar/outline";
 import { hexOf, knownKey, pickable } from "@/features/calendar/palette";
 import { usePalette } from "@/features/calendar/palette-provider";
@@ -49,7 +53,12 @@ import {
   type DrawingTemplate,
   templateArt,
 } from "@/features/calendar/templates";
-import { createStamp, useBoop } from "@/features/offline/store";
+import {
+  createStamp,
+  type StampChange,
+  updateStamp,
+  useBoop,
+} from "@/features/offline/store";
 import type { StickerInput } from "@/features/stickers/build";
 import { STAGE, StickerView } from "@/features/stickers/sticker-view";
 import type { Locale } from "@/i18n/config";
@@ -181,6 +190,16 @@ const TILE =
 
 /** What is drawn: the lines – and an uploaded picture's filled areas. */
 const BLANK: Art = { strokes: [], fills: [] };
+
+/**
+ * A stamp's drawing as the editor holds it – a copy of its own to change:
+ * the lines with their anchors (to edit their points again), the filled
+ * areas.
+ */
+const artOf = (drawing: Snapshot<Drawing> | null | undefined): Art => {
+  const copy = drawing && (JSON.parse(JSON.stringify(drawing)) as Drawing);
+  return copy ? { strokes: copy.strokes, fills: copy.fills ?? [] } : BLANK;
+};
 
 /**
  * Every step of the drawing (a line, a point of one, a picture, clearing,
@@ -392,8 +411,14 @@ type Waiting = {
  * - The page never scrolls or zooms under the drawing, and the drawing is a
  *   layer of its own (no mask or clip round it) – what changes repaints
  *   there alone.
+ *
+ * A stamp of one's own opens in it again (`stamp`), as it is: its drawing
+ * – lines with their points, filled areas –, shape, color, rim, flags, name
+ * and sharing. The steps begin there; saved, only what changed goes
+ * (`updateStamp`), and its prints show it at once.
  */
 export const StampDrawer = ({
+  stamp,
   calendar,
   locale,
   onClose,
@@ -401,6 +426,8 @@ export const StampDrawer = ({
   onDrawn,
   ask = 0,
 }: {
+  /** A stamp of one's own, drawn anew – none: a new one. */
+  stamp?: Snapshot<StampDoc>;
   /**
    * The calendar it is drawn in, if its members may get to stamp with it too
    * – null when nobody else is in it. The stamp is its maker's either way.
@@ -408,7 +435,7 @@ export const StampDrawer = ({
   calendar: string | null;
   locale: Locale;
   onClose: () => void;
-  /** Told the new stamp's id once it is saved – just before it closes. */
+  /** Told the stamp's id once it is saved – just before it closes. */
   onSaved?: (id: string) => void;
   /**
    * Told whether the browser's back should ask: something is drawn, and
@@ -438,33 +465,41 @@ export const StampDrawer = ({
   const shapeRow = useFadingEdges("x");
   const templateRow = useFadingEdges("x");
   const [stage, setStage] = useState<"draw" | "3d">("draw");
-  const [history, setHistory] = useState<History>({
+  // A stamp drawn anew begins as it is – no step back to before it.
+  const [history, setHistory] = useState<History>(() => ({
     past: [],
-    now: BLANK,
+    now: stamp ? artOf(stamp.drawing) : BLANK,
     future: [],
-  });
+  }));
   const { strokes, fills } = history.now;
   const [width, setWidth] = useState<Width>("thin");
   const [refused, setRefused] = useState(false);
   // Prints the other way round: the face in ink, the doodle cut out.
-  const [inverted, setInverted] = useState(false);
+  const [inverted, setInverted] = useState(Boolean(stamp?.drawing?.inverted));
   // The rim's pattern (none: plain), and whether it is for the big days.
-  const [rim, setRim] = useState<RimPattern | undefined>(undefined);
-  const [special, setSpecial] = useState(false);
+  const [rim, setRim] = useState<RimPattern | undefined>(stamp?.drawing?.rim);
+  const [special, setSpecial] = useState(Boolean(stamp?.drawing?.special));
   const shapes = useShapes();
   const templates = useTemplates();
-  const [pickedShape, setShape] = useState<StampShape>(shapes[0]?.key ?? "");
+  const [pickedShape, setShape] = useState<StampShape>(
+    stamp?.shape ?? shapes[0]?.key ?? ""
+  );
   const shape = knownShape(pickedShape, shapes);
   // Its color: one of the stamp colors one may pick (palette.ts – the
   // special ones are Boop's gifts', an admin account picks them too) – the
   // one picked as long as they have it; else, and to begin with, “grape” or
-  // their first.
+  // their first. A stamp drawn anew keeps its own among them, whichever.
   const { me } = useBoop();
-  const palette = pickable(usePalette(), { admin: Boolean(me?.admin) });
-  const [picked, setColor] = useState<ColorName>("grape");
+  const colors = usePalette();
+  const palette = pickable(colors, { admin: Boolean(me?.admin) }).concat(
+    colors.filter((c) => c.special && !me?.admin && c.key === stamp?.color)
+  );
+  const [picked, setColor] = useState<ColorName>(stamp?.color ?? "grape");
   const color = knownKey(picked, palette);
-  const [name, setName] = useState("");
-  const [shared, setShared] = useState(false);
+  const [name, setName] = useState(stamp?.name ?? "");
+  const [shared, setShared] = useState(
+    Boolean(stamp && calendar && stamp.sharedWith.includes(calendar))
+  );
   const [error, setError] = useState(false);
   // Drawing – freehand or point by point –, erasing, picking and moving,
   // or editing a line's points: the pen to begin with.
@@ -756,7 +791,7 @@ export const StampDrawer = ({
     const size = (tool === "eraser" ? ERASERS : WIDTHS)[width] * unitNow();
     el.style.width = `${size}px`;
     el.style.height = `${size}px`;
-    el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+    el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
     // See-through: a tip, not a dot already drawn.
     el.style.opacity = tool === "eraser" ? "0.9" : "0.6";
   };
@@ -765,21 +800,26 @@ export const StampDrawer = ({
     if (tip.current) tip.current.style.opacity = "0";
   };
 
-  /** The loupe over a finger at a client point. */
+  /** The loupe over a finger at a client point – over the page, anywhere. */
   const showLoupe = (event: { clientX: number; clientY: number }) => {
-    const box = paper.current;
-    const stageBox = area.current?.getBoundingClientRect();
-    const own = box?.getBoundingClientRect();
-    if (!(box && stageBox && own)) return;
+    const own = paper.current?.getBoundingClientRect();
+    if (!own?.width) return;
     loupe.current?.show({
+      clientX: event.clientX,
+      clientY: event.clientY,
       x: event.clientX - own.left,
       y: event.clientY - own.top,
-      left: own.left - stageBox.left,
-      top: own.top - stageBox.top,
       side: own.width,
     });
   };
   const hideLoupe = () => loupe.current?.hide();
+
+  // A special stamp's glitter (its sparkles turn and grow) rests while a
+  // line is drawn or erased – nothing moves on the drawing but the line.
+  const glitter = useRef<HTMLSpanElement>(null);
+  const quiet = (on: boolean) => {
+    if (glitter.current) glitter.current.style.display = on ? "none" : "";
+  };
 
   /** The line under way, drawn on its layer – no render. */
   const drawLive = (points: readonly Point[], w: number) => {
@@ -829,6 +869,7 @@ export const StampDrawer = ({
       at: event.timeStamp,
       unit,
     };
+    quiet(true);
     drawLive(pen.current.points, WIDTHS[width]);
   };
 
@@ -870,12 +911,14 @@ export const StampDrawer = ({
       }))
     );
     clearLive();
+    quiet(false);
   };
 
   /** A line just begun goes – a pinch began instead. */
   const dropPen = () => {
     pen.current = null;
     clearLive();
+    quiet(false);
   };
 
   const eraseDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -893,6 +936,7 @@ export const StampDrawer = ({
       last: p,
       at: event.timeStamp,
     };
+    quiet(true);
     if (next !== history.now) setHistory(meanwhile(next));
   };
 
@@ -920,6 +964,7 @@ export const StampDrawer = ({
     cancelAnimationFrame(eraseFrame.current);
     eraseFrame.current = 0;
     if (!rubbing) return;
+    quiet(false);
     if (!keep) {
       setHistory(meanwhile(rubbing.before));
       return;
@@ -1328,10 +1373,50 @@ export const StampDrawer = ({
     setShown(false);
   };
 
-  // Something drawn: closing would throw it away, so it asks first – the X,
-  // Escape, and the browser's back (`ask`). Asked, closing once more is the
-  // answer: away with it.
-  const drawn = strokes.length > 0 || fills.length > 0;
+  // The drawing as a stamp keeps it – and, for one drawn anew, what differs
+  // from how it came in (as the editor first showed it): that is what saving
+  // sends, and what closing would throw away.
+  const drawingNow = useMemo(
+    (): Drawing => ({
+      v: 1,
+      strokes,
+      ...(fills.length > 0 && { fills }),
+      ...(inverted && { inverted: true as const }),
+      ...(rim && { rim }),
+      ...(special && { special: true as const }),
+    }),
+    [strokes, fills, inverted, rim, special]
+  );
+  const anew = Boolean(stamp);
+  const drawingText = useMemo(
+    () => (anew ? JSON.stringify(drawingNow) : ""),
+    [anew, drawingNow]
+  );
+  const [first] = useState(() => ({
+    drawing: drawingText,
+    shape,
+    color,
+    shared,
+  }));
+  const change: StampChange = {};
+  if (stamp) {
+    if (drawingText !== first.drawing) change.drawing = drawingNow;
+    if (shape !== first.shape) change.shape = shape;
+    if (color !== first.color) change.color = color;
+    const named = name.trim().slice(0, 40);
+    if (named !== stamp.name) change.name = named;
+    if (calendar && shared !== first.shared) {
+      const rest = stamp.sharedWith.filter((id) => id !== calendar);
+      change.sharedWith = shared ? [...rest, calendar] : rest;
+    }
+  }
+
+  // Something drawn – or changed: closing would throw it away, so it asks
+  // first – the X, Escape, and the browser's back (`ask`). Asked, closing
+  // once more is the answer: away with it.
+  const drawn = stamp
+    ? Object.keys(change).length > 0
+    : strokes.length > 0 || fills.length > 0;
   const [leaving, setLeaving] = useState(false);
   // The browser's back asks only once: asked, it goes like the X.
   useEffect(() => onDrawn?.(drawn && !leaving), [drawn, leaving, onDrawn]);
@@ -1368,18 +1453,17 @@ export const StampDrawer = ({
   const onSave = async () => {
     setError(false);
     try {
+      if (stamp) {
+        await updateStamp(stamp.id, change);
+        onSaved?.(stamp.id);
+        leave();
+        return;
+      }
       const id = await createStamp({
         name: name.trim().slice(0, 40),
         color,
         shape,
-        drawing: {
-          v: 1,
-          strokes,
-          ...(fills.length > 0 && { fills }),
-          ...(inverted && { inverted: true as const }),
-          ...(rim && { rim }),
-          ...(special && { special: true as const }),
-        },
+        drawing: drawingNow,
         sharedWith: shared && calendar ? [calendar] : [],
       });
       trackEvent("stamp-created");
@@ -1399,6 +1483,7 @@ export const StampDrawer = ({
         color={color}
         drawing={doodle}
         filled
+        morph
         shape={shape}
       />
     ),
@@ -1412,22 +1497,26 @@ export const StampDrawer = ({
           color={color}
           drawing={doodle}
           filled
+          morph
           shape={shape}
         />
       ) : null,
     [color, doodle, shape, loupeOn]
   );
   const clipId = useId();
-  /** The layer the line under way is drawn on – inside the outline. */
+  /**
+   * The layer the line under way is drawn on – inside the outline, and never
+   * beyond its own box: however the line grows, the layer keeps its size.
+   */
   const liveLayer = (ref: typeof live, id: string) => (
     <svg
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+      className="pointer-events-none absolute inset-0 h-full w-full overflow-hidden"
       viewBox="-2 -2 104 104"
     >
       <defs>
         <clipPath id={id}>
-          <ShapeOutline shape={shape} />
+          <MorphOutline shape={shape} />
         </clipPath>
       </defs>
       <g transform="scale(100)">
@@ -1456,6 +1545,8 @@ export const StampDrawer = ({
       aria-label={draws ? t.app.draw.hint : t.app.draw.turn}
       className={cn(
         STAGE,
+        // Its paper lies under it, a layer of its own (below).
+        "bg-transparent bg-none",
         "touch-none select-none [-webkit-touch-callout:none] [-webkit-user-select:none]",
         // The tip shows where the pen is – no arrow on top of it. With the
         // other tools the pointer says what a press would do.
@@ -1469,12 +1560,19 @@ export const StampDrawer = ({
       ref={area}
       role="application"
     >
-      {/* The drawing box: a layer of its own, so drawing repaints it alone;
-          zoomed in, it shows only its square. */}
+      {/* The paper and its dots, under the frame: a layer of its own that
+          never changes – nothing drawn on it ever paints it again. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-2 transform-[translateZ(0)] rounded-[inherit] bg-card bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px] contain-strict"
+      />
+      {/* The drawing box: the one layer that changes as a line is drawn
+          (will-change), its size fixed and its paint kept inside it
+          (contain) – drawing repaints it alone, and only within its square,
+          zoomed in or not. */}
       <div
         className={cn(
-          "absolute inset-3 transform-[translateZ(0)] transition-opacity duration-300",
-          zoomed ? "overflow-hidden" : "overflow-visible",
+          "absolute inset-3 transition-opacity duration-300 will-change-transform contain-strict",
           !draws && shown && "opacity-0"
         )}
         ref={paper}
@@ -1483,6 +1581,10 @@ export const StampDrawer = ({
           {face}
           {liveLayer(live, `${clipId}-live`)}
         </div>
+      </div>
+      {/* What the tools mark on it, over it – it may reach beyond its box
+          (a frame's handles, the knob to turn with). */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-3">
         {draws && tool === "move" && (
           <Marks
             art={history.now}
@@ -1536,7 +1638,10 @@ export const StampDrawer = ({
       )}
       {draws && special && !empty && !zoomed && (
         // A taste of what its prints will do.
-        <span className="pointer-events-none absolute inset-3 animate-fade">
+        <span
+          className="pointer-events-none absolute inset-3 animate-fade"
+          ref={glitter}
+        >
           <Glitter color={color} drawing={doodle} shape={shape} sheen={false} />
         </span>
       )}
@@ -1572,6 +1677,8 @@ export const StampDrawer = ({
       )}
       {loupeOn && draws && (
         <Loupe ref={loupe}>
+          {/* The paper's dots, where they lie on the stage. */}
+          <div className="absolute -inset-3 bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]" />
           <div className="absolute inset-0 origin-top-left" style={worldStyle}>
             {faceCopy}
             {liveLayer(liveCopy, `${clipId}-copy`)}
@@ -1638,8 +1745,62 @@ export const StampDrawer = ({
     </fieldset>
   );
 
+  // The steps back and forth – and clearing it all. Side by side beside the
+  // tools; on a phone at the top, over the drawing (`barEl`).
+  const historyEl = (
+    <div className="flex shrink-0 items-center gap-1.5">
+      {(
+        [
+          [
+            t.app.draw.undo,
+            UNDO,
+            history.past.length > 0,
+            () => setHistory(back),
+            "Meta+Z Control+Z",
+          ],
+          [
+            t.app.draw.redo,
+            REDO,
+            history.future.length > 0,
+            () => setHistory(forward),
+            "Meta+Shift+Z Control+Shift+Z Control+Y",
+          ],
+        ] as const
+      ).map(([label, sign, able, go, keys]) => (
+        <button
+          aria-keyshortcuts={keys}
+          aria-label={label}
+          // Filled while there is a step to take – it should be seen;
+          // faint while there is none (like the day's, day-page.tsx).
+          className={cn(ROUND_BUTTON, "h-11 w-11", able && "scribble-ink")}
+          disabled={!able}
+          key={label}
+          onClick={go}
+          title={label}
+          type="button"
+        >
+          <Sign className="h-6 w-6" d={sign} />
+        </button>
+      ))}
+    </div>
+  );
+  const clearEl = (
+    // Red, like every button that deletes something.
+    <button
+      aria-label={t.app.draw.clear}
+      className={cn(ROUND_BUTTON, "scribble-danger h-11 w-11")}
+      disabled={empty}
+      onClick={clear}
+      title={t.app.draw.clear}
+      type="button"
+    >
+      <Sign className="h-5 w-5" d={BIN} />
+    </button>
+  );
+
   const toolsEl = (
-    // The tools, and the steps back and forth – and clearing it all.
+    // The tools – side by side, the steps back and forth and clearing it
+    // all beside them.
     <div className="flex flex-wrap items-center justify-between gap-2">
       <fieldset className="flex gap-1.5">
         <legend className="sr-only">{t.app.draw.tools}</legend>
@@ -1664,52 +1825,27 @@ export const StampDrawer = ({
           );
         })}
       </fieldset>
-      <div className="flex shrink-0 items-center gap-1.5">
-        {(
-          [
-            [
-              t.app.draw.undo,
-              UNDO,
-              history.past.length > 0,
-              () => setHistory(back),
-              "Meta+Z Control+Z",
-            ],
-            [
-              t.app.draw.redo,
-              REDO,
-              history.future.length > 0,
-              () => setHistory(forward),
-              "Meta+Shift+Z Control+Shift+Z Control+Y",
-            ],
-          ] as const
-        ).map(([label, sign, able, go, keys]) => (
-          <button
-            aria-keyshortcuts={keys}
-            aria-label={label}
-            // Filled while there is a step to take – it should be seen;
-            // faint while there is none (like the day's, day-page.tsx).
-            className={cn(ROUND_BUTTON, "h-11 w-11", able && "scribble-ink")}
-            disabled={!able}
-            key={label}
-            onClick={go}
-            title={label}
-            type="button"
-          >
-            <Sign className="h-6 w-6" d={sign} />
-          </button>
-        ))}
-        {/* Red, like every button that deletes something. */}
-        <button
-          aria-label={t.app.draw.clear}
-          className={cn(ROUND_BUTTON, "scribble-danger h-11 w-11")}
-          disabled={empty}
-          onClick={clear}
-          title={t.app.draw.clear}
-          type="button"
-        >
-          <Sign className="h-5 w-5" d={BIN} />
-        </button>
-      </div>
+      {side && (
+        <div className="flex shrink-0 items-center gap-1.5">
+          {historyEl}
+          {clearEl}
+        </div>
+      )}
+    </div>
+  );
+
+  // On a phone: the steps back and forth on the left, clearing on the
+  // right – at the top, over the drawing, where a thumb finds them without
+  // scrolling. While the stamp shows, they keep their room (nothing moves).
+  const barEl = (
+    <div
+      className={cn(
+        "flex shrink-0 items-center justify-between gap-2 px-4 pb-2 transition-[opacity,visibility] duration-200",
+        !draws && "invisible opacity-0"
+      )}
+    >
+      {historyEl}
+      {clearEl}
     </div>
   );
 
@@ -2110,9 +2246,13 @@ export const StampDrawer = ({
           {t.app.draw.shared}
         </Checkbox>
       )}
+      {stamp && (
+        // What changing it does – everywhere it was ever stamped.
+        <p className="font-medium text-muted text-sm">{t.app.draw.editNote}</p>
+      )}
       {error && <Notice tone="error">{t.auth.failed}</Notice>}
       <Button className="w-full" onClick={onSave} size="lg">
-        {t.app.draw.save}
+        {stamp ? t.app.draw.saveChanges : t.app.draw.save}
       </Button>
     </>
   );
@@ -2127,9 +2267,11 @@ export const StampDrawer = ({
     >
       <p className="flex items-start gap-2.5 font-bold" id={`${titleId}-leave`}>
         <Bang className="h-6 w-6 shrink-0" />
-        {t.app.draw.leaveTitle}
+        {stamp ? t.app.draw.editLeaveTitle : t.app.draw.leaveTitle}
       </p>
-      <p className="font-medium text-muted text-sm">{t.app.draw.leaveText}</p>
+      <p className="font-medium text-muted text-sm">
+        {stamp ? t.app.draw.editLeaveText : t.app.draw.leaveText}
+      </p>
       <div className="flex flex-wrap justify-end gap-2">
         <Button onClick={leave} size="sm" variant="ghost">
           {t.app.draw.leaveGo}
@@ -2149,7 +2291,11 @@ export const StampDrawer = ({
   const header = (
     <div className="flex shrink-0 items-center justify-between gap-3">
       <h2 className="font-black text-2xl" id={titleId}>
-        {draws ? t.app.draw.title : t.app.draw.done}
+        {!draws
+          ? t.app.draw.done
+          : stamp
+            ? t.app.draw.editTitle
+            : t.app.draw.title}
       </h2>
       <button
         aria-label="Close"
@@ -2244,10 +2390,11 @@ export const StampDrawer = ({
           role="dialog"
         >
           <div className="px-4 pb-2">{header}</div>
+          {barEl}
           <div className="relative flex min-h-0 flex-1 flex-col">
             {/* As wide as the screen, square – and never so tall that the
                 tools under it have no room. */}
-            <div className="mx-auto w-full max-w-[min(100%,calc(100dvh-19rem))] shrink-0 px-2">
+            <div className="mx-auto w-full max-w-[min(100%,calc(100dvh-22rem))] shrink-0 px-2">
               {stageEl}
             </div>
             <div

@@ -1,21 +1,28 @@
 # Todo
 
-Stand: 13.10.2026
+Stand: 16.10.2026
 
 ## Offen
 
-- **Als Nächstes, nach dem Deploy: Stempel bearbeitbar machen** – einen
-  gespeicherten Stempel wieder im Editor öffnen und ändern; die Änderung
-  geht an alle Kopien (Karten, Geschenke) über `origin.stamp`.
 - **Nach dem Deploy im CMS**:
-  - Seeds → Translations (neue Texte).
+  - Seeds → Translations (neue Texte). Falls unter Translations schon
+    gespeichert: `app.settings.own.colorMember` und `startText` (de/en)
+    anpassen – gilt jetzt „auf all deinen Geräten“.
   - Seeds → „Imprint & privacy“ mit „Replace“ – die Vorlage beschreibt jetzt
     Einladungen mit Zustimmung, Adresse ändern, „Admin“ / „Nie löschen“,
-    Stempel-Karten, Geschenke von Boop und den Export.
-  - Seeds → „Stamp shapes“ und „Drawing templates“ (Fill) – sonst fehlen
-    auf Prod die neuen Formen und die Vorlagen zum Hineinziehen.
+    Stempel-Karten, Geschenke von Boop, den Export, bearbeitete Stempel
+    (Kopien ziehen mit) und die Kalender-Einstellungen am Konto.
+  - Seeds → „Stamp shapes“ und „Drawing templates“ je einmal „Fill“ – die
+    sind jetzt eigene Collections unter Content; Fill übernimmt die Listen
+    aus Site. Bis dahin zeigt die App die Formen aus dem Code.
   - Site → Stamp colors: die Sonderfarben anlegen, „Public“ aus, „Finish“
     setzen – z. B. Gold `#d4a72c` (metal), Glitzer `#c264d6` (glitter).
+- **Geschenk anlegen prüfen**: In einem Probelauf (`payload run`) scheiterte
+  `payload.create` für `gifts` am lokalisierten Namen („Cast to Embedded“).
+  Kann am Probelauf liegen – sonst klemmt „Geschenk von Boop“ in der App.
+- **Monatsansicht „gradlinig“**: Die Linien sind gerade, wenn der Zeichner
+  (`components/scribble-draw.ts`) nicht läuft. Lokal und auf boop.mxwr.de
+  (Startseite) zeichnet er – wo genau ist es aufgefallen?
 - **Benachrichtigungen (Web Push)** – live: Schlüssel in GitHub, deployt,
   Cron für die Erinnerung eingetragen (alle 15 Minuten). Optional noch die
   Variable `VAPID_SUBJECT` (z. B. `mailto:…`). Fehlt nur noch:
@@ -42,8 +49,25 @@ Stand: 13.10.2026
 - Kalender-Einstellungen gegen den Server: Mitglied entfernen, Kalender
   verlassen (eine Nachfrage), einladen, löschen (doppelte Nachfrage) – beides
   steht jetzt ganz unten im Sheet.
-- Eigene Kalenderfarbe als Mitglied: gilt nur auf diesem Gerät, bis die
-  persönlichen Einstellungen ans Konto wandern (mit den Benachrichtigungen).
+- Eigene Kalenderfarbe und Startansicht: jetzt am Konto – auf dem Handy
+  ändern, auf dem Desktop neu laden, gleich? Beim ersten Start nach dem
+  Update lädt jedes Gerät seine bisherigen Werte einmal hoch.
+- Stempel bearbeiten: Stempel-Sheet → „Bearbeiten“, ändern, „Änderungen
+  speichern“; alle Abdrücke in Tag, Monat, Jahr ändern sich mit; Kopien bei
+  anderen (Karte, Geschenk) ziehen nach, ihr Name bleibt. Zurück und Reload
+  in `…/stempel-bearbeiten`; die Frage beim Schließen nur nach Änderungen.
+- Tagesseite neu: breit zwei Spalten (links Blatt, darunter Rückgängig /
+  Wiederholen / Entfernen, dann die Notiz mit B/I/U links; rechts
+  Stempelkissen, Drehen, Hinweis, „Deine Stempel“). Handy: Schalter
+  „Blatt/Notiz“ neben dem Datum und Wischen zwischen beiden. In „Heute“
+  keine „Neuer Stempel“-Kachel, im Tag aus Monat/Jahr schon.
+- Editor auf dem iPhone: Punkte antippen (Ring drum) und ziehen, Griff neben
+  einem Anker greifen; noch weiße Streifen beim schnellen Malen? Lupe oben
+  unter Uhr/Notch; Leiste oben (Rückgängig/Wiederholen links, Papierkorb
+  rechts); Formwechsel morpht wieder. Briefmarke: helle Nähte im Rand?
+  (WebKit zeigt die ab ~256 Punkten, ihr Umriss hat 685.)
+- CMS: Stamp shapes und Drawing templates unter Content – Vorschau in der
+  Liste, ändern → steht gleich in der App.
 - Farbiger Seitenhintergrund in der installierten App: Statusleiste und
   Überscrollen (`statusBarStyle` in `layout.tsx` ist noch „default“).
 - Stempel umbenennen: kommt der neue Name auf dem zweiten Gerät an?
@@ -129,8 +153,8 @@ Stand: 13.10.2026
 - Neue Formen (Oval, Blume, Herz, Wolke, Stern, Ticket, Briefmarke) in 2D,
   3D und im STL-Slicer; Vorlagen hineinziehen (Desktop) bzw. antippen.
 - Monat/Jahr: Abdrücke als Haufen, „+n“ im Kalenderton; Startansicht in
-  den Kalender-Einstellungen. Tagesseite: Werkzeugzeile unter dem Blatt,
-  Sortieren, „Neuer Stempel“ am Ende, Namen unter den Stempeln (Touch).
+  den Kalender-Einstellungen. Tagesseite: Sortieren, „Neuer Stempel“ am
+  Ende (nur im Tag aus Monat/Jahr), Namen unter den Stempeln (Touch).
 - Passwort-Warnung beim Registrieren und Zurücksetzen: erscheint kurz
   nach dem Tippen (z. B. „Passwort123!“), verschwindet bei einem langen.
 - Adressen für Offenes (mit dem echten Router, iPhone-Wischgeste zurück):
@@ -197,9 +221,5 @@ Stand: 13.10.2026
 
 ## Ideen am Rand
 
-- Stempel bearbeitbar machen: Jede Kopie (Karte, Geschenk) kennt ihr Original
-  (`origin.stamp` an den Stempeln) – eine Änderung am Original kann dann an
-  alle Kopien gehen.
-
-refactor. manche files haben > 700 zeilen!
-Stempel bearbeitbar machen
+- Refactor: manche Dateien haben über 700 Zeilen (`stamp-drawer.tsx`,
+  `day-page.tsx`, `boop-app.tsx`, `month-grid.tsx`, `store.ts` …).

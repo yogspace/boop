@@ -79,10 +79,10 @@ export const PersonPlus = (props: SVGProps<SVGSVGElement>) => (
  * twice), a member leaves it (asked once).
  *
  * A calendar's color is everyone's own, with one picker for it. A member's
- * pick stays with them (the own settings, offline/store.ts); the owner's is
- * the calendar's – so it follows them to their other devices, and it is
- * what everyone sees who picked none. Either is kept at once: the calendar
- * behind the sheet turns with it.
+ * pick stays with them (the own settings, offline/store.ts – on all their
+ * devices); the owner's is the calendar's – what everyone sees who picked
+ * none. Either is kept at once: the calendar behind the sheet turns with
+ * it.
  *
  * Name, color and deleting work offline like everything kept on the device;
  * removing someone, leaving and the calendar app's address need a
@@ -118,7 +118,7 @@ export const CalendarSettings = ({
       void renameCalendar(calendar.id, calendar.name, color);
     }
     // The owner's color is the calendar's. Should one of their own be left
-    // on this device (from when it wasn't theirs), it would hide the pick.
+    // (from when it wasn't theirs), it would hide the pick.
     if (own.color) void setCalendarPref(calendar.id, { color: null });
   };
 
@@ -200,7 +200,7 @@ export const CalendarSettings = ({
           )}
         </ColorPicker>
         {/* The view it opens in – the month, until another is picked. Kept
-            on this device like the color; switching views leaves it be. The
+            with the account like the color; switching views leaves it be. The
             switch's stroke is its own: the one beside the calendar's name
             is still there, behind the sheet. */}
         <div className="flex flex-col gap-3">

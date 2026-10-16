@@ -202,6 +202,7 @@ const synced = (as: string) =>
       stamp: new Set(),
       placement: new Set(),
       note: new Set(),
+      pref: new Set(),
     },
   });
 

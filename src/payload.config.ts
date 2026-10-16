@@ -18,6 +18,7 @@ import { Analytics } from "@/features/analytics/global";
 import { Calendars } from "@/features/calendar/collections/calendars";
 import { Notes } from "@/features/calendar/collections/notes";
 import { Placements } from "@/features/calendar/collections/placements";
+import { CalendarPrefs } from "@/features/calendar/collections/prefs";
 import { Stamps } from "@/features/calendar/collections/stamps";
 import { invitationEndpoints } from "@/features/calendar/endpoints/invitations";
 import { Invites } from "@/features/calendar/invites";
@@ -28,6 +29,7 @@ import { icalEndpoints } from "@/features/ical/endpoints";
 import { Legal } from "@/features/legal/global";
 import { PushSettings, PushSubscriptions } from "@/features/push/collections";
 import { pushEndpoints } from "@/features/push/endpoints";
+import { DrawingTemplates, StampShapes } from "@/features/site/collections";
 import { Site } from "@/features/site/global";
 import { syncEndpoint } from "@/features/sync/endpoint";
 import { liveEndpoint } from "@/features/sync/live";
@@ -45,7 +47,8 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
  *
  * - admin      the CMS logins and the Seeds page
  * - accounts   the people using Boop (email + password, mails)
- * - calendar   calendars, stamps, placements, notes – written through
+ * - calendar   calendars, stamps, placements, notes, one's own settings
+ *              for a calendar – written through
  * - sync       the one endpoint the app reads and writes with, also after
  *              being offline
  * - push       notifications: the devices that said yes, their settings
@@ -53,7 +56,8 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
  *              feed itself, the export as a file
  * - cards      stamps that travel: a card someone sends, a gift from Boop
  * - analytics  anonymous statistics and the mail report
- * - site/legal settings, imprint and privacy
+ * - site/legal settings, the stamp shapes and drawing templates, imprint
+ *              and privacy
  * - translations the texts of the site and the app, editable – the code
  *              brings them along (i18n/dictionaries.ts)
  *
@@ -110,10 +114,13 @@ export default buildConfig({
     Stamps,
     Placements,
     Notes,
+    CalendarPrefs,
     Invites,
     Cards,
     CalendarFeeds,
     Gifts,
+    StampShapes,
+    DrawingTemplates,
     PageViews,
     Actions,
   ],

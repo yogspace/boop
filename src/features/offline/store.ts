@@ -21,6 +21,16 @@ import {
   stampDoc,
 } from "@/features/calendar/model";
 import { cleanNote, noteId, sameNote } from "@/features/calendar/note";
+import {
+  type CalendarPrefs,
+  type CalendarView,
+  cleanPrefs,
+  isEmptyPrefs,
+  oldPrefChanges,
+  type PrefDoc,
+  prefData,
+  prefId,
+} from "@/features/calendar/prefs";
 import { shownColor } from "@/features/calendar/tint";
 import type {
   Change,
@@ -47,23 +57,10 @@ type Docs<T> = Record<string, T>;
 
 type OutboxEntry = { seq: number; change: Change };
 
-/**
- * What someone set for a calendar for themselves alone – how they see it,
- * not what it is. Its color, the view it opens in; to come: its
- * notifications. See “Own settings” below.
- */
-export type CalendarPrefs = {
-  /** Their own color for it – none: the calendar's. */
-  color?: ColorName;
-  /**
-   * The view it opens in (its settings) – none: the month. Switching views
-   * leaves it be: that is in the address only (app/address.ts `viewShown`).
-   */
-  start?: CalendarView;
-};
-
-/** How a calendar shows: today's page, the month, or the whole year. */
-export type CalendarView = "today" | "month" | "year";
+// What someone set for a calendar for themselves alone – its color, the
+// view it opens in (calendar/prefs.ts) – and the views. See “Own settings”
+// below.
+export type { CalendarPrefs, CalendarView };
 
 export type BoopState = {
   status: "loading" | "ready" | "signedOut" | "offlineNoAccount";
@@ -88,12 +85,18 @@ export type BoopState = {
   invitations: InvitationDoc[];
 };
 
+/**
+ * Where each kind is kept on the device. One's own settings are kept apart,
+ * by calendar (“Own settings” below).
+ */
 const KIND = {
   calendar: "calendars",
   stamp: "stamps",
   placement: "placements",
   note: "notes",
-} as const satisfies Record<SyncType, string>;
+} as const satisfies Record<Exclude<SyncType, "pref">, string>;
+
+type Kind = keyof typeof KIND;
 
 // In development a saved file can swap this module into a running page: the
 // new store would stay empty (nothing starts it again), beside the old one
@@ -218,6 +221,7 @@ export const start = async () => {
     // Known on this device: show at once, sync behind.
     set({ status: "ready" });
     live();
+    await sendOldPrefs().catch(() => undefined);
     void sync();
     return;
   }
@@ -258,6 +262,7 @@ export const signedIn = async (account: Me) => {
   await write([{ store: "meta", put: account, key: "me" }]);
   set({ me: account, status: "ready" });
   live();
+  await sendOldPrefs().catch(() => undefined);
   void sync();
 };
 
@@ -328,7 +333,7 @@ const enqueue = async (change: Change) => {
 const plain = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 const keep = async <T extends { id: string; deleted: boolean }>(
-  type: SyncType,
+  type: Kind,
   doc: T
 ) => {
   const kind = KIND[type];
@@ -445,6 +450,29 @@ export const renameStamp = async (id: string, name: string) => {
   const changedAt = now();
   await keep("stamp", { ...plain(doc), name, changedAt });
   await enqueue({ type: "stamp", id, changedAt, data: { name } });
+};
+
+/** What the editor changes of a stamp – only what it says goes. */
+export type StampChange = Partial<
+  Pick<StampDoc, "name" | "color" | "shape" | "drawing" | "sharedWith">
+>;
+
+/**
+ * A stamp drawn anew in the editor: its look – color, shape, drawing (its
+ * rim and flags with it) – and its name and sharing, whatever of them
+ * changed. Its owner's call, and only for one they drew: a copy (a card
+ * taken, a gift) looks like its original – the server refuses it, and
+ * brings the original's changes instead (cards/follow.ts). Its prints show
+ * the new look at once: they only point to the stamp.
+ */
+export const updateStamp = async (id: string, change: StampChange) => {
+  const doc = boop.stamps[id];
+  if (!doc || doc.owner !== boop.me?.id || doc.origin) return;
+  const data = plain(change);
+  if (!Object.keys(data).length) return;
+  const changedAt = now();
+  await keep("stamp", { ...plain(doc), ...data, changedAt });
+  await enqueue({ type: "stamp", id, changedAt, data });
 };
 
 export const deleteStamp = async (id: string) => {
@@ -658,19 +686,27 @@ const tidyStamps = (shared?: Set<string>): Op[] => {
 // ── Own settings ────────────────────────────────────────────────────────────
 
 /**
- * What the account set for a calendar for itself alone (`CalendarPrefs`) is
- * kept on this device only: in the store's `prefs` and in IndexedDB (`meta`,
- * under `PREFS`) – loaded with the rest (`start`), gone with the device's
- * copy (logout, another account logging in) and with a calendar that leaves
- * the device (`tidyPrefs`). No server, no sync, no outbox: another device of
- * the same account knows nothing of them.
+ * What the account set for a calendar for itself alone (`CalendarPrefs`,
+ * calendar/prefs.ts) is the account's: kept on the server and synced like
+ * the rest – its own type of change (“pref”), one per calendar, its id made
+ * of account and calendar (`prefId`), the later change wins. On the device
+ * they are in the store's `prefs`, by calendar, and in IndexedDB (`meta`,
+ * under `PREFS`) – loaded with the rest (`start`), there offline too, gone
+ * with the device's copy (logout, another account logging in) and with a
+ * calendar that leaves the device (`tidyPrefs`); the server drops its own
+ * then (sync/apply.ts, calendar/endpoints/members.ts).
  *
- * They are to move to the account – with the notifications, which the server
- * has to know of. So nothing but the functions here touches `boop.prefs` or
- * its `meta` entry: `prefOf` and `colorOf` read, `setCalendarPref` writes.
- * Swap what is behind those three, and the app follows.
+ * Nothing but the functions here touches `boop.prefs` or its `meta` entry:
+ * `prefOf` and `colorOf` read, `setCalendarPref` writes, `takePrefs` takes
+ * over the server's.
  */
 const PREFS = "prefs";
+
+/**
+ * Set once this device has sent the settings it kept for itself from
+ * before they were the account's (`sendOldPrefs`).
+ */
+const PREFS_SENT = "prefsSent";
 
 /** The store as a component has it (`useBoop()`) – or the store itself. */
 type WithPrefs = Snapshot<Pick<BoopState, "prefs">>;
@@ -696,34 +732,77 @@ export const colorOf = (
   calendar: { id: string; color: ColorName }
 ): ColorName => shownColor(calendar, prefOf(state, calendar.id).color);
 
-/**
- * What the own settings hold. Anything else a device kept from before goes
- * with the next change: `view`, the view last switched to, which a
- * calendar opened in until it got a start view of its own (`start`) – not
- * read any more, so every calendar opens in the month until one is picked.
- */
-const PREF_KEYS: Record<keyof CalendarPrefs, true> = {
-  color: true,
-  start: true,
+/** The settings as they are now, for IndexedDB. */
+const savePrefs = (): Op => ({
+  store: "meta",
+  put: plain(boop.prefs),
+  key: PREFS,
+});
+
+/** A calendar's settings here – none left: none at all. */
+const putPrefs = (calendar: string, prefs: CalendarPrefs) => {
+  if (isEmptyPrefs(prefs)) delete boop.prefs[calendar];
+  else boop.prefs[calendar] = prefs;
 };
 
 /**
  * Sets some of the account's own settings for a calendar – `null` takes one
- * back. At once, like every change here; nothing to send.
+ * back. At once, like every change here, and on its way to the account's
+ * other devices. Anything else a device kept from before goes with it
+ * (`cleanPrefs`).
  */
 export const setCalendarPref = async (
   id: string,
   patch: { [K in keyof CalendarPrefs]?: CalendarPrefs[K] | null }
 ) => {
-  if (!boop.calendars[id]) return;
-  const next = Object.fromEntries(
-    Object.entries({ ...boop.prefs[id], ...patch }).filter(
-      ([key, value]) => value != null && key in PREF_KEYS
-    )
-  ) as CalendarPrefs;
-  if (Object.keys(next).length) boop.prefs[id] = next;
-  else delete boop.prefs[id];
-  await write([{ store: "meta", put: plain(boop.prefs), key: PREFS }]);
+  const account = boop.me?.id;
+  if (!(account && boop.calendars[id])) return;
+  const next = cleanPrefs({ ...boop.prefs[id], ...patch });
+  if (JSON.stringify(next) === JSON.stringify(cleanPrefs(boop.prefs[id]))) {
+    return;
+  }
+  putPrefs(id, next);
+  const changedAt = now();
+  await write([savePrefs()]);
+  await enqueue({
+    type: "pref",
+    id: prefId(account, id),
+    changedAt,
+    data: prefData(id, next),
+  });
+};
+
+/**
+ * The server's copies of the account's settings – unless changed here since
+ * (still waiting to be sent). Its IndexedDB write, if anything came.
+ */
+const takePrefs = (incoming: PrefDoc[]): Op[] => {
+  const account = boop.me?.id;
+  let taken = false;
+  for (const doc of incoming) {
+    if (!account || doc.id !== prefId(account, doc.calendar)) continue;
+    if (waiting("pref", doc.id)) continue;
+    putPrefs(doc.calendar, doc.deleted ? {} : cleanPrefs(doc));
+    taken = true;
+  }
+  return taken ? [savePrefs()] : [];
+};
+
+/**
+ * Once, after the update that made them the account's: the settings this
+ * device kept for itself go to the server – as old as can be (`LONG_AGO`,
+ * calendar/prefs.ts), so the server keeps what another device sent before,
+ * and takes these only where it has nothing for that calendar. They wait in
+ * the outbox like any change, offline too.
+ */
+const sendOldPrefs = async () => {
+  const account = boop.me?.id;
+  if (!account || (await getMeta<boolean>(PREFS_SENT))) return;
+  const changes = oldPrefChanges(account, plain(boop.prefs), (calendar) =>
+    Boolean(boop.calendars[calendar])
+  );
+  for (const change of changes) await enqueue(change);
+  await write([{ store: "meta", put: true, key: PREFS_SENT }]);
 };
 
 /** No settings stay for a calendar that is off this device. */
@@ -731,7 +810,7 @@ const tidyPrefs = (): Op[] => {
   const gone = Object.keys(boop.prefs).filter((id) => !boop.calendars[id]);
   if (!gone.length) return [];
   for (const id of gone) delete boop.prefs[id];
-  return [{ store: "meta", put: plain(boop.prefs), key: PREFS }];
+  return [savePrefs()];
 };
 
 // ── Invitations ─────────────────────────────────────────────────────────────
@@ -939,7 +1018,7 @@ const merge = async (result: SyncResponse) => {
   const { calendars, stamps, placements, notes } = boop;
 
   const take = <T extends { id: string; deleted: boolean }>(
-    type: SyncType,
+    type: Kind,
     docs: Docs<T>,
     incoming: T[]
   ) => {
@@ -964,6 +1043,9 @@ const merge = async (result: SyncResponse) => {
     return { ...note, content, deleted: !content };
   });
   take("note", notes, incoming);
+  // The account's own settings for its calendars. (A server from before
+  // sends none.)
+  ops.push(...takePrefs(result.prefs ?? []));
 
   // Refused and not sent back: it never made it to the server – it goes.
   const returned = new Set(
@@ -975,7 +1057,9 @@ const merge = async (result: SyncResponse) => {
     ].map((doc) => doc.id)
   );
   for (const { type, id } of result.rejected) {
-    if (returned.has(id) || waiting(type, id)) continue;
+    // One's own settings stay as they are here: the server's copy, if it
+    // has one, came above.
+    if (type === "pref" || returned.has(id) || waiting(type, id)) continue;
     const docs = {
       calendar: calendars,
       stamp: stamps,

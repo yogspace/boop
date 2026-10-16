@@ -19,6 +19,7 @@ import { STAGE, StickerView } from "@/features/stickers/sticker-view";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { NameForm } from "./dialogs";
+import { TOOL_SIGNS } from "./draw-tools";
 import { Sheet } from "./sheet";
 
 /**
@@ -27,7 +28,8 @@ import { Sheet } from "./sheet";
  * shared with – the members of which calendars may stamp with it, none to
  * begin with, and where its cards went –, sends it as a card (one they drew
  * themselves: what came as a card or a gift is not passed on) and deletes
- * it. An account with the admin box also sends such a stamp to everyone, as
+ * it. One they drew they also open in the editor again (`onEdit`): its look
+ * is theirs to change – a copy's is its original's. An account with the admin box also sends such a stamp to everyone, as
  * a gift from Boop. Anyone else reads whose it is; one that came to its
  * owner says from whom, with the giver's words.
  */
@@ -36,11 +38,14 @@ export const StampSheet = ({
   mine,
   locale,
   onClose,
+  onEdit,
 }: {
   stamp: Snapshot<StampDoc>;
   mine: boolean;
   locale: Locale;
   onClose: () => void;
+  /** Draws it anew – the sheet makes way for the editor. */
+  onEdit?: () => void;
 }) => {
   const t = dictionaryOf(locale);
   const { calendars, people, me, online } = useBoop();
@@ -109,6 +114,23 @@ export const StampSheet = ({
         <StickerView className="absolute inset-0" stamp={input} />
       </div>
       <p className="-mt-2 text-center text-muted text-sm">{t.app.draw.turn}</p>
+      {mine && !stamp.origin && onEdit && (
+        <Button onClick={onEdit} size="lg" variant="plain">
+          <svg
+            aria-hidden="true"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2.2"
+            viewBox="0 0 24 24"
+          >
+            <path d={TOOL_SIGNS.pen} />
+          </svg>
+          {t.app.stamp.edit}
+        </Button>
+      )}
       <Button disabled={busy} onClick={download} size="lg">
         {t.app.stamp.print3d}
       </Button>

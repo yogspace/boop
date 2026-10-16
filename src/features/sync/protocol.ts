@@ -5,6 +5,7 @@ import type {
   PlacementDoc,
   StampDoc,
 } from "@/features/calendar/model";
+import type { PrefDoc } from "@/features/calendar/prefs";
 
 /**
  * How a device and the server agree – one request, POST /api/sync:
@@ -27,20 +28,29 @@ import type {
  * a calendar it is in (`sharedWith`) – to stamp with in every calendar of
  * its own. One it had and that is gone from `shared` is no longer shared
  * with it. Stamps others merely placed in a calendar come too, so their
- * prints show: with the calendar, or asked for by id (`need`) – those are
- * not to stamp with.
+ * prints show: with the calendar, or asked for by id (`need`) – and again
+ * whenever they change. Those are not to stamp with. A print only points to
+ * its stamp: drawn anew, all its prints show the new look.
  *
  * A stamp its owner didn't draw – taken from a card, a gift from Boop
  * (features/cards) – says where it came from (`StampDoc.origin`). Only the
  * server says so: it makes those stamps, and what a device sends of an
  * origin is never read. Someone else's stamp tells only that it came from
- * somewhere, not from whom.
+ * somewhere, not from whom. Such a copy looks like its original, always:
+ * its owner changes its name and sharing, the original's owner its look –
+ * the server passes that on (cards/follow.ts).
  *
  * Notes come with their calendars, like placements. A day's note has the
  * same id on every device (calendar/note.ts): written on two at once, it is
  * still one note – the later change wins, the earlier is gone. That is the
  * price of keeping it simple; a day's few lines rarely meet that way. An
  * emptied note is deleted – and may be written again, unlike anything else.
+ *
+ * One's own settings for a calendar (`prefs` – one's own color for it, the
+ * view it opens in; calendar/prefs.ts) are the account's alone: only its
+ * own come, for the calendars it is in, and only it writes them. Like a
+ * note, there is one per account and calendar, its id made of the two –
+ * set on two devices, the later change wins.
  *
  * Invitations to the account (`invitations`) come along whole, every time:
  * the open ones to its confirmed address, as the app shows them – to take
@@ -51,10 +61,16 @@ import type {
  * An app from before (it stays cached on a phone for a while) still sends a
  * stamp's `calendar` (one, or null) instead of `sharedWith` – taken as
  * that; see apply.ts. It knows nothing of notes: it sends none, and leaves
- * `notes` aside.
+ * `notes` aside – nor of `prefs`, which it keeps on the device.
  */
 
-export const SYNC_TYPES = ["calendar", "stamp", "placement", "note"] as const;
+export const SYNC_TYPES = [
+  "calendar",
+  "stamp",
+  "placement",
+  "note",
+  "pref",
+] as const;
 export type SyncType = (typeof SYNC_TYPES)[number];
 
 /** One change made on a device. `data` holds the fields that changed. */
@@ -120,6 +136,11 @@ export type SyncResponse = {
   shared: string[];
   placements: PlacementDoc[];
   notes: NoteDoc[];
+  /**
+   * The account's own settings for its calendars (calendar/prefs.ts) – a
+   * server from before sends none.
+   */
+  prefs?: PrefDoc[];
   /** The open invitations to the account, oldest first – all of them. */
   invitations?: InvitationDoc[];
   /** Changes the server refused – the device takes the server's copy. */

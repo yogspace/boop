@@ -89,6 +89,16 @@ const asked = (): Address => {
   };
 };
 
+/**
+ * The stamp the history entry keeps for the editor (the `edit` sheet) – the
+ * address says only that one is open, not which.
+ */
+const heldStamp = (): string | null => {
+  if (typeof window === "undefined") return null;
+  const held: unknown = window.history.state?.[HELD]?.stamp;
+  return typeof held === "string" ? held : null;
+};
+
 /** The month a day is in – where the month and the year open with it. */
 const monthOf = (day: DayKey) => ({
   year: Number(day.slice(0, 4)),
@@ -200,6 +210,12 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   const menuBox = useRef<HTMLDivElement>(null);
   useDismiss(menu, () => setMenu(false), menuButton, menuBox);
   const [opened, setOpened] = useState<string | null>(null);
+  // A stamp of one's own drawn anew, by id – in the editor, like a new one.
+  // Its sheet makes way first (`editNext`), and comes back once the editor
+  // is gone (`backTo`): one sheet at a time.
+  const [editing, setEditing] = useState<string | null>(null);
+  const editNext = useRef<string | null>(null);
+  const backTo = useRef<string | null>(null);
   const [dialog, setDialog] = useState<"new" | "logout" | null>(null);
   // The calendars' row – on a phone it scrolls sideways, and fades where it
   // goes on.
@@ -257,6 +273,11 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     [boop.calendars]
   );
   const me = boop.me?.id;
+  /** A stamp the account may draw anew: its own, one it drew itself. */
+  const canEdit = (id: string) => {
+    const stamp = boop.stamps[id];
+    return Boolean(stamp && stamp.owner === me && !stamp.origin);
+  };
   // Each calendar's slug in the address – for both languages: they differ
   // where a name leaves none (“kalender”, “calendar”).
   const slugs = useMemo(
@@ -293,23 +314,40 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     }
     if (asking === "account") setAccount(true);
     if (asking === "draw") setDrawing(true);
+    // Drawing a stamp anew: the one the history entry keeps – if it still is
+    // one the account drew. Its sheet, open, makes way first.
+    const held = asking === "edit" ? heldStamp() : null;
+    if (held && canEdit(held)) {
+      if (opened) {
+        backTo.current = opened === held ? held : null;
+        editNext.current = held;
+        setOpened(null);
+      } else setEditing(held);
+    }
   }
   // The sheet open over the view, for the address – the share sheet already
   // while the settings make way for it.
   const shownId = calendar?.id;
-  const panel: Panel | null = drawing
-    ? "draw"
-    : account
-      ? "account"
-      : shownId && settings === shownId
-        ? "settings"
-        : shownId && (sharing ?? shareNext.current) === shownId
-          ? "share"
-          : null;
+  const edited = editing && canEdit(editing) ? boop.stamps[editing] : null;
+  // Gone meanwhile (deleted on another device) – the editor with it.
+  if (editing && !edited) setEditing(null);
+  const panel: Panel | null =
+    edited || editNext.current
+      ? "edit"
+      : drawing
+        ? "draw"
+        : account
+          ? "account"
+          : shownId && settings === shownId
+            ? "settings"
+            : shownId && (sharing ?? shareNext.current) === shownId
+              ? "share"
+              : null;
   // A day's sheet and the editor: one at a time – each waits until the
   // other is gone (`drawFromDay`).
-  const showDay = Boolean(calendar && openDay) && !drawing && !drawerUp;
-  const showDrawer = drawing && !dayUp;
+  const showDay =
+    Boolean(calendar && openDay) && !drawing && !edited && !drawerUp;
+  const showDrawer = (drawing || Boolean(edited)) && !dayUp;
   if (showDay && !dayUp) setDayUp(true);
   if (showDrawer && !drawerUp) setDrawerUp(true);
   // The calendar's color as this account sees it – and the ground in it,
@@ -348,9 +386,10 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     const onPop = () => {
       const next = asked();
       if (drawn.current) {
-        // Back from the editor with something drawn: forward again to its
-        // entry, and the question – and nothing else on the way back.
-        if (next.panel !== "draw") {
+        // Back from the editor with something drawn (or changed): forward
+        // again to its entry, and the question – and nothing else on the
+        // way back.
+        if (next.panel !== "draw" && next.panel !== "edit") {
           window.history.go(1);
           setAskLeave((n) => n + 1);
         }
@@ -363,7 +402,9 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
       setSharing(null);
       setAccount(false);
       setDrawing(false);
+      setEditing(null);
       shareNext.current = null;
+      editNext.current = null;
       setAsking(next.panel);
     };
     window.addEventListener("popstate", onPop);
@@ -419,16 +460,29 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
 
   /**
    * A day or a sheet opens over the view – a step of its own in the
-   * history: back closes it, and closing it goes back (`closeStep`).
+   * history: back closes it, and closing it goes back (`closeStep`). The
+   * entry keeps what the address doesn't say (`keep`): the stamp drawn
+   * anew.
    */
-  const stepTo = (open: Open) => {
+  const stepTo = (open: Open, keep?: { stamp: string }) => {
     const path = addressOf(locale, slug, view, open);
     const { search, hash } = window.location;
     window.history.pushState(
-      { [HELD]: { calendar: shownId, stepped: true } },
+      { [HELD]: { calendar: shownId, stepped: true, ...keep } },
       "",
       `${path}${search}${hash}`
     );
+  };
+
+  /**
+   * A stamp's sheet makes way for the editor, with the stamp in it – and
+   * comes back once it is gone: closed, saved, or back in the history.
+   */
+  const editStamp = (id: string) => {
+    stepTo({ panel: "edit" }, { stamp: id });
+    editNext.current = id;
+    backTo.current = id;
+    setOpened(null);
   };
 
   /**
@@ -496,6 +550,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     menu ||
       openDay ||
       drawing ||
+      edited ||
       sharing ||
       settings ||
       account ||
@@ -839,9 +894,29 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
         onExitComplete={() => {
           setDrawerUp(false);
           fromDay.current = false;
+          // Drawn anew: back to the stamp's sheet it came from.
+          if (backTo.current) setOpened(backTo.current);
+          backTo.current = null;
         }}
       >
-        {showDrawer && (
+        {showDrawer && edited && (
+          <StampDrawer
+            ask={askLeave}
+            calendar={
+              calendar && calendar.members.length > 1 ? calendar.id : null
+            }
+            key={`edit-${edited.id}`}
+            locale={locale}
+            onClose={closeStep(() => setEditing(null))}
+            onDrawn={noteDrawn}
+            // Saved: its sheet shows it as it is now.
+            onSaved={(id) => {
+              backTo.current = id;
+            }}
+            stamp={edited}
+          />
+        )}
+        {showDrawer && !edited && (
           <StampDrawer
             ask={askLeave}
             calendar={
@@ -922,13 +997,21 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
           </ConfirmSheet>
         )}
       </AnimatePresence>
-      <AnimatePresence>
+      <AnimatePresence
+        onExitComplete={() => {
+          // The sheet is gone – now the editor it asked for.
+          if (!editNext.current) return;
+          setEditing(editNext.current);
+          editNext.current = null;
+        }}
+      >
         {opened && boop.stamps[opened] && (
           <StampSheet
             key="stamp"
             locale={locale}
             mine={boop.stamps[opened].owner === me}
             onClose={() => setOpened(null)}
+            onEdit={() => editStamp(opened)}
             stamp={boop.stamps[opened]}
           />
         )}

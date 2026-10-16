@@ -308,6 +308,13 @@ const de = {
       leaveText: "Was du gezeichnet hast, ist dann weg.",
       leaveStay: "Weiter malen",
       leaveGo: "Verwerfen",
+      // A stamp of one's own, open in the editor again.
+      editTitle: "Stempel bearbeiten",
+      editLeaveTitle: "Änderungen verwerfen?",
+      editLeaveText: "Dein Stempel bleibt dann, wie er war.",
+      editNote:
+        "Alle seine Abdrücke ändern sich mit – auch bei allen, die ihn von dir übernommen haben.",
+      saveChanges: "Änderungen speichern",
       tools: "Werkzeuge",
       pen: "Stift",
       eraser: "Radiergummi",
@@ -327,13 +334,13 @@ const de = {
       lineHint:
         "Klicken setzt Punkte für gerade Linien, Ziehen biegt sie zur Kurve · ⇧ 45° · Enter beendet",
       lineHintTouch:
-        "Tippen setzt Punkte für gerade Linien, Ziehen biegt sie zur Kurve",
+        "Tippen setzt Punkte, Ziehen biegt zur Kurve · einen Punkt antippen und ziehen verschiebt ihn",
       finish: "Fertig",
       points: "Punkte bearbeiten",
       pointsHint:
         "Punkte und Griffe ziehen · Alt-Klick: rund oder eckig · Klick auf die Linie: neuer Punkt · Entf löscht",
       pointsHintTouch:
-        "Punkte und Griffe ziehen · auf die Linie tippen: neuer Punkt",
+        "Punkt antippen wählt ihn · Punkte und Griffe ziehen · auf die Linie tippen: neuer Punkt",
       removePoint: "Punkt entfernen",
       // A point of a line: its handles together (round) or apart (corner).
       anchor: "Punkt",
@@ -348,7 +355,7 @@ const de = {
         medium: "Mittel",
         thick: "Dick",
       },
-      // Shapes to drag into the drawing (Site → Drawing templates).
+      // Shapes to drag into the drawing (Content → Drawing templates).
       templates: "Formen zum Hineinziehen",
       templatesHint: "In die Fläche ziehen oder anklicken",
       templatesHintTouch: "Antippen legt sie in die Mitte",
@@ -395,12 +402,15 @@ const de = {
       picked: "Abdruck markiert.",
       pickedKeys: "Entf oder ⌫ entfernt ihn.",
       remove: "Abdruck entfernen",
-      // Taking steps back and forth, under one heading.
-      history: "Verlauf",
       undo: "Rückgängig",
       redo: "Wiederholen",
       print: "Abdruck",
       ink: "Stempelkissen",
+      // On a phone, the page and the day's note side by side – to switch.
+      sides: "Blatt oder Notiz",
+      page: "Blatt",
+      note: "Notiz",
+      noted: "Notiz – es steht etwas drin",
     },
     note: {
       label: "Notiz zum Tag",
@@ -496,11 +506,11 @@ const de = {
         title: "Nur für dich",
         text: "Das stellt jede:r für sich ein.",
         colorMember:
-          "Nur bei dir, auf diesem Gerät – die anderen sehen ihre eigene Farbe.",
+          "Nur bei dir, auf all deinen Geräten – die anderen sehen ihre eigene Farbe.",
         colorReset: "Wie der Kalender",
         start: "Startansicht",
         startText:
-          "So öffnet sich der Kalender auf diesem Gerät – umschalten kannst du jederzeit.",
+          "So öffnet sich der Kalender bei dir, auf all deinen Geräten – umschalten kannst du jederzeit.",
       },
       deleteShared: template(
         {
@@ -651,6 +661,8 @@ const de = {
       shareNone:
         "Teile zuerst einen Kalender – dann kannst du dort auch deine Stempel teilen.",
       onlyYou: "Bisher nur du",
+      // Drawing it anew – a stamp one drew oneself.
+      edit: "Bearbeiten",
       print3d: "Für den 3D-Drucker (STL)",
       hint: template(
         "{mm} mm breit, mit „boop“ auf dem Rücken. Er steht auf seiner Stempelfläche, der Knauf zeigt nach oben – nur größere Vertiefungen brauchen Stützen vom Druckbett. Die Fläche ist gespiegelt, so kommt dein Abdruck richtig herum raus.",
@@ -1209,6 +1221,12 @@ const en: Shape<typeof de> = {
       leaveText: "What you've drawn will be gone.",
       leaveStay: "Keep drawing",
       leaveGo: "Throw away",
+      editTitle: "Edit stamp",
+      editLeaveTitle: "Throw the changes away?",
+      editLeaveText: "Your stamp stays as it was.",
+      editNote:
+        "All its prints change along – for everyone who took it from you, too.",
+      saveChanges: "Save changes",
       tools: "Tools",
       pen: "Pen",
       eraser: "Eraser",
@@ -1228,12 +1246,13 @@ const en: Shape<typeof de> = {
       lineHint:
         "Click sets points for straight lines, dragging bends them into a curve · ⇧ 45° · Enter ends",
       lineHintTouch:
-        "Tap sets points for straight lines, dragging bends them into a curve",
+        "Tap sets points, dragging bends into a curve · tap and drag a point to move it",
       finish: "Done",
       points: "Edit points",
       pointsHint:
         "Drag points and handles · Alt-click: smooth or corner · click the line: new point · Del removes",
-      pointsHintTouch: "Drag points and handles · tap the line: new point",
+      pointsHintTouch:
+        "Tap a point to pick it · drag points and handles · tap the line: new point",
       removePoint: "Remove point",
       anchor: "Point",
       anchorSmooth: "Round",
@@ -1287,11 +1306,14 @@ const en: Shape<typeof de> = {
       picked: "Print selected.",
       pickedKeys: "Delete or ⌫ removes it.",
       remove: "Remove print",
-      history: "History",
       undo: "Undo",
       redo: "Redo",
       print: "Print",
       ink: "Ink pad",
+      sides: "Page or note",
+      page: "Page",
+      note: "Note",
+      noted: "Note – something's written",
     },
     note: {
       label: "Note for the day",
@@ -1355,11 +1377,11 @@ const en: Shape<typeof de> = {
         title: "Just for you",
         text: "Everyone sets this for themselves.",
         colorMember:
-          "Only for you, on this device – the others see their own color.",
+          "Only for you, on all your devices – the others see their own color.",
         colorReset: "Same as the calendar",
         start: "Opens in",
         startText:
-          "How the calendar opens on this device – you can switch any time.",
+          "How the calendar opens for you, on all your devices – you can switch any time.",
       },
       deleteShared: {
         one: "It'll be gone for the other person in it, too.",
@@ -1453,6 +1475,7 @@ const en: Shape<typeof de> = {
       shareNone:
         "Share a calendar first – then you can share your stamps there, too.",
       onlyYou: "Just you so far",
+      edit: "Edit",
       print3d: "For the 3D printer (STL)",
       hint: "{mm} mm wide, with “boop” on its back. It stands on its stamp face, knob up – only bigger hollows need supports from the bed. The face is mirrored, so your print comes out the right way round.",
       delete: "Delete stamp",

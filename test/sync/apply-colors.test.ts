@@ -15,6 +15,10 @@ vi.mock(
   "@/features/calendar/palette",
   () => import("../../src/features/calendar/palette")
 );
+vi.mock(
+  "@/features/calendar/prefs",
+  () => import("../../src/features/calendar/prefs")
+);
 vi.mock("@/features/calendar/membership", () => ({
   idOf: (value: unknown) =>
     typeof value === "string"

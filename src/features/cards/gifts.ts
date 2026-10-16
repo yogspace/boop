@@ -234,7 +234,7 @@ const knownShape = async (
   if (value == null || value === "") return true;
   return (
     (isShapeKey(value) && (await shapeKeysNow(req)).includes(value)) ||
-    "A shape from Site → Stamp shapes."
+    "A shape from Content → Stamp shapes."
   );
 };
 
@@ -330,7 +330,7 @@ export const Gifts: CollectionConfig = {
     },
     // Taken from the card (`takeDrawing`).
     {
-      // A shape's key (Site → Stamp shapes).
+      // A shape's key (Content → Stamp shapes).
       name: "shape",
       type: "text",
       admin: { hidden: true },

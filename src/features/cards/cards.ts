@@ -16,9 +16,10 @@ import { cardStampOf, cleanMessage, newCardId } from "./rules";
 
 /**
  * Cards (protocol.ts): someone sends a stamp of their own – a link to a
- * page with the stamp and a few words. Whoever opens it sees the stamp as
- * it was when the card was made, the giver's name and the words; logged
- * in, they can take it – a copy, theirs from then on (`takeCard`).
+ * page with the stamp and a few words. Whoever opens it sees the stamp – its
+ * name as when the card was made, its look as it is now (drawn anew, the
+ * card follows: follow.ts) –, the giver's name and the words; logged in,
+ * they can take it – a copy, theirs from then on (`takeCard`).
  *
  *   POST   /api/cards            { stamp, message? } → { id }
  *   GET    /api/cards/:id        → CardView
@@ -84,11 +85,12 @@ export const Cards: CollectionConfig = {
       required: true,
       index: true,
     },
-    // The stamp as it was when the card was made.
+    // The stamp as it was when the card was made – its look as it is now
+    // (follow.ts).
     { name: "name", type: "text", maxLength: 40 },
     { name: "color", type: "text", required: true },
     {
-      // A shape's key (Site → Stamp shapes).
+      // A shape's key (Content → Stamp shapes).
       name: "shape",
       type: "text",
       required: true,

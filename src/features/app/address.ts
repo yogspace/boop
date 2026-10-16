@@ -50,8 +50,12 @@ export const viewShown = (
   start: CalendarView | null | undefined
 ): CalendarView => asked ?? start ?? START_VIEW;
 
-/** The sheets that have an address – each over the calendar's view. */
-export type Panel = "settings" | "share" | "account" | "draw";
+/**
+ * The sheets that have an address – each over the calendar's view. `edit`
+ * is the editor with a stamp of one's own in it: which one, the history
+ * entry keeps (BoopApp) – the address says only that one is.
+ */
+export type Panel = "settings" | "share" | "account" | "draw" | "edit";
 
 /** The sheets' words in the address, in each language. */
 export const PANEL_SLUGS = {
@@ -60,12 +64,14 @@ export const PANEL_SLUGS = {
     share: "teilen",
     account: "konto",
     draw: "neuer-stempel",
+    edit: "stempel-bearbeiten",
   },
   en: {
     settings: "settings",
     share: "share",
     account: "account",
     draw: "new-stamp",
+    edit: "edit-stamp",
   },
 } as const satisfies Record<Locale, Record<Panel, string>>;
 

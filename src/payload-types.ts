@@ -29,10 +29,13 @@ export interface Config {
     stamps: Stamp;
     placements: Placement;
     notes: Note;
+    'calendar-prefs': CalendarPref;
     invites: Invite;
     cards: Card;
     'calendar-feeds': CalendarFeed;
     gifts: Gift;
+    'stamp-shapes': StampShape;
+    'drawing-templates': DrawingTemplate;
     'page-views': PageView;
     actions: Action;
     'payload-kv': PayloadKv;
@@ -50,10 +53,13 @@ export interface Config {
     stamps: StampsSelect<false> | StampsSelect<true>;
     placements: PlacementsSelect<false> | PlacementsSelect<true>;
     notes: NotesSelect<false> | NotesSelect<true>;
+    'calendar-prefs': CalendarPrefsSelect<false> | CalendarPrefsSelect<true>;
     invites: InvitesSelect<false> | InvitesSelect<true>;
     cards: CardsSelect<false> | CardsSelect<true>;
     'calendar-feeds': CalendarFeedsSelect<false> | CalendarFeedsSelect<true>;
     gifts: GiftsSelect<false> | GiftsSelect<true>;
+    'stamp-shapes': StampShapesSelect<false> | StampShapesSelect<true>;
+    'drawing-templates': DrawingTemplatesSelect<false> | DrawingTemplatesSelect<true>;
     'page-views': PageViewsSelect<false> | PageViewsSelect<true>;
     actions: ActionsSelect<false> | ActionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -384,6 +390,26 @@ export interface Note {
   createdAt: string;
 }
 /**
+ * What someone set for a calendar for themselves alone – their color for it, the view it opens in. One per account and calendar, the same on all their devices.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "calendar-prefs".
+ */
+export interface CalendarPref {
+  id: string;
+  account: string | Account;
+  calendar: string | Calendar;
+  /**
+   * A stamp color's key (“Site” → Stamp colors), e.g. “mint”.
+   */
+  color?: string | null;
+  start?: ('today' | 'month' | 'year') | null;
+  changedAt: string;
+  deleted?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * Invitations to calendars, by address – with an account or without. Gone once answered or taken back, or after 14 days.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -485,6 +511,61 @@ export interface Gift {
   createdAt: string;
 }
 /**
+ * The bodies a stamp can have – offered in their order when drawing one. The first is the default – and the shape of any stamp whose own is gone. Everything else – the rim along it, the rubber and block in 3D, the file for a 3D printer – is worked out from the outline. Seeds: “Stamp shapes” brings the code's.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "stamp-shapes".
+ */
+export interface StampShape {
+  id: string;
+  /**
+   * The shape's identity – stamps refer to it, e.g. “heart”. Never change or delete a key once it is in use: its stamps would turn into the first shape. To change a shape, change its outline and keep the key.
+   */
+  key: string;
+  /**
+   * Shown when pointing at it, read out aloud – one per language (switch at the top).
+   */
+  name: string;
+  /**
+   * An SVG path (its “d”), in a 100 × 100 box with y down – fit into the stamp as large as it goes, centered, so the box's size doesn't matter. Its largest closed piece (… Z) is the outline. Below: the shape as the app shows it.
+   */
+  d: string;
+  /**
+   * Its place among the shapes – the smallest first, and the first is the default. Empty: after the last. In tens, so one fits in between.
+   */
+  order: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Shapes to drag into a drawing – a heart, a star, a speech bubble – in their order. Dropped in, they are lines in the pen's width (each piece of the path one, to edit point by point), or filled areas. Seeds: “Drawing templates” brings the code's.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "drawing-templates".
+ */
+export interface DrawingTemplate {
+  id: string;
+  key: string;
+  /**
+   * Shown when pointing at it, read out aloud – one per language (switch at the top).
+   */
+  name: string;
+  /**
+   * An SVG path (its “d”), in a 100 × 100 box with y down – each piece (M …, closed with Z or open) one line. Below: what it drops into a drawing.
+   */
+  d: string;
+  /**
+   * Dropped in as filled areas – its closed pieces, holes where they overlap. Unticked: as lines.
+   */
+  filled?: boolean | null;
+  /**
+   * Its place among the templates – the smallest first. Empty: after the last. In tens, so one fits in between.
+   */
+  order: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "page-views".
  */
@@ -582,6 +663,10 @@ export interface PayloadLockedDocument {
         value: string | Note;
       } | null)
     | ({
+        relationTo: 'calendar-prefs';
+        value: string | CalendarPref;
+      } | null)
+    | ({
         relationTo: 'invites';
         value: string | Invite;
       } | null)
@@ -596,6 +681,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'gifts';
         value: string | Gift;
+      } | null)
+    | ({
+        relationTo: 'stamp-shapes';
+        value: string | StampShape;
+      } | null)
+    | ({
+        relationTo: 'drawing-templates';
+        value: string | DrawingTemplate;
       } | null)
     | ({
         relationTo: 'page-views';
@@ -841,6 +934,21 @@ export interface NotesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "calendar-prefs_select".
+ */
+export interface CalendarPrefsSelect<T extends boolean = true> {
+  id?: T;
+  account?: T;
+  calendar?: T;
+  color?: T;
+  start?: T;
+  changedAt?: T;
+  deleted?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "invites_select".
  */
 export interface InvitesSelect<T extends boolean = true> {
@@ -894,6 +1002,31 @@ export interface GiftsSelect<T extends boolean = true> {
   stamp?: T;
   sentAt?: T;
   sentTo?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "stamp-shapes_select".
+ */
+export interface StampShapesSelect<T extends boolean = true> {
+  key?: T;
+  name?: T;
+  d?: T;
+  order?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "drawing-templates_select".
+ */
+export interface DrawingTemplatesSelect<T extends boolean = true> {
+  key?: T;
+  name?: T;
+  d?: T;
+  filled?: T;
+  order?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -962,7 +1095,7 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   createdAt?: T;
 }
 /**
- * The owner's address for the imprint and privacy policy, the link to mxwr.de, the colors and shapes to stamp with, and the shapes to drag into a drawing.
+ * The owner's address for the imprint and privacy policy, the link to mxwr.de and the colors to stamp with. The shapes – a stamp's and those to drag into a drawing – are under Content.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "site".
@@ -1004,45 +1137,6 @@ export interface Site {
     finish?: ('metal' | 'glitter' | 'holo' | 'wood' | 'confetti' | 'stars' | 'marble' | 'heat') | null;
     id?: string | null;
   }[];
-  /**
-   * The bodies a stamp can have – offered in this order when drawing one. The first is the default – and the shape of any stamp whose own is gone. Everything else – the rim along it, the rubber and block in 3D, the file for a 3D printer – is worked out from the outline. Seeds: “Stamp shapes” brings the code's.
-   */
-  stampShapes: {
-    /**
-     * The shape's identity – stamps refer to it, e.g. “heart”. Never change or delete a key once it is in use: its stamps would turn into the first shape. To change a shape, change its outline and keep the key.
-     */
-    key: string;
-    /**
-     * Shown when pointing at it, read out aloud – one per language (switch at the top).
-     */
-    name: string;
-    /**
-     * An SVG path (its “d”), in a 100 × 100 box with y down – fit into the stamp as large as it goes, centered, so the box's size doesn't matter. Its largest closed piece (… Z) is the outline. Below: the shape as the app shows it.
-     */
-    d: string;
-    id?: string | null;
-  }[];
-  /**
-   * Shapes to drag into a drawing – a heart, a star, a speech bubble – in this order. Dropped in, they are lines in the pen's width (each piece of the path one, to edit point by point), or filled areas. Seeds: “Drawing templates” brings the code's.
-   */
-  drawingTemplates?:
-    | {
-        key: string;
-        /**
-         * Shown when pointing at it, read out aloud.
-         */
-        name: string;
-        /**
-         * An SVG path (its “d”), in a 100 × 100 box with y down – each piece (M …, closed with Z or open) one line. Below: what it drops into a drawing.
-         */
-        d: string;
-        /**
-         * Dropped in as filled areas – its closed pieces, holes where they overlap. Unticked: as lines.
-         */
-        filled?: boolean | null;
-        id?: string | null;
-      }[]
-    | null;
   links: {
     /**
      * The legal text's “Site link”. Keep the utm part – it shows where visits came from.
@@ -1786,28 +1880,6 @@ export interface Translation {
        * DE: Form  ·  EN: Shape
        */
       shape?: string | null;
-      shapes?: {
-        /**
-         * DE: Rund  ·  EN: Round
-         */
-        circle?: string | null;
-        /**
-         * DE: Eckig  ·  EN: Square
-         */
-        square?: string | null;
-        /**
-         * DE: Achteck  ·  EN: Octagon
-         */
-        octagon?: string | null;
-        /**
-         * DE: Dreieck  ·  EN: Triangle
-         */
-        triangle?: string | null;
-        /**
-         * DE: Raute  ·  EN: Diamond
-         */
-        diamond?: string | null;
-      };
       /**
        * DE: Zurück  ·  EN: Undo
        */
@@ -1836,6 +1908,26 @@ export interface Translation {
        * DE: Verwerfen  ·  EN: Throw away
        */
       leaveGo?: string | null;
+      /**
+       * DE: Stempel bearbeiten  ·  EN: Edit stamp
+       */
+      editTitle?: string | null;
+      /**
+       * DE: Änderungen verwerfen?  ·  EN: Throw the changes away?
+       */
+      editLeaveTitle?: string | null;
+      /**
+       * DE: Dein Stempel bleibt dann, wie er war.  ·  EN: Your stamp stays as it was.
+       */
+      editLeaveText?: string | null;
+      /**
+       * DE: Alle seine Abdrücke ändern sich mit – auch bei allen, die ihn von dir übernommen haben.  ·  EN: All its prints change along – for everyone who took it from you, too.
+       */
+      editNote?: string | null;
+      /**
+       * DE: Änderungen speichern  ·  EN: Save changes
+       */
+      saveChanges?: string | null;
       /**
        * DE: Werkzeuge  ·  EN: Tools
        */
@@ -1869,9 +1961,17 @@ export interface Translation {
        */
       removeSelection?: string | null;
       /**
-       * DE: ⇧ zieht eine gerade Linie  ·  EN: ⇧ draws a straight line
+       * DE: ⇧ zieht eine gerade Linie · ⌘/Strg + Scrollen zoomt, Leertaste + Ziehen verschiebt  ·  EN: ⇧ draws a straight line · ⌘/Ctrl + scroll zooms, space + drag moves
        */
       penHint?: string | null;
+      /**
+       * DE: Mit zwei Fingern zoomen und verschieben  ·  EN: Two fingers zoom and move
+       */
+      penHintTouch?: string | null;
+      /**
+       * DE: Zurück auf 100 %  ·  EN: Back to 100%
+       */
+      zoomReset?: string | null;
       /**
        * DE: Nimmt Linien und Flächen weg – den Rand nie  ·  EN: Takes away lines and areas – never the rim
        */
@@ -1885,7 +1985,7 @@ export interface Translation {
        */
       lineHint?: string | null;
       /**
-       * DE: Tippen setzt Punkte für gerade Linien, Ziehen biegt sie zur Kurve  ·  EN: Tap sets points for straight lines, dragging bends them into a curve
+       * DE: Tippen setzt Punkte, Ziehen biegt zur Kurve · einen Punkt antippen und ziehen verschiebt ihn  ·  EN: Tap sets points, dragging bends into a curve · tap and drag a point to move it
        */
       lineHintTouch?: string | null;
       /**
@@ -1901,7 +2001,7 @@ export interface Translation {
        */
       pointsHint?: string | null;
       /**
-       * DE: Punkte und Griffe ziehen · auf die Linie tippen: neuer Punkt  ·  EN: Drag points and handles · tap the line: new point
+       * DE: Punkt antippen wählt ihn · Punkte und Griffe ziehen · auf die Linie tippen: neuer Punkt  ·  EN: Tap a point to pick it · drag points and handles · tap the line: new point
        */
       pointsHintTouch?: string | null;
       /**
@@ -1909,10 +2009,34 @@ export interface Translation {
        */
       removePoint?: string | null;
       /**
+       * DE: Punkt  ·  EN: Point
+       */
+      anchor?: string | null;
+      /**
+       * DE: Rund  ·  EN: Round
+       */
+      anchorSmooth?: string | null;
+      /**
+       * DE: Ecke  ·  EN: Corner
+       */
+      anchorCorner?: string | null;
+      /**
+       * DE: Griffe gekoppelt  ·  EN: Handles together
+       */
+      anchorSmoothHint?: string | null;
+      /**
+       * DE: Griffe getrennt  ·  EN: Handles apart
+       */
+      anchorCornerHint?: string | null;
+      /**
        * DE: Strichstärke  ·  EN: Line width
        */
       width?: string | null;
       widths?: {
+        /**
+         * DE: Haarfein  ·  EN: Hairline
+         */
+        hair?: string | null;
         /**
          * DE: Fein  ·  EN: Thin
          */
@@ -1926,6 +2050,18 @@ export interface Translation {
          */
         thick?: string | null;
       };
+      /**
+       * DE: Formen zum Hineinziehen  ·  EN: Shapes to drag in
+       */
+      templates?: string | null;
+      /**
+       * DE: In die Fläche ziehen oder anklicken  ·  EN: Drag onto the drawing or click
+       */
+      templatesHint?: string | null;
+      /**
+       * DE: Antippen legt sie in die Mitte  ·  EN: Tap to put one in the middle
+       */
+      templatesHintTouch?: string | null;
       /**
        * DE: SVG hochladen  ·  EN: Upload SVG
        */
@@ -2057,10 +2193,6 @@ export interface Translation {
        */
       remove_?: string | null;
       /**
-       * DE: Verlauf  ·  EN: History
-       */
-      history?: string | null;
-      /**
        * DE: Rückgängig  ·  EN: Undo
        */
       undo?: string | null;
@@ -2076,6 +2208,22 @@ export interface Translation {
        * DE: Stempelkissen  ·  EN: Ink pad
        */
       ink?: string | null;
+      /**
+       * DE: Blatt oder Notiz  ·  EN: Page or note
+       */
+      sides?: string | null;
+      /**
+       * DE: Blatt  ·  EN: Page
+       */
+      page?: string | null;
+      /**
+       * DE: Notiz  ·  EN: Note
+       */
+      note?: string | null;
+      /**
+       * DE: Notiz – es steht etwas drin  ·  EN: Note – something's written
+       */
+      noted?: string | null;
     };
     note?: {
       /**
@@ -2286,7 +2434,7 @@ export interface Translation {
          */
         text?: string | null;
         /**
-         * DE: Nur bei dir, auf diesem Gerät – die anderen sehen ihre eigene Farbe.  ·  EN: Only for you, on this device – the others see their own color.
+         * DE: Nur bei dir, auf all deinen Geräten – die anderen sehen ihre eigene Farbe.  ·  EN: Only for you, on all your devices – the others see their own color.
          */
         colorMember?: string | null;
         /**
@@ -2298,7 +2446,7 @@ export interface Translation {
          */
         start?: string | null;
         /**
-         * DE: So öffnet sich der Kalender auf diesem Gerät – umschalten kannst du jederzeit.  ·  EN: How the calendar opens on this device – you can switch any time.
+         * DE: So öffnet sich der Kalender bei dir, auf all deinen Geräten – umschalten kannst du jederzeit.  ·  EN: How the calendar opens for you, on all your devices – you can switch any time.
          */
         startText?: string | null;
       };
@@ -2602,6 +2750,10 @@ export interface Translation {
        * DE: Bisher nur du  ·  EN: Just you so far
        */
       onlyYou?: string | null;
+      /**
+       * DE: Bearbeiten  ·  EN: Edit
+       */
+      edit?: string | null;
       /**
        * DE: Für den 3D-Drucker (STL)  ·  EN: For the 3D printer (STL)
        */
@@ -3346,23 +3498,6 @@ export interface SiteSelect<T extends boolean = true> {
         finish?: T;
         id?: T;
       };
-  stampShapes?:
-    | T
-    | {
-        key?: T;
-        name?: T;
-        d?: T;
-        id?: T;
-      };
-  drawingTemplates?:
-    | T
-    | {
-        key?: T;
-        name?: T;
-        d?: T;
-        filled?: T;
-        id?: T;
-      };
   links?:
     | T
     | {
@@ -3662,15 +3797,6 @@ export interface TranslationsSelect<T extends boolean = true> {
               namePlaceholder?: T;
               color?: T;
               shape?: T;
-              shapes?:
-                | T
-                | {
-                    circle?: T;
-                    square?: T;
-                    octagon?: T;
-                    triangle?: T;
-                    diamond?: T;
-                  };
               undo?: T;
               redo?: T;
               clear?: T;
@@ -3678,6 +3804,11 @@ export interface TranslationsSelect<T extends boolean = true> {
               leaveText?: T;
               leaveStay?: T;
               leaveGo?: T;
+              editTitle?: T;
+              editLeaveTitle?: T;
+              editLeaveText?: T;
+              editNote?: T;
+              saveChanges?: T;
               tools?: T;
               pen?: T;
               eraser?: T;
@@ -3687,6 +3818,8 @@ export interface TranslationsSelect<T extends boolean = true> {
               remove_?: T;
               removeSelection?: T;
               penHint?: T;
+              penHintTouch?: T;
+              zoomReset?: T;
               eraserHint?: T;
               line?: T;
               lineHint?: T;
@@ -3696,14 +3829,23 @@ export interface TranslationsSelect<T extends boolean = true> {
               pointsHint?: T;
               pointsHintTouch?: T;
               removePoint?: T;
+              anchor?: T;
+              anchorSmooth?: T;
+              anchorCorner?: T;
+              anchorSmoothHint?: T;
+              anchorCornerHint?: T;
               width?: T;
               widths?:
                 | T
                 | {
+                    hair?: T;
                     thin?: T;
                     medium?: T;
                     thick?: T;
                   };
+              templates?: T;
+              templatesHint?: T;
+              templatesHintTouch?: T;
               upload?: T;
               inverted?: T;
               special?: T;
@@ -3747,11 +3889,14 @@ export interface TranslationsSelect<T extends boolean = true> {
               picked?: T;
               pickedKeys?: T;
               remove_?: T;
-              history?: T;
               undo?: T;
               redo?: T;
               print?: T;
               ink?: T;
+              sides?: T;
+              page?: T;
+              note?: T;
+              noted?: T;
             };
         note?:
           | T
@@ -3936,6 +4081,7 @@ export interface TranslationsSelect<T extends boolean = true> {
               shareText?: T;
               shareNone?: T;
               onlyYou?: T;
+              edit?: T;
               print3d?: T;
               hint?: T;
               delete?: T;

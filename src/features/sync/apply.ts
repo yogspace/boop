@@ -9,6 +9,7 @@ import {
 } from "@/features/calendar/model";
 import { cleanNote, noteId } from "@/features/calendar/note";
 import { isColorKey } from "@/features/calendar/palette";
+import { isCalendarView, prefId } from "@/features/calendar/prefs";
 import type { Change, SyncType } from "./protocol";
 
 /**
@@ -21,12 +22,19 @@ import type { Change, SyncType } from "./protocol";
  * - stamp: anyone makes their own; only its owner changes, shares or
  *   deletes it. Shared it is with calendars the owner belongs to – any other
  *   is left out. Where it came from (`origin`) is the server's to say
- *   (features/cards): nothing here reads it from a device.
+ *   (features/cards): nothing here reads it from a device. Its look – the
+ *   drawing, the shape, the color – is checked as when it was made, and
+ *   changes only on a stamp its owner drew: a copy looks like its original,
+ *   whose changes reach it (cards/follow.ts). Its owner still names and
+ *   shares it.
  * - placement: every member of its calendar places, moves and removes – with
  *   a stamp they have: their own (in any calendar of theirs), or one shared
  *   with a calendar of theirs (in any of them, too).
  * - note: every member of its calendar writes, empties and writes it again.
  *   A new one's id must be its day's (`noteId`) – one note per day.
+ * - pref: one's own settings for a calendar (calendar/prefs.ts) – the
+ *   account's alone, for a calendar it is in. A new one's id must be the
+ *   account's for that calendar (`prefId`) – one each.
  *
  * A change older than the server's copy is no error: the later one wins,
  * and the device gets the server's copy back. So two people writing a day's
@@ -52,6 +60,7 @@ const COLLECTION = {
   stamp: "stamps",
   placement: "placements",
   note: "notes",
+  pref: "calendar-prefs",
 } as const satisfies Record<SyncType, string>;
 
 export type ApplyContext = {
@@ -71,6 +80,9 @@ export type ApplyContext = {
    */
   shapes?: readonly string[];
 };
+
+/** What a stamp looks like – a copy has it from its original. */
+const LOOK = ["drawing", "shape", "color"] as const;
 
 type Outcome = { ok: true } | { ok: false; reason: string };
 
@@ -178,6 +190,8 @@ export const applyChange = async (
       return applyPlacement(ctx, change, existing, data, write);
     case "note":
       return applyNote(ctx, change, existing, data, write);
+    case "pref":
+      return applyPref(ctx, change, existing, data, write);
   }
 };
 
@@ -235,6 +249,8 @@ const applyStamp = async (
   const sharedWith = shared && [
     ...new Set(shared.map(String).filter((id) => ctx.mine.has(id))),
   ];
+  // A drawing that is none once checked is left out: drawn anew, the stamp
+  // keeps the one it has.
   const fields = {
     name: text(data.name, 40),
     color: colorFor(ctx, data.color, existing?.color),
@@ -242,7 +258,7 @@ const applyStamp = async (
       isShapeKey(data.shape) && (ctx.shapes?.includes(data.shape) ?? true)
         ? data.shape
         : undefined,
-    drawing: "drawing" in data ? cleanDrawing(data.drawing) : undefined,
+    drawing: cleanDrawing(data.drawing) ?? undefined,
     sharedWith,
   };
   if (!existing) {
@@ -283,6 +299,13 @@ const applyStamp = async (
       req: ctx.req,
     });
     return OK;
+  }
+  // A copy (a card taken, a gift) has no look of its own: what a device
+  // says of it is left out – nothing else asked, and the change is refused.
+  if ((existing.origin as Doc | null | undefined)?.kind) {
+    const named = ["name", "sharedWith", "calendar"].some((key) => key in data);
+    if (!named && LOOK.some((key) => key in data)) return no("a copy");
+    for (const key of LOOK) fields[key] = undefined;
   }
   // Its sharing is kept in `sharedWith` alone from here on.
   if (sharedWith) {
@@ -375,6 +398,62 @@ const applyNote = async (
   return OK;
 };
 
+/**
+ * A setting from a change: what it says – null takes it back. Left out, or
+ * not one to take (`take` says undefined), it stays what it was.
+ */
+const setting = (
+  data: Doc,
+  name: string,
+  existing: Doc | null,
+  take: (value: unknown) => unknown
+) => {
+  const before = existing?.[name] ?? null;
+  if (!(name in data)) return before;
+  if (data[name] === null) return null;
+  return take(data[name]) ?? before;
+};
+
+/**
+ * One's own settings for a calendar: the account's own, for a calendar it is
+ * in – and it stays in that calendar. A color as anywhere (`colorFor`), a
+ * start view one of the three. All taken back, it stays, empty: the other
+ * devices take that over too. Nothing set, a new one never was.
+ */
+const applyPref = async (
+  ctx: ApplyContext,
+  change: Change,
+  existing: Doc | null,
+  data: Doc,
+  write: Write
+): Promise<Outcome> => {
+  if (existing && idOf(existing.account) !== ctx.me) return no("not yours");
+  const calendar = existing
+    ? idOf(existing.calendar)
+    : String(data.calendar ?? "");
+  if (!(calendar && ctx.mine.has(calendar))) return no("not a member");
+  if (!existing && change.id !== prefId(ctx.me, calendar)) {
+    return no("not its own");
+  }
+  const fields = change.deleted
+    ? { color: null, start: null }
+    : {
+        color: setting(data, "color", existing, (value) =>
+          colorFor(ctx, value, existing?.color)
+        ),
+        start: setting(data, "start", existing, (value) =>
+          isCalendarView(value) ? value : undefined
+        ),
+      };
+  if (!existing) {
+    if (!(fields.color || fields.start)) return OK;
+    await write({ ...fields, account: ctx.me, calendar, deleted: false });
+    return OK;
+  }
+  await write(fields);
+  return OK;
+};
+
 /** A stamp, as it is kept – none for no id. */
 const stampOf = async (ctx: ApplyContext, id: string | null) =>
   id
@@ -450,11 +529,17 @@ export const unshare = async (
 };
 
 /**
- * A deleted calendar keeps only its marker: its placements, notes and open
- * invitations go for good, and no stamp is shared with it any more.
+ * A deleted calendar keeps only its marker: its placements, notes, open
+ * invitations and everyone's own settings for it go for good, and no stamp
+ * is shared with it any more.
  */
 export const purgeCalendar = async (req: PayloadRequest, id: string) => {
-  for (const collection of ["placements", "notes", "invites"] as const) {
+  for (const collection of [
+    "placements",
+    "notes",
+    "invites",
+    "calendar-prefs",
+  ] as const) {
     await req.payload.delete({
       collection,
       where: { calendar: { equals: id } },

@@ -15,7 +15,7 @@ import {
  * Shapes to drag into a drawing – a heart, a star, a speech bubble … – as
  * lines in the pen's width (or filled areas), picked straight away to move,
  * size and turn. Like the stamp shapes (shapes.ts) they come from the CMS
- * (“Site” → Drawing templates); the ones here are what the code knows.
+ * (Content → Drawing templates); the ones here are what the code knows.
  *
  * A template is an SVG path in a 100 × 100 box (y down) – one or more
  * pieces, each an M … (Z). Dropped in, each piece becomes a line with its

@@ -457,15 +457,9 @@ const NotePage = ({
           tabIndex={0}
         />
       </div>
-      <div className="flex items-center justify-between gap-3">
-        <p className="min-w-0 truncate font-bold text-muted text-xs">
-          {other &&
-            t.by(
-              people[other.editedBy] ?? "",
-              ago(other.changedAt, locale, t.justNow)
-            )}
-        </p>
-        <div className="flex gap-2 py-1 pr-1">
+      {/* The marks first, from the left – who wrote last after them. */}
+      <div className="flex items-center gap-3">
+        <div className="flex shrink-0 gap-2 py-1">
           <button
             aria-label={t.bold}
             aria-pressed={marks.b}
@@ -511,6 +505,13 @@ const NotePage = ({
             <Underline className="-mt-px h-1 w-3.5" strokeWidth={2} />
           </button>
         </div>
+        <p className="min-w-0 truncate font-bold text-muted text-xs">
+          {other &&
+            t.by(
+              people[other.editedBy] ?? "",
+              ago(other.changedAt, locale, t.justNow)
+            )}
+        </p>
       </div>
     </div>
   );

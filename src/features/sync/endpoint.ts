@@ -24,8 +24,8 @@ import {
 import { pull } from "./pull";
 
 /**
- * POST /api/sync – the app's only way to read and write calendars, stamps
- * and placements (protocol.ts). Logged-in accounts only; what each may do is
+ * POST /api/sync – the app's only way to read and write calendars, stamps,
+ * placements, notes and one's own settings for a calendar (protocol.ts). Logged-in accounts only; what each may do is
  * checked per change in apply.ts.
  */
 
@@ -100,6 +100,7 @@ export const syncEndpoint: Endpoint = {
       stamp: new Set(),
       placement: new Set(),
       note: new Set(),
+      pref: new Set(),
     };
     const rejected: SyncResponse["rejected"] = [];
 

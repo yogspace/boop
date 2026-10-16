@@ -1,29 +1,56 @@
 import { type ReactNode, type Ref, useImperativeHandle, useRef } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * A loupe over the finger – like the one iOS shows over a text's cursor: a
  * little round window above where the finger is, the drawing beneath it
- * twice as big, a cross on the very spot. Near the top it moves aside.
- * Only for a finger, which covers what it draws on; moved without a render
- * (`show`) – what it shows, `children`, is the drawing box's content as
- * laid out on the stage (the same size), drawn once more.
+ * twice as big, a cross on the very spot. Only for a finger, which covers
+ * what it draws on; moved without a render (`show`) – what it shows,
+ * `children`, is the drawing box's content as laid out on the stage (the
+ * same size), drawn once more.
+ *
+ * It lies over the whole page, not only the drawing (a portal), and goes
+ * wherever the finger goes, beyond the drawing too. It always stays the same
+ * way above the finger; where the screen's top leaves no room, it glides
+ * aside – the closer to the top, the further – to the side with more room,
+ * which it keeps until there is room above again. Its place follows from
+ * the finger's alone, so it never jumps. A layer of its own (translate3d):
+ * moving it repaints nothing, neither itself nor what is under it.
  */
 
 /** How wide the loupe is (px), how much bigger it shows, how far above. */
 const SIZE = 104;
 const ZOOM = 2;
 const ABOVE = 96;
+/** How near (px) it comes to the screen's edges. */
+const MARGIN = 8;
+
+/** The screen's top that is the phone's (its notch, the clock) – px. */
+let safeTop: number | null = null;
+const topOfScreen = () => {
+  if (safeTop !== null) return safeTop;
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:fixed;top:0;left:0;width:0;visibility:hidden;height:env(safe-area-inset-top,0px)";
+  document.body.append(probe);
+  safeTop = probe.offsetHeight;
+  probe.remove();
+  return safeTop;
+};
+
+const within = (n: number, low: number, high: number) =>
+  Math.min(Math.max(n, low), high);
 
 export type LoupeHandle = {
   /**
-   * Over the finger at (x, y) – px in the drawing box, whose top left lies
-   * at (left, top) of the stage and which is `side` px wide.
+   * Over the finger at a client point – which lies at (x, y) px in the
+   * drawing box, `side` px wide.
    */
   show: (at: {
+    clientX: number;
+    clientY: number;
     x: number;
     y: number;
-    left: number;
-    top: number;
     side: number;
   }) => void;
   hide: () => void;
@@ -38,32 +65,45 @@ export const Loupe = ({
 }) => {
   const lens = useRef<HTMLDivElement>(null);
   const inside = useRef<HTMLDivElement>(null);
+  // Which way it went aside (−1 left, 1 right) – none while there is room.
+  const aside = useRef(0);
   useImperativeHandle(ref, () => ({
-    show: ({ x, y, left, top, side }) => {
+    show: ({ clientX, clientY, x, y, side }) => {
       const el = lens.current;
       const content = inside.current;
       if (!(el && content)) return;
-      // Above the finger – beside it where there is no room above.
-      let cx = left + x;
-      let cy = top + y - ABOVE;
-      if (cy < SIZE / 2 - 8) {
-        cy = top + y;
-        cx = left + x + (x > side / 2 ? -ABOVE : ABOVE);
+      // Its middle at the highest: under the screen's top.
+      const highest = topOfScreen() + MARGIN + SIZE / 2;
+      const above = clientY - ABOVE;
+      // How much room above is missing: 0 – enough, 1 – level with the finger.
+      const missing = within((highest - above) / ABOVE, 0, 1);
+      if (!missing) aside.current = 0;
+      else if (!aside.current) {
+        aside.current = clientX > innerWidth / 2 ? -1 : 1;
       }
-      el.style.transform = `translate(${(cx - SIZE / 2).toFixed(1)}px, ${(cy - SIZE / 2).toFixed(1)}px)`;
+      const glide = missing * missing * (3 - 2 * missing);
+      const cx = within(
+        clientX + aside.current * glide * ABOVE,
+        SIZE / 2 + MARGIN,
+        innerWidth - SIZE / 2 - MARGIN
+      );
+      const cy = Math.max(above, highest);
+      el.style.transform = `translate3d(${(cx - SIZE / 2).toFixed(1)}px, ${(cy - SIZE / 2).toFixed(1)}px, 0)`;
       el.style.opacity = "1";
       content.style.width = `${side}px`;
       content.style.height = `${side}px`;
       content.style.transform = `translate(${(SIZE / 2 - x * ZOOM).toFixed(1)}px, ${(SIZE / 2 - y * ZOOM).toFixed(1)}px) scale(${ZOOM})`;
     },
     hide: () => {
+      aside.current = 0;
       if (lens.current) lens.current.style.opacity = "0";
     },
   }));
-  return (
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute top-0 left-0 z-20 overflow-hidden rounded-full border-[2.5px] border-ink bg-card opacity-0 shadow-[0_6px_18px_rgb(20_20_20/0.22)] transition-opacity duration-100"
+      className="pointer-events-none fixed top-0 left-0 z-60 transform-[translate3d(0,0,0)] overflow-hidden rounded-full border-[2.5px] border-ink bg-card opacity-0 shadow-[0_6px_18px_rgb(20_20_20/0.22)] transition-opacity duration-100"
       ref={lens}
       style={{ width: SIZE, height: SIZE }}
     >
@@ -96,6 +136,7 @@ export const Loupe = ({
           stroke="none"
         />
       </svg>
-    </div>
+    </div>,
+    document.body
   );
 };

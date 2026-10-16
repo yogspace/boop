@@ -74,11 +74,15 @@ export const fakeDatabase = () => {
     stamps: new Map(),
     placements: new Map(),
     notes: new Map(),
+    "calendar-prefs": new Map(),
     cards: new Map(),
     gifts: new Map(),
     "push-subscriptions": new Map(),
     "push-settings": new Map(),
     "calendar-feeds": new Map(),
+    // Never filled here: the code's own shapes show (site/stamp-shapes.ts).
+    "stamp-shapes": new Map(),
+    "drawing-templates": new Map(),
   };
   const passwords = new Map<string, string>();
   const sent: { to: string; subject: string; html: string }[] = [];

@@ -15,7 +15,8 @@ import { calendarById } from "../membership";
  * the next sync.
  *
  * Whoever goes takes their stamps along: none of them stays shared with the
- * calendar (their prints on its days stay).
+ * calendar (their prints on its days stay) – and their own settings for it
+ * go (calendar/prefs.ts).
  *
  *   POST   /api/calendars/:id/members            { email }
  *   DELETE /api/calendars/:id/members/:accountId
@@ -137,6 +138,19 @@ export const removeMember: Endpoint = {
       // First their stamps – so none stays shared with a calendar its owner
       // isn't in.
       await unshare(req, calendar.id, who);
+      // Their own settings for it – their devices drop theirs along with
+      // the calendar (offline/store.ts).
+      await req.payload.delete({
+        collection: "calendar-prefs",
+        where: {
+          and: [
+            { account: { equals: who } },
+            { calendar: { equals: calendar.id } },
+          ],
+        },
+        overrideAccess: true,
+        req,
+      });
       await touch(
         req,
         calendar.id,

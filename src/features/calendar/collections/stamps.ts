@@ -1,13 +1,14 @@
 import type { CollectionConfig } from "payload";
 import { hiddenUnlessSupport, sealed } from "@/access";
 import { dropCards } from "@/features/cards/cards";
+import { followOriginal } from "@/features/cards/follow";
 import { idField, syncFields, touchChangedAt } from "@/features/sync/fields";
 import { colorField } from "../color-field";
 import { isShapeKey } from "../shapes";
 
 /** A shape's key – its form; which shapes there are is the CMS's to say. */
 const shapeKey = (value: unknown) =>
-  isShapeKey(value) || "A shape's key (Site → Stamp shapes), e.g. “heart”";
+  isShapeKey(value) || "A shape's key (Content → Stamp shapes), e.g. “heart”";
 
 /**
  * The stamps people drew – one color each, a doodle as strokes (model.ts).
@@ -20,7 +21,9 @@ const shapeKey = (value: unknown) =>
  *
  * `origin`: where a stamp came from, when its owner didn't draw it – a card
  * taken, a gift from Boop (features/cards). Written by the server alone;
- * a device's word on it is never read (sync/apply.ts).
+ * a device's word on it is never read (sync/apply.ts). Such a copy looks
+ * like its original: drawn anew, the original's look reaches it
+ * (`followOriginal`, cards/follow.ts).
  *
  * The app's through the sync alone; closed over REST, for admins too – they
  * read it in support mode (src/access).
@@ -115,8 +118,8 @@ export const Stamps: CollectionConfig = {
           index: true,
         },
         {
-          // The stamp it is a copy of – its maker's own. Kept for the day a
-          // stamp can be changed: then a change can reach every copy.
+          // The stamp it is a copy of – its maker's own: drawn anew, its
+          // look reaches every copy (cards/follow.ts).
           name: "stamp",
           type: "text",
           index: true,
@@ -125,5 +128,8 @@ export const Stamps: CollectionConfig = {
     },
     ...syncFields,
   ],
-  hooks: { beforeChange: [touchChangedAt], afterChange: [dropCards] },
+  hooks: {
+    beforeChange: [touchChangedAt],
+    afterChange: [dropCards, followOriginal],
+  },
 };

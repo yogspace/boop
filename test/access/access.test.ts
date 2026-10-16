@@ -121,6 +121,8 @@ const COLLECTIONS: Record<string, Partial<Record<Op, Who>>> = {
   stamps: CONTENT,
   placements: CONTENT,
   notes: CONTENT,
+  // One's own color and start view for a calendar.
+  "calendar-prefs": CONTENT,
   invites: CONTENT,
   // A card's id is its link – but what it shows is anyone's with the link,
   // and nothing an admin wouldn't see of the stamp in support mode anyway.
@@ -149,6 +151,20 @@ const COLLECTIONS: Record<string, Partial<Record<Op, Who>>> = {
   },
   // Boop's gifts – the owner's own content, nobody's data.
   gifts: {
+    read: "admin",
+    create: "admin",
+    update: "admin",
+    delete: "admin",
+  },
+  // The stamp shapes and drawing templates – the owner's too. The pages get
+  // them through the server's own reading (site/get-site.ts), not over REST.
+  "stamp-shapes": {
+    read: "admin",
+    create: "admin",
+    update: "admin",
+    delete: "admin",
+  },
+  "drawing-templates": {
     read: "admin",
     create: "admin",
     update: "admin",

@@ -35,6 +35,8 @@ const real = {
   "@/features/calendar/note": () => import("../../src/features/calendar/note"),
   "@/features/calendar/palette": () =>
     import("../../src/features/calendar/palette"),
+  "@/features/calendar/prefs": () =>
+    import("../../src/features/calendar/prefs"),
   "@/features/cards/rules": () => import("../../src/features/cards/rules"),
   "@/features/sync/apply": () => import("../../src/features/sync/apply"),
   "@/i18n/config": () => import("../../src/i18n/config"),
@@ -64,6 +66,7 @@ vi.mock("@/features/calendar/note", () => real["@/features/calendar/note"]());
 vi.mock("@/features/calendar/palette", () =>
   real["@/features/calendar/palette"]()
 );
+vi.mock("@/features/calendar/prefs", () => real["@/features/calendar/prefs"]());
 vi.mock("@/features/cards/rules", () => real["@/features/cards/rules"]());
 vi.mock("@/features/sync/apply", () => real["@/features/sync/apply"]());
 vi.mock("@/i18n/config", () => real["@/i18n/config"]());
@@ -209,6 +212,7 @@ const synced = (as: string) =>
       stamp: new Set(),
       placement: new Set(),
       note: new Set(),
+      pref: new Set(),
     },
   });
 

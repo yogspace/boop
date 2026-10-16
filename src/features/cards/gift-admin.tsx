@@ -18,7 +18,7 @@ import {
 } from "@/features/calendar/shapes";
 import { StampSvg } from "@/features/calendar/stamp-svg";
 import { stampColorsOf } from "@/features/site/stamp-colors";
-import { stampShapesOf } from "@/features/site/stamp-shapes";
+import { inOrder, stampShapesOf } from "@/features/site/stamp-shapes";
 import type { CardView } from "./protocol";
 import { cardIdOf } from "./rules";
 
@@ -31,7 +31,7 @@ import { cardIdOf } from "./rules";
 
 type SiteLooks = { colors: StampColor[]; shapes: StampShapeDef[] };
 
-/** The CMS's colors and shapes – asked once per page. */
+/** The CMS's colors and shapes (Site, Stamp shapes) – asked once per page. */
 let asked: Promise<SiteLooks> | null = null;
 
 const CODE_LOOKS: SiteLooks = {
@@ -39,18 +39,27 @@ const CODE_LOOKS: SiteLooks = {
   shapes: DEFAULT_SHAPES,
 };
 
+/** A request of the admin's – its answer, or nothing. */
+const read = (url: string) =>
+  fetch(url, { credentials: "include" })
+    .then((response) => (response.ok ? response.json() : null))
+    .catch(() => null);
+
 const useSiteLooks = (api: string) => {
   const [looks, setLooks] = useState<SiteLooks>(CODE_LOOKS);
   useEffect(() => {
-    asked ??= fetch(`${api}/globals/site?depth=0&locale=all`, {
-      credentials: "include",
-    })
-      .then((response) => (response.ok ? response.json() : {}))
-      .then((site: { stampColors?: unknown; stampShapes?: unknown }) => ({
-        colors: stampColorsOf(site.stampColors),
-        shapes: stampShapesOf(site.stampShapes),
-      }))
-      .catch(() => CODE_LOOKS);
+    asked ??= Promise.all([
+      read(`${api}/globals/site?depth=0&locale=all`),
+      read(`${api}/stamp-shapes?depth=0&locale=all&pagination=false`),
+    ]).then(
+      ([site, shapes]: [
+        { stampColors?: unknown } | null,
+        { docs?: unknown[] } | null,
+      ]) => ({
+        colors: stampColorsOf(site?.stampColors),
+        shapes: stampShapesOf(inOrder(shapes?.docs ?? [])),
+      })
+    );
     let on = true;
     void asked.then((found) => on && setLooks(found));
     return () => {

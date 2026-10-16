@@ -3,12 +3,12 @@ import { StampColorCell as StampColorCell_93d6ffdb1eb2268c906fe00823dff9ca } fro
 import { GiftColorField as GiftColorField_7049fd5773294c10ec001fcbcba990c3 } from '@/features/cards/gift-admin'
 import { GiftPreview as GiftPreview_7049fd5773294c10ec001fcbcba990c3 } from '@/features/cards/gift-admin'
 import { SendGift as SendGift_7d26fb0d8c442732a89d66559cc3648e } from '@/features/cards/send-gift'
+import { StampShapeCell as StampShapeCell_54ec86eb6cffbf14e8b9a89f82d69da7 } from '@/features/site/stamp-shape-field'
+import { StampShapeField as StampShapeField_54ec86eb6cffbf14e8b9a89f82d69da7 } from '@/features/site/stamp-shape-field'
+import { DrawingTemplateCell as DrawingTemplateCell_54ec86eb6cffbf14e8b9a89f82d69da7 } from '@/features/site/stamp-shape-field'
+import { DrawingTemplateField as DrawingTemplateField_54ec86eb6cffbf14e8b9a89f82d69da7 } from '@/features/site/stamp-shape-field'
 import { StampColorField as StampColorField_6a80540495d85b18f5317639c829943e } from '@/features/site/stamp-color-field'
 import { StampColorRowLabel as StampColorRowLabel_6a80540495d85b18f5317639c829943e } from '@/features/site/stamp-color-field'
-import { StampShapeField as StampShapeField_54ec86eb6cffbf14e8b9a89f82d69da7 } from '@/features/site/stamp-shape-field'
-import { StampShapeRowLabel as StampShapeRowLabel_54ec86eb6cffbf14e8b9a89f82d69da7 } from '@/features/site/stamp-shape-field'
-import { DrawingTemplateField as DrawingTemplateField_54ec86eb6cffbf14e8b9a89f82d69da7 } from '@/features/site/stamp-shape-field'
-import { DrawingTemplateRowLabel as DrawingTemplateRowLabel_54ec86eb6cffbf14e8b9a89f82d69da7 } from '@/features/site/stamp-shape-field'
 import { RscEntryLexicalCell as RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
 import { RscEntryLexicalField as RscEntryLexicalField_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
 import { LexicalDiffComponent as LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e } from '@payloadcms/richtext-lexical/rsc'
@@ -47,12 +47,12 @@ export const importMap = {
   "@/features/cards/gift-admin#GiftColorField": GiftColorField_7049fd5773294c10ec001fcbcba990c3,
   "@/features/cards/gift-admin#GiftPreview": GiftPreview_7049fd5773294c10ec001fcbcba990c3,
   "@/features/cards/send-gift#SendGift": SendGift_7d26fb0d8c442732a89d66559cc3648e,
+  "@/features/site/stamp-shape-field#StampShapeCell": StampShapeCell_54ec86eb6cffbf14e8b9a89f82d69da7,
+  "@/features/site/stamp-shape-field#StampShapeField": StampShapeField_54ec86eb6cffbf14e8b9a89f82d69da7,
+  "@/features/site/stamp-shape-field#DrawingTemplateCell": DrawingTemplateCell_54ec86eb6cffbf14e8b9a89f82d69da7,
+  "@/features/site/stamp-shape-field#DrawingTemplateField": DrawingTemplateField_54ec86eb6cffbf14e8b9a89f82d69da7,
   "@/features/site/stamp-color-field#StampColorField": StampColorField_6a80540495d85b18f5317639c829943e,
   "@/features/site/stamp-color-field#StampColorRowLabel": StampColorRowLabel_6a80540495d85b18f5317639c829943e,
-  "@/features/site/stamp-shape-field#StampShapeField": StampShapeField_54ec86eb6cffbf14e8b9a89f82d69da7,
-  "@/features/site/stamp-shape-field#StampShapeRowLabel": StampShapeRowLabel_54ec86eb6cffbf14e8b9a89f82d69da7,
-  "@/features/site/stamp-shape-field#DrawingTemplateField": DrawingTemplateField_54ec86eb6cffbf14e8b9a89f82d69da7,
-  "@/features/site/stamp-shape-field#DrawingTemplateRowLabel": DrawingTemplateRowLabel_54ec86eb6cffbf14e8b9a89f82d69da7,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalCell": RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalField": RscEntryLexicalField_44fe37237e0ebf4470c9990d8cb7b07e,
   "@payloadcms/richtext-lexical/rsc#LexicalDiffComponent": LexicalDiffComponent_44fe37237e0ebf4470c9990d8cb7b07e,

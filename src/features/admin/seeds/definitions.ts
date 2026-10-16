@@ -49,15 +49,15 @@ export const SEED_TEXTS: Record<
   shapes: {
     title: "Stamp shapes",
     description:
-      "The shapes a stamp can have, as the code draws them (Site → Stamp shapes). Fill adds the ones the list hasn't got – by key – at its end; the others stay as they are.",
+      "The shapes a stamp can have, as the code draws them (Content → Stamp shapes). Fill adds the ones the list hasn't got – by key – at its end; the others stay as they are. While the list is empty, Fill first takes over the one Site had before – as it was; the next Fill adds the code's.",
     replaceWarning:
-      "Site → Stamp shapes becomes the code's list again. Shapes added or changed in the admin are lost – stamps in a shape no longer there show in the first one.",
+      "Content → Stamp shapes becomes the code's list again. Shapes added or changed in the admin are lost – stamps in a shape no longer there show in the first one.",
   },
   templates: {
     title: "Drawing templates",
     description:
-      "The shapes to drag into a drawing, as the code draws them (Site → Drawing templates). Fill adds the ones the list hasn't got – by key – at its end; the others stay as they are.",
+      "The shapes to drag into a drawing, as the code draws them (Content → Drawing templates). Fill adds the ones the list hasn't got – by key – at its end; the others stay as they are. While the list is empty, Fill first takes over the one Site had before – as it was; the next Fill adds the code's.",
     replaceWarning:
-      "Site → Drawing templates becomes the code's list again. Templates added or changed in the admin are lost.",
+      "Content → Drawing templates becomes the code's list again. Templates added or changed in the admin are lost.",
   },
 };

@@ -9,9 +9,10 @@ import {
 
 /**
  * The site's link, the owner's address, the stamp colors and shapes and the
- * drawing templates as the code knows them – the defaults of the “Site” global (global.ts), and what the
- * pages fall back to while the global is empty or the database is out of
- * reach.
+ * drawing templates as the code knows them – the defaults of the “Site”
+ * global (global.ts) and what the Seeds page brings into the shapes'
+ * collections (collections.ts), and what the pages fall back to while
+ * those are empty or the database is out of reach.
  */
 export type SiteLinks = {
   /** mxwr.de – the owner's website. */

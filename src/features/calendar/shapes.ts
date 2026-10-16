@@ -4,10 +4,10 @@ import { readPath, ringOf } from "./path";
 
 /**
  * The stamp shapes – the bodies a stamp can have. Like the stamp colors
- * (palette.ts) they come from the CMS (“Site” → Stamp shapes,
- * features/site/global.ts); the ones here are what the code knows: the
- * global's defaults, and what shows while it is empty or the database is
- * out of reach.
+ * (palette.ts) they come from the CMS (Content → Stamp shapes,
+ * features/site/collections.ts); the ones here are what the code knows:
+ * what the Seeds page brings in, and what shows while the collection is
+ * empty or the database is out of reach.
  *
  * A shape is an outline – an SVG path in a 100 × 100 box (y down), fit into
  * the stamp as large as it goes, centered. Everything else is worked out

@@ -12,6 +12,7 @@ import {
 } from "@/features/calendar/model";
 import { cleanNote } from "@/features/calendar/note";
 import { DEFAULT_PALETTE, isColorKey } from "@/features/calendar/palette";
+import { isCalendarView, type PrefDoc } from "@/features/calendar/prefs";
 import { originOf } from "@/features/cards/rules";
 import { sharedWithAny } from "./apply";
 import type { Person, SyncResponse, SyncType } from "./protocol";
@@ -98,6 +99,16 @@ const toNote = (doc: Doc): NoteDoc => {
   };
 };
 
+/** One's own settings for a calendar – each checked, none set: null. */
+const toPref = (doc: Doc): PrefDoc => ({
+  id: String(doc.id),
+  calendar: idOf(doc.calendar) ?? "",
+  color: isColorKey(doc.color) ? doc.color : null,
+  start: isCalendarView(doc.start) ? doc.start : null,
+  changedAt: iso(doc.changedAt),
+  deleted: Boolean(doc.deleted),
+});
+
 export const pull = async (
   req: PayloadRequest,
   me: string,
@@ -124,7 +135,12 @@ export const pull = async (
   const changed: Where = after ? { updatedAt: { greater_than: after } } : {};
 
   const find = async (
-    collection: "calendars" | "stamps" | "placements" | "notes",
+    collection:
+      | "calendars"
+      | "stamps"
+      | "placements"
+      | "notes"
+      | "calendar-prefs",
     where: Where
   ) =>
     (
@@ -247,11 +263,62 @@ export const pull = async (
     );
   }
 
-  // Stamps others placed in shared calendars: asked for by the device, or
-  // used by a calendar that is new to it.
+  // The account's own settings for its calendars – what changed, those for
+  // a calendar new to the device, and the current copy of what it just sent.
+  // Nobody else's, ever.
+  const prefs = new Map<string, PrefDoc>();
+  const own: Where = { account: { equals: me } };
+  add(
+    prefs,
+    (await find("calendar-prefs", { and: [own, after ? changed : alive] }))
+      .map(toPref)
+      .filter((pref) => mine.has(pref.calendar))
+  );
+  if (after && fresh.length) {
+    add(
+      prefs,
+      (
+        await find("calendar-prefs", {
+          and: [own, { calendar: { in: fresh } }, alive],
+        })
+      ).map(toPref)
+    );
+  }
+  if (touched.pref.size) {
+    add(
+      prefs,
+      (
+        await find("calendar-prefs", {
+          and: [own, { id: { in: [...touched.pref] } }],
+        })
+      )
+        .map(toPref)
+        .filter((pref) => mine.has(pref.calendar))
+    );
+  }
+
+  // Stamps others placed in shared calendars: asked for by the device, used
+  // by a calendar that is new to it – or changed since, shared with none of
+  // them: drawn anew by their owner, or following their original (cards/
+  // follow.ts), they come no other way, and their prints show them as they
+  // are now.
   const missing = new Set(need);
   for (const placement of placements.values()) {
     if (!stamps.has(placement.stamp)) missing.add(placement.stamp);
+  }
+  if (after && knownIds.length) {
+    const { docs: others } = await req.payload.find({
+      collection: "stamps",
+      where: { and: [changed, { owner: { not_equals: me } }, alive] },
+      select: { owner: true },
+      depth: 0,
+      pagination: false,
+      overrideAccess: true,
+      req,
+    });
+    for (const { id } of others) {
+      if (!stamps.has(String(id))) missing.add(String(id));
+    }
   }
   if (missing.size && calendarIds.length) {
     // Only stamps that are placed in one of the account's calendars.
@@ -362,6 +429,7 @@ export const pull = async (
     shared,
     placements: [...placements.values()],
     notes: [...notes.values()],
+    prefs: [...prefs.values()],
     invitations,
   };
 };

@@ -1,6 +1,7 @@
 import { useId, useMemo } from "react";
 import { cn } from "@/lib/cn";
 import { type ColorName, FACE, type RimPattern } from "./model";
+import { AfterMorph, MorphOutline } from "./morph-outline";
 import { outlinePath, outlinePoints, type RimLine, rimLine } from "./outline";
 import { FINISHES, type Finish, finishOf, hexOf } from "./palette";
 import type { ShapeLike } from "./shapes";
@@ -55,7 +56,8 @@ const fillPath = (fill: ReadonlyFill) =>
 /**
  * The face's outline in the unit square (outline.ts): one path – changing
  * the shape morphs where two have as many points (CSS transition on `d`;
- * elsewhere, and in Safari, it simply switches).
+ * elsewhere, and in Safari, it simply switches). The drawing being made
+ * morphs from any shape to any other (`morph`, morph-outline.tsx).
  */
 const MORPH = "d 460ms cubic-bezier(.3,1.4,.5,1), fill 400ms, stroke 400ms";
 
@@ -122,6 +124,7 @@ export const StampSvg = ({
   seed = 7,
   filled = false,
   finish: own,
+  morph = false,
 }: {
   drawing: ReadonlyDrawing | null;
   color: ColorName;
@@ -140,8 +143,14 @@ export const StampSvg = ({
    * color's key brings its own.
    */
   finish?: Finish;
+  /**
+   * A new shape morphs in (morph-outline.tsx) – the drawing being made; a
+   * rim's pattern comes back once it has.
+   */
+  morph?: boolean;
 }) => {
   const id = useId();
+  const Outline = morph ? MorphOutline : ShapeOutline;
   const ink = hexOf(color);
   // What the print is inked with: the color – or its finish, if it has one.
   const finish = print ? (own ?? finishOf(color)) : undefined;
@@ -157,6 +166,8 @@ export const StampSvg = ({
   const rim = drawing?.rim
     ? rimLine(shape, drawing.rim, { cut: inverted })
     : null;
+  const along = (pattern: React.ReactNode) =>
+    morph ? <AfterMorph shape={shape}>{pattern}</AfterMorph> : pattern;
   const pale = `color-mix(in srgb, ${ink} 14%, white)`;
   // The doodle – filled areas below, the lines on top – kept inside the
   // outline. In ink – or, cut out of an inverted face, as the mask's black.
@@ -198,7 +209,7 @@ export const StampSvg = ({
       {title && <title>{title}</title>}
       <defs>
         <clipPath id={`${id}-clip`}>
-          <ShapeOutline shape={shape} />
+          <Outline shape={shape} />
         </clipPath>
         {inverted && (
           // What is left of an inverted face: all but the doodle. In the
@@ -214,7 +225,7 @@ export const StampSvg = ({
             <rect fill="white" height="116" width="116" x="-8" y="-8" />
             <g transform="scale(100)">
               {doodle}
-              {rim && <RimPath line={rim} stroke="black" />}
+              {rim && along(<RimPath line={rim} stroke="black" />)}
             </g>
           </mask>
         )}
@@ -287,7 +298,7 @@ export const StampSvg = ({
         <g filter={`url(#${id}-ink)`} opacity={0.9}>
           <g mask={cut}>
             <g transform="scale(100)">
-              <ShapeOutline
+              <Outline
                 fill={inverted ? paint : "none"}
                 shape={shape}
                 stroke={rim && !inverted ? "none" : paint}
@@ -296,7 +307,7 @@ export const StampSvg = ({
                 }
                 strokeWidth={FACE.rim}
               />
-              {rim && !inverted && <RimPath line={rim} stroke={paint} />}
+              {rim && !inverted && along(<RimPath line={rim} stroke={paint} />)}
               {!inverted && doodle}
             </g>
           </g>
@@ -306,12 +317,12 @@ export const StampSvg = ({
           {inverted && filled && (
             // The ground showing through where the doodle is cut out.
             <g transform="scale(100)">
-              <ShapeOutline fill={pale} shape={shape} />
+              <Outline fill={pale} shape={shape} />
             </g>
           )}
           <g mask={cut}>
             <g transform="scale(100)">
-              <ShapeOutline
+              <Outline
                 fill={inverted ? ink : filled ? pale : "none"}
                 shape={shape}
                 // Under a patterned rim the ground reaches as far as the
@@ -322,9 +333,9 @@ export const StampSvg = ({
                 }
                 strokeWidth={FACE.rim}
               />
-              {rim && !inverted && (
-                <RimPath line={rim} stroke={ink} style={fade} />
-              )}
+              {rim &&
+                !inverted &&
+                along(<RimPath line={rim} stroke={ink} style={fade} />)}
               {!inverted && doodle}
             </g>
           </g>

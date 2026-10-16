@@ -59,8 +59,11 @@ const SLOP = { mouse: 3, touch: 6 };
 export const NUDGE = { small: 0.005, big: 0.05 };
 /** A copy lands this far off its original. */
 const OFFSET = 0.03;
-/** Two presses this soon (ms) and near (px) are a double click. */
-const TWICE = { ms: 400, px: 8 };
+/**
+ * Two presses this soon (ms) and near (px) are a double click – a finger's
+ * two taps land further apart.
+ */
+const TWICE = { ms: 400, px: { mouse: 8, touch: 24 } };
 
 /** The turning cursor: an arrow round a corner, inked on a white edge. */
 const TURN_CURSOR = (() => {
@@ -291,7 +294,8 @@ export const useSelect = ({
     const before = pressed.current;
     const twice =
       event.timeStamp - before.time < TWICE.ms &&
-      Math.hypot(at.x - before.x, at.y - before.y) * at.unit < TWICE.px;
+      Math.hypot(at.x - before.x, at.y - before.y) * at.unit <
+        (touch ? TWICE.px.touch : TWICE.px.mouse);
     pressed.current = { time: event.timeStamp, x: at.x, y: at.y };
     const line = twice
       ? itemAt(now.art, at.x, at.y, reach)?.strokes[0]

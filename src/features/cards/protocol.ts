@@ -44,7 +44,7 @@ export type StampOrigin = {
 /** A card as anyone with its link sees it. */
 export type CardView = {
   id: string;
-  /** The stamp as it was when the card was made. */
+  /** The stamp: its name as when the card was made, its look as it is now. */
   stamp: {
     name: string;
     color: ColorName;

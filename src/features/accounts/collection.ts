@@ -161,8 +161,9 @@ const addFirstCalendar: CollectionAfterChangeHook = async ({
  * devices learn of it by the marker), it leaves the others' calendars, and
  * its stamps and the stamps it placed elsewhere are removed – with its
  * stamps' prints, whoever made them, and the invitations it sent. Its notes
- * elsewhere stay without its name; its notification devices and settings
- * go (features/push), and so do its addresses for calendar apps – with
+ * elsewhere stay without its name; its own settings for calendars go
+ * (calendar/prefs.ts), its notification devices and settings too
+ * (features/push), and so do its addresses for calendar apps – with
  * everyone's for the calendars that went with it (features/ical). The
  * cards it sent go (features/cards); the stamps others took from them stay
  * theirs, only without the giver.
@@ -298,6 +299,15 @@ const removeData: CollectionBeforeDeleteHook = async ({ id, req }) => {
     where: { editedBy: { equals: account } },
     data: { editedBy: null },
     context: { sync: true },
+    overrideAccess: true,
+    req,
+  });
+
+  // Its own settings for calendars – how it saw them – go. (Everyone's for
+  // its own calendars went with them, above.)
+  await payload.delete({
+    collection: "calendar-prefs",
+    where: { account: { equals: account } },
     overrideAccess: true,
     req,
   });

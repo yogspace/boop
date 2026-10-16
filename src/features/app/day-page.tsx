@@ -1,18 +1,20 @@
 "use client";
 
-import { useIsPresent } from "motion/react";
+import { m, useIsPresent } from "motion/react";
 import {
   type CSSProperties,
   type PointerEvent,
   type ReactNode,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
 } from "react";
 import type { Snapshot } from "valtio";
 import { Plus, Sparkle } from "@/components/doodles";
+import { SPRING } from "@/components/motion";
 import { ROUND_BUTTON } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
 import {
@@ -22,6 +24,7 @@ import {
   SPECIAL_SIZE,
   type StampDoc,
 } from "@/features/calendar/model";
+import { cleanNote, noteId, noteText } from "@/features/calendar/note";
 import { knownKey, pickable } from "@/features/calendar/palette";
 import { usePalette } from "@/features/calendar/palette-provider";
 import { Glitter, StampSvg } from "@/features/calendar/stamp-svg";
@@ -105,6 +108,23 @@ const tidy = (degrees: number) => {
 const angleOf = (degrees: number) =>
   `${degrees < 0 ? "−" : ""}${Math.abs(degrees)}°`;
 
+/**
+ * Where the parts of a day's page go (`grid-template-areas`): over all, the
+ * heading (`head`) – on a phone with the switch between the page and the
+ * note beside it, or the switch alone; then the page with its steps and
+ * the note (`main` – on a phone side by side, to swipe); and the tools and
+ * the tray (`side`), under them – or, from a container 42rem wide, beside
+ * them, all along, 20rem wide: the inks eight to a row, the stamps three.
+ */
+const AREAS = {
+  heading:
+    "[grid-template-areas:'head'_'main'_'side'] @2xl:grid-rows-[auto_1fr] @2xl:[grid-template-areas:'head_side'_'main_side']",
+  switch:
+    "[grid-template-areas:'head'_'main'_'side'] @2xl:[grid-template-areas:'main_side']",
+  plain:
+    "[grid-template-areas:'main'_'side'] @2xl:[grid-template-areas:'main_side']",
+};
+
 /** The word over a group of buttons – and over the inks, the stamps. */
 const CAPTION = "font-bold text-muted text-sm";
 
@@ -141,11 +161,11 @@ export type TrayProps = {
   /** Draw a new stamp – the tray's last tile. */
   onNew: () => void;
   /**
-   * The shelf stands beside the page from `lg` on (the today view in the
-   * app, boop-app.tsx) – with a tile of its own for a new stamp, so there
-   * the tray has none.
+   * Whether the tray has that tile – in a day's sheet. The today view has
+   * none: the shelf (stamp-shelf.tsx), beside the page or under it, has a
+   * tile of its own there.
    */
-  shelfBeside?: boolean;
+  offerNew?: boolean;
   /**
    * A stamp to take into the hand – one just drawn from here. Told with
    * `onGiven` once it is in it.
@@ -168,8 +188,8 @@ export type TrayProps = {
  *
  * The tray's stamps are in the shelf's order (shelf.ts) – picked here or
  * there, it is the same choice. Its last tile draws a new one: `onNew`,
- * and back here it comes into the hand (`give`) – none where the shelf
- * stands beside the page with its own (`shelfBeside`).
+ * and back here it comes into the hand (`give`) – in a day's sheet only
+ * (`offerNew`).
  *
  * Whose a finger on the page is: with no stamp in hand, the page's and the
  * sheet's – a swipe up or down scrolls them, right across the prints
@@ -182,10 +202,14 @@ export type TrayProps = {
  * The keys listen on the whole window – `keyboard` false keeps them off
  * while something else lies over the page (a sheet over the today view).
  *
- * All is one column, on a phone as on a wide screen: `heading`, the page –
- * as large as the width lets it be, and no higher than the window has room
- * for it and the tools –, the tools right under it (the inks, the stamp in
- * hand, the steps), what to do now, and the tray.
+ * Narrow (a phone), all is one column: `heading`, the page – as large as
+ * the width lets it be, no higher than the window has room for – with the
+ * steps back and forth and the bin under it, and beside it, a swipe or a
+ * tap on the switch over them away, the day's note (`dayNote`); then the
+ * tools (the inks, the stamp in hand), what to do now and the tray. With
+ * room for two (the today view on a wide screen, the day's sheet there) the
+ * note is under the steps, and the tools, what to do now and the tray stand
+ * beside it all (`AREAS`).
  */
 export const DayPage = ({
   calendar,
@@ -195,11 +219,13 @@ export const DayPage = ({
   order,
   onOrder,
   onNew,
-  shelfBeside = false,
+  offerNew = true,
   give = null,
   onGiven,
   heading,
   keyboard = true,
+  inSheet = false,
+  dayNote,
   className,
 }: {
   calendar: string;
@@ -207,6 +233,10 @@ export const DayPage = ({
   locale: Locale;
   heading?: ReactNode;
   keyboard?: boolean;
+  /** In the day's sheet: less height for the page – the sheet takes some. */
+  inSheet?: boolean;
+  /** The day's note (day-note.tsx) – under the page, beside it or not. */
+  dayNote?: ReactNode;
   className?: string;
 } & TrayProps) => {
   const t = dictionaryOf(locale);
@@ -267,6 +297,40 @@ export const DayPage = ({
   const [glide, setGlide] = useState<string | null>(null);
   // What was on the page when it opened; anything newer appears like ink.
   const [old] = useState(() => new Set(Object.keys(boop.placements)));
+
+  // On a phone the page and the note lie side by side in a row that snaps
+  // (`sides`): which one is in sight – followed as the row is swiped –, and
+  // whether anything is written in the note.
+  const sides = useRef<HTMLDivElement>(null);
+  const [side, setSide] = useState<Side>("page");
+  useEffect(() => {
+    const box = sides.current;
+    if (!box) return;
+    const follow = () => {
+      const far = box.scrollWidth - box.clientWidth;
+      setSide(far > 0 && box.scrollLeft > far / 2 ? "note" : "page");
+    };
+    const sizes = new ResizeObserver(follow);
+    sizes.observe(box);
+    box.addEventListener("scroll", follow, { passive: true });
+    return () => {
+      sizes.disconnect();
+      box.removeEventListener("scroll", follow);
+    };
+  }, []);
+  /** Glides to the page or the note – no focus in it: no keyboard comes up. */
+  const showSide = useCallback((to: Side) => {
+    const box = sides.current;
+    box?.scrollTo({
+      left: to === "note" ? box.scrollWidth : 0,
+      behavior: "smooth",
+    });
+  }, []);
+  const noted = Boolean(
+    noteText(
+      cleanNote(boop.notes[noteId(calendar, date)]?.content ?? null)
+    ).trim()
+  );
 
   // One unit on the page in px – pressed, the stamp is exactly that wide.
   const [unit, setUnit] = useState(0);
@@ -740,305 +804,261 @@ export const DayPage = ({
     </button>
   );
 
+  // The page as wide as there is room – but no higher than the window, with
+  // the heading over it and the steps under it in sight too (11rem); 16rem
+  // at least. In a sheet, its title and edges too – the page in the middle
+  // of it. The steps and the note go as wide.
+  const fit = inSheet
+    ? "mx-auto w-full max-w-[max(16rem,calc(100dvh_-_24rem))]"
+    : "w-full max-w-[max(16rem,calc(100dvh_-_11rem))]";
+
   return (
     <div className={cn("@container", className)}>
-      <div className="flex flex-col gap-4">
-        {heading}
-        {/* A sheet of dotted paper, drawn round with the marker – the frame
+      <div
+        className={cn(
+          "grid grid-cols-[minmax(0,1fr)] gap-4 @2xl:grid-cols-[minmax(0,1fr)_20rem] @2xl:gap-x-6",
+          heading ? AREAS.heading : dayNote ? AREAS.switch : AREAS.plain
+        )}
+      >
+        {(heading || dayNote) && (
+          <div
+            className={cn(
+              "flex flex-wrap items-center gap-x-3 gap-y-2 [grid-area:head]",
+              !heading && "@2xl:hidden"
+            )}
+          >
+            {heading}
+            {dayNote && (
+              <SideSwitch
+                className="ml-auto @2xl:hidden"
+                locale={locale}
+                noted={noted}
+                onPick={showSide}
+                side={side}
+              />
+            )}
+          </div>
+        )}
+
+        {/* The page with its steps, and the note: on a phone side by side
+          in a row that snaps – sideways only (and no finger moves it from
+          the page itself, which is for stamping, scrolling up and down and
+          moving prints: the switch over it is). Both as high: nothing under
+          them moves as one goes from one to the other. No bar; room all
+          round inside the scroller, which clips, for what reaches a little
+          out – a frame, a lifted button –, and so much between the two that
+          none of the other shows. With room, one under the other. */}
+        <div
+          className="relative -m-4 flex snap-x snap-mandatory scroll-px-4 gap-8 overflow-x-auto overflow-y-hidden overscroll-x-contain p-4 [grid-area:main] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden @2xl:m-0 @2xl:snap-none @2xl:flex-col @2xl:gap-4 @2xl:overflow-visible @2xl:p-0"
+          ref={sides}
+        >
+          <div className="flex w-full shrink-0 snap-center flex-col gap-4">
+            {/* A sheet of dotted paper, drawn round with the marker – the frame
           outside, the page inside it clipping the prints at its edge. It is
           the calendar's own paper (`PAPER`, in the shades the app's frame
           hands down): pale in its color, the dots its pencil's. */}
-        <div
-          // As wide as there is room – but no higher than the window, with
-          // the heading over it and the tools under it in sight too (11rem);
-          // 16rem at least.
-          className="scribble w-full max-w-[max(16rem,calc(100dvh_-_11rem))] rounded-[27px] p-[3px]"
-          style={PAPER as CSSProperties}
-          {...showHand}
-        >
-          <div
-            className={cn(
-              "relative aspect-square w-full select-none overflow-hidden rounded-3xl bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]",
-              // With a stamp in hand a finger on the page stamps, and
-              // nothing scrolls from it; the preview marks the spot – no
-              // arrow on top of it. Without, a swipe up or down scrolls.
-              inHand ? "touch-none cursor-none" : "touch-pan-y"
-            )}
-            onPointerCancel={() => {
-              beside.current = null;
-            }}
-            onPointerDown={stampHere}
-            onPointerUp={tapped}
-            ref={page}
-          >
-            {placements.length === 0 && (
-              <p className="pointer-events-none absolute inset-0 flex animate-fade items-center justify-center p-10 text-center font-bold text-muted">
-                {t.app.day.empty}
-              </p>
-            )}
-            {placements.map((p) => {
-              const stamp = boop.stamps[p.stamp];
-              const here = drag?.id === p.id ? drag : p;
-              const inked = p.ink ?? stamp?.color ?? "red";
-              return (
-                <div
-                  className={cn(
-                    "absolute",
-                    glide === p.id && "transition-[left,top] duration-300"
-                  )}
-                  key={p.id}
-                  onTransitionEnd={() => setGlide(null)}
-                  style={{
-                    width: `${printOf(stamp) * 100}%`,
-                    left: `${here.x * 100}%`,
-                    top: `${here.y * 100}%`,
-                    transform: `translate(-50%, -50%) rotate(${p.rotation}deg) scale(${p.scale})`,
-                    zIndex: drag?.id === p.id ? 1000 : p.z,
-                  }}
-                >
-                  <button
-                    aria-label={stamp?.name || t.app.day.print}
-                    aria-pressed={picked === p.id}
-                    className={cn(
-                      "relative block w-full rounded-2xl mix-blend-multiply",
-                      // With a stamp in hand the page is for stamping.
-                      inHand
-                        ? "pointer-events-none"
-                        : "cursor-grab active:cursor-grabbing",
-                      !old.has(p.id) && "animate-ink",
-                      // Picked: the marker drawn round it – a solid line, so
-                      // it isn't taken for the keyboard's dashed ring, which
-                      // goes round the outside of it. It holds still: a line
-                      // astir would have the print's ink drawn anew with it.
-                      // And it is the finger's now: dragged, it moves – the
-                      // page doesn't scroll from it.
-                      picked === p.id &&
-                        "scribble scribble-sm scribble-clear touch-none [--scribble-inset:-6px] [--scribble-ring:-12px]"
-                    )}
-                    onClick={(event) => {
-                      // By keyboard (Enter, Space) – a tap is told from a
-                      // drag below. The stamp in hand is put down for it.
-                      if (event.detail !== 0) return;
-                      if (inHand) take(null);
-                      setPicked(picked === p.id ? null : p.id);
-                    }}
-                    // A swipe that scrolls takes the pointer away: nothing
-                    // was moved, nothing is picked.
-                    onPointerCancel={() => {
-                      if (drag?.id === p.id) setDrag(null);
-                    }}
-                    onPointerDown={(event) => {
-                      const at = onPage(event.clientX, event.clientY);
-                      if (!at) return;
-                      event.currentTarget.setPointerCapture(event.pointerId);
-                      setDrag({
-                        id: p.id,
-                        x: p.x,
-                        y: p.y,
-                        grab: { x: at.x - p.x, y: at.y - p.y },
-                        from: { x: event.clientX, y: event.clientY },
-                        // A finger moves the picked print only – across
-                        // any other it may be on its way down the page.
-                        loose: event.pointerType === "mouse" || picked === p.id,
-                        strayed: false,
-                        moved: false,
-                      });
-                    }}
-                    onPointerMove={(event) => {
-                      if (drag?.id !== p.id) return;
-                      const far =
-                        Math.hypot(
-                          event.clientX - drag.from.x,
-                          event.clientY - drag.from.y
-                        ) >= DRAG;
-                      if (!drag.loose) {
-                        if (far && !drag.strayed) {
-                          setDrag({ ...drag, strayed: true });
-                        }
-                        return;
-                      }
-                      const at = onPage(event.clientX, event.clientY);
-                      if (!(at && (drag.moved || far))) return;
-                      setDrag({
-                        ...drag,
-                        x: within(at.x - drag.grab.x),
-                        y: within(at.y - drag.grab.y),
-                        moved: true,
-                      });
-                    }}
-                    onPointerUp={() => {
-                      if (drag?.id !== p.id) return;
-                      setDrag(null);
-                      // A finger across a print not picked: not a tap.
-                      if (drag.strayed) return;
-                      if (drag.moved) {
-                        const top = Math.max(...placements.map((q) => q.z)) + 1;
-                        const to = {
-                          x: drag.x,
-                          y: drag.y,
-                          z: p.z < top - 1 ? top : p.z,
-                        };
-                        note({
-                          kind: "move",
-                          id: p.id,
-                          from: { x: p.x, y: p.y, z: p.z },
-                          to,
-                        });
-                        void movePlacement(p.id, to);
-                      } else setPicked(picked === p.id ? null : p.id);
-                    }}
-                    type="button"
-                  >
-                    <StampSvg
-                      className="pointer-events-none h-auto w-full"
-                      color={inked}
-                      drawing={stamp?.drawing ?? null}
-                      print
-                      seed={seedOf(p.id)}
-                      shape={stamp?.shape}
-                    />
-                    {stamp?.drawing?.special && (
-                      // In the print's blend, so its white falls on ink only.
-                      <Glitter
-                        color={inked}
-                        drawing={stamp.drawing}
-                        seed={seedOf(p.id)}
-                        shape={stamp.shape}
-                      />
-                    )}
-                  </button>
-                </div>
-              );
-            })}
-            {inHand && (
-              // The next print, faintly: where and how the stamp will leave
-              // it. Moved by preview(), so no style of React's is in its way.
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute top-0 left-0 aspect-square mix-blend-multiply will-change-transform"
-                ref={ghost}
-                style={{ width: `${size * 100}%`, zIndex: 2000 }}
-              >
-                <div className="relative opacity-0 transition-[rotate,opacity] duration-150 ease-out">
-                  <StampSvg
-                    className="h-auto w-full"
-                    color={ink}
-                    drawing={inHand.drawing}
-                    print
-                    seed={seedOf(next)}
-                    shape={inHand.shape}
-                  />
-                  {inHand.drawing?.special && (
-                    <Glitter
-                      color={ink}
-                      drawing={inHand.drawing}
-                      seed={seedOf(next)}
-                      shape={inHand.shape}
-                      still
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* The tools, right under the page, each under its word: the inks,
-          the stamp in hand (or the print picked, which the same two buttons
-          turn) and the steps back and forth. With room enough all in a row
-          – the inks in a narrow block on the left, two or three rows of
-          them –, else the inks on top. The stamp's group keeps its place
-          while there is nothing to turn: nothing moves as it comes and
-          goes. */}
-        <div className="flex flex-col gap-3 @xl:grid @xl:grid-cols-[1fr_auto_1fr] @xl:items-start @xl:gap-4">
-          <fieldset className="min-w-0 @xl:w-46" {...showHand}>
-            <legend className={cn(CAPTION, "mb-1.5")}>{t.app.day.ink}</legend>
-            {/* Flat blots of ink. On a phone in one row: more than there is
-              room for, it scrolls sideways (only – up and down the swipe is
-              the page's) and fades where it goes on (fading-edges.ts), with
-              room all round inside the scroller, so the marker ring round the
-              one in use, lifted, isn't cut. Wider, closer together – one
-              set of pads – they wrap: nothing scrolls, cuts or fades. In a
-              row with the rest, four to a row, centered in their block. */}
             <div
-              className={cn(
-                "-m-4 flex gap-1.5 overflow-x-auto overflow-y-hidden overscroll-x-contain p-4 sm:m-0 sm:flex-wrap sm:gap-0.5 sm:overflow-visible sm:mask-none sm:p-0 @xl:justify-center",
-                FADING.x
-              )}
-              ref={inkRow}
+              className={cn("scribble rounded-[27px] p-[3px]", fit)}
+              style={PAPER as CSSProperties}
+              {...showHand}
             >
-              {pads.map(({ key: c, hex, name: names }, i) => (
-                <button
-                  aria-label={names[locale]}
-                  aria-pressed={ink === c}
-                  className={cn(
-                    "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform",
-                    ink === c ? "scale-110" : "hover:-rotate-6 hover:scale-110"
-                  )}
-                  key={c}
-                  onClick={() => setInk(c)}
-                  type="button"
-                >
-                  <InkBlot hex={hex} index={i} on={ink === c} />
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          {/* Under the inks: the stamp's group, the steps at the far side. In
-            a row with the inks – where there is room for it – the stamp's in
-            the very middle (`contents`: the two are the row's own). */}
-          <div className="flex items-end justify-between gap-5 @xl:contents">
-            <fieldset
-              className={cn(
-                "min-w-0 @xl:justify-self-center",
-                !(inHand || marked) && "invisible"
-              )}
-            >
-              <legend className={cn(CAPTION, "mb-1.5")}>
-                {marked && !inHand ? t.app.day.print : t.app.day.inHand}
-              </legend>
-              <div className="relative flex items-center gap-1">
-                {turnButton(-STEP, t.app.day.turnLeft, "ArrowLeft [")}
-                {/* How far it is turned. */}
-                {inHand ? (
-                  <span
-                    className={ANGLE}
-                    key="hand"
-                    ref={(box) => {
-                      angle.current = box;
-                      showAngle();
-                    }}
-                  />
-                ) : (
-                  <span className={ANGLE} key="print">
-                    {angleOf(marked?.rotation ?? 0)}
-                  </span>
+              <div
+                className={cn(
+                  "relative aspect-square w-full select-none overflow-hidden rounded-3xl bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]",
+                  // With a stamp in hand a finger on the page stamps, and
+                  // nothing scrolls from it; the preview marks the spot – no
+                  // arrow on top of it. Without, a swipe up or down scrolls.
+                  inHand ? "touch-none cursor-none" : "touch-pan-y"
                 )}
-                {turnButton(STEP, t.app.day.turnRight, "ArrowRight ]")}
-                {marked && !inHand && (
-                  <button
-                    aria-keyshortcuts="Delete Backspace"
-                    aria-label={t.app.day.remove}
-                    // In the middle it hangs beside the group, which stays put.
-                    // Red, like every button that deletes something.
-                    className={cn(
-                      ROUND_BUTTON,
-                      "scribble-danger ml-1 h-11 w-11 @xl:absolute @xl:top-0 @xl:left-full"
-                    )}
-                    onClick={() => remove(marked)}
-                    title={t.app.day.remove}
-                    type="button"
+                onPointerCancel={() => {
+                  beside.current = null;
+                }}
+                onPointerDown={stampHere}
+                onPointerUp={tapped}
+                ref={page}
+              >
+                {placements.length === 0 && (
+                  <p className="pointer-events-none absolute inset-0 flex animate-fade items-center justify-center p-10 text-center font-bold text-muted">
+                    {t.app.day.empty}
+                  </p>
+                )}
+                {placements.map((p) => {
+                  const stamp = boop.stamps[p.stamp];
+                  const here = drag?.id === p.id ? drag : p;
+                  const inked = p.ink ?? stamp?.color ?? "red";
+                  return (
+                    <div
+                      className={cn(
+                        "absolute",
+                        glide === p.id && "transition-[left,top] duration-300"
+                      )}
+                      key={p.id}
+                      onTransitionEnd={() => setGlide(null)}
+                      style={{
+                        width: `${printOf(stamp) * 100}%`,
+                        left: `${here.x * 100}%`,
+                        top: `${here.y * 100}%`,
+                        transform: `translate(-50%, -50%) rotate(${p.rotation}deg) scale(${p.scale})`,
+                        zIndex: drag?.id === p.id ? 1000 : p.z,
+                      }}
+                    >
+                      <button
+                        aria-label={stamp?.name || t.app.day.print}
+                        aria-pressed={picked === p.id}
+                        className={cn(
+                          "relative block w-full rounded-2xl mix-blend-multiply",
+                          // With a stamp in hand the page is for stamping.
+                          inHand
+                            ? "pointer-events-none"
+                            : "cursor-grab active:cursor-grabbing",
+                          !old.has(p.id) && "animate-ink",
+                          // Picked: the marker drawn round it – a solid line, so
+                          // it isn't taken for the keyboard's dashed ring, which
+                          // goes round the outside of it. It holds still: a line
+                          // astir would have the print's ink drawn anew with it.
+                          // And it is the finger's now: dragged, it moves – the
+                          // page doesn't scroll from it.
+                          picked === p.id &&
+                            "scribble scribble-sm scribble-clear touch-none [--scribble-inset:-6px] [--scribble-ring:-12px]"
+                        )}
+                        onClick={(event) => {
+                          // By keyboard (Enter, Space) – a tap is told from a
+                          // drag below. The stamp in hand is put down for it.
+                          if (event.detail !== 0) return;
+                          if (inHand) take(null);
+                          setPicked(picked === p.id ? null : p.id);
+                        }}
+                        // A swipe that scrolls takes the pointer away: nothing
+                        // was moved, nothing is picked.
+                        onPointerCancel={() => {
+                          if (drag?.id === p.id) setDrag(null);
+                        }}
+                        onPointerDown={(event) => {
+                          const at = onPage(event.clientX, event.clientY);
+                          if (!at) return;
+                          event.currentTarget.setPointerCapture(
+                            event.pointerId
+                          );
+                          setDrag({
+                            id: p.id,
+                            x: p.x,
+                            y: p.y,
+                            grab: { x: at.x - p.x, y: at.y - p.y },
+                            from: { x: event.clientX, y: event.clientY },
+                            // A finger moves the picked print only – across
+                            // any other it may be on its way down the page.
+                            loose:
+                              event.pointerType === "mouse" || picked === p.id,
+                            strayed: false,
+                            moved: false,
+                          });
+                        }}
+                        onPointerMove={(event) => {
+                          if (drag?.id !== p.id) return;
+                          const far =
+                            Math.hypot(
+                              event.clientX - drag.from.x,
+                              event.clientY - drag.from.y
+                            ) >= DRAG;
+                          if (!drag.loose) {
+                            if (far && !drag.strayed) {
+                              setDrag({ ...drag, strayed: true });
+                            }
+                            return;
+                          }
+                          const at = onPage(event.clientX, event.clientY);
+                          if (!(at && (drag.moved || far))) return;
+                          setDrag({
+                            ...drag,
+                            x: within(at.x - drag.grab.x),
+                            y: within(at.y - drag.grab.y),
+                            moved: true,
+                          });
+                        }}
+                        onPointerUp={() => {
+                          if (drag?.id !== p.id) return;
+                          setDrag(null);
+                          // A finger across a print not picked: not a tap.
+                          if (drag.strayed) return;
+                          if (drag.moved) {
+                            const top =
+                              Math.max(...placements.map((q) => q.z)) + 1;
+                            const to = {
+                              x: drag.x,
+                              y: drag.y,
+                              z: p.z < top - 1 ? top : p.z,
+                            };
+                            note({
+                              kind: "move",
+                              id: p.id,
+                              from: { x: p.x, y: p.y, z: p.z },
+                              to,
+                            });
+                            void movePlacement(p.id, to);
+                          } else setPicked(picked === p.id ? null : p.id);
+                        }}
+                        type="button"
+                      >
+                        <StampSvg
+                          className="pointer-events-none h-auto w-full"
+                          color={inked}
+                          drawing={stamp?.drawing ?? null}
+                          print
+                          seed={seedOf(p.id)}
+                          shape={stamp?.shape}
+                        />
+                        {stamp?.drawing?.special && (
+                          // In the print's blend, so its white falls on ink only.
+                          <Glitter
+                            color={inked}
+                            drawing={stamp.drawing}
+                            seed={seedOf(p.id)}
+                            shape={stamp.shape}
+                          />
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+                {inHand && (
+                  // The next print, faintly: where and how the stamp will leave
+                  // it. Moved by preview(), so no style of React's is in its way.
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-0 left-0 aspect-square mix-blend-multiply will-change-transform"
+                    ref={ghost}
+                    style={{ width: `${size * 100}%`, zIndex: 2000 }}
                   >
-                    <BinSign className="h-5 w-5" />
-                  </button>
+                    <div className="relative opacity-0 transition-[rotate,opacity] duration-150 ease-out">
+                      <StampSvg
+                        className="h-auto w-full"
+                        color={ink}
+                        drawing={inHand.drawing}
+                        print
+                        seed={seedOf(next)}
+                        shape={inHand.shape}
+                      />
+                      {inHand.drawing?.special && (
+                        <Glitter
+                          color={ink}
+                          drawing={inHand.drawing}
+                          seed={seedOf(next)}
+                          shape={inHand.shape}
+                          still
+                        />
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
-            </fieldset>
-            <fieldset className="min-w-0 @xl:justify-self-end">
-              <legend className={cn(CAPTION, "mb-1.5")}>
-                {t.app.day.history}
-              </legend>
+            </div>
+
+            {/* Right under the page, in one column as in two: the steps back
+          and forth together on the left – filled while there is one to
+          take, it should be seen; faint while there is none – and on the
+          right the bin for the print picked. Its place is kept while there
+          is none: nothing moves as it comes and goes. */}
+            <div className={cn("flex items-center justify-between gap-4", fit)}>
               <div className="flex items-center gap-2">
                 {(
                   [
@@ -1056,8 +1076,6 @@ export const DayPage = ({
                   <button
                     aria-keyshortcuts={keys}
                     aria-label={label}
-                    // Filled while there is a step to take – it should be
-                    // seen; faint while there is none.
                     className={cn(
                       ROUND_BUTTON,
                       "h-12 w-12",
@@ -1073,46 +1091,145 @@ export const DayPage = ({
                   </button>
                 ))}
               </div>
-            </fieldset>
+              <button
+                aria-keyshortcuts="Delete Backspace"
+                aria-label={t.app.day.remove}
+                // Red, like every button that deletes something.
+                className={cn(
+                  ROUND_BUTTON,
+                  "scribble-danger h-11 w-11",
+                  !(marked && !inHand) && "invisible"
+                )}
+                onClick={() => {
+                  if (marked) remove(marked);
+                }}
+                title={t.app.day.remove}
+                type="button"
+              >
+                <BinSign className="h-5 w-5" />
+              </button>
+            </div>
           </div>
+          {dayNote && (
+            <div className="w-full shrink-0 snap-center">
+              <div className={fit}>{dayNote}</div>
+            </div>
+          )}
         </div>
 
-        {/* What to do now – with the stamp in hand by its name. Always as
-          high – on a phone two lines, wider one: what lies under it
-          doesn't move as it changes. */}
-        <p className="line-clamp-2 min-h-10 font-medium text-muted text-sm sm:line-clamp-1 sm:min-h-5">
-          {inHand
-            ? t.app.day.holding(inHand.name)
-            : marked
-              ? t.app.day.picked
-              : t.app.day.tray}
-          {(inHand || marked) && (
-            // Only where there is likely a wheel – and a keyboard.
-            <span className="hidden [@media(hover:hover)]:inline">
-              {" "}
-              {inHand ? t.app.day.wheel : t.app.day.pickedKeys}
-            </span>
-          )}
-        </p>
+        {/* Under the note – or, with room, beside the page: the tools, what
+          to do now and the tray. */}
+        <div className="flex min-w-0 flex-col gap-4 [grid-area:side]">
+          {/* The tools, each under its word: the inks, and under them the
+          stamp in hand (or the print picked, which the same two buttons
+          turn). */}
+          <div className="flex flex-col gap-3">
+            <fieldset className="min-w-0" {...showHand}>
+              <legend className={cn(CAPTION, "mb-1.5")}>{t.app.day.ink}</legend>
+              {/* Flat blots of ink. On a phone in one row: more than there is
+              room for, it scrolls sideways (only – up and down the swipe is
+              the page's) and fades where it goes on (fading-edges.ts), with
+              room all round inside the scroller, so the marker ring round the
+              one in use, lifted, isn't cut. Wider, closer together – one
+              set of pads – they wrap: nothing scrolls, cuts or fades.
+              Beside the page a little smaller and right against each
+              other: eight to a row – a gift's own ink, come with its stamp,
+              still finds room in the first. */}
+              <div
+                className={cn(
+                  "-m-4 flex gap-1.5 overflow-x-auto overflow-y-hidden overscroll-x-contain p-4 sm:m-0 sm:flex-wrap sm:gap-0.5 sm:overflow-visible sm:mask-none sm:p-0 @2xl:gap-0",
+                  FADING.x
+                )}
+                ref={inkRow}
+              >
+                {pads.map(({ key: c, hex, name: names }, i) => (
+                  <button
+                    aria-label={names[locale]}
+                    aria-pressed={ink === c}
+                    className={cn(
+                      "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform @2xl:h-10 @2xl:w-10",
+                      ink === c
+                        ? "scale-110"
+                        : "hover:-rotate-6 hover:scale-110"
+                    )}
+                    key={c}
+                    onClick={() => setInk(c)}
+                    type="button"
+                  >
+                    <InkBlot hex={hex} index={i} on={ink === c} />
+                  </button>
+                ))}
+              </div>
+            </fieldset>
 
-        {/* The stamps: their order beside their word, to pick (one choice
-          with the shelf's), a new one last. */}
-        <div className="flex min-w-0 flex-col gap-2">
-          <div className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1">
-            <span className={CAPTION}>{t.app.stamps}</span>
-            {stamps.length > 1 && (
-              <OrderMenu
-                locale={locale}
-                onPick={onOrder}
-                onShow={setSorting}
-                order={order}
-              />
-            )}
+            {/* Under the inks, a row of its own: the stamp's group. Faint
+              while there is nothing to turn, like the steps – there all
+              along: nothing moves as it comes and goes. */}
+            <fieldset className="min-w-0" disabled={!(inHand || marked)}>
+              <legend className={cn(CAPTION, "mb-1.5")}>
+                {marked && !inHand ? t.app.day.print : t.app.day.inHand}
+              </legend>
+              <div className="flex items-center gap-1">
+                {turnButton(-STEP, t.app.day.turnLeft, "ArrowLeft [")}
+                {/* How far it is turned. */}
+                {inHand ? (
+                  <span
+                    className={ANGLE}
+                    key="hand"
+                    ref={(box) => {
+                      angle.current = box;
+                      showAngle();
+                    }}
+                  />
+                ) : (
+                  <span
+                    className={cn(ANGLE, !marked && "opacity-40")}
+                    key="print"
+                  >
+                    {angleOf(marked?.rotation ?? 0)}
+                  </span>
+                )}
+                {turnButton(STEP, t.app.day.turnRight, "ArrowRight ]")}
+              </div>
+            </fieldset>
           </div>
-          {stamps.length === 0 && (
-            <p className="text-muted text-sm">{t.app.noStamps}</p>
-          )}
-          {/* The stamps stand free, no frame each: the one in hand is lifted
+
+          {/* What to do now – with the stamp in hand by its name. Always as
+          high – two lines, under a wide page one: what lies under it doesn't
+          move as it changes. */}
+          <p className="line-clamp-2 min-h-10 font-medium text-muted text-sm sm:@max-2xl:line-clamp-1 sm:@max-2xl:min-h-5">
+            {inHand
+              ? t.app.day.holding(inHand.name)
+              : marked
+                ? t.app.day.picked
+                : t.app.day.tray}
+            {(inHand || marked) && (
+              // Only where there is likely a wheel – and a keyboard.
+              <span className="hidden [@media(hover:hover)]:inline">
+                {" "}
+                {inHand ? t.app.day.wheel : t.app.day.pickedKeys}
+              </span>
+            )}
+          </p>
+
+          {/* The stamps: their order right beside their word, to pick (one
+          choice with the shelf's), a new one last – in a day's sheet. */}
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1">
+              <span className={CAPTION}>{t.app.stamps}</span>
+              {stamps.length > 1 && (
+                <OrderMenu
+                  locale={locale}
+                  onPick={onOrder}
+                  onShow={setSorting}
+                  order={order}
+                />
+              )}
+            </div>
+            {stamps.length === 0 && (
+              <p className="text-muted text-sm">{t.app.noStamps}</p>
+            )}
+            {/* The stamps stand free, no frame each: the one in hand is lifted
               and ringed with the marker. A new one is drawn from the last
               tile. Where nothing points (a finger), each wears its name right
               under it – one line, always there, so the rows are as high with
@@ -1125,91 +1242,92 @@ export const DayPage = ({
               the rows would scroll up and down by what sticks out. Wider,
               a little larger, they wrap – as many to a row as fit, close
               together from the left, all in sight: nothing scrolls, cuts or
-              fades. */}
-          <div
-            className={cn(
-              "-m-4 grid auto-cols-[4.75rem] grid-flow-col grid-rows-2 items-start gap-x-3 gap-y-2 overflow-x-auto overflow-y-hidden overscroll-x-contain px-4 py-5 sm:m-0 sm:grid-flow-row sm:grid-cols-[repeat(auto-fill,5.5rem)] sm:grid-rows-none sm:gap-4 sm:overflow-visible sm:mask-none sm:px-0 sm:py-2",
-              FADING.x
-            )}
-            ref={tray}
-          >
-            {stamps.map((s) => (
-              <div
-                className="flex w-19 shrink-0 flex-col sm:w-22"
-                data-stamp={s.id}
-                key={s.id}
-              >
-                {/* Its name on a tag when pointed at – in the top layer, so
+              fades. Beside the page larger still, three to a row – just as
+              wide as the tools over them. */}
+            <div
+              className={cn(
+                "-m-4 grid auto-cols-[4.75rem] grid-flow-col grid-rows-2 items-start gap-x-3 gap-y-2 overflow-x-auto overflow-y-hidden overscroll-x-contain px-4 py-5 sm:m-0 sm:grid-flow-row sm:grid-cols-[repeat(auto-fill,5.5rem)] sm:grid-rows-none sm:gap-4 sm:overflow-visible sm:mask-none sm:px-0 sm:py-2 @2xl:grid-cols-[repeat(auto-fill,6rem)]",
+                FADING.x
+              )}
+              ref={tray}
+            >
+              {stamps.map((s) => (
+                <div
+                  className="flex w-19 shrink-0 flex-col sm:w-22 @2xl:w-24"
+                  data-stamp={s.id}
+                  key={s.id}
+                >
+                  {/* Its name on a tag when pointed at – in the top layer, so
                     the scroller doesn't clip it. (Another anchor than the
                     shelf's.) */}
-                <NameTag id={`tray-${s.id}`} text={s.name}>
-                  {({ onClick: hideTag, ...anchor }) => (
-                    <button
-                      {...anchor}
-                      aria-label={s.name || t.app.day.print}
-                      aria-pressed={held === s.id}
-                      className={cn(
-                        "scribble scribble-clear relative h-19 w-19 shrink-0 rounded-[26px] p-0.5 transition-transform duration-150 ease-out [--scribble-inset:-4px] sm:h-22 sm:w-22",
-                        held === s.id
-                          ? "scribble-bold -translate-y-1"
-                          : "scribble-bare hover:-rotate-6 hover:scribble-soft active:scale-90"
-                      )}
-                      onClick={(event) => {
-                        hideTag();
-                        // By keyboard there is no pointing at the page: the
-                        // stamp comes down somewhere on it – in the hand's
-                        // ink if it is the one held, else in its own.
-                        if (event.detail === 0) {
-                          const spot = () => 0.25 + Math.random() * 0.5;
-                          print(
-                            s,
-                            { x: spot(), y: spot() },
-                            tidy(turn.current),
-                            held === s.id ? ink : knownKey(s.color, palette)
-                          );
-                          return;
-                        }
-                        take(held === s.id ? null : s.id);
-                      }}
-                      type="button"
-                    >
-                      <span className="block">
-                        <Sticker className="pointer-events-none" stamp={s} />
-                      </span>
-                      {s.drawing?.special && (
-                        // A stamp for the big days.
-                        <Sparkle className="pointer-events-none absolute top-0.5 right-0.5 h-3.5 w-3.5 text-ink" />
-                      )}
-                    </button>
-                  )}
-                </NameTag>
-                {/* Said by the button already. */}
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    NAME_UNDER,
-                    "hidden h-4 [@media(hover:none)]:block",
-                    held === s.id && "text-ink"
-                  )}
+                  <NameTag id={`tray-${s.id}`} text={s.name}>
+                    {({ onClick: hideTag, ...anchor }) => (
+                      <button
+                        {...anchor}
+                        aria-label={s.name || t.app.day.print}
+                        aria-pressed={held === s.id}
+                        className={cn(
+                          "scribble scribble-clear relative h-19 w-19 shrink-0 rounded-[26px] p-0.5 transition-transform duration-150 ease-out [--scribble-inset:-4px] sm:h-22 sm:w-22 @2xl:h-24 @2xl:w-24",
+                          held === s.id
+                            ? "scribble-bold -translate-y-1"
+                            : "scribble-bare hover:-rotate-6 hover:scribble-soft active:scale-90"
+                        )}
+                        onClick={(event) => {
+                          hideTag();
+                          // By keyboard there is no pointing at the page: the
+                          // stamp comes down somewhere on it – in the hand's
+                          // ink if it is the one held, else in its own.
+                          if (event.detail === 0) {
+                            const spot = () => 0.25 + Math.random() * 0.5;
+                            print(
+                              s,
+                              { x: spot(), y: spot() },
+                              tidy(turn.current),
+                              held === s.id ? ink : knownKey(s.color, palette)
+                            );
+                            return;
+                          }
+                          take(held === s.id ? null : s.id);
+                        }}
+                        type="button"
+                      >
+                        <span className="block">
+                          <Sticker className="pointer-events-none" stamp={s} />
+                        </span>
+                        {s.drawing?.special && (
+                          // A stamp for the big days.
+                          <Sparkle className="pointer-events-none absolute top-0.5 right-0.5 h-3.5 w-3.5 text-ink" />
+                        )}
+                      </button>
+                    )}
+                  </NameTag>
+                  {/* Said by the button already. */}
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      NAME_UNDER,
+                      "hidden h-4 [@media(hover:none)]:block",
+                      held === s.id && "text-ink"
+                    )}
+                  >
+                    {s.name}
+                  </span>
+                </div>
+              ))}
+              {/* A new one, last – drawn, it comes back into the hand. */}
+              {offerNew && (
+                <button
+                  className="scribble scribble-dashed group flex h-19 w-19 shrink-0 flex-col items-center justify-center gap-1 rounded-3xl px-1 text-center font-bold text-[11px] leading-tight transition-transform duration-150 ease-out hover:-translate-y-0.5 hover:scribble-boil active:translate-y-px active:scale-[0.97] sm:h-22 sm:w-22 @2xl:h-24 @2xl:w-24"
+                  onClick={onNew}
+                  type="button"
                 >
-                  {s.name}
-                </span>
-              </div>
-            ))}
-            {/* A new one, last – drawn, it comes back into the hand. */}
-            <button
-              className={cn(
-                "scribble scribble-dashed group flex h-19 w-19 shrink-0 flex-col items-center justify-center gap-1 rounded-3xl px-1 text-center font-bold text-[11px] leading-tight transition-transform duration-150 ease-out hover:-translate-y-0.5 hover:scribble-boil active:translate-y-px active:scale-[0.97] sm:h-22 sm:w-22",
-                shelfBeside && "lg:hidden"
+                  <span className="scribble scribble-sm scribble-ink flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-200 group-hover:rotate-90">
+                    <Plus className="h-4 w-4" />
+                  </span>
+                  {t.app.newStamp}
+                </button>
               )}
-              onClick={onNew}
-              type="button"
-            >
-              <span className="scribble scribble-sm scribble-ink flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-200 group-hover:rotate-90">
-                <Plus className="h-4 w-4" />
-              </span>
-              {t.app.newStamp}
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1224,6 +1342,71 @@ export const DayPage = ({
         unit={(unit * size) / PRINT}
       />
     </div>
+  );
+};
+
+/** What a phone shows of a day: its page, or its note. */
+type Side = "page" | "note";
+
+/**
+ * Which of the two shows on a phone – a pill like the views'
+ * (view-switch.tsx), smaller, the stroke behind the one in sight. A dot by
+ * the note's word once something is written in it.
+ */
+const SideSwitch = ({
+  side,
+  noted,
+  locale,
+  onPick,
+  className,
+}: {
+  side: Side;
+  noted: boolean;
+  locale: Locale;
+  onPick: (side: Side) => void;
+  className?: string;
+}) => {
+  const t = dictionaryOf(locale).app.day;
+  // Its own stroke – the today view's may lie under a day's sheet.
+  const mark = useId();
+  return (
+    <fieldset
+      className={cn(
+        "scribble scribble-sm scribble-thin scribble-clear flex w-fit shrink-0 gap-0.5 rounded-full p-1",
+        className
+      )}
+    >
+      <legend className="sr-only">{t.sides}</legend>
+      {(["page", "note"] as const).map((each) => (
+        <button
+          aria-label={each === "note" && noted ? t.noted : undefined}
+          aria-pressed={side === each}
+          className={cn(
+            "relative isolate flex items-center gap-1 rounded-full px-3 py-1 font-bold text-sm transition-colors",
+            side === each ? "text-ink" : "text-muted hover:text-ink"
+          )}
+          key={each}
+          onClick={() => onPick(each)}
+          type="button"
+        >
+          {side === each && (
+            <m.span
+              aria-hidden="true"
+              className="scribble scribble-bare scribble-sm absolute inset-0 -z-10 -rotate-1 rounded-full [--scribble-fill:var(--cal-mark,var(--color-soft))]"
+              layoutId={mark}
+              transition={SPRING.soft}
+            />
+          )}
+          {t[each]}
+          {each === "note" && noted && (
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 rounded-full bg-current"
+            />
+          )}
+        </button>
+      ))}
+    </fieldset>
   );
 };
 

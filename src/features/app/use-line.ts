@@ -30,8 +30,11 @@ import {
 import type { ShapeLike } from "@/features/calendar/shapes";
 import type { Locate } from "./use-select";
 
-/** How near (px) a pointer must come to an anchor or a handle – a finger more. */
-const REACH = { mouse: 8, touch: 18 };
+/**
+ * How near (px on screen, however far zoomed in) a pointer must come to an
+ * anchor or a handle – a finger much more: a target 48 px across.
+ */
+const REACH = { mouse: 8, touch: 24 };
 /** How near (px) a guide pulls. */
 const SNAP = 5;
 /** How far (px) a press may wander and still be a click. */
@@ -47,6 +50,11 @@ type Press = {
   /** What one step back returns to – null: the press made its step already. */
   before: Art | null;
   origin: readonly [number, number];
+  /**
+   * How far what is grabbed lies from where the press began – kept as it is
+   * dragged: a finger a little beside a point doesn't make it jump.
+   */
+  off: readonly [number, number];
   unit: number;
   touch: boolean;
   moved: boolean;
@@ -84,15 +92,18 @@ const replaced = (art: Art, index: number, stroke: Art["strokes"][number]) => ({
  * - **Drawing:** clicks set points, straight lines between them; a press
  *   dragged bends the line there into a curve – a smooth point, its
  *   handles pulled out, mirrored (Alt: only the one ahead – a corner with
- *   a curve; ⇧: in 45° steps). A press on the first point closes the line.
- *   Each point is a step back; ⌫ takes the last one away, Enter or Escape
- *   – or another tool – ends the line. Until its second point a line is
- *   not in the drawing yet (`lone`).
+ *   a curve; ⇧: in 45° steps). A press on the first point closes the line;
+ *   on another of its points picks that one – dragged, it moves. Each point
+ *   is a step back; ⌫ takes the last one away, Enter or Escape – or another
+ *   tool – ends the line. Until its second point a line is not in the
+ *   drawing yet (`lone`).
  * - **Editing:** anchors and handles are dragged (a smooth point's handles
  *   stay mirrored – not with Alt), Alt-click switches smooth and corner, a
  *   click on the line puts a point there, Delete takes the picked one away.
  *   A press beside the line edits another such line – or leaves
- *   (`onLeave`).
+ *   (`onLeave`); a finger that misses lets go of the picked point first.
+ * - **A finger** reaches far (REACH: 48 px across, however far zoomed in),
+ *   and grabs the nearest of what lies within it (bezier.ts `pathGrip`).
  * - **Round or corner** without Alt (a finger has none): `setKind` – for
  *   the anchors still to set while drawing, for the picked one while
  *   editing. A corner's handles move each on its own; made round, they
@@ -174,10 +185,8 @@ export const useLine = ({
       setDrawn(null);
       setHover(null);
     }
-    if (mode !== "points") {
-      setEdited(null);
-      setAnchor(null);
-    }
+    if (mode !== "points") setEdited(null);
+    setAnchor(null);
     setLines(null);
     press.current = null;
     if (area.current) {
@@ -239,11 +248,13 @@ export const useLine = ({
   const begin = (
     event: PointerEvent<HTMLElement>,
     at: { x: number; y: number; unit: number },
-    rest: Pick<Press, "kind" | "stroke" | "anchor" | "art" | "before">
+    rest: Pick<Press, "kind" | "stroke" | "anchor" | "art" | "before">,
+    grabbed?: readonly [number, number]
   ) => {
     press.current = {
       ...rest,
       origin: [at.x, at.y],
+      off: grabbed ? [grabbed[0] - at.x, grabbed[1] - at.y] : [0, 0],
       unit: at.unit,
       touch: event.pointerType !== "mouse",
       moved: false,
@@ -257,6 +268,7 @@ export const useLine = ({
     reach: number
   ) => {
     setHover(null);
+    setAnchor(null);
     if (drawing !== null && onFirst(at.x, at.y, reach)) {
       // Onto the first point: the line closes – dragged on, it bends in.
       const stroke = art.strokes[drawing];
@@ -274,6 +286,29 @@ export const useLine = ({
         art: next,
         before: null,
       });
+      return;
+    }
+    // Onto one of its points: picked – dragged, it moves (no new point on
+    // top of it).
+    const grabbed =
+      drawing !== null &&
+      pathGrip(art.strokes[drawing].a ?? [], false, at.x, at.y, reach);
+    if (drawing !== null && grabbed && grabbed.kind === "anchor") {
+      const a = art.strokes[drawing].a ?? [];
+      const k = grabbed.i * ANCHOR;
+      setAnchor(grabbed.i);
+      begin(
+        event,
+        at,
+        {
+          kind: "anchor",
+          stroke: drawing,
+          anchor: grabbed.i,
+          art,
+          before: art,
+        },
+        [a[k], a[k + 1]]
+      );
       return;
     }
     const [x, y] = linePoint(event, at.x, at.y, at.unit);
@@ -361,21 +396,31 @@ export const useLine = ({
         return;
       }
       if (hit) {
+        const k = hit.i * ANCHOR + { anchor: 0, in: 2, out: 4 }[hit.kind];
         setAnchor(hit.i);
-        begin(event, at, {
-          kind: hit.kind,
-          stroke: editing,
-          anchor: hit.i,
-          art,
-          before: art,
-        });
+        begin(
+          event,
+          at,
+          {
+            kind: hit.kind,
+            stroke: editing,
+            anchor: hit.i,
+            art,
+            before: art,
+          },
+          [a[k], a[k + 1]]
+        );
         return;
       }
     }
-    // Beside it: another anchored line is edited – or editing is over.
+    // Beside it: another anchored line is edited – or editing is over. A
+    // finger that missed lets go of the picked point first: one more tap
+    // beside it is needed to leave.
     const index = itemAt(art, at.x, at.y, reach)?.strokes[0];
     if (index !== undefined && art.strokes[index]?.a) {
       setEdited(index);
+      setAnchor(null);
+    } else if (event.pointerType === "touch" && anchor !== null) {
       setAnchor(null);
     } else onLeave(null);
   };
@@ -403,10 +448,20 @@ export const useLine = ({
     if (event.pointerType !== "mouse") return;
     const reach = REACH.mouse / at.unit;
     if (mode === "line") {
+      event.currentTarget.style.cursor = "crosshair";
       if (onFirst(at.x, at.y, reach)) {
         const anchors = draft();
         setLines(null);
         setHover({ x: anchors[0], y: anchors[1], closing: true });
+      } else if (
+        drawing !== null &&
+        pathGrip(art.strokes[drawing].a ?? [], false, at.x, at.y, reach)
+          ?.kind === "anchor"
+      ) {
+        // On one of its points: a press picks it, no new one.
+        setLines(null);
+        setHover(null);
+        event.currentTarget.style.cursor = "move";
       } else {
         const [x, y] = linePoint(event, at.x, at.y, at.unit);
         setHover({ x, y, closing: false });
@@ -455,17 +510,18 @@ export const useLine = ({
     const k = p.anchor * ANCHOR;
     const closed = Boolean(stroke.closed);
     let next: number[];
+    // Where what is grabbed goes – as far beside the pointer as it began.
+    const gx = at.x + p.off[0];
+    const gy = at.y + p.off[1];
     if (p.kind === "anchor") {
-      const [x, y] = snapped(at.x, at.y, event, p.unit, () =>
+      const [x, y] = snapped(gx, gy, event, p.unit, () =>
         anchorGuides(p.art, [], { stroke: p.stroke, anchor: p.anchor }, shape)
       );
       next = moveAnchor(a, p.anchor, x, y);
     } else {
       // A handle: ⇧ in 45° steps about its anchor – followed beyond the
       // face, where it may reach (bezier.ts).
-      const [x, y] = event.shiftKey
-        ? snap45(a[k], a[k + 1], at.x, at.y)
-        : [at.x, at.y];
+      const [x, y] = event.shiftKey ? snap45(a[k], a[k + 1], gx, gy) : [gx, gy];
       if (p.kind === "new") {
         next = pullHandles(a, p.anchor, x, y, event.altKey || corner);
       } else if (p.kind === "close") {
@@ -492,6 +548,7 @@ export const useLine = ({
     setDrawn(null);
     setHover(null);
     setLines(null);
+    setAnchor(null);
     press.current = null;
   };
 
@@ -522,7 +579,7 @@ export const useLine = ({
       anchors,
       closed: false,
       line: drawing !== null ? art.strokes[drawing].p : [],
-      picked: null,
+      picked: drawing !== null ? anchor : null,
       handles: "last",
       preview: !hover
         ? null

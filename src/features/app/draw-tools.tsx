@@ -330,10 +330,11 @@ export const Marks = ({
 /**
  * What the line tool and editing its points draw over the drawing – precise,
  * in the scribble's ink: the line itself, thin; its anchors as small
- * squares (the picked one filled, the first one ringed when a press would
- * close the line); handles as lines with round ends; the next curve to the
- * pointer, dashed; and the guides an anchor has snapped to. On touch
- * everything a little bigger. It never takes a pointer.
+ * squares (the picked one filled and ringed, the first one ringed when a
+ * press would close the line); handles as lines with round ends; the next
+ * curve to the pointer, dashed; and the guides an anchor has snapped to. On
+ * touch everything bigger – a finger has to find it. It never takes a
+ * pointer.
  */
 export const LineMarks = ({
   marks,
@@ -352,7 +353,7 @@ export const LineMarks = ({
   const [box, size] = useSide();
   const px = toPx(size, view, "x");
   const py = toPx(size, view, "y");
-  const half = touch ? 5.5 : 4;
+  const half = touch ? 7 : 4;
   const at = (x: number, y: number) =>
     `${px(x).toFixed(1)} ${py(y).toFixed(1)}`;
   const anchors = marks?.anchors ?? [];
@@ -400,7 +401,7 @@ export const LineMarks = ({
                     cx={px(anchors[h])}
                     cy={py(anchors[h + 1])}
                     fill="white"
-                    r={half - 0.5}
+                    r={half - 1}
                     stroke="var(--color-ink)"
                     strokeWidth={1.5}
                   />
@@ -413,13 +414,23 @@ export const LineMarks = ({
             const y = py(anchors[i * ANCHOR + 1]);
             return (
               <g key={i}>
-                {marks?.closing && i === 0 && (
+                {((marks?.closing && i === 0) || marks?.picked === i) && (
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={half + 5}
+                    stroke="white"
+                    strokeOpacity={0.8}
+                    strokeWidth={4.5}
+                  />
+                )}
+                {((marks?.closing && i === 0) || marks?.picked === i) && (
                   <circle
                     cx={x}
                     cy={y}
                     r={half + 5}
                     stroke="var(--color-ink)"
-                    strokeWidth={1.5}
+                    strokeWidth={marks?.picked === i ? 2.5 : 1.5}
                   />
                 )}
                 <rect

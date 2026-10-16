@@ -215,6 +215,17 @@ describe("the address", () => {
       "/de/app/familie/heute/neuer-stempel"
     );
     expect(readAddress("/en/app/family/month/new-stamp").panel).toBe("draw");
+    // Which stamp is being changed, the history entry keeps – not the path.
+    expect(addressOf("de", "familie", "month", { panel: "edit" })).toBe(
+      "/de/app/familie/monat/stempel-bearbeiten"
+    );
+    expect(readAddress("/en/app/family/year/edit-stamp").panel).toBe("edit");
+    expect(readAddress("/de/app/familie/heute/stempel-bearbeiten")).toEqual({
+      calendar: "familie",
+      view: "today",
+      day: null,
+      panel: "edit",
+    });
     expect(panelOf("Konto")).toBeNull();
   });
 

@@ -23,8 +23,9 @@ import {
  * whose push service it is), no calendar app's address (only that there is
  * one). And it is the account's own: its calendars, its stamps (and where
  * those it didn't draw came from), the prints it made, the notes it wrote
- * last, the invitations it sent and those to it, the cards it sent, its
- * notifications, its addresses for calendar apps. Of other people only
+ * last, its own settings for calendars, the invitations it sent and those
+ * to it, the cards it sent, its notifications, its addresses for calendar
+ * apps. Of other people only
  * what the app shows it anyway – their names, as members of its calendars,
  * owners of the ones it is in, senders of its invitations and givers of
  * its cards' stamps. What they drew and stamped is theirs.
@@ -59,6 +60,7 @@ export const accountExport = ({
   stamps,
   placements,
   notes = [],
+  calendarPrefs = [],
   invites,
   invitingCalendars = [],
   cards = [],
@@ -76,6 +78,8 @@ export const accountExport = ({
   placements: Doc[];
   /** The days' notes it wrote last. */
   notes?: Doc[];
+  /** Its own settings for calendars (calendar/prefs.ts). */
+  calendarPrefs?: Doc[];
   /** The invitations it sent – and those to its address. */
   invites: Doc[];
   /** The calendars it is invited to – for their names. */
@@ -207,6 +211,18 @@ export const accountExport = ({
           changedAt: when(note.changedAt),
         };
       }),
+    /**
+     * Its own settings for calendars – its color for one, the view one
+     * opens in: kept with the account, so they hold on all its devices.
+     */
+    calendarSettings: calendarPrefs
+      .filter((pref) => alive(pref) && ref(pref.account) === me)
+      .map((pref) => ({
+        calendar: ref(pref.calendar),
+        color: pref.color ?? null,
+        start: pref.start ?? null,
+        changedAt: when(pref.changedAt),
+      })),
     /** The invitations it sent that are still open – without their link. */
     invites: invites
       .filter(
@@ -307,6 +323,7 @@ export const collectExport = async (
       | "stamps"
       | "placements"
       | "notes"
+      | "calendar-prefs"
       | "invites"
       | "push-settings"
       | "push-subscriptions"
@@ -344,6 +361,9 @@ export const collectExport = async (
   });
   const notes = await find("notes", {
     and: [{ editedBy: { equals: me } }, kept],
+  });
+  const calendarPrefs = await find("calendar-prefs", {
+    and: [{ account: { equals: me } }, kept],
   });
   // The ones it sent, and the ones to its address.
   const email = String(account.email ?? "").toLowerCase();
@@ -409,6 +429,7 @@ export const collectExport = async (
     stamps,
     placements,
     notes,
+    calendarPrefs,
     invites,
     invitingCalendars,
     cards,
