@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight } from "@/components/doodles";
 import { SPRING } from "@/components/motion";
 import { Ruling } from "@/components/ruling";
 import { buttonClass, ROUND_BUTTON } from "@/components/ui";
-import { type DayKey, todayKey } from "@/features/calendar/model";
+import type { DayKey } from "@/features/calendar/model";
 import { cleanNote, notePreview } from "@/features/calendar/note";
 import { useBoop } from "@/features/offline/store";
 import type { Locale } from "@/i18n/config";
@@ -23,6 +23,7 @@ import {
 } from "./month-grid/days";
 import { Pointed } from "./month-grid/pointed";
 import { varietyFirst } from "./pile";
+import { useToday } from "./today-view";
 
 /**
  * A month of a calendar, Monday first; each day shows its prints in a
@@ -53,7 +54,7 @@ export const MonthGrid = ({
 }) => {
   const t = dictionaryOf(locale);
   const { placements, stamps, notes } = useBoop();
-  const today = todayKey();
+  const today = useToday();
 
   // Each day's prints, top first – different stamps before a second print
   // of one already there: should not all fit, a busy day shows its variety.

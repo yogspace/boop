@@ -21,7 +21,7 @@ export const useSheets = ({
 }) => {
   const { shown, calendar, openDay, stepTo, setDay } = place;
   const [drawing, setDrawing] = useState(false);
-  // A new stamp drawn from a day's page (its tray's first tile): back on
+  // A new stamp drawn from a day's page (its tray's last tile): back on
   // that day it is in the hand – `handed`, once saved, until the page has
   // taken it. A day's sheet and the editor take turns, one gone before the
   // other comes (`dayUp`, `drawerUp`: there, or still on its way out) – two

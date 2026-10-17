@@ -190,7 +190,10 @@ export const Paper = ({
                 glide === p.id && "transition-[left,top] duration-300"
               )}
               key={p.id}
-              onTransitionEnd={() => setGlide(null)}
+              // Its own glide only – not one of what is inside it.
+              onTransitionEnd={(event) => {
+                if (event.target === event.currentTarget) setGlide(null);
+              }}
               style={{
                 width: `${printOf(stamp) * 100}%`,
                 left: `${here.x * 100}%`,

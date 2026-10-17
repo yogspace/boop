@@ -32,7 +32,7 @@ const FALLBACK = DEFAULT_PALETTE[0].hex;
 
 /**
  * A blot of ink (40 × 40) – flat, a little uneven, like the inks to dip a
- * stamp into on a day (features/app/day-sheet.tsx).
+ * stamp into on a day (features/app/ink-blot.tsx).
  */
 const BLOT =
   "M20.5 3C27 2.2 34.5 6 36.6 13.2 38.6 20 36.4 28.6 30.4 33.2 24.6 37.6 15.6 38.2 9.4 33.8 3.4 29.6 1.2 21 4 14 6.6 7.6 13.4 3.8 20.5 3Z";
