@@ -59,7 +59,7 @@ const de = {
     // From a day's tray to the shelf, the page with all of them.
     allStamps: "Alle Stempel",
     // The way to the shelf beside the greeting – a little pile of stamps,
-    // read out with how many there are (features/app/stamp-shelf.tsx).
+    // read out with how many there are (features/app/stamp-pile.tsx).
     pile: template(
       {
         none: "Deine Stempel – noch keine",
@@ -71,6 +71,12 @@ const de = {
     ),
     // Back from the shelf to the calendars.
     backToCalendars: "Kalender",
+    // The same, read out with the calendar it goes to
+    // (features/app/calendar-leaf.tsx).
+    backToCalendar: template(
+      "Zurück zum Kalender {name}",
+      (say) => (name: string) => say({ name })
+    ),
     today: "Heute",
     prev: "Vorheriger Monat",
     next: "Nächster Monat",
@@ -198,6 +204,7 @@ const en: Shape<typeof de> = {
       many: "Your stamps – {n} stamps",
     },
     backToCalendars: "Calendars",
+    backToCalendar: "Back to the calendar {name}",
     today: "Today",
     prev: "Previous month",
     next: "Next month",

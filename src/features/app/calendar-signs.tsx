@@ -6,7 +6,7 @@ import type { SVGProps } from "react";
  * they belong: to move there. With more in them than an arrow, they want a
  * little more room: `h-6 w-6` in a round button. A file of their own: the
  * calendar's page shows them from the start, its settings load later
- * (boop-app/sheets.ts).
+ * (boop-app/lazy-sheets.ts).
  */
 
 const doodle = (props: SVGProps<SVGSVGElement>) => ({

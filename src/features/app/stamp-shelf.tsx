@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Snapshot } from "valtio";
-import { ArrowLeft, Plus, Sparkle, Squiggle } from "@/components/doodles";
-import { BADGE, buttonClass } from "@/components/ui";
+import { Plus, Sparkle, Squiggle } from "@/components/doodles";
+import { BADGE } from "@/components/ui";
 import { type StampDoc, stampsOf } from "@/features/calendar/model";
 import { usePalette } from "@/features/calendar/palette-provider";
 import { useBoop } from "@/features/offline/store";
@@ -11,7 +11,7 @@ import { Sticker } from "@/features/stickers/sticker";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
-import { opensHere } from "./address";
+import { CalendarLeaf } from "./calendar-leaf";
 import { NameTag } from "./name-tag";
 import { OrderMenu } from "./order-menu";
 import {
@@ -119,11 +119,13 @@ export const useShelf = () => {
  * The shelf – the app's second page, beside the calendars (address.ts): the
  * stamps the account stamps with, large, a button for a new one last – all
  * in one, or in sections by whom they are from (shelf.ts), the button then
- * after them all; a little menu beside the page's title picks the order.
- * Over the title, a pill back to the calendars (`onBack`). A tap opens a
- * stamp's sheet. Someone else's stamp wears their first name; one that
- * came to the account (a card, a gift) says from whom – in sections the
- * heading says it; one of mine that others may use too, two rings.
+ * after them all; a little menu under the page's title picks the order.
+ * Beside the title, the way back to the calendar shown last (`back`,
+ * `onBack`): a leaf of it, where the pile lies on the calendars' page
+ * (calendar-leaf.tsx). A tap opens a stamp's sheet. Someone else's stamp
+ * wears their first name; one that came to the account (a card, a gift)
+ * says from whom – in sections the heading says it; one of mine that
+ * others may use too, two rings.
  */
 export const StampShelf = ({
   groups,
@@ -186,36 +188,31 @@ export const StampShelf = ({
 
   return (
     <section className="flex flex-col gap-6">
-      {/* The page's title, where the calendars greet – as large; the way
-        back over it, a pill like the other buttons beside a title – still
-        a link, for a new tab. */}
-      <div className="-mt-2 flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
-        <div className="flex flex-col items-start">
-          <a
-            className={cn(
-              buttonClass({ variant: "plain", size: "sm" }),
-              "group mb-3 min-h-11 gap-1.5 pl-3"
-            )}
-            href={back}
-            onClick={(event) => {
-              if (!opensHere(event)) return;
-              event.preventDefault();
-              onBack();
-            }}
-          >
-            <ArrowLeft className="h-4 w-4 transition-transform duration-150 ease-out group-hover:-translate-x-0.5" />
-            {t.app.backToCalendars}
-          </a>
-          <h1 className="text-4xl sm:text-5xl">{t.app.stamps}</h1>
+      {/* The page's title, where the calendars greet – as large; beside
+        it, where the pile lies there, the way back (calendar-leaf.tsx).
+        The order under the title. */}
+      <div className="-mt-2 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col items-start">
+          {/* On the smallest phones a little smaller: beside the leaf it
+            would break. */}
+          <h1 className="wrap-break-word text-4xl max-[379px]:text-[2rem] sm:text-5xl">
+            {t.app.stamps}
+          </h1>
           {/* The wave swings below its picture's edge (its troughs reach
             past the viewBox, doodles.tsx) – so the picture may not cut
             it off. */}
           <Squiggle className="h-3 w-28 sm:w-32" />
+          {/* One stamp: one order is like the other – no menu. */}
+          {count > 1 && (
+            <OrderMenu
+              className="mt-4"
+              locale={locale}
+              onPick={onOrder}
+              order={order}
+            />
+          )}
         </div>
-        {/* One stamp: one order is like the other – no menu. */}
-        {count > 1 && (
-          <OrderMenu locale={locale} onPick={onOrder} order={order} />
-        )}
+        <CalendarLeaf href={back} locale={locale} me={me} onOpen={onBack} />
       </div>
       {groups.map((group, index) => (
         <div className="flex flex-col gap-3" key={group.key}>

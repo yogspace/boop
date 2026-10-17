@@ -50,9 +50,9 @@ import { StampShelf, useShelf } from "./stamp-shelf";
 const shelfAhead = ahead(StampDrawer, StampSheet);
 
 /**
- * The app: the account's calendars, a month of the chosen one, a day to
- * stamp on – and, a page of their own, the 3D stamps (the shelf, reached
- * by the little pile beside the greeting). Everything reads the device's
+ * The app: the account's calendars, the chosen one's today, month or year,
+ * a day to stamp on – and, a page of their own, the 3D stamps (the shelf,
+ * reached by the little pile beside the greeting). Everything reads the device's
  * copy (offline/store.ts) – it works the same without a connection.
  *
  * The chosen calendar's color sets the tone – the one the account sees it

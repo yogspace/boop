@@ -10,9 +10,10 @@
  *   (src/proxy.ts), and so does this: one copy per language, kept since
  *   installing, so even an address never opened before opens offline.
  * - Next's files (/_next/static, named by their content): cached for good –
- *   from installing on, those the app's pages load and those loaded later
- *   (the editor, the sheets, the 3D stamps: chunks of their own, named in
- *   the ones before), so all of the app opens offline, not only its start.
+ *   those the app's pages load and those they load later (the editor, the
+ *   sheets, the 3D stamps: chunks of their own, named in the ones before),
+ *   when installing and behind each new script: all of the app opens
+ *   offline, not only its start – after an update of the app too.
  * - Icons, fonts, the manifest: from the cache, refreshed behind.
  * - Never cached: /api, /admin, /next – data, the CMS, statistics.
  *
@@ -34,9 +35,7 @@ self.addEventListener("install", (event) => {
       const pages = await caches.open(PAGES);
       const files = await caches.open(FILES);
       // The app's pages and the files they load, so the first offline start
-      // works – not only the second. Both pages share most files: each is
-      // fetched once (`kept`).
-      const kept = new Set();
+      // works – not only the second.
       for (const url of SHELLS) {
         try {
           const response = await fetch(url, { credentials: "same-origin" });
@@ -44,7 +43,7 @@ self.addEventListener("install", (event) => {
           await pages.put(url, response.clone());
           const html = await response.text();
           const assets = new Set(html.match(/\/_next\/static\/[^"'\s)\\]+/g));
-          await keep(files, assets, kept);
+          await keep(files, assets);
         } catch {
           // Offline while installing – the next visit fills the cache.
         }
@@ -76,7 +75,7 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith(page(request, url));
   } else if (url.pathname.startsWith("/_next/static/")) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(cacheFirst(request, event));
   } else if (
     /\.(?:svg|png|ico|webmanifest|woff2?)$/.test(url.pathname) ||
     url.pathname.startsWith("/_next/image")
@@ -91,29 +90,32 @@ self.addEventListener("fetch", (event) => {
  */
 const CHUNK = /["'](?:\/_next\/)?(static\/chunks\/[^"'\s\\]+\.(?:js|css))["']/g;
 
+/** Next's files followed while this worker runs – each once. */
+const walked = new Set();
+
 /**
  * Keeps Next's files – and, for a script, the chunks it may load later in
- * turn, and theirs, each once (`kept`). One that can't be fetched is left
- * out: it comes from the network when wanted.
+ * turn, and theirs. One that can't be fetched is left out: it comes from
+ * the network when wanted.
  */
-const keep = async (files, assets, kept) => {
-  const fresh = [...assets].filter((asset) => !kept.has(asset));
-  for (const asset of fresh) kept.add(asset);
+const keep = async (files, assets) => {
+  const fresh = [...assets].filter((asset) => !walked.has(asset));
+  for (const asset of fresh) walked.add(asset);
   await Promise.all(
     fresh.map(async (asset) => {
       try {
-        const response = await fetch(asset);
-        if (!response.ok) return;
-        await files.put(asset, response.clone());
+        let response = await files.match(asset);
+        if (!response) {
+          response = await fetch(asset);
+          if (!response.ok) throw new Error(String(response.status));
+          await files.put(asset, response.clone());
+        }
         if (!asset.endsWith(".js")) return;
         const named = [...(await response.text()).matchAll(CHUNK)];
-        await keep(
-          files,
-          new Set(named.map(([, path]) => `/_next/${path}`)),
-          kept
-        );
+        await keep(files, new Set(named.map(([, path]) => `/_next/${path}`)));
       } catch {
         // Offline meanwhile – it comes from the network when wanted.
+        walked.delete(asset);
       }
     })
   );
@@ -147,12 +149,18 @@ const page = async (request, url) => {
   }
 };
 
-const cacheFirst = async (request) => {
+const cacheFirst = async (request, event) => {
   const cache = await caches.open(FILES);
   const hit = await cache.match(request);
   if (hit) return hit;
   const response = await fetch(request);
-  if (response.ok) await cache.put(request, response.clone());
+  if (response.ok) {
+    await cache.put(request, response.clone());
+    // A script not kept yet – the app anew, after an update: the chunks it
+    // may load later come too, behind, so they are there offline.
+    const { pathname } = new URL(request.url);
+    if (pathname.endsWith(".js")) event.waitUntil(keep(cache, [pathname]));
+  }
   return response;
 };
 
