@@ -4,12 +4,7 @@ Stand: 17.10.2026
 
 ## Als Nächstes
 
-1. **Refactor** (läuft) – Dateien über 700 Zeilen aufteilen, Kommentare
-   aktualisieren; Editor, Sheets und Seltenes erst bei Bedarf laden (im
-   Leerlauf vorgeladen), feste Teile vom Server. Danach deployen.
-2. **SVG als Vorlage im CMS** (läuft) – „SVG hochladen“ an Stempelformen und
-   Vorlagen: der Pfad wird daraus gemacht, Kurven bleiben Kurven.
-3. **Geschenke als 3D-Päckchen im Regal** – ein Geschenk von Boop kommt
+1. **Geschenke als 3D-Päckchen im Regal** – ein Geschenk von Boop kommt
    eingepackt an: im Regal als Päckchen (3D, Schleife, im Ton des Stempels),
    auf dem Stempelhaufen neben „Hallo Max!“ obenauf. Antippen → auspacken
    (Deckel fliegt, Glitzer, der Stempel steigt heraus) → normaler Stempel.
@@ -46,9 +41,13 @@ Stand: 17.10.2026
 Was man beim normalen Benutzen sieht, steht hier nicht mehr – nur, was man
 eigens ausprobieren muss. Streich, was du schon gesehen hast.
 
-- **Nach dem Refactor-Deploy, installierte App offline**: Editor, Konto-,
-  Teilen- und Einstellungs-Sheet öffnen sofort (werden jetzt nachgeladen);
-  `/de/app/stempel` offline starten.
+- **Nach dem Refactor-Deploy, installierte App offline**: einmal online
+  öffnen, Flugmodus, dann Editor, Stempel-Sheet mit 3D, Konto,
+  Einstellungen, Teilen, Neuer Kalender (werden jetzt nachgeladen, sollen
+  trotzdem sofort aufgehen); `/de/app/stempel` offline starten; die Schrift
+  ist auch beim ersten Offline-Start da. Nach dem nächsten Deploy noch mal:
+  kurz online, dann offline den Editor.
+- **CMS-Knopf** im Kontomenü (nur Admin) öffnet `/admin` im neuen Tab.
 - **Zwei Konten**: Einladung annehmen / ablehnen / „Später“; Mitglied
   entfernen, Kalender verlassen; Push, wenn das andere Konto stempelt, und
   bei Einladung (Kästchen im Konto aus → nichts); Erinnerung zur Uhrzeit.
