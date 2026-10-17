@@ -1,7 +1,7 @@
 import type { SVGProps } from "react";
 
 /**
- * The two signs beside a calendar's name – drawn like the ones in
+ * The signs beside a calendar's name – drawn like the ones in
  * components/doodles.tsx (round ends, a little wobbly, `currentColor`), where
  * they belong: to move there. With more in them than an arrow, they want a
  * little more room: `h-6 w-6` in a round button. A file of their own: the
@@ -36,5 +36,12 @@ export const PersonPlus = (props: SVGProps<SVGSVGElement>) => (
     <path d="M9.4 3.6C11.6 3.5 13.3 5.3 13.2 7.5C13.1 9.6 11.4 11.3 9.2 11.2C7.1 11.1 5.4 9.5 5.5 7.3C5.6 5.2 7.2 3.7 9.4 3.6Z" />
     <path d="M2.7 20.3C2.9 16.8 5.6 14.6 9.4 14.6C13.1 14.7 15.8 16.9 16.1 20.2" />
     <path d="M19.2 5.1C19.1 7.2 19.3 9.2 19.2 11.3M16.2 8.3C18.2 8.1 20.2 8.4 22.2 8.2" />
+  </svg>
+);
+
+/** A little hook pointing down – there is more under it: the calendars. */
+export const Fold = (props: SVGProps<SVGSVGElement>) => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" {...doodle(props)}>
+    <path d="M5.6 9.2C7.9 11.3 9.9 13.4 12 15.6C14.1 13.3 16.2 11.2 18.4 9" />
   </svg>
 );

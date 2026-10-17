@@ -665,15 +665,16 @@
   }
 }
 
-/* The order's list */
+/* Lists that fold out */
 /*
- * The stamps' order to pick from (features/app/order-menu.tsx) – a popover
- * under its button, lined up with the button's right edge. Where that runs
- * off the screen (the button at the page's left, on the shelf) it lines up
- * with the left edge; with no room below (a sheet's bottom), it goes above.
- * Only where anchor positioning is there – without, the list is no popover.
+ * What a button folds out to pick from (features/app/drop-menu.tsx) – the
+ * stamps' order, the calendars: a popover under its button, lined up with
+ * the button's right edge. Where that runs off the screen (a button at the
+ * page's left) it lines up with the left edge; with no room below (a
+ * sheet's bottom), it goes above. Only where anchor positioning is there –
+ * without, the list is no popover.
  */
-.order-menu {
+.drop-menu {
   /* Fixed, said out loud – as for the name tags above. */
   position: fixed;
   position-area: bottom span-left;
@@ -683,6 +684,7 @@
     flip-block flip-inline;
   inset: auto;
   margin: 8px 0 0;
+  max-width: calc(100vw - 2rem);
   overflow: visible;
   border: 0;
   background: transparent;

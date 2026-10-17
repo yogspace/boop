@@ -195,7 +195,7 @@ export const PAPER = {
 
 /**
  * For what stands on the app's ground (`--cal-bg`) around a calendar's page
- * – the header, the pills, the shelf, the footer. Frames stay paper white
+ * – the header, the shelf, the footer. Frames stay paper white
  * there and the marker black; the pencil is the darker one, and a soft fill
  * is the calendar's paper instead of paper grey. Set as `style` on the
  * frame, not around the sheets: those stay as they are.

@@ -17,6 +17,7 @@ import { NameTag } from "../name-tag";
 import { TodayView } from "../today-view";
 import { ViewSwitch } from "../view-switch";
 import { YearGrid } from "../year-grid";
+import { CalendarMenu } from "./calendar-menu";
 import { ahead } from "./later";
 import { CalendarSettings, ShareSheet, StampDrawer } from "./lazy-sheets";
 
@@ -54,12 +55,15 @@ type Month = { year: number; month: number };
  * another sheet (keyed by its id): it comes anew, its days and prints with
  * it.
  *
- * On it: the calendar's name, the views to switch between, its share sheet
- * (its owner's) and its settings – and the view itself.
+ * On it: the calendar's name – pressed, the account's calendars fold out
+ * under it, and a new one (calendar-menu.tsx) – the views to switch
+ * between, its share sheet (its owner's) and its settings – and the view
+ * itself.
  */
 export const CalendarPage = ({
   locale,
   calendar,
+  calendars,
   owner,
   view,
   month,
@@ -70,9 +74,13 @@ export const CalendarPage = ({
   onMonth,
   onShare,
   onSettings,
+  onCalendar,
+  onNewCalendar,
 }: {
   locale: Locale;
   calendar: Snapshot<CalendarDoc>;
+  /** All of the account's – its name is the way to them (calendar-menu.tsx). */
+  calendars: readonly Snapshot<CalendarDoc>[];
   /** The account is its owner: sharing is its. */
   owner: boolean;
   view: CalendarView;
@@ -86,6 +94,9 @@ export const CalendarPage = ({
   onMonth: (month: Month) => void;
   onShare: () => void;
   onSettings: () => void;
+  /** Another calendar picked – or a new one to make. */
+  onCalendar: (id: string) => void;
+  onNewCalendar: () => void;
 }) => {
   const t = dictionaryOf(locale);
   return (
@@ -107,7 +118,15 @@ export const CalendarPage = ({
         onPointerEnter={sheetsAhead}
       >
         <h2 className="wrap-break-word min-w-0 flex-1 text-2xl">
-          <Marked>{calendar.name}</Marked>
+          <CalendarMenu
+            calendar={calendar}
+            calendars={calendars}
+            locale={locale}
+            onNew={onNewCalendar}
+            onPick={onCalendar}
+          >
+            <Marked>{calendar.name}</Marked>
+          </CalendarMenu>
         </h2>
         {/* The views: beside the name – on a phone in a line of their own,
           under it. */}

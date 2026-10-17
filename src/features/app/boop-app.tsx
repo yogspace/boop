@@ -30,7 +30,6 @@ import { dictionaryOf } from "@/i18n/dictionaries";
 import { addressOf } from "./address";
 import { AppHeader } from "./boop-app/app-header";
 import { CalendarPage, VIEW_TURN } from "./boop-app/calendar-page";
-import { CalendarRow } from "./boop-app/calendar-row";
 import { Greeting } from "./boop-app/greeting";
 import { asked, useBackAndForth, useHeldAddress } from "./boop-app/history";
 import { ahead, whenIdle } from "./boop-app/later";
@@ -279,14 +278,6 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
               />
 
               <div className="flex min-w-0 flex-col gap-4">
-                <CalendarRow
-                  calendars={place.calendars}
-                  chosen={calendar?.id}
-                  locale={locale}
-                  onNew={() => sheets.setDialog("new")}
-                  onPick={(id) => place.go(id, null)}
-                />
-
                 {!calendar && (
                   // Every calendar may go, the last one too – then this.
                   <div className="flex flex-col items-start gap-3 py-10">
@@ -300,12 +291,15 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                 {calendar && (
                   <CalendarPage
                     calendar={calendar}
+                    calendars={place.calendars}
                     key={calendar.id}
                     keyboard={!(covered || sheets.inviting || sheets.arriving)}
                     locale={locale}
                     month={place.month}
+                    onCalendar={(id) => place.go(id, null)}
                     onDay={place.openDayAt}
                     onMonth={place.setMonth}
+                    onNewCalendar={() => sheets.setDialog("new")}
                     onPick={place.pick}
                     onSettings={() => {
                       place.stepTo({ panel: "settings" });
