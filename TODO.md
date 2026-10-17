@@ -1,44 +1,55 @@
 # Todo
 
-Stand: 16.10.2026
+Stand: 17.10.2026
+
+## Als Nächstes
+
+1. **Deploy** – danach im Deploy-Log „✓ Pages refreshed“ (erst dann zeigen
+   die Seiten Farben, Formen und Texte aus dem CMS; das Image wird ohne
+   Datenbank gebaut). Dann im CMS:
+   - Seeds → Translations (neue Texte). Falls unter Translations schon
+     gespeichert: `app.settings.own.colorMember` und `startText` (de/en)
+     anpassen – gilt jetzt „auf all deinen Geräten“.
+   - Seeds → „Imprint & privacy“ mit „Replace“ – neu darin u. a. bearbeitete
+     Stempel (Kopien ziehen mit), Kalender-Einstellungen am Konto, Bilder
+     der 3D-Stempel auf dem Gerät.
+   - Seeds → „Stamp shapes“ und „Drawing templates“ je einmal „Fill“ – jetzt
+     eigene Collections unter Content; Fill übernimmt die Listen aus Site.
+     Bis dahin zeigt die App die Formen aus dem Code.
+   - Site → Stamp colors: Sonderfarben anlegen, „Public“ aus, „Finish“
+     setzen – z. B. Gold `#d4a72c` (metal), Glitzer `#c264d6` (glitter).
+2. **Refactor** – Dateien über 700 Zeilen aufteilen (`stamp-drawer.tsx`,
+   `day-page.tsx`, `boop-app.tsx`, `month-grid.tsx`, `store.ts` …).
+   Performance dabei: Server-Komponenten wo es geht, Client nur in kleinen
+   Hüllen; schwere Teile (three.js, Editor, Sheets) erst bei Bedarf laden.
+   Die App selbst lebt offline von den Daten auf dem Gerät – der Server kann
+   dort nur das Gerüst vorrendern.
+3. **Geschenke als 3D-Päckchen im Regal** – ein Geschenk von Boop kommt
+   eingepackt an: im Regal als Päckchen (3D, Schleife, im Ton des Stempels),
+   auf dem Stempelhaufen neben „Hallo Max!“ obenauf. Antippen → auspacken
+   (Deckel fliegt, Glitzer, der Stempel steigt heraus) → normaler Stempel.
+   Kein Popup mehr beim Öffnen der App; Push führt ins Regal. Eingepackt
+   nicht in der Ablage zum Stempeln. „Ausgepackt“ am Stempel (synct); alte
+   Geschenke gelten als ausgepackt. Karten bleiben, wie sie sind.
 
 ## Offen
 
-- **Als Nächstes (nach Regal-Seite und 3D-Tempo): Geschenke als 3D-Päckchen
-  im Regal** – ein Geschenk von Boop kommt eingepackt an: im Regal als
-  Päckchen (3D, Schleife, im Ton des Stempels), auf dem Stempelhaufen neben
-  „Hallo Max!“ obenauf. Antippen → auspacken (Deckel fliegt, Glitzer, der
-  Stempel steigt heraus) → normaler Stempel. Kein Popup mehr beim Öffnen
-  der App; Push führt ins Regal. Eingepackt nicht in der Ablage zum
-  Stempeln. „Ausgepackt“ am Stempel (synct, gilt auf allen Geräten); alte
-  Geschenke gelten als ausgepackt. Karten bleiben wie sie sind.
-
-- **Nach dem Deploy im CMS**:
-  - Seeds → Translations (neue Texte). Falls unter Translations schon
-    gespeichert: `app.settings.own.colorMember` und `startText` (de/en)
-    anpassen – gilt jetzt „auf all deinen Geräten“.
-  - Seeds → „Imprint & privacy“ mit „Replace“ – die Vorlage beschreibt jetzt
-    Einladungen mit Zustimmung, Adresse ändern, „Admin“ / „Nie löschen“,
-    Stempel-Karten, Geschenke von Boop, den Export, bearbeitete Stempel
-    (Kopien ziehen mit) und die Kalender-Einstellungen am Konto.
-  - Seeds → „Stamp shapes“ und „Drawing templates“ je einmal „Fill“ – die
-    sind jetzt eigene Collections unter Content; Fill übernimmt die Listen
-    aus Site. Bis dahin zeigt die App die Formen aus dem Code.
-  - Site → Stamp colors: die Sonderfarben anlegen, „Public“ aus, „Finish“
-    setzen – z. B. Gold `#d4a72c` (metal), Glitzer `#c264d6` (glitter).
 - **Geschenk anlegen prüfen**: In einem Probelauf (`payload run`) scheiterte
   `payload.create` für `gifts` am lokalisierten Namen („Cast to Embedded“).
-  Kann am Probelauf liegen – sonst klemmt „Geschenk von Boop“ in der App.
-- **Monatsansicht „gradlinig“**: Die Linien sind gerade, wenn der Zeichner
-  (`components/scribble-draw.ts`) nicht läuft. Lokal und auf boop.mxwr.de
+  Kann am Probelauf liegen – nach dem Deploy einmal ein Geschenk an alle
+  schicken; klappt das, ist es erledigt.
+- **Monatsansicht „gradlinig“**: Gerade Linien heißt, der Zeichner
+  (`components/scribble-draw.ts`) läuft nicht. Lokal und auf boop.mxwr.de
   (Startseite) zeichnet er – wo genau ist es aufgefallen?
-- **Benachrichtigungen (Web Push)** – live: Schlüssel in GitHub, deployt,
-  Cron für die Erinnerung eingetragen (alle 15 Minuten). Optional noch die
-  Variable `VAPID_SUBJECT` (z. B. `mailto:…`). Fehlt nur noch:
-  Auf einem Gerät testen: Kalender-Einstellungen → „Benachrichtigungen
-     einschalten“ (iPhone: nur in der installierten App), zweites Konto
-     stempelt → Nachricht; Erinnerung zur eingestellten Uhrzeit.
-  Schlüssel nicht wechseln: neue Schlüssel machen alle bisherigen Abos stumm.
+- **Web Push** – live (Schlüssel in GitHub, Cron alle 15 Minuten). Auf einem
+  Gerät testen: Kalender-Einstellungen → „Benachrichtigungen einschalten“
+  (iPhone: nur in der installierten App), zweites Konto stempelt →
+  Nachricht; Erinnerung zur eingestellten Uhrzeit; Einladung → Push, Tippen
+  öffnet die App, Kästchen im Konto aus → nichts. Optional `VAPID_SUBJECT`
+  (z. B. `mailto:…`). Schlüssel nie wechseln – das macht alle Abos stumm.
+- **Automatisches Löschen**: vor dem ersten echten Lauf einmal
+  `/next/cron/cleanup?dry=1` aufrufen – der erste Lauf löscht unbestätigte
+  Konten, die älter als 30 Tage sind.
 - **Rechtlich gegenlesen lassen**:
   - Einladungsmails an Leute ohne Konto (Werbesatz über Boop in der Mail).
   - Resend: AV-Vertrag, Drittland-Grundlage, deren Log-Fristen.
@@ -49,192 +60,168 @@ Stand: 16.10.2026
   - Löschvermerke bleiben unbegrenzt gespeichert.
   - Mindestalter / Kinder.
 
-## Noch selbst prüfen
+## Auf echten Geräten prüfen
 
-- Echtes Safari / iPhone – bisher nur WebKit ohne Fenster getestet.
-- Touch: Stempeln, Drehen und der Editor mit dem Finger.
-- Stempeln: der neue Ablauf (ausholen, aufschlagen, abheben) – Tempo und
-  Größen stehen als `BEAT`, `RAISE`, `HOP` oben in `stamp-hand.tsx`.
-- Kalender-Einstellungen gegen den Server: Mitglied entfernen, Kalender
-  verlassen (eine Nachfrage), einladen, löschen (doppelte Nachfrage) – beides
-  steht jetzt ganz unten im Sheet.
-- Eigene Kalenderfarbe und Startansicht: jetzt am Konto – auf dem Handy
-  ändern, auf dem Desktop neu laden, gleich? Beim ersten Start nach dem
-  Update lädt jedes Gerät seine bisherigen Werte einmal hoch.
-- Stempel bearbeiten: Stempel-Sheet → „Bearbeiten“, ändern, „Änderungen
-  speichern“; alle Abdrücke in Tag, Monat, Jahr ändern sich mit; Kopien bei
-  anderen (Karte, Geschenk) ziehen nach, ihr Name bleibt. Zurück und Reload
-  in `…/stempel-bearbeiten`; die Frage beim Schließen nur nach Änderungen.
-- Tagesseite neu: breit zwei Spalten (links Blatt, darunter Rückgängig /
-  Wiederholen / Entfernen, dann die Notiz mit B/I/U links; rechts
-  Stempelkissen, Drehen, Hinweis, „Deine Stempel“). Handy: Schalter
-  „Blatt/Notiz“ neben dem Datum und Wischen zwischen beiden. In „Heute“
-  keine „Neuer Stempel“-Kachel, im Tag aus Monat/Jahr schon.
-- Editor auf dem iPhone: Punkte antippen (Ring drum) und ziehen, Griff neben
-  einem Anker greifen; noch weiße Streifen beim schnellen Malen? Lupe oben
-  unter Uhr/Notch; Leiste oben (Rückgängig/Wiederholen links, Papierkorb
-  rechts); Formwechsel morpht wieder. Briefmarke: helle Nähte im Rand?
-  (WebKit zeigt die ab ~256 Punkten, ihr Umriss hat 685.)
-- CMS: Stamp shapes und Drawing templates unter Content – Vorschau in der
-  Liste, ändern → steht gleich in der App.
-- Farbiger Seitenhintergrund in der installierten App: Statusleiste und
-  Überscrollen (`statusBarStyle` in `layout.tsx` ist noch „default“).
-- Stempel umbenennen: kommt der neue Name auf dem zweiten Gerät an?
-- Kalenderfarben: alle sieben einmal ansehen, vor allem Gelb und auf dem
-  Phone.
-- Abdruck markieren und mit Entf / ⌫ löschen – auch: ⌫ ohne Markierung
-  darf im Browser nicht „zurück“ auslösen.
+Bisher fast alles nur in WebKit ohne Fenster getestet – vor allem echtes
+Safari / iPhone und die installierte App.
+
+### Tagesseite und Stempeln
+
+- Breit zwei Spalten: links Blatt, darunter Rückgängig / Wiederholen /
+  Entfernen, dann die Notiz (B/I/U links); rechts Stempelkissen, Drehen,
+  Hinweis, Ablage. Handy: Schalter „Blatt/Notiz“ neben dem Datum und
+  Wischen zwischen beiden.
+- Ablage: „Neuer Stempel“ am Ende, „Alle Stempel →“ führt ins Regal (aus dem
+  Tages-Sheet: schließt es sauber), Sortieren, Namen unter den Stempeln
+  (Touch), Namensschild beim Hover (Chrome, gescrollte Seite).
+- Gradzahl antippen → Drehung auf 0° (in der Hand und beim Abdruck, mit
+  Rückgängig).
+- Stempeln: ausholen, aufschlagen, abheben – Tempo und Größen als `BEAT`,
+  `RAISE`, `HOP` oben in `stamp-hand.tsx`; der kleine 3D-Stempel verschwindet
+  nach dem Druck; der glatte Knauf auch in der Hand.
+- Abdruck erst antippen, dann ziehen; mit Entf / ⌫ löschen (⌫ ohne
+  Markierung löst im Browser kein „Zurück“ aus). Über dem Blatt scrollt
+  Wischen die Seite, solange kein Stempel in der Hand ist.
+- Tages-Sheet aus Monat/Jahr auf großen Bildschirmen: breiter, vier Stempel
+  pro Reihe, alle Stempelkissen in einer Zeile.
+- Tagesnotiz mit Server und zweitem Gerät: kommt sie an, gewinnt die
+  spätere Änderung, zwei Geräte offline in dieselbe Notiz? iPhone:
+  Autokorrektur, Diktat, bleibt die Tastatur bei B/U offen?
+
+### Monat und Jahr
+
+- Kalender in voller Breite, der Monat höchstens so breit, dass alle Wochen
+  ins Fenster passen. Abdrücke als Haufen, „+n“ im Kalenderton.
 - Special-Tag im Monat auf dem Phone (kleine Zellen), Hover-Fleck mit dem
   Finger.
-- Sprachwechsel in der App: nichts springt, kein Farbblitzer, die
-  Unterstreichung gleitet; Titel des Tabs und Adresse wechseln mit.
-- Konto (alles braucht den Server): Login mit und ohne „Angemeldet
-  bleiben“, Konto löschen (Passwort), Daten herunterladen, abgelaufene
-  Einladung.
-- Tagesansicht: Stempel kommt in seiner eigenen Farbe; Namensschild beim
-  Hover in der Stempelauswahl.
-- Kontomenü schließt bei Klick daneben.
-- iPhone: die App lässt sich nicht mehr seitlich scrollen (die gezeichneten
-  Linien ragten am Rand bis zu 10 px über den Bildschirm – jetzt am Rahmen
-  abgeschnitten).
-- Mails mit Texten aus dem CMS: eine Mail-Vorlage unter Translations →
-  `mail.*` ändern, dann z. B. „Passwort vergessen“ auslösen und ansehen.
-- Nach dem Deploy: im Deploy-Log „✓ Pages refreshed“ – danach zeigen die
-  Seiten die Stempelfarben und Texte aus dem CMS (vorher die aus dem Code,
-  weil das Image ohne Datenbank gebaut wird).
-- Texte im Admin unter Content → Translations: ein Feld ändern, speichern,
-  steht sofort auf der Seite; eine Vorlage mit falschem Platzhalter wird
-  abgelehnt; „Seeds → Translations“ füllt die Felder mit den Code-Texten.
-- Admin nach dem Dichtmachen durchklicken: Konten-Liste und -Seite (nur
-  lesen, löschen, „Unlock login“), Statistik „Accounts“, Seeds-Seite; lokal
-  mit `ADMIN_SUPPORT=1` das Warnband und die Leseansicht der Inhalte.
-  Nebenwirkung: Wer im selben Browser im Admin eingeloggt ist, kann sich auf
-  der Website nicht registrieren.
-- iPhone: Kalender-Reiter und Stempel-Ablage scrollen nur waagrecht, ohne
-  Scrollleiste, mit Fade; über dem Blatt scrollt Wischen die Seite, solange
-  kein Stempel in der Hand ist; einen Abdruck erst antippen, dann ziehen;
-  der kleine 3D-Stempel verschwindet nach dem Druck von selbst; die
-  Hintergrundfarbe blendet beim Kalenderwechsel weich über.
 - Jahresansicht per Tastatur: ein Tab-Stopp, Pfeiltasten Tag/Monat, Enter.
-- iCal (alles braucht Server und echte Apps): Abo-Adresse in den
-  Kalender-Einstellungen erzeugen, in Apple Kalender und Google Kalender
-  abonnieren (`webcal://` auf iPhone/Android), „.ics herunterladen“; nach
-  Verlassen des Kalenders ist die Adresse tot. Google ruft nur alle paar
-  Stunden ab.
-- Startseite: „So einfach geht's“ als drei Zettel mit Bildgeschichte
-  (Desktop nebeneinander, Phone untereinander); Sprachwechsel dort behält
-  jetzt den Login-Zustand.
-- Konto-Kreis: Zahl oben = offene Einladungen (auch am „Konto“-Knopf im
-  Menü); unten ein Punkt erst, wenn Änderungen länger als 5 s warten, ein
-  Kreuz ohne Netz. „Kalender löschen“ / „Konto löschen“ sind rot.
-- Sync-Stand jetzt im Kontomenü (mit „Jetzt abgleichen“); am Konto-Kreis
-  nur eine Zahl, wenn etwas wartet, bzw. ein Kreuz ohne Netz.
-- Stempel-Karten (nie gegen den echten Server im Browser gesehen):
-  Stempel-Sheet → „Als Karte verschicken“, Link in einem Messenger
-  (Vorschaubild!), Kartenseite mit Tapete auf dem iPhone, abgemeldet
-  öffnen → anmelden → der Stempel liegt im Regal („von …“), „Geteilt mit“
-  zeigt, wer übernommen hat, „Zurückziehen“ macht den Link tot.
-- Geschenk von Boop: als Admin-Konto in Sonderfarbe zeichnen (Picker zeigt
-  sie nur dir), im Stempel-Sheet „Geschenk von Boop“ → „An alle
-  verschicken“ → „Ja, an alle“ (nie im Browser gesehen); Popup in der App,
-  Push, Kästchen im Konto; im CMS steht es danach unter Content → Gifts.
-  Der Weg über Karten-Link im CMS geht weiter. Glitzer und Metall in 3D
-  ansehen (`stickers/ink.ts`).
-- Namensschild beim Hover in Chrome, mit gescrollter Seite: sitzt es wieder
-  direkt über dem Stempel? (War um die Scroll-Strecke nach oben verrutscht.)
-- Konto-Sheet in Abschnitten (Profil, App mit Sprache und Abgleich,
-  Benachrichtigungen, Deine Daten); das Menü am Konto-Kreis ist kurz.
-- Kartenseite: ein Knopf „In meine Stempel“ (abgemeldet: erst danach
-  Anmelden / Konto erstellen), darunter „Für den 3D-Drucker (STL)“. Im
-  Stempel-Sheet bei jeder Karte „Ansehen“. Sprachwahl nur noch im
-  Konto-Sheet (nicht mehr in der Leiste/im Menü).
-- Regal: Umschalter „Neueste zuerst“ / „Nach Person“ (erscheint erst mit
-  Stempeln von anderen).
-- Einladung zwischen zwei Konten (lief nie gegen echtes Payload): Popup
-  beim Öffnen der App, „Später“, Liste ganz oben im Konto, Annehmen springt
-  in den Kalender, Ablehnen – beim Besitzer verschwindet sie aus
-  „ausstehend“; Mail-Link tritt bei; Anmelden tritt NICHT mehr von selbst
-  bei.
-- Editor auf dem iPhone: ruhige Striche, feine Stärken, Vollbild, Zoom mit
-  zwei Fingern, Lupe über dem Finger, Apple Pencil (Finger zoomen dann),
-  und vor allem: keine weißen Flecken mehr beim Malen (nur Headless-WebKit
-  geprüft). Bézier: „Rund/Ecke“, Griffe über den Rand ziehen.
+
+### Editor
+
+- Speichern auf dem Handy: zeichnen, ganz runter, „Fertig – mach ihn 3D“ →
+  Titel, 3D-Stempel, „Weiter malen“, Name, Speichern sichtbar; Return auf
+  der Tastatur speichert. Ebenso „Änderungen speichern“ beim Bearbeiten.
+  Stört der kleine Sprung (~48 px) beim Wechsel in diesen Schritt?
+- Beim Malen scrollen: Zeichenfläche und Leiste darunter (Rückgängig /
+  Wiederholen links, Papierkorb rechts) bleiben oben, der Rest läuft
+  darunter weg; zwei Finger zoomen, Lupe geht weiter.
+- Punkte antippen (Ring drum) und ziehen, Griff neben einem Anker greifen.
+  Lupe darf über den Rand, springt nicht, gleitet oben unter Uhr/Notch zur
+  Seite. Noch weiße Streifen beim schnellen Malen?
+- Formwechsel morpht wieder. Briefmarke: helle Nähte im Rand? (WebKit zeigt
+  die ab ~256 Punkten, ihr Umriss hat 685.)
+- Werkzeuge: Radierer (E), Auswahl (V: verschieben, skalieren, drehen,
+  ⌥-Ziehen dupliziert, Pfeiltasten, ⌘D, Entf), Zentrierhilfen (⌘ aus),
+  Strichstärke einer Auswahl. Linie (L): Klick = Ecke, Ziehen = Kurve, ⇧ =
+  45°, Klick auf den ersten Punkt schließt, Enter beendet, ⌫ nimmt den
+  letzten Punkt weg. Punkte bearbeiten (A / Doppelklick): ⌥-Klick
+  rund/eckig, Klick auf die Linie fügt einen Punkt ein, ⌥ beim Ziehen bricht
+  Griffe. Apple Pencil (Finger zoomen dann).
 - Neue Formen (Oval, Blume, Herz, Wolke, Stern, Ticket, Briefmarke) in 2D,
   3D und im STL-Slicer; Vorlagen hineinziehen (Desktop) bzw. antippen.
-- Monat/Jahr: Abdrücke als Haufen, „+n“ im Kalenderton; Startansicht in
-  den Kalender-Einstellungen. Tagesseite: Sortieren, „Neuer Stempel“ am
-  Ende (nur im Tag aus Monat/Jahr), Namen unter den Stempeln (Touch).
-- Passwort-Warnung beim Registrieren und Zurücksetzen: erscheint kurz
-  nach dem Tippen (z. B. „Passwort123!“), verschwindet bei einem langen.
-- Adressen für Offenes (mit dem echten Router, iPhone-Wischgeste zurück):
-  `/de/app/familie/monat/2026-10-13` (Tag), `…/einstellungen`, `…/teilen`,
-  `…/konto`, `…/neuer-stempel`. Zurück schließt, Vor öffnet wieder, ein
-  Link öffnet direkt. Im Editor „Neuer Stempel“ mit etwas Gezeichnetem
-  fragt Zurück (auch Wischen), X und Escape erst „Zeichnung verwerfen?“.
-- Heute-, Monats- und Jahresansicht mit dem echten Router: Umschalter,
-  Adresse `/de/app/{kalender}/{heute|monat|jahr}`, Zurück/Vor, alte
-  Id-Adressen, Reload; offline eine noch nie geöffnete Adresse.
-- Gezeichnete Linien jetzt als Vektoren (Zeichner im Browser,
-  `components/scribble-draw.ts`): in echtem Safari/iPhone ansehen – Knöpfe,
-  Karten, Monatstabelle, Fokusringe, Hover-Fleck. Im Dev-Modus springen die
-  Rahmen kurz nach dem Laden von gerade auf gewackelt (im Build nicht).
-- Tagesnotiz mit Server und zweitem Gerät: kommt sie an, gewinnt die
-  spätere Änderung, schreiben zwei Geräte offline in dieselbe Notiz statt
-  zwei anzulegen? Auf dem iPhone: Autokorrektur, Diktat, bleibt die Tastatur
-  bei B/U offen?
-- Ein alter, offener Tab hält das Datenbank-Upgrade (Version 2) auf, bis er
-  zu ist – danach lädt er neu.
-- Sheets scrollen in sich (Titel bleibt, ohne Scrollleiste, Fade an den
-  Rändern) – auf dem iPhone: scrollt die Seite dahinter wirklich nicht mit?
-- STL in einem echten Slicer: steht jetzt auf der Gummifläche, Knauf nach
-  oben; größere Vertiefungen (z. B. das Innere eines Herzens) brauchen
-  Stützen „nur vom Druckbett“.
-- Stempel schauen dich beim Hover an (Regal, Startseite, Feature-Karten,
-  Reihe in der letzten Box) – mit echter GPU und auf dem Phone (dort nichts).
 - „Weiter malen“: der 3D-Stempel fliegt zurück in die Zeichnung.
-- Der neue, glatte Knauf auch in der Hand beim Stempeln.
-- Startseite eingeloggt: „Zur App“ statt Anmelden/Registrieren und der
-  Konto-Kreis mit Menü (auch Abmelden) – ohne Flackern beim Laden; nach dem
-  Abmelden wieder die Anmelde-Knöpfe. Wer schon vor diesem Stand angemeldet
-  war, bekommt den Hinweis beim nächsten Öffnen der App.
-- Zeichenwerkzeuge im Stempel-Editor (bisher nur WebKit ohne Fenster):
-  Radierer (E), Auswahl (V: verschieben, skalieren, drehen, ⌥-Ziehen
-  dupliziert, Pfeiltasten, ⌘D, Entf), Zentrierhilfen (⌘ schaltet sie aus),
-  Strichstärke einer Auswahl ändern. Linie (L): Klick = Ecke, Ziehen =
-  Kurve, ⇧ = 45°, Klick auf den ersten Punkt schließt, Enter beendet, ⌫
-  nimmt den letzten Punkt weg. Punkte bearbeiten (A oder Doppelklick):
-  Anker und Griffe ziehen, ⌥-Klick rund/eckig, Klick auf die Linie fügt
-  einen Punkt ein. Noch nie im Browser geprüft: ⌥ beim Ziehen (Griffe
-  brechen). Auf dem Phone: Punkte tippen, „Fertig“, Zwei-Finger-Gesten.
-- Mail-Adresse ändern (nichts davon im Browser gesehen): „Ändern“ im
-  Konto, Mail an die neue Adresse, Bestätigungsseite (löst erst auf Klick
-  ein), Nachricht an die alte Adresse, Abbrechen; man bleibt angemeldet.
-- CMS → Accounts: „Admin“ und „Nie löschen“ lassen sich setzen, sonst
-  nichts (Name, Adresse, Passwort); „Change password“ darf nicht da sein.
-  Mit „Admin“ steht im Konto „CMS öffnen“. Logo auf der Anmeldeseite und
-  das Icon in der Seitenleiste.
-- Sprache des Kontos (für die Mails): folgt jetzt der Sprache, in der die
-  App benutzt wird – in der App auf EN stellen, im CMS steht dann „en“.
+
+### Regal, Stempel, Karten, Geschenke
+
+- Stempelhaufen neben „Hallo Max!“: 3D-Bilder blenden ruhig ein, fächern
+  beim Hover auf; „Hallo Maximilian!“ bricht um, der Haufen bleibt rechts.
+- Regal-Seite `/de/app/stempel`: „← Kalender“ führt zum zuletzt gezeigten
+  Kalender, Wisch-Zurück dazwischen, in der installierten App (kein
+  Browser-Zurück) und offline starten. Sortieren (u. a. „Nach Person“, erst
+  mit Stempeln von anderen).
+- 3D-Stempel laden ohne Ruckeln; nach dem Neuladen sofort da.
+- Stempel schauen dich beim Hover an (Regal, Startseite, Feature-Karten) –
+  mit echter GPU; auf dem Phone nicht.
+- Stempel bearbeiten: Stempel-Sheet → „Bearbeiten“ → „Änderungen
+  speichern“; alle Abdrücke ändern sich mit; Kopien bei anderen (Karte,
+  Geschenk) ziehen nach, ihr Name bleibt. Zurück / Reload in
+  `…/stempel-bearbeiten`; die Frage beim Schließen nur nach Änderungen.
+- Stempel umbenennen: kommt der Name auf dem zweiten Gerät an?
+- Stempel-Karten: „Als Karte verschicken“, Link im Messenger (Vorschaubild),
+  Kartenseite mit Tapete auf dem iPhone, „In meine Stempel“ (abgemeldet:
+  erst anmelden), „Für den 3D-Drucker (STL)“, „Geteilt mit“, „Ansehen“,
+  „Zurückziehen“ macht den Link tot.
+- Geschenk von Boop: als Admin in Sonderfarbe zeichnen (Picker zeigt sie
+  nur dir), Stempel-Sheet → „Geschenk von Boop“ → „An alle verschicken“;
+  Popup in der App, Push; im CMS unter Content → Gifts. Glitzer und Metall
+  in 3D (`stickers/ink.ts`).
+- STL im echten Slicer: steht auf der Gummifläche, Knauf oben; größere
+  Vertiefungen brauchen Stützen „nur vom Druckbett“.
+
+### Kalender, Einladungen, Konto
+
+- Eigene Kalenderfarbe und Startansicht jetzt am Konto: auf dem Handy
+  ändern, auf dem Desktop neu laden – gleich?
+- Kalender-Einstellungen gegen den Server: Mitglied entfernen, verlassen
+  (eine Nachfrage), einladen, löschen (doppelte Nachfrage, rot).
+- Kalenderfarben: alle einmal ansehen, vor allem Gelb und auf dem Phone;
+  der Hintergrund blendet beim Wechsel weich über; in der installierten App
+  Statusleiste und Überscrollen (`statusBarStyle` in `layout.tsx` ist noch
+  „default“).
+- Einladung zwischen zwei Konten: Popup beim Öffnen, „Später“, Liste oben
+  im Konto, Annehmen springt in den Kalender, Ablehnen verschwindet beim
+  Besitzer aus „ausstehend“; Mail-Link tritt bei, Anmelden allein nicht.
+- Konto-Kreis: Zahl = offene Einladungen; Punkt erst, wenn Änderungen
+  länger als 5 s warten; Kreuz ohne Netz. Menü schließt bei Klick daneben.
+- Konto-Sheet: Profil, App (Sprache, Abgleich mit „Jetzt abgleichen“),
+  Benachrichtigungen, Deine Daten; „Konto löschen“ rot.
+- Konto gegen den Server: Login mit und ohne „Angemeldet bleiben“, Konto
+  löschen (Passwort), Daten herunterladen, abgelaufene Einladung, Mail
+  ändern (Mail an die neue Adresse, Bestätigung erst auf Klick, Nachricht
+  an die alte, Abbrechen, man bleibt angemeldet).
+- Passwort-Warnung beim Registrieren und Zurücksetzen (z. B.
+  „Passwort123!“), verschwindet bei einem langen.
+- Sprachwechsel in der App: nichts springt, kein Farbblitzer, Titel und
+  Adresse wechseln mit; die Kontosprache (für Mails) folgt der App.
 - Benachrichtigungen in einem Kalender nur für dich: „Jemand anderes …“
-  lässt sich jetzt setzen (meldet sich, sobald jemand dazukommt).
-- Push bei Einladung auf einem Gerät: kommt an, Tippen öffnet die App;
-  Kästchen im Konto aus → nichts. Einmal aus, neu laden, an, neu laden.
-- Kalender, der auf einem Gerät fehlt, obwohl der Server ihn noch hat:
-  kommt jetzt beim nächsten Abgleich von selbst zurück (neu laden reicht).
-- Dev-Server: Speichert jemand eine Datei, von der der Store abhängt, bleibt
-  die offene App beim Logo stehen, bis man neu lädt (nur lokal, nicht im
-  Build).
-- Automatisches Löschen: vor dem ersten echten Lauf einmal
-  `/next/cron/cleanup?dry=1` aufrufen – de r erste Lauf löscht unbestätigte
-  Konten, die älter als 30 Tage sind.
+  lässt sich setzen.
+- Startseite eingeloggt: „Zur App“ und der Konto-Kreis mit Menü, ohne
+  Flackern; nach dem Abmelden wieder Anmelden/Registrieren. „So einfach
+  geht's“ als drei Zettel.
+
+### Adressen, Sync, Offline
+
+- Adressen mit dem echten Router (iPhone-Wischgeste zurück):
+  `/de/app/{kalender}/{heute|monat|jahr}`, Tag `…/monat/2026-10-13`,
+  `…/einstellungen`, `…/teilen`, `…/konto`, `…/neuer-stempel`,
+  `/de/app/stempel`. Zurück schließt, Vor öffnet wieder, ein Link öffnet
+  direkt, Reload, alte Id-Adressen, offline eine nie geöffnete Adresse. Im
+  Editor mit etwas Gezeichnetem fragt Zurück (auch Wischen), X und Escape
+  erst „Zeichnung verwerfen?“.
+- Ein Kalender „Stempel“ bekommt `…/stempel-2`.
+- Kalender, der auf einem Gerät fehlt, obwohl der Server ihn hat: kommt
+  beim nächsten Abgleich zurück (neu laden reicht).
+- iCal: Abo-Adresse in den Kalender-Einstellungen, in Apple und Google
+  Kalender abonnieren (`webcal://`), „.ics herunterladen“; nach Verlassen
+  ist die Adresse tot. Google ruft nur alle paar Stunden ab.
+- iPhone: nichts scrollt seitlich; Kalender-Reiter und Ablage scrollen nur
+  waagrecht, ohne Scrollleiste, mit Fade; Sheets scrollen in sich, die Seite
+  dahinter nicht.
+- Gezeichnete Linien (`components/scribble-draw.ts`) in echtem Safari:
+  Knöpfe, Karten, Monatstabelle, Fokusringe, Hover-Fleck.
+
+### CMS und Admin
+
+- Stamp shapes und Drawing templates unter Content: Vorschau in der Liste,
+  ändern → steht gleich in der App.
+- Translations: Feld ändern → sofort auf der Seite; falscher Platzhalter
+  wird abgelehnt; Mail-Vorlage (`mail.*`) ändern, „Passwort vergessen“
+  auslösen und ansehen.
+- Accounts: nur „Admin“ und „Nie löschen“ setzbar, kein „Change password“;
+  mit „Admin“ steht im Konto „CMS öffnen“. Logo auf der Anmeldeseite, Icon
+  in der Seitenleiste.
+- Durchklicken: Konten-Liste und -Seite (lesen, löschen, „Unlock login“),
+  Statistik „Accounts“, Seeds-Seite; lokal mit `ADMIN_SUPPORT=1` Warnband
+  und Leseansicht. Wer im selben Browser im Admin eingeloggt ist, kann sich
+  auf der Website nicht registrieren.
+
+## Gut zu wissen
+
+- Dev-Server: Speichert man eine Datei, von der der Store abhängt, bleibt
+  die offene App beim Logo stehen, bis man neu lädt (nur lokal).
+- Im Dev-Modus springen die gezeichneten Rahmen nach dem Laden kurz von
+  gerade auf gewackelt (im Build nicht).
+- Ein alter, offener Tab hält ein Datenbank-Upgrade auf, bis er zu ist –
+  danach lädt er neu.
 
 ## Ideen am Rand
-
-außerdem ist die stempel erstellen seite kaputt (nur auf phone). da wo ich den stempel sehe und den namen eingeben können müsste, sehe ich nur den stempel. mehr nicht. ich kann dann abbrechen, aber nicht speichern.
-
-- Refactor: manche Dateien haben über 700 Zeilen (`stamp-drawer.tsx`,
-  `day-page.tsx`, `boop-app.tsx`, `month-grid.tsx`, `store.ts` …).
-außerdem: ssr bevorzugen, mit client wrappern usw. performance ist key.
-
-während die 3d stempel laden, laggt es schon manchmal.. wie kann man das verbessern?
-

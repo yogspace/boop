@@ -1,5 +1,6 @@
 import type * as Three from "three";
 import { FINISHES, type Finish } from "../calendar/palette";
+import { pace } from "./pace";
 
 /**
  * How a stamp is drawn – like a cartoon: flat colors, a touch of shade, and
@@ -610,10 +611,12 @@ export type Ink = {
   /**
    * Has the browser compile the programs for what is in `scene` – as
    * `render` draws it (`flat`: also with no cartoon, straight onto the
-   * canvas) – and waits for them without holding up the page: where it can
-   * (KHR_parallel_shader_compile), the browser compiles them meanwhile, out
-   * of the way. The first frame then draws at once – compiling would
-   * otherwise stall it, a good while on some devices.
+   * canvas) – and waits for them without holding up the page: one after
+   * the other, the page having its turn between (pace.ts – Safari works a
+   * program over right there, some milliseconds each), and where it can
+   * (KHR_parallel_shader_compile) the browser finishes them out of the way.
+   * The first frame then draws at once – compiling would otherwise stall
+   * it, a good while on some devices.
    */
   warm: (
     scene: Three.Object3D,
@@ -729,32 +732,35 @@ export const createInk = (
       // the stamp's parts into the two images, what lies under and over it
       // – and the ink pass – onto the canvas. Each material goes, on a
       // speck, where it will be drawn.
-      const parts = new THREE.Group();
-      const onto = new THREE.Group();
-      // Drawn flat as well, a part goes there as a copy – a material waits
-      // for one program only; the copy shares the program all the same.
+      const programs: [Three.Material, Three.WebGLRenderTarget | null][] = [];
       scene.traverse((child) => {
         const { isMesh, layers } = child as Three.Mesh;
         if (!isMesh) return;
         const material = (child as Three.Mesh).material as Three.Material;
         if (!layers.isEnabled(0)) {
-          onto.add(new THREE.Mesh(speck, material));
+          programs.push([material, null]);
           return;
         }
-        parts.add(new THREE.Mesh(speck, material));
+        programs.push([material, target]);
         if (!flat) return;
+        // Drawn flat as well, a part goes there as a copy – a material
+        // waits for one program only; the copy shares it all the same.
         const copy = material.clone();
         copies.push(copy);
-        onto.add(new THREE.Mesh(speck, copy));
+        programs.push([copy, null]);
       });
-      onto.add(new THREE.Mesh(speck, composite));
-      const before = renderer.getRenderTarget();
-      renderer.setRenderTarget(target);
-      const colors = renderer.compileAsync(parts, camera);
-      renderer.setRenderTarget(null);
-      const canvas = renderer.compileAsync(onto, camera);
-      renderer.setRenderTarget(before);
-      await Promise.all([colors, canvas]);
+      programs.push([composite, null]);
+      const ready: Promise<unknown>[] = [];
+      for (const [material, into] of programs) {
+        await pace();
+        const before = renderer.getRenderTarget();
+        renderer.setRenderTarget(into);
+        ready.push(
+          renderer.compileAsync(new THREE.Mesh(speck, material), camera)
+        );
+        renderer.setRenderTarget(before);
+      }
+      await Promise.all(ready);
     },
     dispose: () => {
       target.dispose();

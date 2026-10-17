@@ -2,6 +2,7 @@
 
 import {
   type RefObject,
+  startTransition,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -18,7 +19,12 @@ type Picture = {
   url: string | null;
   /** It came in after the stamp was on the page – it pops in. */
   fresh: boolean;
-  /** It came over the flat drawing, shown meanwhile – the two cross. */
+  /**
+   * The flat drawing stands in – there's no picture yet (or none to be had,
+   * no WebGL).
+   */
+  flat: boolean;
+  /** It came over the flat drawing – the two cross. */
   over: boolean;
 };
 
@@ -45,6 +51,7 @@ const useStickerImage = (
   const [picture, setPicture] = useState<Picture>({
     url: null,
     fresh: false,
+    flat: false,
     over: false,
   });
   const shape = input?.shape;
@@ -57,11 +64,25 @@ const useStickerImage = (
     const stamp = { shape, color, drawing: drawing ?? null, finish };
     const ready = renderedStickerImage(stamp, kind);
     if (ready) {
-      setPicture({ url: ready, fresh: false, over: false });
+      setPicture({ url: ready, fresh: false, flat: false, over: false });
       return;
     }
     let live = true;
-    const since = performance.now();
+    // Once it has waited a moment and is on screen, still without a picture
+    // (nor an old one), the drawing comes – as a transition, which React
+    // draws a few at a time when many come together.
+    let seen = false;
+    let waited = false;
+    const stand = () => {
+      if (!(live && seen && waited)) return;
+      startTransition(() =>
+        setPicture((was) => (was.url ? was : { ...was, flat: true }))
+      );
+    };
+    const wait = setTimeout(() => {
+      waited = true;
+      stand();
+    }, WAIT);
     const host = box.current;
     const watch = host && typeof IntersectionObserver === "function";
     // Seen on the page: it moves up.
@@ -70,12 +91,15 @@ const useStickerImage = (
           (entries) => {
             if (!entries.some((entry) => entry.isIntersecting)) return;
             observer?.disconnect();
+            seen = true;
+            stand();
             stickerImage(stamp, kind, { soon: true }).catch(() => undefined);
           },
           { rootMargin: NEAR }
         )
       : null;
     if (host) observer?.observe(host);
+    seen = !observer;
     stickerImage(stamp, kind, { soon: !observer })
       .then(
         (url) =>
@@ -83,13 +107,20 @@ const useStickerImage = (
           setPicture((was) => ({
             url,
             fresh: true,
-            over: !was.url && performance.now() - since > WAIT,
+            flat: false,
+            over: !was.url && was.flat,
           }))
       )
       // No picture to be had (no WebGL): the drawing stays.
-      .catch(() => live && setPicture({ url: null, fresh: true, over: false }));
+      .catch(
+        () =>
+          live &&
+          setPicture({ url: null, fresh: true, flat: true, over: false })
+      )
+      .finally(() => clearTimeout(wait));
     return () => {
       live = false;
+      clearTimeout(wait);
       observer?.disconnect();
     };
   }, [shape, color, drawing, finish, kind, box]);
@@ -134,7 +165,7 @@ export const Sticker = ({
   look?: Looks;
 }) => {
   const box = useRef<HTMLSpanElement>(null);
-  const { url, fresh, over } = useStickerImage(stamp, pose, box);
+  const { url, fresh, flat, over } = useStickerImage(stamp, pose, box);
   const { shape, color, drawing, finish } = stamp;
   // Only the face looks – and only once its picture is there.
   const looks = pose === "face" && look !== "never" ? look : null;
@@ -143,17 +174,17 @@ export const Sticker = ({
     if (!(host && url && looks)) return;
     return watchLook(host, { shape, color, drawing, finish }, looks);
   }, [url, looks, shape, color, drawing, finish]);
-  // The flat drawing: in a moment, while there's no picture (for good, if
-  // there's none to be had); going, as the picture comes over it. Laid out
-  // without classes – the CMS has none – under the picture.
-  const flat = !url || over;
+  // The flat drawing: while there's no picture (for good, if there's none
+  // to be had); going, as the picture comes over it. Laid out without
+  // classes – the CMS has none – under the picture.
+  const drawn = (flat && !url) || over;
   return (
     <span
       className={cn("relative block aspect-square", className)}
       ref={box}
       {...(label && { role: "img", "aria-label": label })}
     >
-      {flat && (
+      {drawn && (
         <span
           aria-hidden="true"
           style={{
@@ -161,9 +192,7 @@ export const Sticker = ({
             inset: 0,
             padding: "14%",
             boxSizing: "border-box",
-            animation: url
-              ? `fade ${CROSS}ms ease-in reverse both`
-              : `fade ${CROSS}ms ease-out ${WAIT}ms both`,
+            animation: `fade ${CROSS}ms ${url ? "ease-in reverse" : "ease-out"} both`,
           }}
         >
           <StampSvg
