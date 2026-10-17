@@ -240,7 +240,10 @@ describe("shelve", () => {
 
 describe("a gift still wrapped", () => {
   const GIFT: StampOrigin = { kind: "gift", from: null, name: "Boop" };
-  const stamps = [
+  const stamps: (ReturnType<typeof stamp> & {
+    color: string;
+    wrapped?: boolean;
+  })[] = [
     { ...stamp("a", "me", "2026-10-03T10:00:00Z"), color: "red" },
     {
       ...stamp("w", "me", "2026-10-01T10:00:00Z", GIFT),
