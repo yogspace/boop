@@ -14,7 +14,8 @@
  *   sheets, the 3D stamps: chunks of their own, named in the ones before),
  *   when installing and behind each new script: all of the app opens
  *   offline, not only its start – after an update of the app too.
- * - Icons, fonts, the manifest: from the cache, refreshed behind.
+ * - Icons, fonts, the manifest: from the cache, refreshed behind – those
+ *   the app's pages name kept since installing too.
  * - Never cached: /api, /admin, /next – data, the CMS, statistics.
  *
  * Bump VERSION when this file's logic changes; old caches go on activation.
@@ -23,6 +24,9 @@ const VERSION = "boop-v3";
 const PAGES = `${VERSION}-pages`;
 const FILES = `${VERSION}-files`;
 const SHELLS = ["/de/app", "/en/app"];
+/** A file of this site a page names – a font, the manifest, an icon. */
+const OWN_FILE =
+  /(?:href|src)="(\/(?!_next\/)[^"?#]+\.(?:woff2?|webmanifest|svg|png|ico))"/g;
 /** A slow network counts as none after this long – the copy shows. */
 const NETWORK_TIMEOUT_MS = 4000;
 
@@ -44,6 +48,12 @@ self.addEventListener("install", (event) => {
           const html = await response.text();
           const assets = new Set(html.match(/\/_next\/static\/[^"'\s)\\]+/g));
           await keep(files, assets);
+          // And what the page names besides – the font, the manifest, the
+          // icons: without them the first offline start has no letters.
+          const named = [...html.matchAll(OWN_FILE)].map(([, path]) => path);
+          await Promise.all(
+            named.map((path) => files.add(path).catch(() => undefined))
+          );
         } catch {
           // Offline while installing – the next visit fills the cache.
         }
@@ -172,7 +182,10 @@ const refreshBehind = async (request) => {
       if (response.ok) await cache.put(request, response.clone());
       return response;
     })
-    .catch(() => hit);
+    .catch(
+      () =>
+        hit ?? new Response("Offline", { status: 503, statusText: "Offline" })
+    );
   return hit ?? fresh;
 };
 
