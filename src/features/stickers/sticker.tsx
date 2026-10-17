@@ -1,18 +1,30 @@
 "use client";
 
 import {
+  type ReactNode,
   type RefObject,
   startTransition,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
+import type { ColorName } from "@/features/calendar/model";
+import { hexOf } from "@/features/calendar/palette";
 import { StampSvg } from "@/features/calendar/stamp-svg";
 import { cn } from "@/lib/cn";
 import type { StickerInput } from "./build";
 import { type Looks, watchLook } from "./look";
-import { type Pose, renderedStickerImage, stickerImage } from "./render";
+import {
+  type Pose,
+  parcelImage,
+  parcelKey,
+  renderedParcelImage,
+  renderedStickerImage,
+  stickerImage,
+  stickerKey,
+} from "./render";
 
 type Picture = {
   /** The picture, once rendered. */
@@ -38,14 +50,22 @@ const CROSS = 240;
 /** On screen, or about to be (of the screen, round it): wanted first. */
 const NEAR = "25%";
 
+/** A picture to show: what it is by, and how to have it (render.ts). */
+type Source = {
+  key: string;
+  /** The picture, if it's there already. */
+  ready: () => string | null;
+  /** The picture – `soon`: it's on screen, someone waits for it. */
+  load: (soon: boolean) => Promise<string>;
+};
+
 /**
- * The stamp's picture – null until rendered. One rendered before shows from
- * the first paint; a new one keeps the old in place until it's there. One
- * on screen (`box`) is rendered before those that aren't.
+ * The picture – null until rendered. One rendered before shows from the
+ * first paint; a new one keeps the old in place until it's there. One on
+ * screen (`box`) is rendered before those that aren't.
  */
-const useStickerImage = (
-  input: StickerInput | null,
-  kind: Pose,
+const usePicture = (
+  source: Source | null,
   box: RefObject<HTMLElement | null>
 ) => {
   const [picture, setPicture] = useState<Picture>({
@@ -54,15 +74,12 @@ const useStickerImage = (
     flat: false,
     over: false,
   });
-  const shape = input?.shape;
-  const color = input?.color;
-  const drawing = input?.drawing;
-  const finish = input?.finish;
+  const key = source?.key;
   // Before the paint, so a picture that's there never blinks.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a source is its key
   useLayoutEffect(() => {
-    if (!(shape && color)) return;
-    const stamp = { shape, color, drawing: drawing ?? null, finish };
-    const ready = renderedStickerImage(stamp, kind);
+    if (!source) return;
+    const ready = source.ready();
     if (ready) {
       setPicture({ url: ready, fresh: false, flat: false, over: false });
       return;
@@ -93,14 +110,15 @@ const useStickerImage = (
             observer?.disconnect();
             seen = true;
             stand();
-            stickerImage(stamp, kind, { soon: true }).catch(() => undefined);
+            source.load(true).catch(() => undefined);
           },
           { rootMargin: NEAR }
         )
       : null;
     if (host) observer?.observe(host);
     seen = !observer;
-    stickerImage(stamp, kind, { soon: !observer })
+    source
+      .load(!observer)
       .then(
         (url) =>
           live &&
@@ -123,7 +141,7 @@ const useStickerImage = (
       clearTimeout(wait);
       observer?.disconnect();
     };
-  }, [shape, color, drawing, finish, kind, box]);
+  }, [key, box]);
   // Crossed over: the drawing goes.
   useEffect(() => {
     if (!picture.over) return;
@@ -138,6 +156,63 @@ const useStickerImage = (
 
 /** Grows in softly with a little bounce – a plain fade for reduced motion. */
 const POP = "animate-pop-in motion-reduce:animate-fade";
+
+/**
+ * A picture's box: the picture once it's there, and the flat drawing
+ * (`drawing`) while there's none – for good, if there's none to be had –
+ * going as the picture comes over it. Laid out without classes – the CMS
+ * has none – under the picture.
+ */
+const Framed = ({
+  picture: { url, fresh, flat, over },
+  drawing,
+  box,
+  className,
+  label,
+}: {
+  picture: Picture;
+  drawing: ReactNode;
+  box: RefObject<HTMLSpanElement | null>;
+  className?: string;
+  label?: string;
+}) => (
+  <span
+    className={cn("relative block aspect-square", className)}
+    ref={box}
+    {...(label && { role: "img", "aria-label": label })}
+  >
+    {((flat && !url) || over) && (
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          padding: "14%",
+          boxSizing: "border-box",
+          animation: `fade ${CROSS}ms ${url ? "ease-in reverse" : "ease-out"} both`,
+        }}
+      >
+        {drawing}
+      </span>
+    )}
+    {url && (
+      // The picture fills the box. Looking, the stamp is drawn live over
+      // it, and it hides meanwhile (look.ts).
+      <img
+        alt=""
+        className={cn(
+          "h-full w-full object-contain",
+          fresh && (over ? "animate-fade" : POP)
+        )}
+        draggable={false}
+        // A new picture pops in afresh.
+        key={url}
+        src={url}
+        style={{ position: "relative" }}
+      />
+    )}
+  </span>
+);
 
 /**
  * A stamp as its 3D picture. While it is on its way the flat drawing stands
@@ -165,8 +240,18 @@ export const Sticker = ({
   look?: Looks;
 }) => {
   const box = useRef<HTMLSpanElement>(null);
-  const { url, fresh, flat, over } = useStickerImage(stamp, pose, box);
   const { shape, color, drawing, finish } = stamp;
+  const source = useMemo((): Source | null => {
+    if (!(shape && color)) return null;
+    const input = { shape, color, drawing: drawing ?? null, finish };
+    return {
+      key: stickerKey(input, pose),
+      ready: () => renderedStickerImage(input, pose),
+      load: (soon) => stickerImage(input, pose, { soon }),
+    };
+  }, [shape, color, drawing, finish, pose]);
+  const picture = usePicture(source, box);
+  const { url } = picture;
   // Only the face looks – and only once its picture is there.
   const looks = pose === "face" && look !== "never" ? look : null;
   useEffect(() => {
@@ -174,51 +259,117 @@ export const Sticker = ({
     if (!(host && url && looks)) return;
     return watchLook(host, { shape, color, drawing, finish }, looks);
   }, [url, looks, shape, color, drawing, finish]);
-  // The flat drawing: while there's no picture (for good, if there's none
-  // to be had); going, as the picture comes over it. Laid out without
-  // classes – the CMS has none – under the picture.
-  const drawn = (flat && !url) || over;
   return (
-    <span
-      className={cn("relative block aspect-square", className)}
-      ref={box}
-      {...(label && { role: "img", "aria-label": label })}
-    >
-      {drawn && (
-        <span
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: 0,
-            padding: "14%",
-            boxSizing: "border-box",
-            animation: `fade ${CROSS}ms ${url ? "ease-in reverse" : "ease-out"} both`,
-          }}
-        >
-          <StampSvg
-            className="block h-full w-full"
-            color={stamp.color}
-            drawing={stamp.drawing}
-            shape={stamp.shape}
-          />
-        </span>
-      )}
-      {url && (
-        // The picture fills the box. Looking, the stamp is drawn live over
-        // it, and it hides meanwhile (look.ts).
-        <img
-          alt=""
-          className={cn(
-            "h-full w-full object-contain",
-            fresh && (over ? "animate-fade" : POP)
-          )}
-          draggable={false}
-          // A new picture pops in afresh.
-          key={url}
-          src={url}
-          style={{ position: "relative" }}
+    <Framed
+      box={box}
+      className={className}
+      drawing={
+        <StampSvg
+          className="block h-full w-full"
+          color={stamp.color}
+          drawing={stamp.drawing}
+          shape={stamp.shape}
         />
-      )}
-    </span>
+      }
+      label={label}
+      picture={picture}
+    />
+  );
+};
+
+/**
+ * A gift's parcel as its 3D picture (parcel.ts) – in the gift's color, as
+ * the shelf and the pile show one still wrapped. It comes like a stamp's
+ * picture, a flat parcel standing in.
+ */
+export const Parcel = ({
+  color,
+  className,
+  label,
+}: {
+  color: ColorName;
+  className?: string;
+  label?: string;
+}) => {
+  const box = useRef<HTMLSpanElement>(null);
+  const source = useMemo(
+    (): Source => ({
+      key: parcelKey(color),
+      ready: () => renderedParcelImage(color),
+      load: (soon) => parcelImage(color, { soon }),
+    }),
+    [color]
+  );
+  return (
+    <Framed
+      box={box}
+      className={className}
+      drawing={<ParcelSvg color={color} />}
+      label={label}
+      picture={usePicture(source, box)}
+    />
+  );
+};
+
+/**
+ * A parcel drawn flat – box, lid, ribbon and bow, in the colors of its
+ * picture: the paper a light tint, the ribbon the full color.
+ */
+const ParcelSvg = ({ color }: { color: ColorName }) => {
+  const hex = hexOf(color);
+  const paper = `color-mix(in srgb, ${hex} 50%, white)`;
+  const line = {
+    stroke: "#111014",
+    strokeWidth: 3,
+    strokeLinejoin: "round",
+    strokeLinecap: "round",
+  } as const;
+  return (
+    <svg
+      aria-hidden="true"
+      style={{ display: "block", width: "100%", height: "100%" }}
+      viewBox="0 0 100 100"
+    >
+      <rect
+        height="46"
+        rx="6"
+        style={{ fill: paper }}
+        width="64"
+        x="18"
+        y="44"
+        {...line}
+      />
+      <rect
+        height="46"
+        style={{ fill: hex }}
+        width="12"
+        x="44"
+        y="44"
+        {...line}
+      />
+      <rect
+        height="17"
+        rx="6"
+        style={{ fill: paper }}
+        width="76"
+        x="12"
+        y="32"
+        {...line}
+      />
+      <rect
+        height="17"
+        style={{ fill: hex }}
+        width="12"
+        x="44"
+        y="32"
+        {...line}
+      />
+      <path
+        d="M50 31 C40 14 25 18 31 28 C34 33 44 32 50 31 Z M50 31 C60 14 75 18 69 28 C66 33 56 32 50 31 Z"
+        style={{ fill: hex }}
+        {...line}
+      />
+      <ellipse cx="50" cy="30" rx="6" ry="5" style={{ fill: hex }} {...line} />
+    </svg>
   );
 };

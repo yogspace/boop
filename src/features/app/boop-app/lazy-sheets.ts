@@ -34,7 +34,7 @@ export const ConfirmSheet = later(() =>
 );
 
 /**
- * The popups over the app – an invitation, a stamp that came. Always there,
+ * The popups over the app – an invitation, a card that came. Always there,
  * though seldom showing: fetched from the start, while the device's copy
  * opens, so they are in before the app shows.
  */
@@ -42,7 +42,7 @@ export const Invitations = later(() =>
   import("../invitations").then((file) => file.Invitations)
 );
 export const Arrivals = later(() =>
-  import("../gifts").then((file) => file.Arrivals)
+  import("../arrivals").then((file) => file.Arrivals)
 );
 
 /** The popups, fetched from the start (BoopApp). */

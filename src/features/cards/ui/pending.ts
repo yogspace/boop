@@ -1,6 +1,6 @@
 /**
  * What a card's page leaves for the app on this device (card-panel.tsx →
- * features/app/gifts.tsx):
+ * features/app/arrivals.tsx):
  *
  * - A card opened before logging in, to be taken once logged in – kept
  *   until then, like an invitation (accounts/forms.tsx): following “log in

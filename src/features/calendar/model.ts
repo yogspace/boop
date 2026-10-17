@@ -174,6 +174,13 @@ export type StampDoc = Synced & {
    * by its owner.
    */
   origin?: StampOrigin;
+  /**
+   * A gift from Boop still in its paper – a parcel on the shelf, not in a
+   * day's tray, until its owner unwraps it. The server wraps it as it gives
+   * it (cards/gifts.ts); a device only ever takes the paper off. None:
+   * unwrapped – gifts from before came that way.
+   */
+  wrapped?: boolean;
 };
 
 export type PlacementDoc = Synced & {

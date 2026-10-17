@@ -259,6 +259,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
                 }}
                 onOpen={sheets.setOpened}
                 onOrder={shelf.pick}
+                onUnwrap={shelf.unwrap}
                 order={shelf.order}
                 people={boop.people}
               />

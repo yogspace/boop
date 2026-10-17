@@ -23,7 +23,7 @@ import { Wallpaper } from "./wallpaper";
  * of its own prints (wallpaper.tsx). Whoever is logged in takes it into
  * their stamps, and is in the app next; whoever is not logs in or signs up
  * first – the card waits on the device meanwhile (pending.ts), and the app
- * takes it (features/app/gifts.tsx). One button for all of it: the ways in
+ * takes it (features/app/arrivals.tsx). One button for all of it: the ways in
  * show only once it is pressed, so the stamp and the words have the page.
  * And for anyone: the stamp as a file for a 3D printer.
  *
@@ -119,7 +119,7 @@ export const CardPanel = ({
     const result = await takeCard(id);
     if (result.ok) {
       trackEvent("card-taken");
-      // The app greets it (features/app/gifts.tsx).
+      // The app greets it (features/app/arrivals.tsx).
       cardArrived.set(result.stamp);
       router.push(`/${locale}/app`);
       return;

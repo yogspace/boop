@@ -34,8 +34,8 @@ export const useSheets = ({
   // throw it away – it stays, and the editor asks (`ask` counts up).
   const drawn = useRef(false);
   const [askLeave, setAskLeave] = useState(0);
-  // An invitation's popup over the app (invitations.tsx) – or a stamp that
-  // came to the account, greeted (gifts.tsx). One at a time.
+  // An invitation's popup over the app (invitations.tsx) – or a card that
+  // came to the account, greeted (arrivals.tsx). One at a time.
   const [inviting, setInviting] = useState(false);
   const [arriving, setArriving] = useState(false);
   const noteDrawn = useRef((now: boolean) => {

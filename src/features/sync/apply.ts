@@ -26,7 +26,8 @@ import type { Change, SyncType } from "./protocol";
  *   drawing, the shape, the color – is checked as when it was made, and
  *   changes only on a stamp its owner drew: a copy looks like its original,
  *   whose changes reach it (cards/follow.ts). Its owner still names and
- *   shares it.
+ *   shares it – and unwraps a gift (`wrapped`), once and for good: that
+ *   counts even when the server's copy changed later.
  * - placement: every member of its calendar places, moves and removes – with
  *   a stamp they have: their own (in any calendar of theirs), or one shared
  *   with a calendar of theirs (in any of them, too).
@@ -146,6 +147,19 @@ export const applyChange = async (
     existing?.changedAt &&
     new Date(String(existing.changedAt)).getTime() >= changedAt.getTime()
   ) {
+    // Unwrapping goes one way only: it counts, however late it comes – as a
+    // change made now, so the other devices take it over too.
+    if (change.type === "stamp" && unwraps(ctx, existing, change.data ?? {})) {
+      await req.payload.update({
+        collection,
+        id: change.id,
+        data: { wrapped: false, changedAt: new Date().toISOString() },
+        context: { sync: true, by: ctx.me },
+        depth: 0,
+        overrideAccess: true,
+        req,
+      });
+    }
     return OK;
   }
 
@@ -260,6 +274,7 @@ const applyStamp = async (
         : undefined,
     drawing: cleanDrawing(data.drawing) ?? undefined,
     sharedWith,
+    wrapped: unwraps(ctx, existing, data) ? false : undefined,
   };
   if (!existing) {
     await write({
@@ -303,7 +318,9 @@ const applyStamp = async (
   // A copy (a card taken, a gift) has no look of its own: what a device
   // says of it is left out – nothing else asked, and the change is refused.
   if ((existing.origin as Doc | null | undefined)?.kind) {
-    const named = ["name", "sharedWith", "calendar"].some((key) => key in data);
+    const named = ["name", "sharedWith", "calendar", "wrapped"].some(
+      (key) => key in data
+    );
     if (!named && LOOK.some((key) => key in data)) return no("a copy");
     for (const key of LOOK) fields[key] = undefined;
   }
@@ -453,6 +470,16 @@ const applyPref = async (
   await write(fields);
   return OK;
 };
+
+/**
+ * A gift unwrapped by its owner (`wrapped: false`) – all a device ever says
+ * of the paper: it never wraps one.
+ */
+const unwraps = (ctx: ApplyContext, existing: Doc | null, data: Doc) =>
+  data.wrapped === false &&
+  existing?.wrapped === true &&
+  !existing.deleted &&
+  idOf(existing.owner) === ctx.me;
 
 /** A stamp, as it is kept – none for no id. */
 const stampOf = async (ctx: ApplyContext, id: string | null) =>

@@ -19,50 +19,24 @@ import { cn } from "@/lib/cn";
 import { Sheet } from "./sheet";
 
 /**
- * Stamps that came to the account, each greeted once with a sheet:
+ * Cards that came to the account, each greeted once with a sheet:
  *
- * - a gift from Boop (features/cards) – once per device: what showed here
- *   once is kept (`seen`), and only gifts of the last few weeks come – a new
- *   device doesn't bring up every gift there ever was;
  * - a card taken on its page (`cardArrived`), the app opening right after;
  * - a card opened before logging in (`cardToTake`) – taken here, once the
  *   account is known and there is a connection. Gone meanwhile, a sheet
  *   says so; one's own card is no card to take, and simply goes.
+ *
+ * A gift from Boop has no sheet: it comes wrapped, a parcel on the shelf
+ * (stamp-shelf.tsx), and is unwrapped there.
  */
 
-type Arrival =
-  | { kind: "gift" | "card"; stamp: string }
-  | { kind: "gone"; stamp: null };
+type Arrival = { kind: "card"; stamp: string } | { kind: "gone"; stamp: null };
 
-/** Where the device keeps the gifts it showed. */
-const SEEN = "boop-gifts-seen";
-/** As many as that – the oldest go first. */
-const SEEN_MOST = 200;
-/** Gifts older than this (ms) come no more – they were greeted elsewhere. */
-const RECENT = 30 * 24 * 60 * 60 * 1000;
 /** Something else just went: a breath before this comes (ms). */
 const BREATH = 450;
 
-const seen = {
-  read: (): string[] => {
-    try {
-      const ids: unknown = JSON.parse(localStorage.getItem(SEEN) ?? "[]");
-      return Array.isArray(ids)
-        ? ids.filter((id): id is string => typeof id === "string")
-        : [];
-    } catch {
-      return [];
-    }
-  },
-  add: (id: string) => {
-    try {
-      const ids = [...seen.read().filter((known) => known !== id), id];
-      localStorage.setItem(SEEN, JSON.stringify(ids.slice(-SEEN_MOST)));
-    } catch {
-      // No storage – it comes again next time.
-    }
-  },
-};
+/** Where an app from before kept the gifts it had greeted. */
+const GIFTS_SEEN = "boop-gifts-seen";
 
 /**
  * The arrivals' sheet – mount it once, beside the app's sheets, like the
@@ -87,6 +61,15 @@ export const Arrivals = ({
   const [shown, setShown] = useState<Arrival | null>(null);
   const [present, setPresent] = useState(false);
   useEffect(() => onShowing?.(present), [present, onShowing]);
+
+  // Gifts have no sheet any more – what the device kept of them goes.
+  useEffect(() => {
+    try {
+      localStorage.removeItem(GIFTS_SEEN);
+    } catch {
+      // No storage – nothing kept.
+    }
+  }, []);
 
   // A card just taken on its page: greeted once its stamp is here.
   useEffect(() => {
@@ -143,41 +126,18 @@ export const Arrivals = ({
     setRound((n) => n + 1);
   };
 
-  // What comes next: a card first – just taken – then the newest gift.
+  // What comes next: a card whose stamp is here.
   const here = (arrival: Arrival) =>
     arrival.kind === "gone" || Boolean(stamps[arrival.stamp]);
   const card = waiting.find(here);
-  const next = (): Arrival | null => {
-    if (card) return card;
-    const known = new Set(seen.read());
-    const since = Date.now() - RECENT;
-    const [gift] = Object.values(stamps)
-      .filter(
-        (s) =>
-          s.origin?.kind === "gift" &&
-          s.owner === me?.id &&
-          !s.deleted &&
-          !known.has(s.id) &&
-          Date.parse(s.changedAt) > since
-      )
-      .sort((a, b) => Date.parse(b.changedAt) - Date.parse(a.changedAt));
-    return gift ? { kind: "gift", stamp: gift.id } : null;
-  };
   if (shown) {
     // Its stamp went meanwhile (deleted elsewhere): so does its sheet.
     if (shown.stamp && !stamps[shown.stamp]) close();
-  } else if (free && !hold) {
-    const coming = next();
-    if (coming) {
-      setShown(coming);
-      setPresent(true);
-      if (coming === card) setWaiting((all) => all.filter((a) => a !== card));
-    }
+  } else if (free && !hold && card) {
+    setShown(card);
+    setPresent(true);
+    setWaiting((all) => all.filter((a) => a !== card));
   }
-  // Shown, a gift counts as seen on this device.
-  useEffect(() => {
-    if (shown?.kind === "gift") seen.add(shown.stamp);
-  }, [shown]);
 
   const stamp = shown?.stamp ? stamps[shown.stamp] : null;
   return (
@@ -224,10 +184,9 @@ const ArrivalSheet = ({
       </Sheet>
     );
   }
-  const gift = arrival.kind === "gift";
   const giver = stamp.origin?.name.split(" ")[0] ?? "";
   return (
-    <Sheet onClose={onClose} title={gift ? text.giftTitle : text.cardTitle}>
+    <Sheet onClose={onClose} title={text.cardTitle}>
       <div className="relative">
         <div className={STAGE}>
           <StampShow stamp={stamp} />
@@ -255,19 +214,12 @@ const ArrivalSheet = ({
         <h3 className="wrap-break-word max-w-full font-black text-2xl">
           {stamp.name || t.app.stamp.untitled}
         </h3>
-        <p className="font-bold text-muted">
-          {gift ? t.app.stamp.origin(giver) : text.cardText(giver)}
-        </p>
+        <p className="font-bold text-muted">{text.cardText(giver)}</p>
       </div>
       {stamp.origin?.message && (
         // The giver's words – on a slip, as they came.
         <p className="scribble scribble-thin scribble-soft wrap-break-word -rotate-1 whitespace-pre-line rounded-2xl px-4 py-3 font-medium">
           {stamp.origin.message}
-        </p>
-      )}
-      {gift && (
-        <p className="text-center font-medium text-muted text-sm">
-          {text.giftText}
         </p>
       )}
       <Button onClick={onShelf} size="lg">

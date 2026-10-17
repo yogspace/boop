@@ -23,7 +23,8 @@ const shapeKey = (value: unknown) =>
  * taken, a gift from Boop (features/cards). Written by the server alone;
  * a device's word on it is never read (sync/apply.ts). Such a copy looks
  * like its original: drawn anew, the original's look reaches it
- * (`followOriginal`, cards/follow.ts).
+ * (`followOriginal`, cards/follow.ts). A gift comes `wrapped`, and only its
+ * owner unwraps it.
  *
  * The app's through the sync alone; closed over REST, for admins too – they
  * read it in support mode (src/access).
@@ -125,6 +126,16 @@ export const Stamps: CollectionConfig = {
           index: true,
         },
       ],
+    },
+    {
+      // A gift as it comes – wrapped (cards/gifts.ts) – until its owner
+      // unwraps it in the app (sync/apply.ts). Gifts from before: unwrapped.
+      name: "wrapped",
+      type: "checkbox",
+      admin: {
+        description:
+          "A gift from Boop, still wrapped – a parcel on its owner's shelf until they unwrap it.",
+      },
     },
     ...syncFields,
   ],

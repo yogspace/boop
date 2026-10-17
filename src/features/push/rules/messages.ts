@@ -1,6 +1,7 @@
 // Relative, not `@/…`: the unit tests import this without the app's aliases.
 import type { Locale } from "../../../i18n/config";
 import { dictionaryOf } from "../../../i18n/dictionaries";
+import { shelfAddressOf } from "../../app/address";
 import { type CalendarChange, distinctChanges } from "./changes";
 
 /**
@@ -16,7 +17,7 @@ import { type CalendarChange, distinctChanges } from "./changes";
 export type PushMessage = {
   title: string;
   body: string;
-  /** Where a tap leads – the calendar in the app, or the app. */
+  /** Where a tap leads – the calendar in the app, the shelf, or the app. */
   url: string;
   /** One per calendar and kind on the device: a new one replaces it. */
   tag: string;
@@ -61,8 +62,8 @@ export const invitedMessage = (
 };
 
 /**
- * “Boop gave you a stamp: ‘Pumpkin’” – for those who got it. A tap opens
- * the app, where the gift shows.
+ * “Boop gave you a stamp: ‘Pumpkin’” – for those who got it. A tap leads to
+ * the shelf, where it waits wrapped.
  */
 export const giftMessage = (
   locale: Locale,
@@ -72,7 +73,7 @@ export const giftMessage = (
   return {
     title: t.giftTitle,
     body: t.giftBody(name),
-    url: `/${locale}/app`,
+    url: shelfAddressOf(locale),
     tag: `gift-${gift}`,
   };
 };

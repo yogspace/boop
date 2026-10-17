@@ -1,20 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useReducedMotion } from "motion/react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { Snapshot } from "valtio";
 import { Plus, Sparkle, Squiggle } from "@/components/doodles";
 import { BADGE } from "@/components/ui";
 import { type StampDoc, stampsOf } from "@/features/calendar/model";
 import { usePalette } from "@/features/calendar/palette-provider";
-import { useBoop } from "@/features/offline/store";
+import { unwrapStamp, useBoop } from "@/features/offline/store";
 import { Sticker } from "@/features/stickers/sticker";
+import { prepareUnwrap, Unwrapping } from "@/features/stickers/unwrap";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { CalendarLeaf } from "./calendar-leaf";
 import { NameTag } from "./name-tag";
 import { OrderMenu } from "./order-menu";
+import { KnockedParcel, tapsToOpen } from "./parcel-knock";
 import {
+  FIRST_ORDER,
   keepOrder,
   lastUsed,
   readOrder,
@@ -22,6 +33,7 @@ import {
   type ShelfGroup,
   type ShelfOrder,
   shelve,
+  wrappedFirst,
 } from "./shelf";
 
 // Where the day's tray and the app have always found them.
@@ -51,6 +63,9 @@ const tilt = (id: string) => ((id.charCodeAt(0) + id.charCodeAt(5)) % 9) - 4;
 export const NAME_UNDER =
   "min-w-0 truncate text-center font-bold text-[11px] text-muted leading-4";
 
+/** No gift held in its place. */
+const NONE: ReadonlyMap<string, string> = new Map();
+
 /**
  * The stamps the account stamps with, in the order the device keeps
  * (shelf.ts) – for the shelf and the day's tray alike, one choice for both:
@@ -61,6 +76,9 @@ export const NAME_UNDER =
  * moment moves on with `settle` – a day's sheet gone, the order picked
  * again, the shelf or the calendars come up – and as the app comes back
  * into sight.
+ *
+ * A gift still wrapped is on the shelf – a parcel, up front – and on top of
+ * the pile, but in no tray: it is unwrapped first (`unwrap`).
  */
 export const useShelf = () => {
   const boop = useBoop();
@@ -69,10 +87,17 @@ export const useShelf = () => {
   // Read right away: nothing of the shelf shows before the device's copy is
   // open.
   const [order, setOrder] = useState<ShelfOrder>(() =>
-    typeof window === "undefined" ? "recent" : readOrder()
+    typeof window === "undefined" ? FIRST_ORDER : readOrder()
   );
   const [until, setUntil] = useState(Date.now);
-  const settle = useCallback(() => setUntil(Date.now()), []);
+  // Gifts just unwrapped, and when they had come: sorted as they were –
+  // still wrapped – until the moment moves on, so nothing jumps under the
+  // finger that unwrapped one.
+  const [held, setHeld] = useState<ReadonlyMap<string, string>>(NONE);
+  const settle = useCallback(() => {
+    setUntil(Date.now());
+    setHeld(NONE);
+  }, []);
   useEffect(() => {
     const back = () => {
       if (document.visibilityState === "visible") settle();
@@ -93,26 +118,58 @@ export const useShelf = () => {
     [boop.placements, me, until]
   );
   const colors = useMemo(() => palette.map((color) => color.key), [palette]);
-  const groups = useMemo(
-    () =>
-      shelve(
-        stampsOf(Object.values(boop.stamps), me, Object.keys(boop.calendars)),
-        order,
-        { me, nameOf: (id) => boop.people[id] ?? "", used, colors }
-      ),
-    [boop.stamps, boop.calendars, boop.people, me, order, used, colors]
+  const all = useMemo(
+    () => stampsOf(Object.values(boop.stamps), me, Object.keys(boop.calendars)),
+    [boop.stamps, boop.calendars, me]
   );
+  const groups = useMemo(() => {
+    const sorted = shelve(
+      all.map((s) => {
+        const came = held.get(s.id);
+        return came ? { ...s, changedAt: came, wrapped: true } : s;
+      }),
+      order,
+      { me, nameOf: (id) => boop.people[id] ?? "", used, colors }
+    );
+    // … and shown as they are.
+    return held.size
+      ? sorted.map((group) => ({
+          ...group,
+          stamps: group.stamps.map((s) => boop.stamps[s.id] ?? s),
+        }))
+      : sorted;
+  }, [all, boop.stamps, boop.people, held, me, order, used, colors]);
+  // To stamp with: all but the gifts still wrapped.
   const stamps = useMemo(
-    () => groups.flatMap((group) => group.stamps),
+    () => groups.flatMap((group) => group.stamps).filter((s) => !s.wrapped),
     [groups]
   );
-  // The few last stamped with, whatever the order – the pile on the way to
-  // the shelf (stamp-pile.tsx).
+  // The few last stamped with, whatever the order – a gift still wrapped
+  // on top: the pile on the way to the shelf (stamp-pile.tsx).
   const latest = useMemo(
-    () => recentFirst(stamps, used).slice(0, PILE),
-    [stamps, used]
+    () => wrappedFirst(recentFirst(all, used)).slice(0, PILE),
+    [all, used]
   );
-  return { order, pick, settle, groups, stamps, latest };
+  /** A gift unwrapped (unwrap.tsx) – for good, and it keeps its place. */
+  const unwrap = useCallback(
+    (id: string) => {
+      const stamp = boop.stamps[id];
+      if (!stamp?.wrapped) return;
+      setHeld((was) => new Map(was).set(id, stamp.changedAt));
+      void unwrapStamp(id);
+    },
+    [boop.stamps]
+  );
+  return {
+    order,
+    pick,
+    settle,
+    groups,
+    stamps,
+    latest,
+    count: all.length,
+    unwrap,
+  };
 };
 
 /**
@@ -125,7 +182,9 @@ export const useShelf = () => {
  * (calendar-leaf.tsx). A tap opens a stamp's sheet. Someone else's stamp
  * wears their first name; one that came to the account (a card, a gift)
  * says from whom – in sections the heading says it; one of mine that
- * others may use too, two rings.
+ * others may use too, two rings. A gift still wrapped is a parcel that
+ * wants a few taps (parcel-knock.tsx) – the last unwraps it (unwrap.tsx),
+ * and there it is.
  */
 export const StampShelf = ({
   groups,
@@ -138,8 +197,9 @@ export const StampShelf = ({
   onOrder,
   onNew,
   onOpen,
+  onUnwrap,
 }: {
-  /** In order – by person, the first is mine. */
+  /** In order – by person, mine first (or Boop's, with a parcel in it). */
   groups: ShelfGroup<Stamp>[];
   order: ShelfOrder;
   me: string | undefined;
@@ -152,8 +212,38 @@ export const StampShelf = ({
   onOrder: (order: ShelfOrder) => void;
   onNew: () => void;
   onOpen: (id: string) => void;
+  /** A gift unwrapped – `useShelf`'s `unwrap`. */
+  onUnwrap: (id: string) => void;
 }) => {
   const t = dictionaryOf(locale);
+  // Gifts being unwrapped (unwrap.tsx) – and those whose parcel the live one
+  // has taken over: its picture hides under it. Each finds its picture's
+  // box by the stamp (`boxes`) – the parcel's, then the stamp's.
+  const [opening, setOpening] = useState<readonly string[]>([]);
+  const [covered, setCovered] = useState<ReadonlySet<string>>(new Set());
+  const boxes = useRef(new Map<string, HTMLElement>());
+  const reduced = useReducedMotion();
+  // The taps each parcel has had, and how many it wants – a few, at random
+  // (parcel-knock.tsx); the last one opens it.
+  const [knocks, setKnocks] = useState<
+    ReadonlyMap<string, { count: number; wants: number }>
+  >(new Map());
+  const knock = (id: string) => {
+    // Less motion asked for: it is simply unwrapped – the stamp fades in.
+    if (reduced) {
+      onUnwrap(id);
+      return;
+    }
+    if (opening.includes(id)) return;
+    const was = knocks.get(id) ?? { count: 0, wants: tapsToOpen() };
+    const count = was.count + 1;
+    if (count === 1) prepareUnwrap();
+    setKnocks(new Map(knocks).set(id, { ...was, count }));
+    if (count >= was.wants) setOpening((all) => [...all, id]);
+  };
+  const byId = new Map(
+    groups.flatMap((group) => group.stamps).map((s) => [s.id, s])
+  );
   const firstName = (name: string) => name.split(" ")[0] ?? "";
   const nameOf = (id: string) => firstName(people[id] ?? "") || "?";
   // Whose it is, or where it came from – nothing for one I drew.
@@ -237,7 +327,23 @@ export const StampShelf = ({
                   : s.origin
                     ? t.app.stamp.origin(firstName(s.origin.name))
                     : null;
-              const label = [s.name, whose(s)].filter(Boolean).join(" – ");
+              const label = s.wrapped
+                ? t.app.parcel
+                : [s.name, whose(s)].filter(Boolean).join(" – ");
+              // The picture's box – where an unwrapping finds it.
+              const picture = (shown: ReactNode) => (
+                <span
+                  className="block w-full"
+                  ref={(box) => {
+                    if (box) boxes.current.set(s.id, box);
+                    else if (boxes.current.get(s.id)?.isConnected === false) {
+                      boxes.current.delete(s.id);
+                    }
+                  }}
+                >
+                  {shown}
+                </span>
+              );
               return (
                 <li
                   className="flex min-w-0 flex-col gap-0.5"
@@ -249,21 +355,37 @@ export const StampShelf = ({
                       {({ onClick, ...anchor }) => (
                         <button
                           {...anchor}
-                          aria-label={[s.name || t.app.stamp.untitled, whose(s)]
-                            .filter(Boolean)
-                            .join(" – ")}
+                          aria-label={
+                            s.wrapped
+                              ? label
+                              : [s.name || t.app.stamp.untitled, whose(s)]
+                                  .filter(Boolean)
+                                  .join(" – ")
+                          }
                           className="scribble scribble-bare flex aspect-square w-full items-center justify-center rounded-3xl p-1 hover:animate-wiggle hover:scribble-soft"
                           onClick={() => {
                             onClick();
-                            onOpen(s.id);
+                            if (s.wrapped) knock(s.id);
+                            else onOpen(s.id);
                           }}
                           type="button"
                         >
-                          <Sticker stamp={s} />
+                          {s.wrapped
+                            ? picture(
+                                <KnockedParcel
+                                  className={cn(
+                                    covered.has(s.id) && "invisible"
+                                  )}
+                                  color={s.color}
+                                  knocks={knocks.get(s.id)?.count ?? 0}
+                                  opening={opening.includes(s.id)}
+                                />
+                              )
+                            : picture(<Sticker stamp={s} />)}
                         </button>
                       )}
                     </NameTag>
-                    {s.drawing?.special && (
+                    {s.drawing?.special && !s.wrapped && (
                       // A stamp for the big days.
                       <Sparkle className="pointer-events-none absolute top-1 right-1 h-4 w-4 text-ink" />
                     )}
@@ -281,7 +403,7 @@ export const StampShelf = ({
                       )
                     )}
                   </div>
-                  {s.name && (
+                  {s.name && !s.wrapped && (
                     // The button says it to a screen reader already.
                     <span
                       aria-hidden="true"
@@ -304,8 +426,49 @@ export const StampShelf = ({
       {count === 0 && (
         <p className="font-medium text-muted">{t.app.noStamps}</p>
       )}
+      {opening.map((id) => {
+        const s = byId.get(id);
+        return (
+          s && (
+            <Unwrapping
+              anchor={() => boxes.current.get(id) ?? null}
+              color={s.color}
+              key={id}
+              onDone={() => {
+                setOpening((all) => all.filter((one) => one !== id));
+                setCovered((all) => without(all, id));
+              }}
+              onOpened={() => {
+                // Its button goes, the stamp's comes – the focus with it.
+                const focused =
+                  document.activeElement ===
+                  boxes.current.get(id)?.closest("button");
+                onUnwrap(id);
+                if (focused) {
+                  requestAnimationFrame(() =>
+                    boxes.current
+                      .get(id)
+                      ?.closest("button")
+                      ?.focus({ preventScroll: true })
+                  );
+                }
+              }}
+              onShown={() => setCovered((all) => new Set(all).add(id))}
+              stamp={s}
+              tilt={tilt(id)}
+            />
+          )
+        );
+      })}
     </section>
   );
+};
+
+/** A set without one. */
+const without = (all: ReadonlySet<string>, id: string) => {
+  const rest = new Set(all);
+  rest.delete(id);
+  return rest;
 };
 
 /** Two rings, one over the other – a stamp of mine that others may use too. */

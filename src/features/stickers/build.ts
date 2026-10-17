@@ -206,7 +206,8 @@ export const buildSticker = (
 /**
  * A stand-in with every material a stamp is drawn with, each on a speck –
  * no stamp to build, nothing to see: for compiling their programs ahead
- * (ink.ts `warm`), before a real stamp needs them.
+ * (ink.ts `warm`), before a real stamp needs them. The paper of a gift's
+ * parcel (parcel.ts) comes along – its other parts share these programs.
  */
 export const sampleSticker = (THREE: typeof Three) => {
   const stamp = new THREE.Group();
@@ -221,6 +222,7 @@ export const sampleSticker = (THREE: typeof Three) => {
     toonMaterial(THREE, "block", white),
     plateMaterial(THREE, white),
     toonMaterial(THREE, "knob", white),
+    toonMaterial(THREE, "paper", white),
   ]) {
     stamp.add(new THREE.Mesh(speck, material));
   }

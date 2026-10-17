@@ -244,3 +244,53 @@ describe("a copy drawn anew", () => {
     });
   });
 });
+
+describe("a gift unwrapped", () => {
+  const GIFT = "44444444-5555-4666-8777-888888888888";
+  const wrapped = (more: Doc = {}) =>
+    db.stamps.set(GIFT, {
+      id: GIFT,
+      name: "Kürbis",
+      color: "gold",
+      shape: "circle",
+      drawing: DRAWING,
+      owner: ME,
+      sharedWith: [],
+      origin: { kind: "gift", from: null, name: "Boop", gift: "gift-1" },
+      wrapped: true,
+      deleted: false,
+      ...more,
+    });
+
+  it("is unwrapped by its owner – for good", async () => {
+    wrapped();
+    expect(await change(GIFT, { wrapped: false })).toEqual({ ok: true });
+    expect(db.stamps.get(GIFT)?.wrapped).toBe(false);
+    // A device never wraps one again.
+    expect(await change(GIFT, { wrapped: true })).toEqual({ ok: true });
+    expect(db.stamps.get(GIFT)?.wrapped).toBe(false);
+  });
+
+  it("counts even when the server's copy changed later – as a change made now", async () => {
+    const later = Date.UTC(2026, 9, 16, 9);
+    wrapped({ changedAt: new Date(later).toISOString() });
+    expect(await change(GIFT, { wrapped: false })).toEqual({ ok: true });
+    const stamp = db.stamps.get(GIFT) as Doc;
+    expect(stamp.wrapped).toBe(false);
+    expect(Date.parse(String(stamp.changedAt))).toBeGreaterThan(later);
+  });
+
+  it("is nobody's to unwrap but its owner's", async () => {
+    wrapped({ owner: ANNA });
+    expect(await change(GIFT, { wrapped: false })).toEqual({
+      ok: false,
+      reason: "not the owner",
+    });
+    expect(db.stamps.get(GIFT)?.wrapped).toBe(true);
+  });
+
+  it("is never wrapped by a device", async () => {
+    expect(await change(MINE, { wrapped: true })).toEqual({ ok: true });
+    expect(db.stamps.get(MINE)?.wrapped).toBeUndefined();
+  });
+});

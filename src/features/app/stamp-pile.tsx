@@ -5,7 +5,7 @@ import type { Snapshot } from "valtio";
 import { Plus } from "@/components/doodles";
 import { SPRING } from "@/components/motion";
 import type { StampDoc } from "@/features/calendar/model";
-import { Sticker } from "@/features/stickers/sticker";
+import { Parcel, Sticker } from "@/features/stickers/sticker";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
@@ -56,7 +56,8 @@ const TOSSES: Record<number, { rest: Toss; fanned: Toss }[]> = {
  * The way to the shelf (stamp-shelf.tsx), beside the greeting: a little
  * pile of the stamps last stamped with (`useShelf`'s `latest`) – two or
  * three of the 3D stamps, as on the shelf, set down overlapping, each a
- * little turned and off the middle, the latest in front – and under it,
+ * little turned and off the middle, the latest in front; a gift still
+ * wrapped lies on top, as its parcel – and under it,
  * small, their word and how many there are – on a soft patch of paper
  * (`SIGNPOST`). Pointed at or focused, the pile fans out a little further.
  * None yet: a dashed spot with a plus, where they will lie.
@@ -120,7 +121,11 @@ export const StampPile = ({
                 transition={SPRING.soft}
                 variants={toss}
               >
-                <Sticker look="never" stamp={stamp} />
+                {stamp.wrapped ? (
+                  <Parcel color={stamp.color} />
+                ) : (
+                  <Sticker look="never" stamp={stamp} />
+                )}
               </m.span>
             ))
         )}

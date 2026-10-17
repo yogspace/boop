@@ -333,6 +333,10 @@ export interface Stamp {
     gift?: string | null;
     stamp?: string | null;
   };
+  /**
+   * A gift from Boop, still wrapped – a parcel on its owner's shelf until they unwrap it.
+   */
+  wrapped?: boolean | null;
   changedAt: string;
   deleted?: boolean | null;
   updatedAt: string;
@@ -891,6 +895,7 @@ export interface StampsSelect<T extends boolean = true> {
         gift?: T;
         stamp?: T;
       };
+  wrapped?: T;
   changedAt?: T;
   deleted?: T;
   updatedAt?: T;
@@ -1755,6 +1760,10 @@ export interface Translation {
      * DE: Kalender  ·  EN: Calendars
      */
     backToCalendars?: string | null;
+    /**
+     * DE: Zurück zum Kalender {name}  ·  EN: Back to the calendar {name}  ·  Keeps {name}
+     */
+    backToCalendar?: string | null;
     /**
      * DE: Heute  ·  EN: Today
      */
@@ -3782,6 +3791,7 @@ export interface TranslationsSelect<T extends boolean = true> {
               many?: T;
             };
         backToCalendars?: T;
+        backToCalendar?: T;
         today?: T;
         prev?: T;
         next?: T;

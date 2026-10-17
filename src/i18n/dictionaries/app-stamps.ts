@@ -3,7 +3,7 @@ import { template } from "../template";
 
 /**
  * A stamp's sheet – shared, sent as a card, given to all by Boop – the
- * shelf's order, and a stamp that arrives.
+ * shelf's order, a gift still wrapped, and a card that arrives.
  */
 
 const de = {
@@ -110,12 +110,12 @@ const de = {
     boop: "Boop",
     gifted: "Geschenkt",
   },
-  // A stamp that came to the account: a gift from Boop, a card taken
-  // after logging in (features/app/gifts.tsx).
+  // A gift from Boop as it comes: a parcel on the shelf, read out – a tap
+  // unwraps it (features/stickers/unwrap.tsx).
+  parcel: "Ein Geschenk von Boop – zum Auspacken antippen",
+  // A card that came to the account: taken on its page, or after logging
+  // in (features/app/arrivals.tsx).
   arrival: {
-    giftTitle: "Boop schenkt dir einen Stempel",
-    giftText:
-      "Er gehört jetzt dir – in einer Farbe, die sonst niemand wählen kann.",
     cardTitle: "Angekommen!",
     cardText: template(
       {
@@ -204,9 +204,8 @@ const en: Shape<typeof de> = {
     boop: "Boop",
     gifted: "Gifts",
   },
+  parcel: "A gift from Boop – tap to unwrap",
   arrival: {
-    giftTitle: "Boop gives you a stamp",
-    giftText: "It's yours now – in a color nobody else can pick.",
     cardTitle: "It's here!",
     cardText: {
       named: "The stamp from {name} is in your stamps now.",

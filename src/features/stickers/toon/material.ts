@@ -50,8 +50,22 @@ const shaded = (color: Rgb): Rgb =>
 export const vec = (THREE: typeof Three, color: Rgb) =>
   new THREE.Vector3(color[0], color[1], color[2]);
 
-/** Parts of a stamp, as the lines tell them apart. */
-export type Part = "rubber" | "block" | "plate" | "knob";
+/**
+ * Parts of a stamp, as the lines tell them apart – and of the parcel a gift
+ * comes in (parcel.ts): its box (`paper`, `lining` inside), the `lid`, the
+ * ribbon round each, and the bow.
+ */
+export type Part =
+  | "rubber"
+  | "block"
+  | "plate"
+  | "knob"
+  | "lining"
+  | "paper"
+  | "ribbon"
+  | "lid"
+  | "lidRibbon"
+  | "bow";
 
 /**
  * What a spot shows – a different number, a line between. Each part has
@@ -60,10 +74,22 @@ export type Part = "rubber" | "block" | "plate" | "knob";
  */
 const CODE: Record<Part, number> = {
   rubber: 1,
+  lining: 3,
   block: 5,
   plate: 8,
   knob: 10,
+  paper: 11,
+  ribbon: 12,
+  lid: 13,
+  lidRibbon: 14,
+  bow: 15,
 };
+
+/**
+ * Parts in one smooth piece, lined where one bit lies in front of another
+ * (ink.ts `FOLD`): the knob, and the bow's loops.
+ */
+const FOLDS: readonly Part[] = ["knob", "bow"];
 
 const VERTEX = /* glsl */ `
 #ifdef RUBBER
@@ -221,7 +247,7 @@ export const toonMaterial = (
       ...(part === "rubber" && { RUBBER: "" }),
       ...(part === "block" && { BLOCK: "" }),
       ...(part === "plate" && { PLATE: "" }),
-      ...(part === "knob" && { KNOB: "", DEEP: DEEP.toFixed(5) }),
+      ...(FOLDS.includes(part) && { KNOB: "", DEEP: DEEP.toFixed(5) }),
     },
     uniforms: {
       color: { value: vec(THREE, color) },

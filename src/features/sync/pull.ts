@@ -52,7 +52,10 @@ const toCalendar = (doc: Doc): CalendarDoc => ({
   deleted: Boolean(doc.deleted),
 });
 
-/** A stamp – with where it came from, if it came from someone (cards). */
+/**
+ * A stamp – with where it came from, if it came from someone (cards), and
+ * whether it is still wrapped (a gift).
+ */
 const toStamp = (doc: Doc): StampDoc => {
   const origin = originOf(doc.origin);
   return {
@@ -64,6 +67,7 @@ const toStamp = (doc: Doc): StampDoc => {
     owner: idOf(doc.owner) ?? "",
     sharedWith: sharedWithOf(doc),
     ...(origin && { origin }),
+    ...(doc.wrapped === true && !doc.deleted && { wrapped: true }),
     changedAt: iso(doc.changedAt),
     deleted: Boolean(doc.deleted),
   };
@@ -415,10 +419,11 @@ export const pull = async (
     people,
     calendars,
     // Someone else's stamp names only the calendars this account is in –
-    // and of where it came from, no more than whether (cards/rules.ts).
+    // and of where it came from, no more than whether (cards/rules.ts);
+    // whether it is unwrapped yet is its owner's.
     stamps: [...stamps.values()].map((stamp) => {
       if (stamp.owner === me) return stamp;
-      const { origin, ...theirs } = stamp;
+      const { origin, wrapped: _, ...theirs } = stamp;
       const told = originOf(origin, false);
       return {
         ...theirs,

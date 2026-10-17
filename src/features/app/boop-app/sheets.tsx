@@ -27,7 +27,7 @@ import type { Sheets } from "./use-sheets";
  * Everything that opens over the app: a day's sheet, the editor, the new
  * calendar's sheet, a calendar's settings and its share sheet, the
  * account's sheet, logging out, a stamp's sheet – and the popups, an
- * invitation and a stamp that came. Each in its own presence: there it can
+ * invitation and a card that came. Each in its own presence: there it can
  * go the way it came. Which is open is the app's (use-sheets.ts); all but
  * a day's sheet load when first wanted (lazy-sheets.ts).
  */
@@ -236,8 +236,8 @@ export const AppSheets = ({
         onJoined={(id) => place.go(id, null)}
         onShowing={sheets.setInviting}
       />
-      {/* A stamp that came – a gift from Boop, a card taken: greeted once,
-          by the same rules. */}
+      {/* A card taken – greeted once, by the same rules. A gift from Boop
+          comes wrapped, on the shelf (stamp-shelf.tsx). */}
       <Arrivals
         hold={covered || sheets.inviting}
         locale={locale}

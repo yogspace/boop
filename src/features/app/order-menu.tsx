@@ -1,7 +1,14 @@
 "use client";
 
 import { AnimatePresence, m } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Check } from "@/components/doodles";
 import { SPRING } from "@/components/motion";
 import { buttonClass } from "@/components/ui";
@@ -11,12 +18,21 @@ import { cn } from "@/lib/cn";
 import { SHELF_ORDERS, type ShelfOrder } from "./shelf";
 import { useDismiss } from "./use-dismiss";
 
+/** Whether the browser places things by anchors (`.order-menu`, styles.css). */
+const supportsAnchors = () =>
+  typeof CSS !== "undefined" && CSS.supports("anchor-name: --x");
+
 /**
  * The stamps' order (shelf.ts), as a little button with the one in use –
  * pressed, the four fold out under it to pick from. On the shelf
  * (stamp-shelf.tsx) and over a day's tray (day-page/tray.tsx), one choice
  * for both. Escape folds them away first – before a sheet the tray is in
  * hears it and closes.
+ *
+ * The list is a popover in the top layer, placed by anchor positioning
+ * (`.order-menu`, styles.css): nothing it hangs over – the page's edge, a
+ * sheet's – cuts it off, and where there is no room it turns to the side
+ * that has some. Without anchor positioning it hangs under the button.
  */
 export const OrderMenu = ({
   order,
@@ -39,14 +55,27 @@ export const OrderMenu = ({
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   const box = useRef<HTMLDivElement>(null);
+  const name = `--order-${useId().replace(/[^\w-]/g, "")}`;
+  // Asked once on the device – the server's page has no say in it.
+  const [anchored, setAnchored] = useState(false);
+  useEffect(() => setAnchored(supportsAnchors()), []);
   useDismiss(open, () => setOpen(false), button, box);
   useEffect(() => onShow?.(open), [open, onShow]);
-  // Unfolded at the bottom of a sheet (the day's tray), it would hang out
-  // of sight below: what scrolls around it brings it in – clear of the
-  // fading edge (`scroll-my-12`).
-  useEffect(() => {
-    if (open)
-      box.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  useLayoutEffect(() => {
+    if (!open) return;
+    const list = box.current;
+    if (list?.popover) {
+      try {
+        list.showPopover();
+      } catch {
+        // Open already.
+      }
+      return;
+    }
+    // Hung under the button instead: unfolded at the bottom of a sheet (the
+    // day's tray) it would hang out of sight below – what scrolls around it
+    // brings it in, clear of the fading edge (`scroll-my-12`).
+    list?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [open]);
   useEffect(() => {
     if (!open) return;
@@ -71,6 +100,7 @@ export const OrderMenu = ({
         )}
         onClick={() => setOpen(!open)}
         ref={button}
+        style={anchored ? ({ anchorName: name } as CSSProperties) : undefined}
         type="button"
       >
         <SortSign className="h-4 w-4 shrink-0" />
@@ -87,7 +117,12 @@ export const OrderMenu = ({
               opacity: 1,
               transition: { ...SPRING.soft, opacity: { duration: 0.15 } },
             }}
-            className="scribble absolute top-full right-0 z-40 mt-2 flex w-52 origin-top-right scroll-my-12 flex-col gap-0.5 rounded-3xl p-2"
+            className={cn(
+              "scribble flex w-52 flex-col gap-0.5 rounded-3xl p-2",
+              anchored
+                ? "order-menu origin-top"
+                : "absolute top-full right-0 z-40 mt-2 origin-top-right scroll-my-12"
+            )}
             exit={{
               y: -6,
               scale: 0.96,
@@ -96,6 +131,10 @@ export const OrderMenu = ({
             }}
             initial={{ y: -8, scale: 0.96, opacity: 0 }}
             ref={box}
+            {...(anchored && {
+              popover: "manual",
+              style: { positionAnchor: name } as CSSProperties,
+            })}
           >
             <p className="px-3 pt-1 pb-1.5 font-bold text-muted text-xs">
               {t.app.shelf.order}

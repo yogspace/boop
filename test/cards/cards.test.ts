@@ -620,6 +620,8 @@ describe("a gift from Boop", () => {
         message: "Frohes Stempeln!",
         gift: GIFT,
       },
+      // A parcel on the shelf, until it is unwrapped.
+      wrapped: true,
       deleted: false,
     });
     expect(stampsOf(BEN)[0]).toMatchObject({
@@ -645,12 +647,14 @@ describe("a gift from Boop", () => {
         accounts: [ANNA, BEN, CARL],
       },
     ]);
-    expect((await synced(BEN)).stamps[0].origin).toEqual({
+    const [copy] = (await synced(BEN)).stamps;
+    expect(copy.origin).toEqual({
       kind: "gift",
       from: null,
       name: "Boop",
       message: "Happy stamping!",
     });
+    expect(copy.wrapped).toBe(true);
   });
 
   it("goes out in portions – nobody left out between them", async () => {

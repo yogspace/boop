@@ -16,6 +16,10 @@ import type { StampOrigin } from "../cards/protocol";
  *            with a calendar one is in, and the cards one took from them),
  *            then Boop's gifts
  *   color    by color, in the palette's order – in each the latest first
+ *
+ * Whatever the order, a gift still wrapped (calendar/model.ts `wrapped`)
+ * leads its section – by person, Boop's section leads while it holds one:
+ * a parcel waits up front, to be unwrapped.
  */
 export type ShelfOrder = "recent" | "newest" | "person" | "color";
 
@@ -26,8 +30,11 @@ export const SHELF_ORDERS = [
   "color",
 ] as const satisfies readonly ShelfOrder[];
 
-/** The order before one is chosen – and the one a device keeps no word of. */
-const FIRST: ShelfOrder = "recent";
+/**
+ * The order before one is chosen – and the one a device keeps no word of:
+ * in sections, by whom they are from.
+ */
+export const FIRST_ORDER: ShelfOrder = "person";
 
 type Shelved = {
   id: string;
@@ -35,6 +42,7 @@ type Shelved = {
   changedAt: string;
   color: string;
   origin?: StampOrigin;
+  wrapped?: boolean;
 };
 
 /** A print, as far as when its stamp was used goes. */
@@ -184,10 +192,19 @@ export const byPerson = <T extends Omit<Shelved, "color">>(
   return [mine, ...named, ...(boop.stamps.length ? [boop] : [])];
 };
 
+/** The gifts still wrapped first – each part in the order it had. */
+export const wrappedFirst = <T extends { wrapped?: boolean }>(
+  stamps: readonly T[]
+): T[] => [
+  ...stamps.filter((stamp) => stamp.wrapped),
+  ...stamps.filter((stamp) => !stamp.wrapped),
+];
+
 /**
  * The stamps in the order chosen: by person in sections (`byPerson`), any
  * other all in one – a single section, `all`. `used` is `lastUsed`'s,
- * `colors` the palette's keys in its order.
+ * `colors` the palette's keys in its order. A gift still wrapped leads its
+ * section, and Boop's section leads while it holds one.
  */
 export const shelve = <T extends Shelved>(
   stamps: readonly T[],
@@ -204,14 +221,25 @@ export const shelve = <T extends Shelved>(
     colors: readonly string[];
   }
 ): ShelfGroup<T>[] => {
-  if (order === "person") return byPerson(stamps, me, nameOf);
+  if (order === "person") {
+    const groups = byPerson(stamps, me, nameOf).map((group) => ({
+      ...group,
+      stamps: wrappedFirst(group.stamps),
+    }));
+    const parcels = groups.find(
+      (group) => group.kind === "boop" && group.stamps[0]?.wrapped
+    );
+    return parcels
+      ? [parcels, ...groups.filter((group) => group !== parcels)]
+      : groups;
+  }
   const all =
     order === "recent"
       ? recentFirst(stamps, used)
       : order === "color"
         ? byColor(stamps, colors)
         : newestFirst(stamps);
-  return [{ key: "all", kind: "mine", name: "", stamps: all }];
+  return [{ key: "all", kind: "mine", name: "", stamps: wrappedFirst(all) }];
 };
 
 /** Where the device keeps the order. */
@@ -220,19 +248,19 @@ const ORDER_KEY = "boop-shelf-order";
 const isOrder = (value: unknown): value is ShelfOrder =>
   SHELF_ORDERS.some((order) => order === value);
 
-/** The order this device chose – last used first, unless it chose another. */
+/** The order this device chose – by person, unless it chose another. */
 export const readOrder = (): ShelfOrder => {
   try {
     const kept = localStorage.getItem(ORDER_KEY);
-    return isOrder(kept) ? kept : FIRST;
+    return isOrder(kept) ? kept : FIRST_ORDER;
   } catch {
-    return FIRST;
+    return FIRST_ORDER;
   }
 };
 
 export const keepOrder = (order: ShelfOrder) => {
   try {
-    if (order === FIRST) localStorage.removeItem(ORDER_KEY);
+    if (order === FIRST_ORDER) localStorage.removeItem(ORDER_KEY);
     else localStorage.setItem(ORDER_KEY, order);
   } catch {
     // No storage – the order holds until the page goes.

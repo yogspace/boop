@@ -77,6 +77,7 @@ export const createStamp = onStore(stamps.createStamp);
 export const shareStamp = onStore(stamps.shareStamp);
 export const renameStamp = onStore(stamps.renameStamp);
 export const updateStamp = onStore(stamps.updateStamp);
+export const unwrapStamp = onStore(stamps.unwrapStamp);
 export const deleteStamp = onStore(stamps.deleteStamp);
 
 export const placeStamp = onStore(placements.placeStamp);

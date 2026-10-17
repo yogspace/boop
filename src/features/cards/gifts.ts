@@ -38,9 +38,10 @@ import { BOOP, cardIdOf, cardStampOf, cleanMessage } from "./rules";
  * Either way every account with a confirmed address gets a copy of its own,
  * from Boop (`sendGift`) – the sender's too – once: sent again, only those
  * without one get it, and an account made later gets nothing until then.
- * The app shows it as it comes (a nudge, the sync), and the devices that
- * want to hear of it hear of it (push/gifted.ts). No mail: the privacy
- * policy promises none of that kind.
+ * It comes wrapped: a parcel on the shelf, to unwrap there. The app shows
+ * it as it comes (a nudge, the sync), and the devices that want to hear of
+ * it hear of it (push/gifted.ts) – a tap leads to the shelf. No mail: the
+ * privacy policy promises none of that kind.
  */
 
 type Doc = Record<string, unknown>;
@@ -518,6 +519,8 @@ export const sendGift = async (
               // The stamp it was made of, when there is one (`stamp` below).
               ...(gift.stamp ? { stamp: String(gift.stamp) } : {}),
             },
+            // A parcel on the shelf, until its owner unwraps it.
+            wrapped: true,
             changedAt: new Date().toISOString(),
             deleted: false,
           } as never,

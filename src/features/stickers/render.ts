@@ -1,4 +1,5 @@
 import type * as Three from "three";
+import type { ColorName } from "@/features/calendar/model";
 import { finishOf, hexOf } from "@/features/calendar/palette";
 import { outlineOf } from "@/features/calendar/shapes";
 import {
@@ -12,10 +13,12 @@ import { addGlitter } from "./glitter";
 import { createInk, type Ink } from "./ink";
 import { keepPicture, pictureEra, readPicture } from "./keep";
 import { pace } from "./pace";
+import { buildParcel } from "./parcel";
 
 /**
  * Stamps as pictures: one hidden WebGL canvas – the studio – renders each
- * stamp once per pose into an image URL. Lists, trays and pages show those
+ * stamp once per pose into an image URL (and a gift's parcel once per
+ * color, parcel.ts). Lists, trays and pages show those
  * pictures; a stamp turning to the pointer is drawn in the same studio,
  * frame by frame (look.ts), and only the one being made or looked at up
  * close has a canvas of its own (sticker-view.tsx).
@@ -78,6 +81,29 @@ const SPECIAL: StickerInput = {
   drawing: { strokes: [], special: true },
 };
 
+/**
+ * Sets a stage's camera (build.ts `stage`) as the pictures are taken: from
+ * far off, with a long lens. `wider`: it sees that many times as far round
+ * the same middle – a canvas as many times as large then shows a stamp
+ * exactly where and as large as its picture does (unwrap.tsx). Returns how
+ * much of the stamp's plane a picture shows, in stamp units.
+ */
+export const lens = (
+  THREE: typeof Three,
+  camera: Three.PerspectiveCamera,
+  wider = 1
+) => {
+  // What the stage's camera sees of the stamp's plane – the same from
+  // further away.
+  const view = 2 * camera.position.z * Math.tan((camera.fov * Math.PI) / 360);
+  camera.fov = THREE.MathUtils.radToDeg(
+    2 * Math.atan((wider * view) / 2 / DISTANCE)
+  );
+  camera.position.z = DISTANCE;
+  camera.updateProjectionMatrix();
+  return view;
+};
+
 const build = async (): Promise<Studio> => {
   const THREE = await import("three");
   const canvas = document.createElement("canvas");
@@ -91,12 +117,7 @@ const build = async (): Promise<Studio> => {
   renderer.setSize(SIZE, SIZE, false);
   const { scene, camera } = stage(THREE);
   const ink = createInk(THREE, renderer, { supersample: FINER });
-  // What the stage's camera sees of the stamp's plane – the same from
-  // further away.
-  const view = 2 * camera.position.z * Math.tan((camera.fov * Math.PI) / 360);
-  camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(view / 2 / DISTANCE));
-  camera.position.z = DISTANCE;
-  camera.updateProjectionMatrix();
+  const view = lens(THREE, camera);
   // Every program a stamp is drawn with, compiled from the start – while
   // the first stamp is still being built.
   const sample = sampleSticker(THREE);
@@ -180,16 +201,19 @@ export const warmStudio = () => {
   );
 };
 
-/** Renders the stamp's picture in the studio – a PNG. */
-const paint = async (
-  input: StickerInput,
-  kind: Pose,
+/**
+ * What a picture shows – built in the studio and turned as the picture has
+ * it: a stamp, or a gift's parcel. `idle`: whether nobody waits for it.
+ */
+type Subject = (
+  THREE: typeof Three,
   idle: () => boolean
-): Promise<Blob> => {
+) => Promise<Three.Object3D>;
+
+/** Renders a picture in the studio – a PNG. */
+const paint = async (subject: Subject, idle: () => boolean): Promise<Blob> => {
   let open = await openStudio();
-  const sticker = await buildSoftly(open.THREE, input, idle);
-  addGlitter(open.THREE, sticker, input);
-  pose(sticker, kind);
+  const sticker = await subject(open.THREE, idle);
   // Compiled while the stamp was built – most likely.
   await open.ready;
   await pace(idle());
@@ -237,8 +261,7 @@ const fresh = (key: string) => key.startsWith(`${VERSION}-`);
 type Wanted = { soon: boolean };
 
 type Job = {
-  input: StickerInput;
-  kind: Pose;
+  subject: Subject;
   wanted: Wanted;
   resolve: (blob: Blob) => void;
   reject: (error: unknown) => void;
@@ -263,7 +286,7 @@ const work = async () => {
       await pace(!jobs.some((job) => job.wanted.soon));
       const first = jobs.findIndex((job) => job.wanted.soon);
       const [job] = jobs.splice(Math.max(0, first), 1);
-      await paint(job.input, job.kind, () => !job.wanted.soon).then(
+      await paint(job.subject, () => !job.wanted.soon).then(
         job.resolve,
         job.reject
       );
@@ -274,9 +297,9 @@ const work = async () => {
 };
 
 /** Renders a picture – queued behind the others (`work`). */
-const render = (input: StickerInput, kind: Pose, want: Wanted) =>
+const render = (subject: Subject, want: Wanted) =>
   new Promise<Blob>((resolve, reject) => {
-    jobs.push({ input, kind, wanted: want, resolve, reject });
+    jobs.push({ subject, wanted: want, resolve, reject });
     void work();
   });
 
@@ -298,16 +321,15 @@ export const stickerKey = (input: StickerInput, kind: Pose = "face") => {
 };
 
 /**
- * The stamp's picture (an object URL) – from the device, or rendered once,
+ * A picture (an object URL) by its key – from the device, or rendered once,
  * then kept. `soon`: it is on screen, someone waits for it – rendered
  * before those that aren't (asked again with `soon`, it moves up).
  */
-export const stickerImage = (
-  input: StickerInput,
-  kind: Pose = "face",
-  { soon = true }: { soon?: boolean } = {}
+const picture = (
+  key: string,
+  subject: Subject,
+  soon: boolean
 ): Promise<string> => {
-  const key = stickerKey(input, kind);
   const hit = cache.get(key);
   if (hit) {
     const want = wanted.get(key);
@@ -321,7 +343,7 @@ export const stickerImage = (
       let blob = await readPicture(key);
       if (!blob) {
         const since = pictureEra();
-        blob = await render(input, kind, want);
+        blob = await render(subject, want);
         keepPicture(key, blob, fresh, since);
       }
       const url = URL.createObjectURL(blob);
@@ -340,8 +362,49 @@ export const stickerImage = (
   return job;
 };
 
+/**
+ * The stamp's picture (an object URL) – from the device, or rendered once,
+ * then kept. `soon`: it is on screen, someone waits for it.
+ */
+export const stickerImage = (
+  input: StickerInput,
+  kind: Pose = "face",
+  { soon = true }: { soon?: boolean } = {}
+): Promise<string> =>
+  picture(
+    stickerKey(input, kind),
+    async (THREE, idle) => {
+      const sticker = await buildSoftly(THREE, input, idle);
+      addGlitter(THREE, sticker, input);
+      pose(sticker, kind);
+      return sticker;
+    },
+    soon
+  );
+
 /** The stamp's picture if it's there already – null if not (yet). */
 export const renderedStickerImage = (
   input: StickerInput,
   kind: Pose = "face"
 ) => done.get(stickerKey(input, kind)) ?? null;
+
+/** Goes up whenever the parcel's model changes (parcel.ts). */
+const PARCEL_VERSION = 1;
+
+/** A parcel's picture goes by its color – as it shows (`hexOf`). */
+export const parcelKey = (color: ColorName) =>
+  `${VERSION}-parcel-${PARCEL_VERSION}-${color}-${hexOf(color).slice(1)}`;
+
+/**
+ * The picture of a gift's parcel in this color (parcel.ts) – kept like a
+ * stamp's.
+ */
+export const parcelImage = (
+  color: ColorName,
+  { soon = true }: { soon?: boolean } = {}
+): Promise<string> =>
+  picture(parcelKey(color), async (THREE) => buildParcel(THREE, color), soon);
+
+/** The parcel's picture if it's there already – null if not (yet). */
+export const renderedParcelImage = (color: ColorName) =>
+  done.get(parcelKey(color)) ?? null;

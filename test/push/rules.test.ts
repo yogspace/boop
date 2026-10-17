@@ -695,13 +695,13 @@ describe("what a notification says", () => {
     expect(giftMessage("de", { gift: "gift-1", name: "Kürbis" })).toEqual({
       title: "Boop!",
       body: "Boop hat dir einen Stempel geschenkt: „Kürbis“",
-      url: "/de/app",
+      url: "/de/app/stempel",
       tag: "gift-gift-1",
     });
     expect(giftMessage("en", { gift: "gift-1", name: "Pumpkin" })).toEqual({
       title: "Boop!",
       body: "Boop gave you a stamp: “Pumpkin”",
-      url: "/en/app",
+      url: "/en/app/stamps",
       tag: "gift-gift-1",
     });
   });

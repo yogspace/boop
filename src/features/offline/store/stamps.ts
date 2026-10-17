@@ -94,6 +94,24 @@ export const updateStamp = async (
   await enqueue(local, { type: "stamp", id, changedAt, data });
 };
 
+/**
+ * A gift unwrapped on the shelf – for good, on every device: the paper
+ * only ever comes off (sync/apply.ts). Its owner's, like the rest.
+ */
+export const unwrapStamp = async (local: Local, id: string) => {
+  const doc = local.boop.stamps[id];
+  if (!doc?.wrapped || doc.owner !== local.boop.me?.id) return;
+  const changedAt = now();
+  const { wrapped: _, ...unwrapped } = plain(doc);
+  await keep(local, "stamp", { ...unwrapped, changedAt });
+  await enqueue(local, {
+    type: "stamp",
+    id,
+    changedAt,
+    data: { wrapped: false },
+  });
+};
+
 export const deleteStamp = async (local: Local, id: string) => {
   const { boop } = local;
   const doc = boop.stamps[id];

@@ -664,3 +664,27 @@
     display: none;
   }
 }
+
+/* The order's list */
+/*
+ * The stamps' order to pick from (features/app/order-menu.tsx) – a popover
+ * under its button, lined up with the button's right edge. Where that runs
+ * off the screen (the button at the page's left, on the shelf) it lines up
+ * with the left edge; with no room below (a sheet's bottom), it goes above.
+ * Only where anchor positioning is there – without, the list is no popover.
+ */
+.order-menu {
+  /* Fixed, said out loud – as for the name tags above. */
+  position: fixed;
+  position-area: bottom span-left;
+  position-try-fallbacks:
+    flip-inline,
+    flip-block,
+    flip-block flip-inline;
+  inset: auto;
+  margin: 8px 0 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}

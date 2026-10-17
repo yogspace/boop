@@ -6,6 +6,7 @@ import {
   newestFirst,
   recentFirst,
   shelve,
+  wrappedFirst,
 } from "../../src/features/app/shelf";
 import type { StampOrigin } from "../../src/features/cards/protocol";
 
@@ -234,5 +235,57 @@ describe("shelve", () => {
       ["mine", ["b", "a"]],
       ["person:bo", ["c"]],
     ]);
+  });
+});
+
+describe("a gift still wrapped", () => {
+  const GIFT: StampOrigin = { kind: "gift", from: null, name: "Boop" };
+  const stamps = [
+    { ...stamp("a", "me", "2026-10-03T10:00:00Z"), color: "red" },
+    {
+      ...stamp("w", "me", "2026-10-01T10:00:00Z", GIFT),
+      color: "gold",
+      wrapped: true,
+    },
+    { ...stamp("g", "me", "2026-10-02T10:00:00Z", GIFT), color: "gold" },
+    { ...stamp("c", "bo", "2026-10-04T10:00:00Z"), color: "blue" },
+  ];
+  const options = {
+    me: "me",
+    nameOf,
+    used: new Map<string, number>(),
+    colors: ["red", "blue", "gold"],
+  };
+  const ids = (order: Parameters<typeof shelve>[1], all = stamps) =>
+    shelve(all, order, options).map((g) => [g.key, g.stamps.map((s) => s.id)]);
+
+  it("leads, whatever the order", () => {
+    expect(ids("recent")).toEqual([["all", ["w", "c", "a", "g"]]]);
+    expect(ids("newest")).toEqual([["all", ["w", "c", "a", "g"]]]);
+    expect(ids("color")).toEqual([["all", ["w", "a", "c", "g"]]]);
+  });
+
+  it("brings Boop's section first, by person – while it holds one", () => {
+    expect(ids("person")).toEqual([
+      ["boop", ["w", "g"]],
+      ["mine", ["a"]],
+      ["person:bo", ["c"]],
+    ]);
+    const unwrapped = stamps.map(({ wrapped: _, ...s }) => s);
+    expect(ids("person", unwrapped)).toEqual([
+      ["mine", ["a"]],
+      ["person:bo", ["c"]],
+      ["boop", ["g", "w"]],
+    ]);
+  });
+
+  it("keeps each part in the order it had", () => {
+    const list = [
+      { id: "1" },
+      { id: "2", wrapped: true },
+      { id: "3" },
+      { id: "4", wrapped: true },
+    ];
+    expect(wrappedFirst(list).map((s) => s.id)).toEqual(["2", "4", "1", "3"]);
   });
 });

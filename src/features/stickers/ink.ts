@@ -123,12 +123,20 @@ export type Ink = {
    * Draws the scene: `unit` – how many of the canvas' pixels one stamp unit
    * spans on screen (the lines follow it); `amount` – how much cartoon (0:
    * flat colors only, drawn straight, smooth-edged – like the drawing);
-   * `time` (s) and `twinkle` for the sparkles and the finishes.
+   * `time` (s) and `twinkle` for the sparkles and the finishes; `thinnest`
+   * – the lines never thinner than this (the canvas' px), THINNEST CSS px
+   * unless said otherwise.
    */
   render: (
     scene: Three.Scene,
     camera: Three.Camera,
-    options: { unit: number; amount?: number; time?: number; twinkle?: boolean }
+    options: {
+      unit: number;
+      amount?: number;
+      time?: number;
+      twinkle?: boolean;
+      thinnest?: number;
+    }
   ) => void;
   /**
    * Has the browser compile the programs for what is in `scene` – as
@@ -217,11 +225,16 @@ export const createInk = (
     render: (
       scene,
       camera,
-      { unit, amount = 1, time = 0, twinkle = false }
+      {
+        unit,
+        amount = 1,
+        time = 0,
+        twinkle = false,
+        thinnest = THINNEST * renderer.getPixelRatio(),
+      }
     ) => {
       const mask = camera.layers.mask;
-      const ratio = renderer.getPixelRatio();
-      const line = Math.max(LINE * unit, THINNEST * ratio);
+      const line = Math.max(LINE * unit, thinnest);
       inkState.amount.value = amount;
       inkState.time.value = time;
       inkState.line.value = line;

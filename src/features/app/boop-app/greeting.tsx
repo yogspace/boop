@@ -34,7 +34,7 @@ export const Greeting = ({
         <p className="mt-1 font-medium text-muted">{t.app.lead}</p>
       </div>
       <StampPile
-        count={shelf.stamps.length}
+        count={shelf.count}
         href={shelfAddressOf(locale)}
         locale={locale}
         onOpen={onShelf}

@@ -42,7 +42,11 @@ void main() {
 }
 `;
 
-const FRAGMENT = /* glsl */ `
+/**
+ * A sparkle on its quad (`vUv`, −1…1) – a gift unwrapped bursts with them
+ * too (unwrap.tsx).
+ */
+export const SPARKLE_FRAGMENT = /* glsl */ `
 uniform float line;
 varying vec2 vUv;
 // A four-pointed star with curved-in sides (after Inigo Quilez' sdStar).
@@ -118,7 +122,7 @@ export const addGlitter = (
     geometry,
     new THREE.ShaderMaterial({
       vertexShader: VERTEX,
-      fragmentShader: FRAGMENT,
+      fragmentShader: SPARKLE_FRAGMENT,
       uniforms: {
         time: inkState.time,
         twinkle: inkState.twinkle,
