@@ -76,7 +76,7 @@ export const TodayView = ({
         heading={
           // On a phone the date under the weekday – the switch between the
           // page and the note beside them (day-page/sides.tsx).
-          <h3 className="text-3xl leading-none">
+          <h3 className="text-3xl leading-[1.1]">
             {date.toLocaleDateString(locale, { weekday: "long" })}{" "}
             <span className="font-bold text-muted @max-md:block">
               {date.toLocaleDateString(locale, {

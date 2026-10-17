@@ -283,9 +283,7 @@ export const StampShelf = ({
         The order under the title. */}
       <div className="-mt-2 flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col items-start">
-          {/* On the smallest phones a little smaller: beside the leaf it
-            would break. */}
-          <h1 className="wrap-break-word text-4xl max-[379px]:text-[2rem] sm:text-5xl">
+          <h1 className="wrap-break-word text-[1.75rem] leading-tight sm:text-4xl">
             {t.app.stamps}
           </h1>
           {/* The wave swings below its picture's edge (its troughs reach

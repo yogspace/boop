@@ -343,7 +343,9 @@ export const DayPage = ({
         {(heading || dayNote) && (
           <div
             className={cn(
-              "flex flex-wrap items-center gap-x-3 gap-y-2 [grid-area:head]",
+              // A little further off the page than the rest – its frame
+              // is a heavy line.
+              "mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 [grid-area:head]",
               !heading && "@2xl:hidden"
             )}
           >

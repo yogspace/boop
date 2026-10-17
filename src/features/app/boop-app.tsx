@@ -265,7 +265,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
           ) : (
             <m.div
               animate="shown"
-              className="flex flex-col gap-6"
+              className="flex flex-col gap-4 sm:gap-6"
               exit="gone"
               initial="hidden"
               key="calendars"
