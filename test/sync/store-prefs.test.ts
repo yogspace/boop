@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * One's own settings for a calendar on the device (offline/store.ts, “Own
- * settings”): the ones kept from before go to the server once, the
- * server's are taken over, a change goes out – against a device's copy in
- * memory and a server that answers as told.
+ * One's own settings for a calendar on the device (offline/store/prefs.ts):
+ * the ones kept from before go to the server once, the server's are taken
+ * over, a change goes out – against a device's copy in memory and a server
+ * that answers as told.
  */
 
 // The app's paths (@/…), which the tests don't resolve – each by its file,

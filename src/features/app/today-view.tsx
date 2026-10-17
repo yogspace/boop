@@ -45,9 +45,9 @@ export const useToday = (): DayKey => {
 
 /**
  * A calendar's today: the day's page right in the app – the one the day's
- * sheet has (day-page.tsx), to stamp on at once – and the day's note under
- * the page. Only ever today: past midnight the next day's page comes in; the
- * days before are in the month.
+ * sheet has (day-page.tsx), to stamp on at once – and the day's note with
+ * it (under the page, on a phone beside it). Only ever today: past midnight
+ * the next day's page comes in; the days before are in the month.
  *
  * `keyboard`: the page's keys (day-page.tsx) – off while something lies
  * over it. The tray's (`TrayProps`) go on to the page as they are.
@@ -75,7 +75,7 @@ export const TodayView = ({
         dayNote={<DayNote calendar={calendar} date={today} locale={locale} />}
         heading={
           // On a phone the date under the weekday – the switch between the
-          // page and the note beside them (day-page.tsx).
+          // page and the note beside them (day-page/sides.tsx).
           <h3 className="text-3xl leading-none">
             {date.toLocaleDateString(locale, { weekday: "long" })}{" "}
             <span className="font-bold text-muted @max-md:block">

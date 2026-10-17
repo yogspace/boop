@@ -1,4 +1,6 @@
 import { FACE, type RimPattern } from "./model";
+import { type Distance, type Field, ringField } from "./outline/field";
+import { onto, trace } from "./outline/trace";
 import { corners, type Point, readPath, ringOf } from "./path";
 import { DEFAULT_SHAPES, outlineOf, type ShapeLike } from "./shapes";
 
@@ -11,199 +13,25 @@ import { DEFAULT_SHAPES, outlineOf, type ShapeLike } from "./shapes";
  * `grow` moves the outline outwards (or inwards when negative) – the rim's
  * edges, the rubber's side – keeping it parallel: it is traced where the
  * distance to the outline is `grow` (round round corners, never crossing
- * itself). Every outline is sampled evenly along its length, from where it
- * crosses the box's middle line furthest right, clockwise on screen – the
- * same number of points for every shape, so one morphs into another (CSS
- * `d` transition).
+ * itself; outline/field.ts, outline/trace.ts). Every outline is sampled
+ * evenly along its length, from where it crosses the box's middle line
+ * furthest right, clockwise on screen – as many points as its shape needs
+ * (`outlineCount`); morph.ts matches two shapes' up, so one morphs into
+ * the other.
  *
  * Unit coordinates, y down, like the drawing.
  */
 
-/**
- * How far a point lies from an outline – negative inside, unit lengths. Its
- * slope is the way out.
- */
-export type Distance = (x: number, y: number) => number;
+export type { Distance } from "./outline/field";
+export { ringDistance } from "./outline/field";
 
 /**
- * A distance with its slope: `probe` writes the distance and the way out
- * there (a unit vector) into `out` – one look instead of five.
- */
-type Field = {
-  at: Distance;
-  probe: (x: number, y: number, out: Float64Array) => void;
-};
-
-/**
- * Points an SVG outline has – enough for smooth curves at any size; a shape
+ * Points an outline has – enough for smooth curves at any size; a shape
  * with fine detail (a postage stamp's teeth) twice, four or eight times
  * that, as many as it needs to stay within `TRUE` of itself.
  */
 const COUNTS = [96, 192, 384, 768];
 const TRUE = 0.0012;
-
-/** How far the quick distance looks: further, it measures everything. */
-const NEAR = 0.12;
-/** The grid it looks it up in – cells across, and where it lies. */
-const GRID = 96;
-const GRID_FROM = -0.3;
-const GRID_SIZE = 1.6;
-
-/**
- * The distance to a ring of points (clockwise on screen) – quick near it:
- * each cell of a grid knows the stretches within reach of it. Inside or out
- * is told by the nearest stretch – or, at a corner, by both of its sides.
- */
-const ringField = (ring: readonly Point[]): Field => {
-  const n = ring.length;
-  const ax = new Float64Array(n);
-  const ay = new Float64Array(n);
-  const dx = new Float64Array(n);
-  const dy = new Float64Array(n);
-  const ll = new Float64Array(n);
-  for (let i = 0; i < n; i++) {
-    const [x0, y0] = ring[i];
-    const [x1, y1] = ring[(i + 1) % n];
-    ax[i] = x0;
-    ay[i] = y0;
-    dx[i] = x1 - x0;
-    dy[i] = y1 - y0;
-    ll[i] = dx[i] * dx[i] + dy[i] * dy[i];
-  }
-  // Each corner's way in – between its two stretches' (clockwise: the
-  // inside is to the right of a stretch).
-  const inX = new Float64Array(n);
-  const inY = new Float64Array(n);
-  for (let i = 0; i < n; i++) {
-    const p = (i + n - 1) % n;
-    const lp = Math.sqrt(ll[p]) || 1;
-    const li = Math.sqrt(ll[i]) || 1;
-    inX[i] = -dy[p] / lp - dy[i] / li;
-    inY[i] = dx[p] / lp + dx[i] / li;
-  }
-  /** Where along stretch i the nearest point to (x, y) is (0–1). */
-  const along = (i: number, x: number, y: number) =>
-    ll[i]
-      ? Math.max(
-          0,
-          Math.min(1, ((x - ax[i]) * dx[i] + (y - ay[i]) * dy[i]) / ll[i])
-        )
-      : 0;
-  const cell = GRID_SIZE / GRID;
-  const reach = NEAR + cell * Math.SQRT1_2;
-  const lists: number[][] = Array.from({ length: GRID * GRID }, () => []);
-  for (let i = 0; i < n; i++) {
-    const gx0 = Math.max(
-      0,
-      Math.floor((Math.min(ax[i], ax[i] + dx[i]) - reach - GRID_FROM) / cell)
-    );
-    const gx1 = Math.min(
-      GRID - 1,
-      Math.floor((Math.max(ax[i], ax[i] + dx[i]) + reach - GRID_FROM) / cell)
-    );
-    const gy0 = Math.max(
-      0,
-      Math.floor((Math.min(ay[i], ay[i] + dy[i]) - reach - GRID_FROM) / cell)
-    );
-    const gy1 = Math.min(
-      GRID - 1,
-      Math.floor((Math.max(ay[i], ay[i] + dy[i]) + reach - GRID_FROM) / cell)
-    );
-    for (let gy = gy0; gy <= gy1; gy++) {
-      for (let gx = gx0; gx <= gx1; gx++) {
-        const px = GRID_FROM + (gx + 0.5) * cell;
-        const py = GRID_FROM + (gy + 0.5) * cell;
-        const t = along(i, px, py);
-        const ex = px - ax[i] - t * dx[i];
-        const ey = py - ay[i] - t * dy[i];
-        if (ex * ex + ey * ey <= reach * reach) lists[gy * GRID + gx].push(i);
-      }
-    }
-  }
-  // Only those that can be nearest somewhere in a cell: none further from
-  // its middle than the nearest one, and the cell's width.
-  const half = cell * Math.SQRT1_2;
-  const cells = lists.map((list, k) => {
-    if (list.length < 2) return Int32Array.from(list);
-    const px = GRID_FROM + ((k % GRID) + 0.5) * cell;
-    const py = GRID_FROM + (Math.floor(k / GRID) + 0.5) * cell;
-    const far = list.map((i) => {
-      const t = along(i, px, py);
-      return Math.hypot(px - ax[i] - t * dx[i], py - ay[i] - t * dy[i]);
-    });
-    const least = Math.min(...far);
-    return Int32Array.from(list.filter((_, n) => far[n] <= least + 2 * half));
-  });
-  const all = Int32Array.from({ length: n }, (_, i) => i);
-  /** The nearest among some stretches: [squared distance, which, where]. */
-  const found = new Float64Array(3);
-  const nearest = (x: number, y: number, among: Int32Array) => {
-    let best = Infinity;
-    let at = 0;
-    let where = 0;
-    for (let k = 0; k < among.length; k++) {
-      const i = among[k];
-      const t = along(i, x, y);
-      const ex = x - ax[i] - t * dx[i];
-      const ey = y - ay[i] - t * dy[i];
-      const d = ex * ex + ey * ey;
-      if (d < best) {
-        best = d;
-        at = i;
-        where = t;
-      }
-    }
-    found[0] = best;
-    found[1] = at;
-    found[2] = where;
-  };
-  const probe = (x: number, y: number, out: Float64Array) => {
-    const gx = Math.floor((x - GRID_FROM) / cell);
-    const gy = Math.floor((y - GRID_FROM) / cell);
-    const near =
-      gx >= 0 && gy >= 0 && gx < GRID && gy < GRID
-        ? cells[gy * GRID + gx]
-        : null;
-    if (near?.length) nearest(x, y, near);
-    if (!near?.length || found[0] > NEAR * NEAR) nearest(x, y, all);
-    const i = found[1];
-    const t = found[2];
-    const qx = ax[i] + t * dx[i];
-    const qy = ay[i] + t * dy[i];
-    let inside: boolean;
-    if (t > 1e-9 && t < 1 - 1e-9) {
-      inside = dx[i] * (y - ay[i]) - dy[i] * (x - ax[i]) > 0;
-    } else {
-      const corner = t <= 1e-9 ? i : (i + 1) % n;
-      inside =
-        (x - ax[corner]) * inX[corner] + (y - ay[corner]) * inY[corner] > 0;
-    }
-    const d = Math.sqrt(found[0]);
-    const sign = inside ? -1 : 1;
-    out[0] = sign * d;
-    if (d > 1e-12) {
-      out[1] = (sign * (x - qx)) / d;
-      out[2] = (sign * (y - qy)) / d;
-    } else {
-      // On the line: its own way out.
-      const l = Math.sqrt(ll[i]) || 1;
-      out[1] = dy[i] / l;
-      out[2] = -dx[i] / l;
-    }
-  };
-  const scratch = new Float64Array(3);
-  return {
-    probe,
-    at: (x, y) => {
-      probe(x, y, scratch);
-      return scratch[0];
-    },
-  };
-};
-
-/** How far points are from a ring (clockwise on screen) – negative inside. */
-export const ringDistance = (ring: readonly Point[]): Distance =>
-  ringField(ring).at;
 
 /** A shape's outline, fit into the face – and how far points are from it. */
 type Geometry = {
@@ -267,29 +95,7 @@ const geometryOf = (shape: ShapeLike): Geometry => {
 export const outlineDistance = (shape: ShapeLike): Distance =>
   geometryOf(shape).field().at;
 
-/** How finely an outline grown or shrunk is traced: a grid's cells (unit lengths). */
-const STEP = 0.0025;
-/** The grid reaches this far round the face each way. */
-const MARGIN = 0.3;
-
 const probed = new Float64Array(3);
-
-/**
- * A point moved onto the line where the distance is `level` – straight along
- * the way out, which an exact distance needs once (twice for good measure).
- */
-const onto = (field: Field, level: number, x: number, y: number): Point => {
-  let px = x;
-  let py = y;
-  for (let i = 0; i < 2; i++) {
-    field.probe(px, py, probed);
-    const d = probed[0] - level;
-    if (Math.abs(d) < 1e-10) break;
-    px -= d * probed[1];
-    py -= d * probed[2];
-  }
-  return [px, py];
-};
 
 /** Where a ring crosses the line `y` furthest right – and after which point. */
 const crossing = (ring: readonly Point[], y: number) => {
@@ -302,93 +108,6 @@ const crossing = (ring: readonly Point[], y: number) => {
     if (!best || x > best.x) best = { x, after: i };
   }
   return best;
-};
-
-/**
- * Where the distance is `level`, traced all round: from where it crosses
- * the line `y` furthest right, clockwise on screen. Cell by cell along a
- * grid, as marching squares do it – only the cells it passes are measured,
- * and it goes round sharp corners and through narrow places as surely as
- * the grid is fine.
- */
-const trace = (field: Field, level: number, y: number): Point[] => {
-  const columns = Math.ceil((1 + 2 * MARGIN) / STEP);
-  // Grid lines: x from -MARGIN on, and `y` one of the rows.
-  const row0 = Math.ceil((y + MARGIN) / STEP);
-  const xOf = (i: number) => -MARGIN + i * STEP;
-  const yOf = (j: number) => y + (j - row0) * STEP;
-  const values = new Map<number, number>();
-  const value = (i: number, j: number) => {
-    const key = j * (columns + 1) + i;
-    let v = values.get(key);
-    if (v === undefined) {
-      v = field.at(xOf(i), yOf(j)) - level;
-      values.set(key, v);
-    }
-    return v;
-  };
-  const inside = (i: number, j: number) => value(i, j) < 0;
-  // Edges: 0 top, 1 right, 2 bottom, 3 left of a cell – each by its two
-  // corners.
-  const corners = (i: number, j: number, edge: number): number[] =>
-    [
-      [i, j, i + 1, j],
-      [i + 1, j, i + 1, j + 1],
-      [i + 1, j + 1, i, j + 1],
-      [i, j + 1, i, j],
-    ][edge];
-  const crosses = (i: number, j: number, edge: number) => {
-    const [ai, aj, bi, bj] = corners(i, j, edge);
-    return inside(ai, aj) !== inside(bi, bj);
-  };
-  const pointOn = (i: number, j: number, edge: number): Point => {
-    const [ai, aj, bi, bj] = corners(i, j, edge);
-    const va = value(ai, aj);
-    const vb = value(bi, bj);
-    const t = va / (va - vb);
-    return [
-      xOf(ai) + (xOf(bi) - xOf(ai)) * t,
-      yOf(aj) + (yOf(bj) - yOf(aj)) * t,
-    ];
-  };
-  // The start: walked in from the right along the row `y`, to the first
-  // edge with the inside to its left.
-  let i = columns - 1;
-  while (i > 0 && !(inside(i, row0) && !inside(i + 1, row0))) i--;
-  let j = row0;
-  // Into the cell below it, entering at its top: going down there, with
-  // the inside to the right – clockwise on screen.
-  let entry = 0;
-  const first = { i, j };
-  const points: Point[] = [pointOn(i, j, 0)];
-  const STEPS_ROUND = 4 * columns * columns;
-  for (let n = 0; n < STEPS_ROUND; n++) {
-    const others = [1, 2, 3]
-      .map((k) => (entry + k) % 4)
-      .filter((edge) => crosses(i, j, edge));
-    let exit = others[0];
-    if (others.length === 3) {
-      // A saddle: which way it goes depends on the middle of the cell.
-      const middleIn =
-        field.at(xOf(i) + STEP / 2, yOf(j) + STEP / 2) - level < 0;
-      const [ai, aj] = corners(i, j, entry);
-      const entryStartsIn = inside(ai, aj);
-      // Round the corner it is cut from: the outside one where the middle is
-      // in, the inside one where it is out.
-      exit = middleIn === entryStartsIn ? (entry + 1) % 4 : (entry + 3) % 4;
-    }
-    if (exit === undefined) break;
-    // Over into the next cell.
-    if (exit === 0) j--;
-    else if (exit === 1) i++;
-    else if (exit === 2) j++;
-    else i--;
-    entry = (exit + 2) % 4;
-    // Back where it began: round.
-    if (i === first.i && j === first.j && entry === 0) break;
-    points.push(pointOn(i, j, entry));
-  }
-  return points;
 };
 
 /** An outline's points – and which way is out at each (unit vectors). */

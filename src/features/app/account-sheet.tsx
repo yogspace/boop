@@ -3,7 +3,7 @@
 import { type FormEvent, type ReactNode, useState } from "react";
 import { Bang, Dot, Mail } from "@/components/doodles";
 import { LocaleSwitch } from "@/components/locale-switch";
-import { Button, buttonClass, Field, Notice } from "@/components/ui";
+import { Button, Field, Notice } from "@/components/ui";
 import {
   cancelEmailChange,
   deleteAccount,
@@ -18,20 +18,18 @@ import { AccountNotifications } from "@/features/push/account-notifications";
 import { Link } from "@/features/transitions/link";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
-import { cn } from "@/lib/cn";
 import { NameForm } from "./dialogs";
 import { InvitationList } from "./invitations";
 import { Sheet } from "./sheet";
 import { SyncStatus } from "./sync-badge";
 
 /**
- * One's own account – opened from the account's menu (boop-app.tsx): the
- * invitations waiting for an answer, if any (invitations.tsx), its name,
- * its address (`Address`), the app's language, what is stored about it, and the ways out (the
- * data as a file, deleting it). All need a connection: the server has
- * the data, and the last word. Where an admin ticked the account's box in
- * the CMS, a link leads there – a shortcut and no more: the CMS asks for
- * its own login.
+ * One's own account – opened from the account's menu
+ * (boop-app/app-header.tsx): the invitations waiting for an answer, if any
+ * (invitations.tsx), its name, its address (`Address`), the app's
+ * language, what is stored about it, and the ways out (the data as a file,
+ * deleting it). All need a connection: the server has the data, and the
+ * last word.
  *
  * Deleting asks twice: first what goes with the account, spelled out, then
  * the password – an open app on a table is not enough.
@@ -147,20 +145,6 @@ export const AccountSheet = ({
           <Labeled label={text.sync}>
             <SyncStatus locale={locale} />
           </Labeled>
-          {/* In a tab of its own: the app stays open, with what waits in it. */}
-          {me?.admin && (
-            <a
-              className={cn(
-                buttonClass({ variant: "plain", size: "sm" }),
-                "self-start"
-              )}
-              href="/admin"
-              rel="noopener"
-              target="_blank"
-            >
-              {text.cms}
-            </a>
-          )}
         </Part>
 
         {/* What the whole account hears of – an invitation, a gift (push).

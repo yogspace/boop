@@ -4,7 +4,7 @@ import { inkState, OVER } from "./ink";
 
 /**
  * A special stamp glitters: a few small four-pointed sparkles about it –
- * white, outlined in the same ink as the stamp – that twinkle in the live
+ * white, outlined in the ink of its lines – that twinkle in the live
  * views (still in pictures and for reduced motion). They turn with the stamp
  * and are drawn over everything (ink.ts' OVER), one quad each, all in one go.
  */
@@ -77,7 +77,7 @@ void main() {
 const isSpecial = (input: StickerInput) =>
   (input.drawing as { special?: unknown } | null)?.special === true;
 
-/** Adds the sparkles to a stamp (from buildSticker) – if it is special. */
+/** Adds the sparkles to a stamp (build.ts) – if it is special. */
 export const addGlitter = (
   THREE: typeof Three,
   sticker: Three.Object3D,

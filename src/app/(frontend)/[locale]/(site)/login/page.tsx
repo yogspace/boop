@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { LoginForm } from "@/features/accounts/forms";
+import { LoginForm } from "@/features/accounts/forms/login";
 import { getDictionary } from "@/features/translations/get-texts";
 import { isLocale } from "@/i18n/config";
 

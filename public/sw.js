@@ -9,13 +9,16 @@
  *   app's of that language (/de/app) – the server gives it for each of them
  *   (src/proxy.ts), and so does this: one copy per language, kept since
  *   installing, so even an address never opened before opens offline.
- * - Next's files (/_next/static, named by their content): cached for good.
+ * - Next's files (/_next/static, named by their content): cached for good –
+ *   from installing on, those the app's pages load and those loaded later
+ *   (the editor, the sheets, the 3D stamps: chunks of their own, named in
+ *   the ones before), so all of the app opens offline, not only its start.
  * - Icons, fonts, the manifest: from the cache, refreshed behind.
  * - Never cached: /api, /admin, /next – data, the CMS, statistics.
  *
  * Bump VERSION when this file's logic changes; old caches go on activation.
  */
-const VERSION = "boop-v2";
+const VERSION = "boop-v3";
 const PAGES = `${VERSION}-pages`;
 const FILES = `${VERSION}-files`;
 const SHELLS = ["/de/app", "/en/app"];
@@ -31,7 +34,9 @@ self.addEventListener("install", (event) => {
       const pages = await caches.open(PAGES);
       const files = await caches.open(FILES);
       // The app's pages and the files they load, so the first offline start
-      // works – not only the second.
+      // works – not only the second. Both pages share most files: each is
+      // fetched once (`kept`).
+      const kept = new Set();
       for (const url of SHELLS) {
         try {
           const response = await fetch(url, { credentials: "same-origin" });
@@ -39,9 +44,7 @@ self.addEventListener("install", (event) => {
           await pages.put(url, response.clone());
           const html = await response.text();
           const assets = new Set(html.match(/\/_next\/static\/[^"'\s)\\]+/g));
-          await Promise.all(
-            [...assets].map((asset) => files.add(asset).catch(() => {}))
-          );
+          await keep(files, assets, kept);
         } catch {
           // Offline while installing – the next visit fills the cache.
         }
@@ -81,6 +84,40 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(refreshBehind(request));
   }
 });
+
+/**
+ * A chunk's own chunks – loaded once something is wanted – as Turbopack
+ * names them in it: "static/chunks/…", without /_next/ before.
+ */
+const CHUNK = /["'](?:\/_next\/)?(static\/chunks\/[^"'\s\\]+\.(?:js|css))["']/g;
+
+/**
+ * Keeps Next's files – and, for a script, the chunks it may load later in
+ * turn, and theirs, each once (`kept`). One that can't be fetched is left
+ * out: it comes from the network when wanted.
+ */
+const keep = async (files, assets, kept) => {
+  const fresh = [...assets].filter((asset) => !kept.has(asset));
+  for (const asset of fresh) kept.add(asset);
+  await Promise.all(
+    fresh.map(async (asset) => {
+      try {
+        const response = await fetch(asset);
+        if (!response.ok) return;
+        await files.put(asset, response.clone());
+        if (!asset.endsWith(".js")) return;
+        const named = [...(await response.text()).matchAll(CHUNK)];
+        await keep(
+          files,
+          new Set(named.map(([, path]) => `/_next/${path}`)),
+          kept
+        );
+      } catch {
+        // Offline meanwhile – it comes from the network when wanted.
+      }
+    })
+  );
+};
 
 /** Where a page's copy is kept – for the app's addresses, the app's page. */
 const keyOf = (pathname) => {

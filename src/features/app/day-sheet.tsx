@@ -9,13 +9,14 @@ import { DayNote } from "./day-note";
 import { DayPage, type TrayProps } from "./day-page";
 import { Sheet } from "./sheet";
 
-// Where the month (month-grid.tsx) has always found it.
+// Where the month (month-grid/days.tsx) has always found it.
 export { seedOf } from "./day-page";
 
 /**
- * A day of a calendar, opened from its month: the day's page with its
- * prints, inks and stamps (day-page.tsx), and the day's note under the
- * page. The tray's (`TrayProps`) go on to the page as they are.
+ * A day of a calendar, opened from its month or year: the day's page with
+ * its prints, inks and stamps (day-page.tsx), and the day's note with it
+ * (under the page, on a phone beside it). The tray's (`TrayProps`) go on
+ * to the page as they are.
  */
 export const DaySheet = ({
   calendar,

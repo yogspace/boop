@@ -42,7 +42,7 @@ export type StampColor = {
  * drawn in such a color shines like metal, glitters, shimmers like a
  * hologram, has the grain of wood, carries confetti or little stars, is
  * veined like marble, or glows like hot iron. In this order: a stamp's
- * shader knows them by their place (stickers/ink.ts).
+ * shader knows them by their place (stickers/toon/finishes.ts).
  */
 export const FINISHES = [
   "metal",
@@ -243,7 +243,7 @@ export const hexOf = (color: string): string =>
 
 /**
  * The finish a color's ink wears – what is drawn in it: the raised doodle
- * and rim of a stamp in 3D (stickers/ink.ts), a print (stamp-svg.tsx). Only
+ * and rim of a stamp in 3D (stickers/toon/), a print (stamp-svg.tsx). Only
  * a special color's: a public one stays plain, even with a finish set in the
  * CMS. Of a color as it is – the CMS's row being edited, too.
  */

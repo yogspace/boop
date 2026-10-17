@@ -3,8 +3,8 @@ import type { StampOrigin } from "../cards/protocol";
 
 /**
  * The order of the stamps an account stamps with – on the shelf
- * (stamp-shelf.tsx) and in a day's tray (day-page.tsx) alike: one choice
- * for both. Plain functions; which one is chosen the device keeps
+ * (stamp-shelf.tsx) and in a day's tray (day-page/tray.tsx) alike: one
+ * choice for both. Plain functions; which one is chosen the device keeps
  * (`readOrder`, `keepOrder`).
  *
  *   recent   the ones last stamped with first – by one's own prints

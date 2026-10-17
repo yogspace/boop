@@ -11,7 +11,7 @@ import { isColorKey } from "./palette";
  * account's: kept on the server (collections/prefs.ts) and synced like the
  * rest, so a calendar turned yellow on the phone is yellow on the laptop
  * too. The same on the server (sync/apply.ts, pull.ts) and in the app
- * (offline/store.ts, “Own settings”). No server imports here.
+ * (offline/store/prefs.ts). No server imports here.
  *
  * One per account and calendar: its id is made of the two (`prefId`), as a
  * day's note's is of its day – set on two devices at once, it is still one,

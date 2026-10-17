@@ -1,8 +1,8 @@
 import type { Point } from "./path";
 
 /**
- * Calm freehand lines – what the pen (stamp-drawer.tsx) makes of a shaky
- * hand, a finger on glass above all:
+ * Calm freehand lines – what the pen (stamp-drawer/use-pen.ts) makes of a
+ * shaky hand, a finger on glass above all:
  *
  * 1. **Steady** – the line follows the pointer like a brush pulled on a
  *    short string (a “lazy brush”): it moves only once the pointer is

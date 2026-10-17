@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ChangeEmailPanel } from "@/features/accounts/forms";
+import { ChangeEmailPanel } from "@/features/accounts/forms/change-email";
 import { getDictionary } from "@/features/translations/get-texts";
 import { isLocale } from "@/i18n/config";
 

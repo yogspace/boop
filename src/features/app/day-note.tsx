@@ -27,12 +27,23 @@ import { boop, setNote, useBoop } from "@/features/offline/store";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
+import {
+  ALLOWED,
+  ago,
+  apple,
+  caretToEnd,
+  draw,
+  drawn,
+  GROWS,
+  isBlank,
+} from "./note-paper";
 
 /**
  * A day's note – what happened that day, in a few words (bold, italic,
- * underlined, line breaks). One per day of a calendar, written by its members together.
- * It stands under the day's page, wherever that shows (the day's sheet, the
- * today view).
+ * underlined, line breaks). One per day of a calendar, written by its
+ * members together. It goes with the day's page, wherever that shows (the
+ * day's sheet, the today view): under it – on a phone beside it, a swipe
+ * away.
  *
  * Written straight onto ruled paper: no button to save – it keeps itself a
  * moment after the typing stops, and when one leaves it, offline too (the
@@ -84,110 +95,14 @@ const ROWS = 3;
 /** The pause after typing that saves. */
 const SAVE_MS = 800;
 
-/** Bold with ⌘ on Apple's systems (Ctrl there moves the cursor), else Ctrl. */
-const apple = () =>
-  typeof navigator !== "undefined" &&
-  /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
-
-/**
- * What may change the page: typing (also composed, corrected, swapped),
- * line breaks, deleting, undo – and bold, italic or underline. Anything else the
- * browser offers is turned down.
- */
-const ALLOWED =
-  /^(insert(Text|ReplacementText|LineBreak|CompositionText|FromComposition|Transpose|FromYank)|delete(?!ByDrag).*|history(Undo|Redo)|format(Bold|Italic|Underline|Remove))$/;
-
-/** What adds to the text – held at the note's length. */
-const GROWS = /^insert(Text|ReplacementText|LineBreak|FromYank)$/;
-
-/**
- * An italic run in pieces, a word each with the space after it. Italic
- * leans the other way here (`ITALIC`) – a skew, which only a box can take –
- * and one box per word lets the line still break between them.
- */
-const words = (text: string) => text.match(/\S+\s*|\s+/g) ?? [text];
-
-/**
- * Draws a note onto the page – text nodes, `<b>`, `<i>`, `<u>` and `<br>`
- * only. Italic outermost: an underline drawn inside its box leans with it.
- */
-const draw = (page: HTMLElement, content: NoteContent | null) => {
-  const doc = page.ownerDocument;
-  const wrap = (node: Node, tag: string) => {
-    const element = doc.createElement(tag);
-    element.append(node);
-    return element;
-  };
-  const nodes: Node[] = [];
-  for (const [n, line] of (content?.lines ?? []).entries()) {
-    if (n > 0) nodes.push(doc.createElement("br"));
-    for (const run of line) {
-      for (const piece of run.i ? words(run.text) : [run.text]) {
-        let node: Node = doc.createTextNode(piece);
-        if (run.u) node = wrap(node, "u");
-        if (run.b) node = wrap(node, "b");
-        if (run.i) node = wrap(node, "i");
-        nodes.push(node);
-      }
-    }
-  }
-  page.replaceChildren(...nodes);
-};
-
-/** The page as `draw` would make it – to tell whether it needs drawing. */
-const drawn = (content: NoteContent | null) => {
-  const page = document.createElement("div");
-  draw(page, content);
-  return page.innerHTML;
-};
-
-/** Nothing written – a line break the browser keeps for the cursor aside. */
-const isBlank = (page: HTMLElement) =>
-  !page.textContent && page.querySelectorAll("br").length <= 1;
-
-/** The cursor at the end of the page. */
-const caretToEnd = (page: HTMLElement) => {
-  const selection = window.getSelection();
-  if (!selection) return;
-  const range = document.createRange();
-  range.selectNodeContents(page);
-  range.collapse(false);
-  selection.removeAllRanges();
-  selection.addRange(range);
-};
-
-/** When, said the short way: “vor 2 Std.”, “gestern”, “2 hr. ago”. */
-const ago = (iso: string, locale: Locale, justNow: string) => {
-  const seconds = Math.min(0, (Date.parse(iso) - Date.now()) / 1000);
-  if (Number.isNaN(seconds)) return "";
-  if (seconds > -60) return justNow;
-  const units: [Intl.RelativeTimeFormatUnit, number][] = [
-    ["minute", 60],
-    ["hour", 3600],
-    ["day", 86_400],
-    ["week", 604_800],
-    ["month", 2_629_800],
-    ["year", 31_557_600],
-  ];
-  const [unit, size] =
-    units.findLast(([, size]) => -seconds >= size) ?? units[0];
-  return new Intl.RelativeTimeFormat(locale, {
-    numeric: "auto",
-    style: "short",
-  }).format(Math.round(seconds / size), unit);
-};
-
-/**
- * A toggle drawn round, filled with ink while on. It keeps the focus where
- * it is (on the page, with its selection): pressing it is no leaving.
- */
 /** What a toggle asks the browser for. */
 const COMMANDS = { b: "bold", i: "italic", u: "underline" } as const;
 
 /**
  * Italic on this paper leans back, the other way than type does: each piece
- * of it (`draw`, a word) a little box skewed about its middle – so it
- * neither eats the space before it nor leaves a gap after. It stays
+ * of it (a word – `draw`, note-paper.ts) a little box skewed about its
+ * middle – so it neither eats the space before it nor leaves a gap after.
+ * It stays
  * `italic` – that is how the browser tells it is on, for ⌘I to switch it
  * off again – but the browser may not slant the letters itself (Satoshi
  * has no italic of its own): upright, then leaning back. An underline
@@ -196,6 +111,10 @@ const COMMANDS = { b: "bold", i: "italic", u: "underline" } as const;
 const ITALIC =
   "[&_i]:inline-block [&_i]:skew-x-[14deg] [&_i]:[font-synthesis-style:none]";
 
+/**
+ * A toggle drawn round, filled with ink while on. It keeps the focus where
+ * it is (on the page, with its selection): pressing it is no leaving.
+ */
 const TOGGLE =
   "scribble scribble-sm scribble-thin flex h-9 w-9 shrink-0 select-none flex-col items-center justify-center rounded-full leading-none transition-transform duration-150 ease-out hover:-rotate-6 active:scale-90 aria-pressed:scribble-ink aria-pressed:hover:rotate-0";
 

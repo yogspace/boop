@@ -1,16 +1,8 @@
 "use client";
 
-import { AnimatePresence, m } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Snapshot } from "valtio";
-import {
-  ArrowLeft,
-  Check,
-  Plus,
-  Sparkle,
-  Squiggle,
-} from "@/components/doodles";
-import { SPRING } from "@/components/motion";
+import { ArrowLeft, Plus, Sparkle, Squiggle } from "@/components/doodles";
 import { BADGE, buttonClass } from "@/components/ui";
 import { type StampDoc, stampsOf } from "@/features/calendar/model";
 import { usePalette } from "@/features/calendar/palette-provider";
@@ -21,17 +13,20 @@ import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { opensHere } from "./address";
 import { NameTag } from "./name-tag";
+import { OrderMenu } from "./order-menu";
 import {
   keepOrder,
   lastUsed,
   readOrder,
   recentFirst,
-  SHELF_ORDERS,
   type ShelfGroup,
   type ShelfOrder,
   shelve,
 } from "./shelf";
-import { useDismiss } from "./use-dismiss";
+
+// Where the day's tray and the app have always found them.
+export { OrderMenu } from "./order-menu";
+export { StampPile } from "./stamp-pile";
 
 type Stamp = Snapshot<StampDoc>;
 
@@ -112,7 +107,7 @@ export const useShelf = () => {
     [groups]
   );
   // The few last stamped with, whatever the order – the pile on the way to
-  // the shelf (`StampPile`).
+  // the shelf (stamp-pile.tsx).
   const latest = useMemo(
     () => recentFirst(stamps, used).slice(0, PILE),
     [stamps, used]
@@ -125,11 +120,10 @@ export const useShelf = () => {
  * stamps the account stamps with, large, a button for a new one last – all
  * in one, or in sections by whom they are from (shelf.ts), the button then
  * after them all; a little menu beside the page's title picks the order.
- * Over the title, the way back to the calendars (`onBack`). A tap opens a
- * stamp's sheet. Someone else's stamp wears their first name;
- * one that came to the account (a card, a gift) says from whom – in
- * sections the heading says it; one of mine that others may use too, two
- * rings.
+ * Over the title, a pill back to the calendars (`onBack`). A tap opens a
+ * stamp's sheet. Someone else's stamp wears their first name; one that
+ * came to the account (a card, a gift) says from whom – in sections the
+ * heading says it; one of mine that others may use too, two rings.
  */
 export const StampShelf = ({
   groups,
@@ -193,11 +187,15 @@ export const StampShelf = ({
   return (
     <section className="flex flex-col gap-6">
       {/* The page's title, where the calendars greet – as large; the way
-        back over it. */}
+        back over it, a pill like the other buttons beside a title – still
+        a link, for a new tab. */}
       <div className="-mt-2 flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
         <div className="flex flex-col items-start">
           <a
-            className="group -my-1 flex items-center gap-1 py-1 font-bold text-muted text-sm transition-colors hover:text-ink"
+            className={cn(
+              buttonClass({ variant: "plain", size: "sm" }),
+              "group mb-3 min-h-11 gap-1.5 pl-3"
+            )}
             href={back}
             onClick={(event) => {
               if (!opensHere(event)) return;
@@ -206,9 +204,7 @@ export const StampShelf = ({
             }}
           >
             <ArrowLeft className="h-4 w-4 transition-transform duration-150 ease-out group-hover:-translate-x-0.5" />
-            <span className="group-hover:scribble-underline">
-              {t.app.backToCalendars}
-            </span>
+            {t.app.backToCalendars}
           </a>
           <h1 className="text-4xl sm:text-5xl">{t.app.stamps}</h1>
           {/* The wave swings below its picture's edge (its troughs reach
@@ -314,241 +310,6 @@ export const StampShelf = ({
     </section>
   );
 };
-
-/** Where a stamp of the pile lies – by how many there are, the top one first. */
-type Toss = { x: number; y: number; rotate: number };
-
-/**
- * The pile, as set down (`rest`) and fanned out a little further
- * (`fanned`) – a few px, a few degrees: two half under the top one, one
- * to each side; of two, one askew behind the other; one alone only turned.
- */
-const TOSSES: Record<number, { rest: Toss; fanned: Toss }[]> = {
-  1: [{ rest: { x: 0, y: 0, rotate: -6 }, fanned: { x: 0, y: -2, rotate: 4 } }],
-  2: [
-    { rest: { x: 8, y: 2, rotate: 7 }, fanned: { x: 12, y: 1, rotate: 12 } },
-    {
-      rest: { x: -9, y: -1, rotate: -12 },
-      fanned: { x: -14, y: -3, rotate: -20 },
-    },
-  ],
-  3: [
-    { rest: { x: 1, y: 3, rotate: -4 }, fanned: { x: 1, y: 2, rotate: -2 } },
-    {
-      rest: { x: -15, y: -1, rotate: -16 },
-      fanned: { x: -21, y: -3, rotate: -25 },
-    },
-    {
-      rest: { x: 15, y: -3, rotate: 13 },
-      fanned: { x: 21, y: -5, rotate: 22 },
-    },
-  ],
-};
-
-/**
- * The way to the shelf, beside the greeting: a little pile of the stamps
- * last stamped with (`useShelf`'s `latest`) – two or three of the 3D
- * stamps, as on the shelf, set down overlapping, each a little turned and
- * off the middle, the latest in front – and under it, small, their word and
- * how many there are. Pointed at or focused, the pile fans out a little
- * further. None yet: a dashed spot with a plus, where they will lie.
- *
- * Its room is kept from the start: a picture still being made leaves its
- * spot empty, and fades in once it is there – softly, not with the pop a
- * picture has elsewhere (sticker.tsx): the pile sits by the greeting, and
- * stays calm.
- *
- * A link to the shelf's address (`href`), followed in place (`onOpen`) –
- * a new tab or window gets the address itself.
- */
-export const StampPile = ({
-  stamps,
-  count,
-  href,
-  locale,
-  onOpen,
-}: {
-  stamps: readonly Stamp[];
-  /** All the shelf's. */
-  count: number;
-  href: string;
-  locale: Locale;
-  onOpen: () => void;
-}) => {
-  const t = dictionaryOf(locale);
-  const tosses = TOSSES[stamps.length] ?? [];
-  return (
-    <m.a
-      animate="rest"
-      aria-label={t.app.pile(count)}
-      className="group flex shrink-0 flex-col items-center gap-1.5 pt-0.5"
-      href={href}
-      initial={false}
-      onClick={(event) => {
-        if (!opensHere(event)) return;
-        event.preventDefault();
-        onOpen();
-      }}
-      whileFocus="fanned"
-      whileHover="fanned"
-    >
-      <span className="relative h-14 w-22 sm:h-16 sm:w-26 [&_:is(img,svg)]:animate-fade">
-        {stamps.length === 0 ? (
-          <span className="scribble scribble-dashed scribble-sm scribble-clear absolute inset-0 m-auto flex h-11 w-11 -rotate-6 items-center justify-center rounded-2xl transition-transform duration-200 group-hover:rotate-3 sm:h-13 sm:w-13">
-            <Plus className="h-5 w-5" />
-          </span>
-        ) : (
-          // The latest last, so it lies on top.
-          tosses
-            .map((toss, i) => ({ toss, stamp: stamps[i] }))
-            .reverse()
-            .map(({ toss, stamp }) => (
-              <m.span
-                className="absolute inset-0 m-auto h-14 w-14 sm:h-16 sm:w-16"
-                key={stamp.id}
-                transition={SPRING.soft}
-                variants={toss}
-              >
-                <Sticker look="never" stamp={stamp} />
-              </m.span>
-            ))
-        )}
-      </span>
-      <span className="whitespace-nowrap font-bold text-[11px] text-muted leading-none transition-colors group-hover:text-ink sm:text-xs">
-        {t.app.stamps}
-        {count > 0 && ` · ${count}`}
-      </span>
-    </m.a>
-  );
-};
-
-/**
- * The stamps' order (shelf.ts), as a little button with the one in use –
- * pressed, the four fold out under it to pick from. On the shelf and over a
- * day's tray, one choice for both. Escape folds them away first – before a
- * sheet the tray is in hears it and closes.
- */
-export const OrderMenu = ({
-  order,
-  locale,
-  onPick,
-  onShow,
-  className,
-}: {
-  order: ShelfOrder;
-  locale: Locale;
-  onPick: (order: ShelfOrder) => void;
-  /**
-   * Told whether it is open – for whoever else listens for Escape ahead of
-   * it (the day's page puts the stamp down with it), to let it be.
-   */
-  onShow?: (open: boolean) => void;
-  className?: string;
-}) => {
-  const t = dictionaryOf(locale);
-  const [open, setOpen] = useState(false);
-  const button = useRef<HTMLButtonElement>(null);
-  const box = useRef<HTMLDivElement>(null);
-  useDismiss(open, () => setOpen(false), button, box);
-  useEffect(() => onShow?.(open), [open, onShow]);
-  // Unfolded at the bottom of a sheet (the day's tray), it would hang out
-  // of sight below: what scrolls around it brings it in – clear of the
-  // fading edge (`scroll-my-12`).
-  useEffect(() => {
-    if (open)
-      box.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [open]);
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.stopImmediatePropagation();
-      if (box.current?.contains(document.activeElement))
-        button.current?.focus();
-      setOpen(false);
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [open]);
-
-  return (
-    <div className={cn("relative shrink-0", className)}>
-      <button
-        aria-expanded={open}
-        className={cn(
-          buttonClass({ variant: "plain", size: "sm" }),
-          "scribble-thin min-h-9 gap-1.5 px-3 py-1 text-[13px] aria-expanded:scribble-soft"
-        )}
-        onClick={() => setOpen(!open)}
-        ref={button}
-        type="button"
-      >
-        <SortSign className="h-4 w-4 shrink-0" />
-        <span className="sr-only">{t.app.shelf.order}: </span>
-        {t.app.shelf[order]}
-      </button>
-      {/* Unfolds from the button, and folds back into it. */}
-      <AnimatePresence>
-        {open && (
-          <m.div
-            animate={{
-              y: 0,
-              scale: 1,
-              opacity: 1,
-              transition: { ...SPRING.soft, opacity: { duration: 0.15 } },
-            }}
-            className="scribble absolute top-full right-0 z-40 mt-2 flex w-52 origin-top-right scroll-my-12 flex-col gap-0.5 rounded-3xl p-2"
-            exit={{
-              y: -6,
-              scale: 0.96,
-              opacity: 0,
-              transition: { duration: 0.15, ease: "easeIn" },
-            }}
-            initial={{ y: -8, scale: 0.96, opacity: 0 }}
-            ref={box}
-          >
-            <p className="px-3 pt-1 pb-1.5 font-bold text-muted text-xs">
-              {t.app.shelf.order}
-            </p>
-            {SHELF_ORDERS.map((o) => (
-              <button
-                aria-pressed={order === o}
-                className="scribble scribble-bare scribble-clear scribble-sm flex min-h-10 items-center justify-between gap-3 rounded-2xl px-3 py-2 text-left font-bold text-sm hover:scribble-soft aria-pressed:[--scribble-fill:var(--cal-mark,var(--color-soft))]"
-                key={o}
-                onClick={() => {
-                  onPick(o);
-                  setOpen(false);
-                  button.current?.focus();
-                }}
-                type="button"
-              >
-                {t.app.shelf[o]}
-                {order === o && <Check className="h-4 w-4 shrink-0" />}
-              </button>
-            ))}
-          </m.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-/** Three lines, shorter and shorter – put in order. */
-const SortSign = ({ className }: { className?: string }) => (
-  <svg
-    aria-hidden="true"
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeWidth="2.6"
-    viewBox="0 0 24 24"
-  >
-    <path d="M4 6.5h16" />
-    <path d="M4 12h11" />
-    <path d="M4 17.5h6" />
-  </svg>
-);
 
 /** Two rings, one over the other – a stamp of mine that others may use too. */
 const SharedSign = ({ className }: { className?: string }) => (

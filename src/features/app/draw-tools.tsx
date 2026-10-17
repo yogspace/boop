@@ -14,11 +14,11 @@ import type { LineMarking } from "./use-line";
 import { KNOB, type Picked } from "./use-select";
 
 /**
- * The drawing tools on the bar: the pen (freehand), the line (straight
- * from point to point, or bent into curves), the eraser, picking and
- * moving. A fifth has no button on the bar – editing such a line's points
- * (`points`): from a double click on one, its key, or the button that
- * comes with one picked.
+ * The drawing tools in their row (stamp-drawer/tool-controls.tsx): the pen
+ * (freehand), the line (straight from point to point, or bent into curves),
+ * the eraser, picking and moving. A fifth has no button there – editing
+ * such a line's points (`points`): from a double click on one, its key, or
+ * the button that comes with one picked.
  */
 export const TOOLS = ["pen", "line", "eraser", "move"] as const;
 export type Tool = (typeof TOOLS)[number] | "points";

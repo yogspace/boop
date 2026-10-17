@@ -69,9 +69,10 @@ export const distanceSq = (
 
 /**
  * The points a line passes through as it is drawn (stamp-svg.tsx
- * `strokePath`, build.ts the same): quadratic curves through the midpoints
- * of its points, straight at both ends – a short one straight from its
- * first point to its last. At most `step` apart, flat pairs.
+ * `strokePath`, stickers/geometry/maps.ts the same): quadratic curves
+ * through the midpoints of its points, straight at both ends – a short one
+ * straight from its first point to its last. At most `step` apart, flat
+ * pairs.
  */
 export const sampleStroke = (p: readonly number[], step = SAMPLE) => {
   const n = Math.floor(p.length / 2);

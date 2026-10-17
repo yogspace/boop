@@ -10,7 +10,8 @@ import { DRAWING_LIMITS, type Fill, type Stroke } from "./model";
  * its styles kept to itself. There the browser tells where every shape
  * really lies – transforms, units, styles and all – and its outline is
  * walked point by point. Text, pictures and effects are left out. Browser
- * only.
+ * only. The frame and its tools serve the CMS's SVG upload too
+ * (read-svg.ts).
  */
 
 export type Imported = { strokes: Stroke[]; fills: Fill[] };
@@ -32,7 +33,7 @@ const PATIENCE_MS = 4000;
 /** Reused shapes (`<use>`) unfolded at most – a file can nest them madly. */
 const MAX_UNFOLD = 300;
 
-const SHAPES = "path,rect,circle,ellipse,line,polyline,polygon";
+export const SHAPES = "path,rect,circle,ellipse,line,polyline,polygon";
 const SVG = "http://www.w3.org/2000/svg";
 
 type Point = [number, number];
@@ -41,7 +42,7 @@ type Ring = { points: Point[]; closed: boolean };
 const round = (n: number) => Math.round(n * 1000) / 1000;
 
 /** The file in a locked frame – its document once it has laid itself out. */
-const openLocked = (text: string) =>
+export const openLocked = (text: string) =>
   new Promise<{ doc: Document; close: () => void } | null>((resolve) => {
     const frame = document.createElement("iframe");
     // Same origin, so its shapes can be measured – but no scripts at all.
@@ -71,7 +72,7 @@ const openLocked = (text: string) =>
  * Shapes used again (`<use href="#…">`) put where they are used, so they
  * can be measured like any other.
  */
-const unfold = (svg: SVGSVGElement) => {
+export const unfold = (svg: SVGSVGElement) => {
   const doc = svg.ownerDocument;
   let left = MAX_UNFOLD;
   for (let pass = 0; pass < 4 && left > 0; pass++) {
@@ -113,7 +114,7 @@ const unfold = (svg: SVGSVGElement) => {
 };
 
 /** Whether a paint (fill or stroke) puts down ink – white is paper. */
-const paints = (paint: string, opacity: string) => {
+export const paints = (paint: string, opacity: string) => {
   if (paint === "none" || !(Number(opacity) > 0.05)) return false;
   const rgb = paint.match(/^rgba?\(([^)]+)\)/);
   // Not a plain color (a gradient, a pattern): ink.
@@ -126,7 +127,11 @@ const paints = (paint: string, opacity: string) => {
  * A shape's outline, walked: its points in the frame, cut wherever the pen
  * was lifted (a path may hold several outlines).
  */
-const walk = (shape: SVGGeometryElement, matrix: DOMMatrix, zoom: number) => {
+export const walk = (
+  shape: SVGGeometryElement,
+  matrix: DOMMatrix,
+  zoom: number
+) => {
   const rings: Ring[] = [];
   try {
     const length = shape.getTotalLength();
@@ -176,7 +181,7 @@ const off = ([x, y]: Point, [ax, ay]: Point, [bx, by]: Point) => {
 };
 
 /** The points that give an outline its form (Douglas–Peucker). */
-const thin = (points: Point[], tolerance: number): Point[] => {
+export const thin = (points: Point[], tolerance: number): Point[] => {
   if (points.length < 3) return points;
   const keep = new Uint8Array(points.length);
   keep[0] = 1;

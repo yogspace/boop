@@ -53,7 +53,7 @@ const putOff = {
 
 /**
  * “26. Oktober um 09:00” – until when an invitation can be taken up, to the
- * minute, as its page says it (accounts/forms.tsx).
+ * minute, as its page says it (accounts/forms/invite.tsx).
  */
 const momentOf = (iso: string, locale: Locale) =>
   new Date(iso).toLocaleString(locale === "de" ? "de-DE" : "en-GB", {
