@@ -50,8 +50,7 @@ export const useToday = (): DayKey => {
  * days before are in the month.
  *
  * `keyboard`: the page's keys (day-page.tsx) – off while something lies
- * over it. The tray's (`TrayProps`) go on to the page as they are – but for
- * its tile for a new stamp: here that is the shelf's (stamp-shelf.tsx).
+ * over it. The tray's (`TrayProps`) go on to the page as they are.
  */
 export const TodayView = ({
   calendar,
@@ -89,7 +88,6 @@ export const TodayView = ({
         }
         keyboard={keyboard}
         locale={locale}
-        offerNew={false}
       />
     </div>
   );

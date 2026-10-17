@@ -1,13 +1,15 @@
 import type * as Three from "three";
-import { buildSticker, disposeSticker, type StickerInput } from "./build";
+import { disposeSticker, type StickerInput } from "./build";
 import { addGlitter } from "./glitter";
 import {
+  buildSoftly,
   openStudio,
   pose,
   SIZE,
   type Studio,
   stickerKey,
   studioLost,
+  warmStudio,
 } from "./render";
 import { createSwing, spring } from "./swing";
 
@@ -23,9 +25,10 @@ import { createSwing, spring } from "./swing";
  * onto a plain canvas lying over the picture, which hides meanwhile (the
  * box is marked `data-live`). The two cross over in a blink, both ways – at
  * rest they show the same, but the browser scales them a touch differently.
- * A stamp's model is built when it first looks and kept a moment after.
- * Only for a mouse – nothing on touch, nothing where less motion is asked
- * for.
+ * A stamp's model is built when it first looks – a part at a time, the
+ * page going on meanwhile – and kept a moment after. The studio opens ahead,
+ * in a quiet moment, so the first look doesn't wait for it. Only for a
+ * mouse – nothing on touch, nothing where less motion is asked for.
  */
 
 /**
@@ -145,14 +148,14 @@ let bench: Promise<unknown> = Promise.resolve();
 const modelOf = ({ THREE }: Studio, input: StickerInput) => {
   const key = stickerKey(input);
   let built = false;
-  const made = bench.then(() => {
+  const made = bench.then(async () => {
     const kept = spare.get(key);
     if (kept) {
       spare.delete(key);
       return kept;
     }
     built = true;
-    const sticker = buildSticker(THREE, input);
+    const sticker = await buildSoftly(THREE, input);
     addGlitter(THREE, sticker, input);
     pose(sticker, "face");
     return sticker;
@@ -318,6 +321,8 @@ const open = async (looker: Looker) => {
     const studio = await openStudio();
     looker.model ??= modelOf(studio, looker.input);
     const sticker = await looker.model;
+    // Its programs compiled – the first frame would stall on them.
+    await studio.ready;
     const { host } = looker;
     // A picture just arrived still pops in: it lands first.
     await Promise.all(
@@ -518,6 +523,7 @@ export const watchLook = (
   };
   const unwatch =
     looks === "always" ? watchEverywhere(looker) : watchHover(looker);
+  if (able()) warmStudio();
   return () => {
     unwatch();
     clearTimeout(looker.notice);

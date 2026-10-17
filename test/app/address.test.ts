@@ -5,6 +5,8 @@ import {
   PANEL_SLUGS,
   panelOf,
   readAddress,
+  SHELF_SLUGS,
+  shelfAddressOf,
   slugOf,
   slugsOf,
   VIEW_SLUGS,
@@ -97,6 +99,28 @@ describe("slugsOf", () => {
     expect(slugs.get("a")).toBe("familie-3");
   });
 
+  it("leaves the shelf's words to the shelf – in both languages", () => {
+    const stempel = { id: "s", name: "Stempel", owner: "me" };
+    const stamps = { id: "t", name: "Stamps!", owner: "me" };
+    for (const locale of ["de", "en"] as const) {
+      const slugs = slugsOf([stempel, stamps, sport], "me", locale);
+      expect(slugs.get("s")).toBe("stempel-2");
+      expect(slugs.get("t")).toBe("stamps-2");
+      expect(slugs.get("c")).toBe("sport");
+      for (const slug of slugs.values()) {
+        expect(readAddress(addressOf(locale, slug, "month")).calendar).toBe(
+          slug
+        );
+      }
+    }
+    // A name that is the next number already goes ahead, as ever.
+    const two = { id: "u", name: "Stempel 2", owner: "me" };
+    const slugs = slugsOf([stempel, two], "me", "de");
+    expect(slugs.get("u")).toBe("stempel-2");
+    expect(slugs.get("s")).toBe("stempel-3");
+    expect(Object.values(SHELF_SLUGS)).toEqual(["stempel", "stamps"]);
+  });
+
   it("comes out the same whatever the order", () => {
     const list = [anna, mine, sport, { id: "e", name: "", owner: "ben" }];
     const once = slugsOf(list, "me", "en");
@@ -130,12 +154,14 @@ describe("calendarOf", () => {
 describe("the address", () => {
   it("reads calendar and view", () => {
     expect(readAddress("/de/app/familie/heute")).toEqual({
+      shelf: false,
       calendar: "familie",
       view: "today",
       day: null,
       panel: null,
     });
     expect(readAddress("/en/app/family/month")).toEqual({
+      shelf: false,
       calendar: "family",
       view: "month",
       day: null,
@@ -153,7 +179,13 @@ describe("the address", () => {
   });
 
   it("reads what is there, and nothing else", () => {
-    const none = { calendar: null, view: null, day: null, panel: null };
+    const none = {
+      shelf: false,
+      calendar: null,
+      view: null,
+      day: null,
+      panel: null,
+    };
     expect(readAddress("/de/app")).toEqual(none);
     expect(readAddress("/de/app/")).toEqual(none);
     expect(readAddress(`/de/app/${ID}`)).toEqual({ ...none, calendar: ID });
@@ -189,6 +221,7 @@ describe("the address", () => {
     expect(readAddress("/de/app/familie/monat/2026-02-30").day).toBeNull();
     expect(readAddress("/de/app/familie/monat/quatsch").day).toBeNull();
     expect(readAddress("/de/app/familie/2026-10-13")).toEqual({
+      shelf: false,
       calendar: "familie",
       view: null,
       day: null,
@@ -221,12 +254,64 @@ describe("the address", () => {
     );
     expect(readAddress("/en/app/family/year/edit-stamp").panel).toBe("edit");
     expect(readAddress("/de/app/familie/heute/stempel-bearbeiten")).toEqual({
+      shelf: false,
       calendar: "familie",
       view: "today",
       day: null,
       panel: "edit",
     });
     expect(panelOf("Konto")).toBeNull();
+  });
+
+  it("reads the shelf – in either language, with its own sheets only", () => {
+    const shelf = {
+      shelf: true,
+      calendar: null,
+      view: null,
+      day: null,
+      panel: null,
+    };
+    expect(readAddress("/de/app/stempel")).toEqual(shelf);
+    expect(readAddress("/en/app/stamps/")).toEqual(shelf);
+    expect(readAddress("/en/app/stempel")).toEqual(shelf);
+    expect(readAddress("/de/app/Stamps")).toEqual(shelf);
+    expect(readAddress("/de/app/stempel/neuer-stempel")).toEqual({
+      ...shelf,
+      panel: "draw",
+    });
+    expect(readAddress("/en/app/stamps/konto").panel).toBe("account");
+    expect(readAddress("/de/app/stempel/stempel-bearbeiten").panel).toBe(
+      "edit"
+    );
+    // A calendar's sheets, a view, a day: not the shelf's.
+    expect(readAddress("/de/app/stempel/einstellungen")).toEqual(shelf);
+    expect(readAddress("/de/app/stempel/teilen")).toEqual(shelf);
+    expect(readAddress("/de/app/stempel/monat/2026-10-13")).toEqual(shelf);
+    // A calendar called so has a number: that is a calendar again.
+    expect(readAddress("/de/app/stempel-2/monat").shelf).toBe(false);
+  });
+
+  it("writes the shelf in the page's language", () => {
+    expect(shelfAddressOf("de")).toBe("/de/app/stempel");
+    expect(shelfAddressOf("en")).toBe("/en/app/stamps");
+    expect(shelfAddressOf("de", "draw")).toBe("/de/app/stempel/neuer-stempel");
+    expect(shelfAddressOf("en", "account")).toBe("/en/app/stamps/account");
+    expect(shelfAddressOf("de", "edit")).toBe(
+      "/de/app/stempel/stempel-bearbeiten"
+    );
+    expect(shelfAddressOf("de", "settings")).toBe("/de/app/stempel");
+    expect(shelfAddressOf("en", null)).toBe("/en/app/stamps");
+    for (const locale of ["de", "en"] as const) {
+      for (const panel of [null, "account", "draw", "edit"] as const) {
+        expect(readAddress(shelfAddressOf(locale, panel))).toEqual({
+          shelf: true,
+          calendar: null,
+          view: null,
+          day: null,
+          panel,
+        });
+      }
+    }
   });
 
   it("writes the view in the page's language", () => {
@@ -256,7 +341,13 @@ describe("the address", () => {
   it("reads back what it writes", () => {
     for (const locale of ["de", "en"] as const) {
       for (const view of ["today", "month", "year"] as const) {
-        const none = { calendar: "wg-kueche", view, day: null, panel: null };
+        const none = {
+          shelf: false,
+          calendar: "wg-kueche",
+          view,
+          day: null,
+          panel: null,
+        };
         expect(readAddress(addressOf(locale, "wg-kueche", view))).toEqual(none);
         expect(
           readAddress(

@@ -69,7 +69,7 @@ const seen = {
  * invitations' (invitations.tsx), and with the same rules: `hold` while
  * anything else lies over the app (one sheet at a time), and a breath after
  * it went. `onShowing`: whether a sheet of it is there – until it has gone
- * for good. `onShelf`: “to the shelf” – the shelf comes into sight.
+ * for good. `onShelf`: “to your stamps” – the shelf, the page with them.
  */
 export const Arrivals = ({
   locale,

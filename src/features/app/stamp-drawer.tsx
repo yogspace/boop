@@ -3,6 +3,7 @@
 import { AnimatePresence, m, useIsPresent } from "motion/react";
 import {
   type ChangeEvent,
+  type FormEvent,
   type PointerEvent,
   useEffect,
   useId,
@@ -277,13 +278,17 @@ const shifted = (art: Art, dx: number, dy: number): Art => {
 };
 
 /**
- * Two sets of controls in one place, one of them showing: one fades away,
- * then the other comes, and the taller one sets the height – so nothing
- * around them moves.
+ * Side by side, two sets of controls in one place, one of them showing: one
+ * fades away, then the other comes, and the taller one sets the height – so
+ * nothing around them moves. Where the room is too small, each scrolls on
+ * its own (`grid-rows-1` on the place they share): the stamp's come from
+ * their top, never from where the drawing's were scrolled to – down at the
+ * button that made it 3D, past everything they have.
  */
 const layer = (on: boolean) =>
   cn(
-    "col-start-1 row-start-1 min-w-0 transition-[opacity,visibility] duration-200",
+    "col-start-1 row-start-1 min-h-0 min-w-0 overflow-y-auto transition-[opacity,visibility] duration-200",
+    FADING.y,
     on ? "delay-150" : "invisible opacity-0"
   );
 
@@ -392,9 +397,10 @@ type Waiting = {
  * as often as you like. Back to drawing, the stamp flies back onto its
  * drawing the way it came. Saved on the device at once, synced later.
  *
- * On a phone it fills the screen: the drawing as wide as it is, the tools
- * under it, the rest to scroll to below. Side by side, it lies in the
- * middle, the drawing as large as the screen allows.
+ * On a phone it fills the screen and scrolls as one page: the drawing as
+ * wide as it is, the bar with the steps back and forth under it – the two
+ * stay at the top while the tools after them scroll by. Side by side, it
+ * lies in the middle, the drawing as large as the screen allows.
  *
  * Drawing:
  * - The pen draws calm lines (freehand.ts): it follows on a short string,
@@ -460,7 +466,11 @@ export const StampDrawer = ({
   const liveCopy = useRef<SVGPathElement>(null);
   const loupe = useRef<LoupeHandle>(null);
   const file = useRef<HTMLInputElement>(null);
-  const controls = useFadingEdges();
+  // Side by side: the drawing's controls and the stamp's – each scrolls on
+  // its own. On a phone the whole page scrolls instead.
+  const drawControls = useFadingEdges();
+  const stampControls = useFadingEdges();
+  const page = useRef<HTMLDivElement>(null);
   const colorRow = useFadingEdges("x");
   const shapeRow = useFadingEdges("x");
   const templateRow = useFadingEdges("x");
@@ -1354,6 +1364,11 @@ export const StampDrawer = ({
     setPickNext(addedIn(drag.before, drag.added));
   };
 
+  // On a phone each step begins at the top of the page: the title, the
+  // stage, what to set first – never scrolled to where the other one's end
+  // was, under the stage.
+  const toTop = () => page.current?.scrollTo({ top: 0 });
+
   const toStamp = () => {
     stopErasing();
     dropPen();
@@ -1364,6 +1379,7 @@ export const StampDrawer = ({
     setMade(sticker);
     setView3d((n) => n + 1);
     setStage("3d");
+    toTop();
   };
 
   // The drawing comes back under the stamp, which flies onto it and fades
@@ -1371,6 +1387,7 @@ export const StampDrawer = ({
   const toDrawing = () => {
     setStage("draw");
     setShown(false);
+    toTop();
   };
 
   // The drawing as a stamp keeps it – and, for one drawn anew, what differs
@@ -1450,7 +1467,10 @@ export const StampDrawer = ({
     return () => window.removeEventListener("keydown", onKey);
   }, [going]);
 
-  const onSave = async () => {
+  // Its button, or Enter in the name – with the keyboard up, the keyboard's
+  // own key saves, whatever it covers.
+  const onSave = async (event: FormEvent) => {
+    event.preventDefault();
     setError(false);
     try {
       if (stamp) {
@@ -1746,7 +1766,7 @@ export const StampDrawer = ({
   );
 
   // The steps back and forth – and clearing it all. Side by side beside the
-  // tools; on a phone at the top, over the drawing (`barEl`).
+  // tools; on a phone under the drawing (`barEl`).
   const historyEl = (
     <div className="flex shrink-0 items-center gap-1.5">
       {(
@@ -1835,13 +1855,15 @@ export const StampDrawer = ({
   );
 
   // On a phone: the steps back and forth on the left, clearing on the
-  // right – at the top, over the drawing, where a thumb finds them without
-  // scrolling. While the stamp shows, they keep their room (nothing moves).
+  // right – right under the drawing, as wide as it, like under the day's
+  // page (day-page.tsx); it stays there with the drawing as the page
+  // scrolls. Made 3D, there is nothing to take back: it goes – it lies
+  // under the stage, which stays where it is.
   const barEl = (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-between gap-2 px-4 pb-2 transition-[opacity,visibility] duration-200",
-        !draws && "invisible opacity-0"
+        "flex items-center justify-between gap-2 pt-2",
+        draws ? "animate-fade" : "hidden"
       )}
     >
       {historyEl}
@@ -2230,7 +2252,7 @@ export const StampDrawer = ({
   );
 
   const saveEl = (
-    <>
+    <form className="flex flex-col gap-4" onSubmit={onSave}>
       <Field
         label={t.app.draw.name}
         maxLength={40}
@@ -2251,9 +2273,31 @@ export const StampDrawer = ({
         <p className="font-medium text-muted text-sm">{t.app.draw.editNote}</p>
       )}
       {error && <Notice tone="error">{t.auth.failed}</Notice>}
-      <Button className="w-full" onClick={onSave} size="lg">
+      <Button className="w-full" size="lg" type="submit">
         {stamp ? t.app.draw.saveChanges : t.app.draw.save}
       </Button>
+    </form>
+  );
+
+  // What is set while drawing – and, made 3D, what is left to do.
+  const drawSet = (
+    <>
+      {shapesEl}
+      {colorsEl}
+      <div className="flex flex-col gap-2">
+        {toolsEl}
+        {widthsEl}
+        {hintEl}
+      </div>
+      {templatesEl}
+      {rimsEl}
+      {restEl}
+    </>
+  );
+  const stampSet = (
+    <>
+      {backEl}
+      {saveEl}
     </>
   );
 
@@ -2352,28 +2396,18 @@ export const StampDrawer = ({
               <div className="w-[min(calc(100dvh-9.5rem),calc(100vw-32rem),56rem)] shrink-0">
                 {stageEl}
               </div>
-              <div
-                className={cn(
-                  "-my-2 grid min-h-0 w-88 shrink-0 overflow-y-auto px-1 py-2",
-                  FADING.y
-                )}
-                ref={controls}
-              >
-                <div className={cn(layer(draws), "flex flex-col gap-3")}>
-                  {shapesEl}
-                  {colorsEl}
-                  <div className="flex flex-col gap-2">
-                    {toolsEl}
-                    {widthsEl}
-                    {hintEl}
-                  </div>
-                  {templatesEl}
-                  {rimsEl}
-                  {restEl}
+              <div className="-my-2 grid min-h-0 w-88 shrink-0 grid-rows-1">
+                <div
+                  className={cn(layer(draws), "px-1 py-2")}
+                  ref={drawControls}
+                >
+                  <div className="flex flex-col gap-3">{drawSet}</div>
                 </div>
-                <div className={cn(layer(!draws), "flex flex-col gap-4")}>
-                  {backEl}
-                  {saveEl}
+                <div
+                  className={cn(layer(!draws), "px-1 py-2")}
+                  ref={stampControls}
+                >
+                  <div className="flex flex-col gap-4">{stampSet}</div>
                 </div>
               </div>
               {questionEl}
@@ -2389,39 +2423,53 @@ export const StampDrawer = ({
           inert={going}
           role="dialog"
         >
-          <div className="px-4 pb-2">{header}</div>
-          {barEl}
-          <div className="relative flex min-h-0 flex-1 flex-col">
-            {/* As wide as the screen, square – and never so tall that the
-                tools under it have no room. */}
-            <div className="mx-auto w-full max-w-[min(100%,calc(100dvh-22rem))] shrink-0 px-2">
-              {stageEl}
+          <div
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+            ref={page}
+          >
+            <div className="px-4 pb-2">{header}</div>
+            {/* The drawing and the bar under it, one block: drawing, it
+                stays at the top while what comes after scrolls by – on the
+                page's own paper, which a short fade lets go of below; the
+                frames keep the room they wobble in. Made 3D, it goes with
+                the page: nothing to set lies under it then. */}
+            <div
+              className={cn(
+                "z-10 bg-bg pt-1 pb-2",
+                draws
+                  ? "sticky top-0 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-linear-to-b after:from-bg after:to-transparent"
+                  : "relative"
+              )}
+            >
+              {/* As wide as the screen, square – and never so tall that the
+                  tools under it have no room. */}
+              <div className="mx-auto w-full max-w-[min(100%,calc(100dvh-22rem))] px-2">
+                {stageEl}
+              </div>
+              {/* As wide as the drawing – but never narrower than its
+                  buttons. */}
+              <div className="mx-auto w-full max-w-[min(100%,max(calc(100dvh-22rem),11rem))] px-2">
+                {barEl}
+              </div>
+              {questionEl}
+            </div>
+            {/* Only the set showing is there – the page as long as it is. */}
+            <div
+              className={cn(
+                "flex flex-col gap-4 px-4 pt-3 pb-4",
+                draws ? "animate-fade" : "hidden"
+              )}
+            >
+              {drawSet}
             </div>
             <div
               className={cn(
-                "grid min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3 pb-4",
-                FADING.y
+                "flex-col gap-4 px-4 pt-3 pb-4",
+                draws ? "hidden" : "flex animate-fade"
               )}
-              ref={controls}
             >
-              <div className={cn(layer(draws), "flex flex-col gap-4")}>
-                {shapesEl}
-                {colorsEl}
-                <div className="flex flex-col gap-2">
-                  {toolsEl}
-                  {widthsEl}
-                  {hintEl}
-                </div>
-                {templatesEl}
-                {rimsEl}
-                {restEl}
-              </div>
-              <div className={cn(layer(!draws), "flex flex-col gap-4")}>
-                {backEl}
-                {saveEl}
-              </div>
+              {stampSet}
             </div>
-            {questionEl}
           </div>
         </m.div>
       )}

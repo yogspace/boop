@@ -1734,6 +1734,28 @@ export interface Translation {
      */
     newStamp?: string | null;
     /**
+     * DE: Alle Stempel  ·  EN: All stamps
+     */
+    allStamps?: string | null;
+    pile?: {
+      /**
+       * DE: Deine Stempel – noch keine  ·  EN: Your stamps – none yet
+       */
+      none?: string | null;
+      /**
+       * DE: Deine Stempel – 1 Stempel  ·  EN: Your stamps – 1 stamp
+       */
+      one?: string | null;
+      /**
+       * DE: Deine Stempel – {n} Stempel  ·  EN: Your stamps – {n} stamps  ·  Keeps {n}
+       */
+      many?: string | null;
+    };
+    /**
+     * DE: Kalender  ·  EN: Calendars
+     */
+    backToCalendars?: string | null;
+    /**
      * DE: Heute  ·  EN: Today
      */
     today?: string | null;
@@ -2176,6 +2198,10 @@ export interface Translation {
        * DE: Nach rechts drehen  ·  EN: Turn right
        */
       turnRight?: string | null;
+      /**
+       * DE: Drehung zurücksetzen  ·  EN: Reset rotation
+       */
+      straighten?: string | null;
       /**
        * DE: In der Hand  ·  EN: In your hand
        */
@@ -2985,7 +3011,7 @@ export interface Translation {
        */
       goneText?: string | null;
       /**
-       * DE: Zum Regal  ·  EN: To the shelf
+       * DE: Zu deinen Stempeln  ·  EN: To your stamps
        */
       toShelf?: string | null;
       /**
@@ -3747,6 +3773,15 @@ export interface TranslationsSelect<T extends boolean = true> {
         stamps?: T;
         noStamps?: T;
         newStamp?: T;
+        allStamps?: T;
+        pile?:
+          | T
+          | {
+              none?: T;
+              one?: T;
+              many?: T;
+            };
+        backToCalendars?: T;
         today?: T;
         prev?: T;
         next?: T;
@@ -3885,6 +3920,7 @@ export interface TranslationsSelect<T extends boolean = true> {
               wheel?: T;
               turnLeft?: T;
               turnRight?: T;
+              straighten?: T;
               inHand?: T;
               picked?: T;
               pickedKeys?: T;

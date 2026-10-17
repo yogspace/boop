@@ -4,6 +4,15 @@ Stand: 16.10.2026
 
 ## Offen
 
+- **Als Nächstes (nach Regal-Seite und 3D-Tempo): Geschenke als 3D-Päckchen
+  im Regal** – ein Geschenk von Boop kommt eingepackt an: im Regal als
+  Päckchen (3D, Schleife, im Ton des Stempels), auf dem Stempelhaufen neben
+  „Hallo Max!“ obenauf. Antippen → auspacken (Deckel fliegt, Glitzer, der
+  Stempel steigt heraus) → normaler Stempel. Kein Popup mehr beim Öffnen
+  der App; Push führt ins Regal. Eingepackt nicht in der Ablage zum
+  Stempeln. „Ausgepackt“ am Stempel (synct, gilt auf allen Geräten); alte
+  Geschenke gelten als ausgepackt. Karten bleiben wie sie sind.
+
 - **Nach dem Deploy im CMS**:
   - Seeds → Translations (neue Texte). Falls unter Translations schon
     gespeichert: `app.settings.own.colorMember` und `startText` (de/en)
@@ -221,5 +230,11 @@ Stand: 16.10.2026
 
 ## Ideen am Rand
 
+außerdem ist die stempel erstellen seite kaputt (nur auf phone). da wo ich den stempel sehe und den namen eingeben können müsste, sehe ich nur den stempel. mehr nicht. ich kann dann abbrechen, aber nicht speichern.
+
 - Refactor: manche Dateien haben über 700 Zeilen (`stamp-drawer.tsx`,
   `day-page.tsx`, `boop-app.tsx`, `month-grid.tsx`, `store.ts` …).
+außerdem: ssr bevorzugen, mit client wrappern usw. performance ist key.
+
+während die 3d stempel laden, laggt es schon manchmal.. wie kann man das verbessern?
+

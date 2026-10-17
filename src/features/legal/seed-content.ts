@@ -16,7 +16,7 @@ import type { Locale } from "@/i18n/config";
  * When these texts were last changed – the “Last updated” date while the
  * page shows them straight from the code.
  */
-export const LEGAL_SEED_DATE = "2026-10-16";
+export const LEGAL_SEED_DATE = "2026-10-17";
 
 type Node = Record<string, unknown>;
 
@@ -180,7 +180,7 @@ const german = () =>
       "Boop setzt nur Cookies, die für die Anmeldung nötig sind. Das Anmelde-Cookie enthält ein signiertes Token, an dem der Server erkennt, dass du angemeldet bist; es gilt 30 Tage. Wählst du beim Anmelden „Angemeldet bleiben“ ab, gilt es nur, bis du den Browser schließt, höchstens aber einen Tag – und daneben steht ein zweites Cookie, das nichts enthält als den Hinweis, dass diese Anmeldung mit dem Browser endet. Beim Abmelden werden beide gelöscht. Weil dein Konto ohne sie nicht funktioniert, sind sie unbedingt erforderlich und brauchen keine Einwilligung (§ 25 Abs. 2 Nr. 2 TDDDG). Solange du nicht angemeldet bist, setzt Boop gar keine Cookies."
     ),
     p(
-      "Boop ist eine Web-App, die du installieren kannst und die auch ohne Internet funktioniert. Dafür legt Boop die Kalender, Stempel und Abdrücke deines Kontos im lokalen Speicher deines Browsers ab (IndexedDB) – dazu deinen Namen und deine E-Mail-Adresse, die Anzeigenamen der Mitglieder deiner Kalender, offene Einladungen an dich und Änderungen, die noch nicht beim Server angekommen sind –, und ein Service Worker speichert die Dateien der App zwischen, damit sie sich auch ohne Verbindung öffnet. Was du offline änderst, wird an den Server geschickt, sobald du wieder online bist."
+      "Boop ist eine Web-App, die du installieren kannst und die auch ohne Internet funktioniert. Dafür legt Boop die Kalender, Stempel und Abdrücke deines Kontos im lokalen Speicher deines Browsers ab (IndexedDB) – dazu deinen Namen und deine E-Mail-Adresse, die Anzeigenamen der Mitglieder deiner Kalender, offene Einladungen an dich, Änderungen, die noch nicht beim Server angekommen sind, und Bilder der Stempel, damit sie schneller erscheinen –, und ein Service Worker speichert die Dateien der App zwischen, damit sie sich auch ohne Verbindung öffnet. Was du offline änderst, wird an den Server geschickt, sobald du wieder online bist."
     ),
     p(
       "Außerdem merkt sich dein Browser ein paar Kleinigkeiten (localStorage): das zuletzt gewählte Stempelkissen, wie deine Stempel geordnet sind, welche Geschenke von Boop du schon gesehen hast, eine Einladung oder eine Stempel-Karte, die du vor dem Anmelden geöffnet hast – bis zur Anmeldung –, und ob deine Anmeldung mit dem Schließen des Browsers endet; bis zum Schließen des Tabs außerdem, welche Einladungen du auf „Später“ gelegt hast und welche Karte du gerade übernommen hast (sessionStorage)."
@@ -346,7 +346,7 @@ const english = () =>
       "Boop only sets cookies that logging in needs. The login cookie holds a signed token that tells the server you're logged in; it is valid for 30 days. If you untick “Stay logged in” when logging in, it only lasts until you close the browser, a day at most – and beside it there is a second cookie that holds nothing but the note that this login ends with the browser. Logging out deletes both. Because your account can't work without them, they are strictly necessary and need no consent (§ 25 (2) no. 2 TDDDG). As long as you're not logged in, Boop sets no cookies at all."
     ),
     p(
-      "Boop is a web app you can install, and it also works without internet. For that, Boop keeps your account's calendars, stamps and prints in your browser's local storage (IndexedDB) – along with your name and email address, the display names of your calendars' members, open invitations to you and changes that haven't reached the server yet – and a service worker caches the app's files so it opens without a connection too. Changes you make offline are sent to the server once you're back online."
+      "Boop is a web app you can install, and it also works without internet. For that, Boop keeps your account's calendars, stamps and prints in your browser's local storage (IndexedDB) – along with your name and email address, the display names of your calendars' members, open invitations to you, changes that haven't reached the server yet and pictures of the stamps, so they appear faster – and a service worker caches the app's files so it opens without a connection too. Changes you make offline are sent to the server once you're back online."
     ),
     p(
       "Your browser also remembers a few small things (localStorage): the ink pad you chose last, how your stamps are sorted, which gifts from Boop you have seen, an invitation or a stamp card you opened before logging in – until you log in – and whether your login ends when the browser closes; and until the tab is closed, which invitations you put off with “Later” and which card you just took (sessionStorage)."

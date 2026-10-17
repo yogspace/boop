@@ -7,15 +7,18 @@ import type { CalendarView } from "../offline/store";
  * The app's address: /de/app/{calendar}/{view} – /de/app/familie/heute,
  * /en/app/family/today – and after it what lies open over the view: a day
  * of the month or the year (/de/app/familie/monat/2026-10-13), or one of
- * the sheets (/de/app/familie/heute/einstellungen). The server has one page
- * per language for all of them (the proxy hands every /de/app/… the page
- * of /de/app); the browser reads the rest and writes it anew as the
- * calendar, the view and what is open change (BoopApp).
+ * the sheets (/de/app/familie/heute/einstellungen). Or the shelf, the
+ * account's stamps on a page of their own: /de/app/stempel, /en/app/stamps
+ * – with a sheet over it too (/de/app/stempel/neuer-stempel). The server
+ * has one page per language for all of them (the proxy hands every
+ * /de/app/… the page of /de/app); the browser reads the rest and writes it
+ * anew as the calendar, the view and what is open change (BoopApp).
  *
  * The calendar goes by its name, made into a slug. Names repeat – between
  * accounts, and within one: an own “Familie” and the one a friend shares –
  * so a slug only means something among the calendars of the account on
  * this device, and that is where it is looked up (`slugsOf`, `calendarOf`).
+ * The shelf's word is never a calendar's (`SHELF_SLUGS`).
  * Plain functions of their arguments – tested in test/app/address.test.ts.
  */
 
@@ -85,6 +88,26 @@ export const panelOf = (word: string | null | undefined): Panel | null => {
   return null;
 };
 
+/**
+ * The shelf's word in the address, in each language – where a calendar's
+ * slug would be. No calendar has either (`slugsOf`).
+ */
+export const SHELF_SLUGS = {
+  de: "stempel",
+  en: "stamps",
+} as const satisfies Record<Locale, string>;
+
+/**
+ * The sheets that open over the shelf too: the account's, and the editor –
+ * a new stamp, or one of one's own drawn anew. A calendar's settings and its
+ * share sheet are the calendar's.
+ */
+const SHELF_PANELS: readonly Panel[] = ["account", "draw", "edit"];
+
+/** The shelf's word – in either language, in any case. */
+const isShelf = (word: string) =>
+  Object.values(SHELF_SLUGS).some((slug) => slug === word.toLowerCase());
+
 /** A slug is cut at this length – at a word's end, where there is one. */
 const LONGEST = 40;
 
@@ -137,6 +160,9 @@ type Named = { id: string; name: string; owner: string };
  * -3 … – unless another calendar's name is that already (“Familie 2”),
  * which goes ahead of any number given. The same calendars always come out
  * the same, whatever order they come in.
+ *
+ * The shelf's words are taken from the start, in both languages: a
+ * calendar called “Stempel” is stempel-2 – /de/app/stempel is the shelf.
  */
 export const slugsOf = (
   calendars: readonly Named[],
@@ -149,7 +175,7 @@ export const slugsOf = (
       (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
   );
   const slugs = new Map<string, string>();
-  const taken = new Set<string>();
+  const taken = new Set<string>(Object.values(SHELF_SLUGS));
   const later: [string, string][] = [];
   for (const calendar of ordered) {
     const slug = slugOf(calendar.name, locale);
@@ -185,11 +211,13 @@ export const calendarOf = (
 };
 
 /**
- * What an address asks for: a calendar (its slug, or an id), a view, and
- * what lies open over it – a day (only after the month's or the year's
- * word, and only a real date) or a sheet.
+ * What an address asks for: the shelf, or a calendar (its slug, or an id)
+ * and a view; and what lies open over it – a day (only after the month's or
+ * the year's word, and only a real date) or a sheet (over the shelf, only
+ * its own).
  */
 export type Address = {
+  shelf: boolean;
   calendar: string | null;
   view: CalendarView | null;
   day: DayKey | null;
@@ -199,15 +227,32 @@ export type Address = {
 /** What lies open over a view – a day, or a sheet; one at a time. */
 export type Open = { day?: DayKey | null; panel?: Panel | null };
 
+/** An address that asks for nothing. */
+export const NOTHING: Readonly<Address> = {
+  shelf: false,
+  calendar: null,
+  view: null,
+  day: null,
+  panel: null,
+};
+
 /** What an app address asks for – nothing, for any other path. */
 export const readAddress = (pathname: string): Address => {
   const [, , app, calendar, word, last] = pathname.split("/");
-  if (app !== "app") {
-    return { calendar: null, view: null, day: null, panel: null };
+  if (app !== "app") return { ...NOTHING };
+  const named = decoded(calendar);
+  if (isShelf(named)) {
+    const panel = panelOf(word);
+    return {
+      ...NOTHING,
+      shelf: true,
+      panel: panel && SHELF_PANELS.includes(panel) ? panel : null,
+    };
   }
   const view = viewOf(word);
   return {
-    calendar: decoded(calendar) || null,
+    shelf: false,
+    calendar: named || null,
     view,
     day: view && view !== "today" && isDayKey(last) ? last : null,
     panel: view ? panelOf(last) : null,
@@ -238,4 +283,30 @@ export const addressOf = (
   const path = `/${locale}/app/${slug}/${VIEW_SLUGS[locale][view]}`;
   if (day && view !== "today") return `${path}/${day}`;
   return panel ? `${path}/${PANEL_SLUGS[locale][panel]}` : path;
+};
+
+/**
+ * Whether a click on a link to an app address is the app's to follow, in
+ * place (BoopApp) – not with a key held or another button: a new tab or
+ * window gets the address itself.
+ */
+export const opensHere = (click: {
+  metaKey: boolean;
+  ctrlKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+  button: number;
+}) =>
+  !(click.metaKey || click.ctrlKey || click.shiftKey || click.altKey) &&
+  click.button === 0;
+
+/**
+ * The shelf's address, with the sheet open over it – one of its own: the
+ * calendar's sheets aren't said here.
+ */
+export const shelfAddressOf = (locale: Locale, panel?: Panel | null) => {
+  const path = `/${locale}/app/${SHELF_SLUGS[locale]}`;
+  return panel && SHELF_PANELS.includes(panel)
+    ? `${path}/${PANEL_SLUGS[locale][panel]}`
+    : path;
 };

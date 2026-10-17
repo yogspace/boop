@@ -13,7 +13,7 @@ import {
   useState,
 } from "react";
 import type { Snapshot } from "valtio";
-import { Plus, Sparkle } from "@/components/doodles";
+import { ArrowRight, Plus, Sparkle } from "@/components/doodles";
 import { SPRING } from "@/components/motion";
 import { ROUND_BUTTON } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
@@ -42,6 +42,7 @@ import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { newId } from "@/lib/id";
+import { opensHere } from "./address";
 import { FADING, useFadingEdges } from "./fading-edges";
 import { InkBlot } from "./ink-blot";
 import { NameTag } from "./name-tag";
@@ -130,8 +131,13 @@ const AREAS = {
 /** The word over a group of buttons – and over the inks, the stamps. */
 const CAPTION = "font-bold text-muted text-sm";
 
-/** How far the stamp in hand (or the print picked) is turned. */
-const ANGLE = "w-12 text-center font-black text-sm tabular-nums";
+/**
+ * How far the stamp in hand (or the print picked) is turned – a button that
+ * sets it straight, looking like the words it is: a soft blot behind them
+ * when pointed at. As wide for any angle – nothing beside it moves.
+ */
+const ANGLE =
+  "scribble scribble-bare scribble-clear scribble-sm w-12 rounded-full py-1 text-center font-black text-sm tabular-nums transition-transform duration-150 ease-out enabled:hover:scribble-soft enabled:active:scale-90";
 
 /**
  * How far a wheel event turns the stamp, in degrees: a notch (about 100 px)
@@ -163,11 +169,11 @@ export type TrayProps = {
   /** Draw a new stamp – the tray's last tile. */
   onNew: () => void;
   /**
-   * Whether the tray has that tile – in a day's sheet. The today view has
-   * none: the shelf (stamp-shelf.tsx), beside the page or under it, has a
-   * tile of its own there.
+   * The shelf (stamp-shelf.tsx), all the stamps on a page of their own: its
+   * address, for the link over the tray, and what following it does.
    */
-  offerNew?: boolean;
+  shelf: string;
+  onShelf: () => void;
   /**
    * A stamp to take into the hand – one just drawn from here. Told with
    * `onGiven` once it is in it.
@@ -190,8 +196,8 @@ export type TrayProps = {
  *
  * The tray's stamps are in the shelf's order (shelf.ts) – picked here or
  * there, it is the same choice. Its last tile draws a new one: `onNew`,
- * and back here it comes into the hand (`give`) – in a day's sheet only
- * (`offerNew`).
+ * and back here it comes into the hand (`give`). A link over it leads to
+ * the shelf (`onShelf`).
  *
  * Whose a finger on the page is: with no stamp in hand, the page's and the
  * sheet's – a swipe up or down scrolls them, right across the prints
@@ -221,7 +227,8 @@ export const DayPage = ({
   order,
   onOrder,
   onNew,
-  offerNew = true,
+  shelf,
+  onShelf,
   give = null,
   onGiven,
   heading,
@@ -384,14 +391,16 @@ export const DayPage = ({
       line.current = line.current.then(() => {
         undone.current = [];
         const last = done.current.at(-1);
-        // Turning a print on and on is one step – taken back at once.
+        // Turning a print on and on is one step – taken back at once. Turned
+        // back to where it was (set straight, say), there is none.
         if (
           step.kind === "turn" &&
           last?.kind === "turn" &&
           last.id === step.id
-        )
+        ) {
           last.to = step.to;
-        else done.current.push(step);
+          if (last.to === last.from) done.current.pop();
+        } else done.current.push(step);
         tell();
       });
     },
@@ -456,10 +465,15 @@ export const DayPage = ({
   }, [holding, preview]);
 
   // How far the stamp in hand is turned, in words beside its buttons –
-  // written as it turns, like the preview: no render.
-  const angle = useRef<HTMLSpanElement | null>(null);
+  // written as it turns, like the preview: no render. Pressed, it is set
+  // straight (`straighten`) – straight already, there is nothing to press.
+  const angle = useRef<HTMLButtonElement | null>(null);
   const showAngle = useCallback(() => {
-    if (angle.current) angle.current.textContent = angleOf(tidy(turn.current));
+    const button = angle.current;
+    if (!button) return;
+    const degrees = tidy(turn.current);
+    button.textContent = angleOf(degrees);
+    button.disabled = degrees === 0;
   }, []);
 
   /** Turns the stamp in hand – its preview turns, the 3D stamp spins along. */
@@ -474,6 +488,13 @@ export const DayPage = ({
     },
     [preview, showAngle]
   );
+
+  /**
+   * The stamp in hand straight again – turned back the short way, as the
+   * buttons turn it: to the nearest full turn.
+   */
+  const straighten = () =>
+    turnBy(360 * Math.round(turn.current / 360) - turn.current);
 
   /**
    * Takes a stamp into the hand (or puts it down) – straight again, and in
@@ -1173,23 +1194,35 @@ export const DayPage = ({
               </legend>
               <div className="flex items-center gap-1">
                 {turnButton(-STEP, t.app.day.turnLeft, "ArrowLeft [")}
-                {/* How far it is turned. */}
+                {/* How far it is turned – pressed, straight again: the
+                  print as the buttons turn it, a step to take back. */}
                 {inHand ? (
-                  <span
+                  <button
+                    aria-label={t.app.day.straighten}
                     className={ANGLE}
                     key="hand"
+                    onClick={straighten}
                     ref={(box) => {
                       angle.current = box;
                       showAngle();
                     }}
+                    title={t.app.day.straighten}
+                    type="button"
                   />
                 ) : (
-                  <span
+                  <button
+                    aria-label={t.app.day.straighten}
                     className={cn(ANGLE, !marked && "opacity-40")}
+                    disabled={!marked?.rotation}
                     key="print"
+                    onClick={() => {
+                      if (marked) turnPrint(marked, -marked.rotation);
+                    }}
+                    title={t.app.day.straighten}
+                    type="button"
                   >
                     {angleOf(marked?.rotation ?? 0)}
-                  </span>
+                  </button>
                 )}
                 {turnButton(STEP, t.app.day.turnRight, "ArrowRight ]")}
               </div>
@@ -1215,7 +1248,8 @@ export const DayPage = ({
           </p>
 
           {/* The stamps: their order right beside their word, to pick (one
-          choice with the shelf's), a new one last – in a day's sheet. */}
+          choice with the shelf's), and at the end of the line the way to
+          the shelf; a new one last. */}
           <div className="flex min-w-0 flex-col gap-2">
             <div className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1">
               <span className={CAPTION}>{t.app.stamps}</span>
@@ -1227,6 +1261,20 @@ export const DayPage = ({
                   order={order}
                 />
               )}
+              <a
+                className="group ml-auto flex shrink-0 items-center gap-1 py-1 font-bold text-sm"
+                href={shelf}
+                onClick={(event) => {
+                  if (!opensHere(event)) return;
+                  event.preventDefault();
+                  onShelf();
+                }}
+              >
+                <span className="group-hover:scribble-underline">
+                  {t.app.allStamps}
+                </span>
+                <ArrowRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5" />
+              </a>
             </div>
             {stamps.length === 0 && (
               <p className="text-muted text-sm">{t.app.noStamps}</p>
@@ -1317,18 +1365,16 @@ export const DayPage = ({
                 </div>
               ))}
               {/* A new one, last – drawn, it comes back into the hand. */}
-              {offerNew && (
-                <button
-                  className="scribble scribble-dashed group flex h-19 w-19 shrink-0 flex-col items-center justify-center gap-1 rounded-3xl px-1 text-center font-bold text-[11px] leading-tight transition-transform duration-150 ease-out hover:-translate-y-0.5 hover:scribble-boil active:translate-y-px active:scale-[0.97] sm:h-22 sm:w-22 @2xl:h-24 @2xl:w-24"
-                  onClick={onNew}
-                  type="button"
-                >
-                  <span className="scribble scribble-sm scribble-ink flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-200 group-hover:rotate-90">
-                    <Plus className="h-4 w-4" />
-                  </span>
-                  {t.app.newStamp}
-                </button>
-              )}
+              <button
+                className="scribble scribble-dashed group flex h-19 w-19 shrink-0 flex-col items-center justify-center gap-1 rounded-3xl px-1 text-center font-bold text-[11px] leading-tight transition-transform duration-150 ease-out hover:-translate-y-0.5 hover:scribble-boil active:translate-y-px active:scale-[0.97] sm:h-22 sm:w-22 @2xl:h-24 @2xl:w-24"
+                onClick={onNew}
+                type="button"
+              >
+                <span className="scribble scribble-sm scribble-ink flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-200 group-hover:rotate-90">
+                  <Plus className="h-4 w-4" />
+                </span>
+                {t.app.newStamp}
+              </button>
             </div>
           </div>
         </div>

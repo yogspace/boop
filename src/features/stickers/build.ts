@@ -11,7 +11,7 @@ import {
 import { type Finish, finishOf, hexOf } from "../calendar/palette";
 import { corners } from "../calendar/path";
 import { DEFAULT_SHAPES, outlineOf, type ShapeLike } from "../calendar/shapes";
-import { inkRubber, rgb, setFinish, tint, toonMaterial } from "./ink";
+import { inkRubber, type Rgb, rgb, setFinish, tint, toonMaterial } from "./ink";
 
 /**
  * A stamp in 3D – a real rubber stamp: a block in the stamp's shape (a light
@@ -107,14 +107,25 @@ type Point = [number, number];
 const pointsOf = (shape: ShapeLike) =>
   Math.max(OUTLINE, outlineCount(shape) * OUTLINE_PER);
 
+/** The outlines in the model's units – each shape, grow and scale once. */
+const locals = new Map<string, Point[]>();
+
 /**
  * The shape's outline (outline.ts) in the model's units: centered, y up,
  * `scale`d about the middle – counter-clockwise, as three.js likes it.
+ * Shared by every stamp of that shape: read, never changed.
  */
-const localOutline = (shape: ShapeLike, grow: number, scale = 1) =>
-  outlinePoints(shape, grow, pointsOf(shape))
-    .map(([x, y]): Point => [(x - 0.5) * scale, (0.5 - y) * scale])
-    .reverse();
+const localOutline = (shape: ShapeLike, grow: number, scale = 1) => {
+  const key = `${outlineOf(shape)}|${grow}|${scale}`;
+  let points = locals.get(key);
+  if (!points) {
+    points = outlinePoints(shape, grow, pointsOf(shape))
+      .map(([x, y]): Point => [(x - 0.5) * scale, (0.5 - y) * scale])
+      .reverse();
+    locals.set(key, points);
+  }
+  return points;
+};
 
 /** Softens a height map a little – the walls slope like cut rubber. */
 const soften = (data: Float32Array, passes = 2) => {
@@ -326,6 +337,17 @@ const faceMap = (input: StickerInput, mirror: boolean) => {
   };
 };
 
+/**
+ * How far points are from a ring in the model's units – negative inside. A
+ * distance is quick only round the unit square (outline.ts looks things up
+ * in a grid there): the ring is moved there, by half a unit, and so is
+ * every point asked about.
+ */
+const localDistance = (ring: readonly Point[]) => {
+  const at = ringDistance(ring.map(([x, y]): Point => [x + 0.5, y + 0.5]));
+  return (x: number, y: number) => at(x + 0.5, y + 0.5);
+};
+
 /** Points nearer than this to a straight line through their neighbours are on it. */
 const STRAIGHT = 1e-5;
 
@@ -338,6 +360,82 @@ const areaOf = (ring: readonly Point[]) => {
     sum += ax * by - bx * ay;
   }
   return sum;
+};
+
+const distances = new WeakMap<
+  readonly Point[],
+  (x: number, y: number) => number
+>();
+
+/**
+ * How far points are from an outline (localOutline's) – negative inside.
+ * Worked out once per outline, which every stamp of its shape shares.
+ */
+const distanceTo = (outline: readonly Point[]) => {
+  let distance = distances.get(outline);
+  if (!distance) {
+    distance = localDistance(
+      areaOf(outline) < 0 ? [...outline].reverse() : outline
+    );
+    distances.set(outline, distance);
+  }
+  return distance;
+};
+
+/**
+ * Smooth normals for an indexed mesh – each vertex the sum of its faces'
+ * (unnormalized: by their size), as three.js' `computeVertexNormals`, to
+ * the last bit, only without its vectors: a stamp's surfaces have tens of
+ * thousands of points.
+ */
+const vertexNormals = (THREE: typeof Three, geometry: Three.BufferGeometry) => {
+  const p = geometry.getAttribute("position").array;
+  const index = geometry.index?.array ?? [];
+  const n = new Float32Array(p.length);
+  for (let i = 0; i + 2 < index.length; i += 3) {
+    const a = index[i] * 3;
+    const b = index[i + 1] * 3;
+    const c = index[i + 2] * 3;
+    const cbx = p[c] - p[b];
+    const cby = p[c + 1] - p[b + 1];
+    const cbz = p[c + 2] - p[b + 2];
+    const abx = p[a] - p[b];
+    const aby = p[a + 1] - p[b + 1];
+    const abz = p[a + 2] - p[b + 2];
+    const x = cby * abz - cbz * aby;
+    const y = cbz * abx - cbx * abz;
+    const z = cbx * aby - cby * abx;
+    // All three read before any is written – as three.js does, should two
+    // corners be one point.
+    const ax = n[a] + x;
+    const ay = n[a + 1] + y;
+    const az = n[a + 2] + z;
+    const bx = n[b] + x;
+    const by = n[b + 1] + y;
+    const bz = n[b + 2] + z;
+    const cx = n[c] + x;
+    const cy = n[c + 1] + y;
+    const cz = n[c + 2] + z;
+    n[a] = ax;
+    n[a + 1] = ay;
+    n[a + 2] = az;
+    n[b] = bx;
+    n[b + 1] = by;
+    n[b + 2] = bz;
+    n[c] = cx;
+    n[c + 1] = cy;
+    n[c + 2] = cz;
+  }
+  for (let i = 0; i < n.length; i += 3) {
+    const x = n[i];
+    const y = n[i + 1];
+    const z = n[i + 2];
+    const scale = 1 / (Math.sqrt(x * x + y * y + z * z) || 1);
+    n[i] = x * scale;
+    n[i + 1] = y * scale;
+    n[i + 2] = z * scale;
+  }
+  geometry.setAttribute("normal", new THREE.BufferAttribute(n, 3));
 };
 
 /**
@@ -368,15 +466,17 @@ const shapedSlab = (
   }
 ) => {
   const ring = areaOf(outline) < 0 ? [...outline].reverse() : outline;
-  const distance = ringDistance(ring);
+  const distance = distanceTo(outline);
   const positions: number[] = [];
   const relief: number[] = [];
   const core: number[] = [];
   const index: number[] = [];
   const edge = Math.min(0.008, thickness * 0.3);
-  const top = (x: number, y: number) => {
+  // `near`: within EDGE of the outline, maybe – only there does the edge
+  // round off; further in the top is flat, and the distance isn't asked.
+  const top = (x: number, y: number, near: boolean) => {
     // The edge rounds off over the outer bit.
-    const t = Math.max(0, 1 + distance(x, y) / EDGE);
+    const t = near ? Math.max(0, 1 + distance(x, y) / EDGE) : 0;
     const at = surface(x, y);
     positions.push(x, y, at.z - edge * t * t);
     relief.push(at.relief);
@@ -427,16 +527,29 @@ const shapedSlab = (
   const inside = Array.from({ length: ny }, (_, j) =>
     Array.from({ length: nx }, (_, i) => isIn(i, j))
   );
+  // The grid's points within EDGE of the outline – every one in the box
+  // round each of its stretches, grown by EDGE: a thin band along it. A
+  // distance takes a while far from the outline, and most points are.
+  const near = new Uint8Array(nx * ny);
+  for (let k = 0; k < ring.length; k++) {
+    const [ax, ay] = ring[k];
+    const [bx, by] = ring[(k + 1) % ring.length];
+    const i0 = Math.max(0, Math.floor((Math.min(ax, bx) - EDGE - x0) / h));
+    const i1 = Math.min(nx - 1, Math.ceil((Math.max(ax, bx) + EDGE - x0) / h));
+    const j0 = Math.max(0, Math.floor((Math.min(ay, by) - EDGE - y0) / h));
+    const j1 = Math.min(ny - 1, Math.ceil((Math.max(ay, by) + EDGE - y0) / h));
+    for (let j = j0; j <= j1; j++) near.fill(1, j * nx + i0, j * nx + i1 + 1);
+  }
   // The grid's points inside, and where its lines cross the outline – one
-  // vertex each, shared by the cells around it.
-  const corner = new Map<number, number>();
+  // vertex each, shared by the cells around it (−1: none yet).
+  const corner = new Int32Array(nx * ny).fill(-1);
   const cross = new Map<number, number>();
   const cornerAt = (i: number, j: number) => {
     const key = j * nx + i;
-    let v = corner.get(key);
-    if (v === undefined) {
-      v = top(xOf(i), yOf(j));
-      corner.set(key, v);
+    let v = corner[key];
+    if (v < 0) {
+      v = top(xOf(i), yOf(j), near[key] === 1);
+      corner[key] = v;
     }
     return v;
   };
@@ -488,6 +601,15 @@ const shapedSlab = (
         inside[j + 1][i],
       ];
       if (!ins.some(Boolean)) continue;
+      // Most lie wholly inside: two triangles, straight away.
+      if (ins.every(Boolean)) {
+        const a = cornerAt(i, j);
+        const b = cornerAt(i + 1, j);
+        const c = cornerAt(i + 1, j + 1);
+        const d = cornerAt(i, j + 1);
+        index.push(a, b, c, a, c, d);
+        continue;
+      }
       const cornerV = [
         () => cornerAt(i, j),
         () => cornerAt(i + 1, j),
@@ -584,7 +706,7 @@ const shapedSlab = (
   geometry.setAttribute("relief", new THREE.Float32BufferAttribute(relief, 1));
   geometry.setAttribute("core", new THREE.Float32BufferAttribute(core, 1));
   geometry.setIndex(index);
-  geometry.computeVertexNormals();
+  vertexNormals(THREE, geometry);
   return geometry;
 };
 
@@ -595,11 +717,10 @@ const shapedSlab = (
  * the outline grown exactly that far (outline.ts), so it never folds, round
  * a hollow either. Flat-shaded, like three.js' own extrusion.
  */
-const blockSolid = (
-  THREE: typeof Three,
-  shape: ShapeLike,
-  { base, bevel, depth }: { base: number; bevel: number; depth: number }
-) => {
+type Solid = { base: number; bevel: number; depth: number };
+
+/** The block's rings, from its back to its front: how far grown, and where. */
+const blockRings = ({ base, bevel, depth }: Solid) => {
   const SEGMENTS = 5;
   const rings: { grow: number; z: number }[] = [];
   for (let b = 0; b <= SEGMENTS; b++) {
@@ -613,6 +734,11 @@ const blockSolid = (
       z: depth + bevel * Math.cos(t),
     });
   }
+  return rings;
+};
+
+const blockSolid = (THREE: typeof Three, shape: ShapeLike, solid: Solid) => {
+  const rings = blockRings(solid);
   const outlines = rings.map(({ grow }) => localOutline(shape, grow));
   const n = pointsOf(shape);
   const positions: number[] = [];
@@ -849,9 +975,7 @@ const markOf = (shape: ShapeLike, plate: Point[]): Mark => {
   if (known && known.key in MARKS) return MARKS[known.key];
   const hit = marks.get(d);
   if (hit !== undefined) return hit;
-  const distance = ringDistance(
-    areaOf(plate) < 0 ? [...plate].reverse() : plate
-  );
+  const distance = distanceTo(plate);
   const foot = footOf() + 0.02;
   let found: Mark = null;
   for (let size = 0.12; size >= 0.06 && !found; size -= 0.005) {
@@ -920,11 +1044,55 @@ const plateOf = (shape: ShapeLike): Point[] => {
   return fits ? scaled : localOutline(shape, RUBBER.grow - PLATE.inset);
 };
 
-export const buildSticker = (
+/** The block's solid: its bevel grows to the rubber's outline. */
+const BLOCK_SOLID: Solid = {
+  base: RUBBER.grow - BLOCK.bevel,
+  bevel: BLOCK.bevel,
+  depth: BLOCK.depth,
+};
+
+/**
+ * What all stamps of a shape share, worked out with the first one: its
+ * outlines grown and shrunk (outline.ts – a while each), how far points
+ * are from them, where “boop” goes on the plate. A part at a time; the
+ * next stamp finds them done, and there is nothing left to wait for.
+ */
+function* shapeParts(shape: ShapeLike): Generator<undefined, void, undefined> {
+  const count = pointsOf(shape);
+  outlinePoints(shape, -FACE.rim / 2, count);
+  yield;
+  outlinePoints(shape, 0, count);
+  yield;
+  distanceTo(localOutline(shape, RUBBER.grow));
+  yield;
+  for (const { grow } of blockRings(BLOCK_SOLID)) {
+    localOutline(shape, grow);
+    yield;
+  }
+  const plate = plateOf(shape);
+  distanceTo(plate);
+  yield;
+  markOf(shape, plate);
+  yield;
+}
+
+/** The plate's material – one for a stamp, and one to compile ahead. */
+const plateMaterial = (THREE: typeof Three, color: Rgb) =>
+  toonMaterial(THREE, "plate", color, { GROOVE: PLATE.groove });
+
+/**
+ * The stamp, built a part at a time: between two (the face's map, the
+ * rubber, the block, the plate …) it `yield`s – a moment the page may have,
+ * so that building a stamp is no long hold-up (render.ts takes them). Each
+ * part takes some milliseconds, the whole stamp some tens. `buildSticker`
+ * builds it in one go.
+ */
+export function* stickerParts(
   THREE: typeof Three,
   input: StickerInput,
   { mirror = false } = {}
-) => {
+): Generator<undefined, Three.Group, undefined> {
+  yield* shapeParts(input.shape);
   const stamp = new THREE.Group();
   const hex = hexOf(input.color);
 
@@ -938,6 +1106,7 @@ export const buildSticker = (
 
   // The rubber: rim and doodle raised to z = 0, the ground below.
   const face = faceMap(input, mirror);
+  yield;
   const rubber = new THREE.Mesh(
     shapedSlab(THREE, {
       outline: localOutline(input.shape, RUBBER.grow),
@@ -955,36 +1124,36 @@ export const buildSticker = (
   );
   rubber.name = "rubber";
   stamp.add(rubber);
+  yield;
 
-  // The block behind it – its bevel grows to the rubber's outline.
+  // The block behind it.
   const blockFront = -RUBBER.thickness + 0.005;
   const block = new THREE.Mesh(
-    blockSolid(THREE, input.shape, {
-      base: RUBBER.grow - BLOCK.bevel,
-      bevel: BLOCK.bevel,
-      depth: BLOCK.depth,
-    }),
+    blockSolid(THREE, input.shape, BLOCK_SOLID),
     blockMaterial
   );
   block.position.z = blockFront - BLOCK.depth - BLOCK.bevel;
   stamp.add(block);
   const back = blockFront - BLOCK.depth - 2 * BLOCK.bevel;
+  yield;
 
   // The plate on the back with “boop” pressed in – turned to face −Z.
   const plateOutline = plateOf(input.shape);
   const watermark = watermarkMap(markOf(input.shape, plateOutline));
+  yield;
   const plate = new THREE.Mesh(
     shapedSlab(THREE, {
       outline: plateOutline,
       thickness: PLATE.thickness + 0.01,
       surface: (x, y) => ({ z: -PLATE.groove * watermark(x, y), relief: 0 }),
     }),
-    toonMaterial(THREE, "plate", light, { GROOVE: PLATE.groove })
+    plateMaterial(THREE, light)
   );
   plate.rotation.y = Math.PI;
   plate.position.z = back - PLATE.thickness;
   stamp.add(plate);
   const top = back - PLATE.thickness;
+  yield;
 
   // The knob: neck and ball in one piece, standing on the plate – in the
   // stamp's color, plain: a finish is the ink's, on the rubber only.
@@ -1001,6 +1170,45 @@ export const buildSticker = (
   holder.userData.half = -(top - KNOB.height - KNOB.ball * 1.4) / 2;
   pivot(holder, 1);
   paintSticker(holder, input.color, input.finish);
+  return holder;
+}
+
+/** The stamp in 3D, built in one go (`stickerParts`). */
+export const buildSticker = (
+  THREE: typeof Three,
+  input: StickerInput,
+  options: { mirror?: boolean } = {}
+) => {
+  const parts = stickerParts(THREE, input, options);
+  for (;;) {
+    const part = parts.next();
+    if (part.done) return part.value;
+  }
+};
+
+/**
+ * A stand-in with every material a stamp is drawn with, each on a speck –
+ * no stamp to build, nothing to see: for compiling their programs ahead
+ * (ink.ts `warm`), before a real stamp needs them.
+ */
+export const sampleSticker = (THREE: typeof Three) => {
+  const stamp = new THREE.Group();
+  const speck = new THREE.BufferGeometry();
+  speck.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0, 0, 0, 0], 3)
+  );
+  const white: Rgb = [1, 1, 1];
+  for (const material of [
+    toonMaterial(THREE, "rubber", white),
+    toonMaterial(THREE, "block", white),
+    plateMaterial(THREE, white),
+    toonMaterial(THREE, "knob", white),
+  ]) {
+    stamp.add(new THREE.Mesh(speck, material));
+  }
+  const holder = new THREE.Group();
+  holder.add(stamp);
   return holder;
 };
 

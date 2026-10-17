@@ -7,7 +7,6 @@ import { outlinePoints } from "@/features/calendar/outline";
 import { colorKeys } from "@/features/calendar/palette";
 import type { ShapeLike } from "@/features/calendar/shapes";
 import {
-  buildSticker,
   disposeSticker,
   paintSticker,
   pivot,
@@ -16,6 +15,7 @@ import {
 } from "./build";
 import { addGlitter } from "./glitter";
 import { createInk, type Ink, UNDER } from "./ink";
+import { buildSoftly } from "./render";
 
 /**
  * The stamp in your hand, live in 3D. Carried, it is a small companion of
@@ -37,6 +37,10 @@ import { createInk, type Ink, UNDER } from "./ink";
  * `point()`, `hide()`, `press()`, `turn()`. It only draws while something
  * moves. Fixed means it doesn't go along when something scrolls: it lets go
  * then (`drop`), rather than stand where the spot it was at no longer is.
+ *
+ * Taken, a stamp is built a part at a time and its programs compiled out of
+ * the way (render.ts, ink.ts) – the page never stalls on it; until it is
+ * ready, a press just leaves its print.
  */
 
 export type StampHandle = {
@@ -337,6 +341,8 @@ const createHand = () => {
     renderer.domElement.style.display = "block";
     box.append(renderer.domElement);
     document.body.append(box);
+    // The shadow's program, and the ink pass' – a stamp's come with it.
+    await ink.warm(scene, camera).catch(() => undefined);
     return {
       THREE,
       renderer,
@@ -649,12 +655,18 @@ const createHand = () => {
         if (view) view.box.style.opacity = "0";
         return;
       }
-      void open().then((made) => {
+      void open().then(async (made) => {
         if (!made || mine !== taken) return;
-        const sticker = buildSticker(made.THREE, stamp);
+        const sticker = await buildSoftly(made.THREE, stamp);
         // Turning – and squashing – around the middle of its face.
         pivot(sticker, 0);
         addGlitter(made.THREE, sticker, stamp);
+        await made.ink.warm(sticker, made.camera).catch(() => undefined);
+        // Another stamp taken meanwhile, or the hand gone.
+        if (mine !== taken || view !== made) {
+          disposeSticker(sticker);
+          return;
+        }
         paintSticker(sticker, ink);
         facing = facingOf(stamp.shape);
         made.seat.add(sticker);

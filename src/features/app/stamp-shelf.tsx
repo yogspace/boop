@@ -3,7 +3,13 @@
 import { AnimatePresence, m } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Snapshot } from "valtio";
-import { Check, Plus, Sparkle, Squiggle } from "@/components/doodles";
+import {
+  ArrowLeft,
+  Check,
+  Plus,
+  Sparkle,
+  Squiggle,
+} from "@/components/doodles";
 import { SPRING } from "@/components/motion";
 import { BADGE, buttonClass } from "@/components/ui";
 import { type StampDoc, stampsOf } from "@/features/calendar/model";
@@ -13,11 +19,13 @@ import { Sticker } from "@/features/stickers/sticker";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
+import { opensHere } from "./address";
 import { NameTag } from "./name-tag";
 import {
   keepOrder,
   lastUsed,
   readOrder,
+  recentFirst,
   SHELF_ORDERS,
   type ShelfGroup,
   type ShelfOrder,
@@ -27,11 +35,15 @@ import { useDismiss } from "./use-dismiss";
 
 type Stamp = Snapshot<StampDoc>;
 
-/** The shelf's id on the page – to bring it into sight (`scrollIntoView`). */
-export const SHELF_ID = "shelf";
+/**
+ * The shelf's rows of stamps: three to a row on a phone, more the wider the
+ * screen – seven on a large one, as large as on a tablet.
+ */
+const GRID =
+  "grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7";
 
-/** The shelf's rows of stamps. */
-const GRID = "grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-3";
+/** How many stamps lie on the pile that leads to the shelf. */
+const PILE = 3;
 
 /** A stable little tilt per stamp – the shelf looks hand-placed. */
 const tilt = (id: string) => ((id.charCodeAt(0) + id.charCodeAt(5)) % 9) - 4;
@@ -50,9 +62,10 @@ export const NAME_UNDER =
  * mine and what others share with me, the same in every calendar.
  *
  * “Last used first” goes by one's prints as they were a moment ago
- * (`until`): stamping doesn't shuffle the tray under one's finger, nor the
- * shelf beside it. The moment moves on with `settle` – a day's sheet gone,
- * the order picked again – and as the app comes back into sight.
+ * (`until`): stamping doesn't shuffle the tray under one's finger. The
+ * moment moves on with `settle` – a day's sheet gone, the order picked
+ * again, the shelf or the calendars come up – and as the app comes back
+ * into sight.
  */
 export const useShelf = () => {
   const boop = useBoop();
@@ -98,16 +111,25 @@ export const useShelf = () => {
     () => groups.flatMap((group) => group.stamps),
     [groups]
   );
-  return { order, pick, settle, groups, stamps };
+  // The few last stamped with, whatever the order – the pile on the way to
+  // the shelf (`StampPile`).
+  const latest = useMemo(
+    () => recentFirst(stamps, used).slice(0, PILE),
+    [stamps, used]
+  );
+  return { order, pick, settle, groups, stamps, latest };
 };
 
 /**
- * The shelf: the stamps the account stamps with, a button for a new one
- * last – all in one, or in sections by whom they are from (shelf.ts), the
- * button then after them all; a little menu above it picks the order. Someone else's stamp wears their
- * first name; one that came to the account (a card, a gift) says from whom
- * – in sections the heading says it; one of mine that others may use too,
- * two rings.
+ * The shelf – the app's second page, beside the calendars (address.ts): the
+ * stamps the account stamps with, large, a button for a new one last – all
+ * in one, or in sections by whom they are from (shelf.ts), the button then
+ * after them all; a little menu beside the page's title picks the order.
+ * Over the title, the way back to the calendars (`onBack`). A tap opens a
+ * stamp's sheet. Someone else's stamp wears their first name;
+ * one that came to the account (a card, a gift) says from whom – in
+ * sections the heading says it; one of mine that others may use too, two
+ * rings.
  */
 export const StampShelf = ({
   groups,
@@ -115,6 +137,8 @@ export const StampShelf = ({
   me,
   people,
   locale,
+  back,
+  onBack,
   onOrder,
   onNew,
   onOpen,
@@ -126,6 +150,9 @@ export const StampShelf = ({
   /** Names by account. */
   people: Readonly<Record<string, string>>;
   locale: Locale;
+  /** The calendars' address – the calendar shown before – and the way there. */
+  back: string;
+  onBack: () => void;
   onOrder: (order: ShelfOrder) => void;
   onNew: () => void;
   onOpen: (id: string) => void;
@@ -164,17 +191,30 @@ export const StampShelf = ({
   );
 
   return (
-    <section
-      className="flex scroll-mt-4 flex-col gap-4 lg:sticky lg:top-6"
-      id={SHELF_ID}
-    >
-      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
-        <div>
-          <h2 className="text-3xl">{t.app.stamps}</h2>
+    <section className="flex flex-col gap-6">
+      {/* The page's title, where the calendars greet – as large; the way
+        back over it. */}
+      <div className="-mt-2 flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
+        <div className="flex flex-col items-start">
+          <a
+            className="group -my-1 flex items-center gap-1 py-1 font-bold text-muted text-sm transition-colors hover:text-ink"
+            href={back}
+            onClick={(event) => {
+              if (!opensHere(event)) return;
+              event.preventDefault();
+              onBack();
+            }}
+          >
+            <ArrowLeft className="h-4 w-4 transition-transform duration-150 ease-out group-hover:-translate-x-0.5" />
+            <span className="group-hover:scribble-underline">
+              {t.app.backToCalendars}
+            </span>
+          </a>
+          <h1 className="text-4xl sm:text-5xl">{t.app.stamps}</h1>
           {/* The wave swings below its picture's edge (its troughs reach
             past the viewBox, doodles.tsx) – so the picture may not cut
             it off. */}
-          <Squiggle className="h-3 w-24" />
+          <Squiggle className="h-3 w-28 sm:w-32" />
         </div>
         {/* One stamp: one order is like the other – no menu. */}
         {count > 1 && (
@@ -184,7 +224,7 @@ export const StampShelf = ({
       {groups.map((group, index) => (
         <div className="flex flex-col gap-3" key={group.key}>
           {sectioned && (index > 0 || groups.length > 1) && (
-            <h3 className="flex items-center gap-1.5 font-black text-lg leading-tight">
+            <h2 className="flex items-center gap-1.5 font-black text-lg leading-tight">
               <span className="wrap-break-word min-w-0">{titleOf(group)}</span>
               {group.kind === "boop" && (
                 <Sparkle className="h-4 w-4 shrink-0 -rotate-12" />
@@ -192,7 +232,7 @@ export const StampShelf = ({
               <span className="font-bold text-muted text-sm">
                 · {group.stamps.length}
               </span>
-            </h3>
+            </h2>
           )}
           <ul className={GRID}>
             {group.stamps.map((s) => {
@@ -272,6 +312,113 @@ export const StampShelf = ({
         <p className="font-medium text-muted">{t.app.noStamps}</p>
       )}
     </section>
+  );
+};
+
+/** Where a stamp of the pile lies – by how many there are, the top one first. */
+type Toss = { x: number; y: number; rotate: number };
+
+/**
+ * The pile, as set down (`rest`) and fanned out a little further
+ * (`fanned`) – a few px, a few degrees: two half under the top one, one
+ * to each side; of two, one askew behind the other; one alone only turned.
+ */
+const TOSSES: Record<number, { rest: Toss; fanned: Toss }[]> = {
+  1: [{ rest: { x: 0, y: 0, rotate: -6 }, fanned: { x: 0, y: -2, rotate: 4 } }],
+  2: [
+    { rest: { x: 8, y: 2, rotate: 7 }, fanned: { x: 12, y: 1, rotate: 12 } },
+    {
+      rest: { x: -9, y: -1, rotate: -12 },
+      fanned: { x: -14, y: -3, rotate: -20 },
+    },
+  ],
+  3: [
+    { rest: { x: 1, y: 3, rotate: -4 }, fanned: { x: 1, y: 2, rotate: -2 } },
+    {
+      rest: { x: -15, y: -1, rotate: -16 },
+      fanned: { x: -21, y: -3, rotate: -25 },
+    },
+    {
+      rest: { x: 15, y: -3, rotate: 13 },
+      fanned: { x: 21, y: -5, rotate: 22 },
+    },
+  ],
+};
+
+/**
+ * The way to the shelf, beside the greeting: a little pile of the stamps
+ * last stamped with (`useShelf`'s `latest`) – two or three of the 3D
+ * stamps, as on the shelf, set down overlapping, each a little turned and
+ * off the middle, the latest in front – and under it, small, their word and
+ * how many there are. Pointed at or focused, the pile fans out a little
+ * further. None yet: a dashed spot with a plus, where they will lie.
+ *
+ * Its room is kept from the start: a picture still being made leaves its
+ * spot empty, and fades in once it is there – softly, not with the pop a
+ * picture has elsewhere (sticker.tsx): the pile sits by the greeting, and
+ * stays calm.
+ *
+ * A link to the shelf's address (`href`), followed in place (`onOpen`) –
+ * a new tab or window gets the address itself.
+ */
+export const StampPile = ({
+  stamps,
+  count,
+  href,
+  locale,
+  onOpen,
+}: {
+  stamps: readonly Stamp[];
+  /** All the shelf's. */
+  count: number;
+  href: string;
+  locale: Locale;
+  onOpen: () => void;
+}) => {
+  const t = dictionaryOf(locale);
+  const tosses = TOSSES[stamps.length] ?? [];
+  return (
+    <m.a
+      animate="rest"
+      aria-label={t.app.pile(count)}
+      className="group flex shrink-0 flex-col items-center gap-1.5 pt-0.5"
+      href={href}
+      initial={false}
+      onClick={(event) => {
+        if (!opensHere(event)) return;
+        event.preventDefault();
+        onOpen();
+      }}
+      whileFocus="fanned"
+      whileHover="fanned"
+    >
+      <span className="relative h-14 w-22 sm:h-16 sm:w-26 [&_:is(img,svg)]:animate-fade">
+        {stamps.length === 0 ? (
+          <span className="scribble scribble-dashed scribble-sm scribble-clear absolute inset-0 m-auto flex h-11 w-11 -rotate-6 items-center justify-center rounded-2xl transition-transform duration-200 group-hover:rotate-3 sm:h-13 sm:w-13">
+            <Plus className="h-5 w-5" />
+          </span>
+        ) : (
+          // The latest last, so it lies on top.
+          tosses
+            .map((toss, i) => ({ toss, stamp: stamps[i] }))
+            .reverse()
+            .map(({ toss, stamp }) => (
+              <m.span
+                className="absolute inset-0 m-auto h-14 w-14 sm:h-16 sm:w-16"
+                key={stamp.id}
+                transition={SPRING.soft}
+                variants={toss}
+              >
+                <Sticker look="never" stamp={stamp} />
+              </m.span>
+            ))
+        )}
+      </span>
+      <span className="whitespace-nowrap font-bold text-[11px] text-muted leading-none transition-colors group-hover:text-ink sm:text-xs">
+        {t.app.stamps}
+        {count > 0 && ` · ${count}`}
+      </span>
+    </m.a>
   );
 };
 

@@ -1,8 +1,11 @@
+import { forgetPictures } from "@/features/stickers/keep";
+
 /**
  * The device's copy of the account's data, in IndexedDB – what the app
  * shows, online or not. Six stores: the four synced kinds (by id), the
  * outbox of changes not yet sent (by sequence) and a few settings (`meta`).
- * Cleared on logout.
+ * Cleared on logout – and with it the stamps' pictures kept beside it
+ * (stickers/keep.ts).
  *
  * Its versions: 1 had the first five, 2 adds `notes`. An upgrade only adds
  * what is missing – what a device holds stays, whichever version it comes
@@ -110,8 +113,9 @@ export const write = async (ops: Op[]) => {
 
 /** Everything on this device – at logout, or when another account logs in. */
 export const clearAll = async () => {
+  const pictures = forgetPictures();
   const db = await open();
   const tx = db.transaction(STORES, "readwrite");
   for (const name of STORES) tx.objectStore(name).clear();
-  await done(tx);
+  await Promise.all([done(tx), pictures]);
 };

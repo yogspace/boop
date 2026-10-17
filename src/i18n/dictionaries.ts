@@ -266,6 +266,21 @@ const de = {
     stamps: "Deine Stempel",
     noStamps: "Noch keine Stempel – mal deinen ersten!",
     newStamp: "Neuer Stempel",
+    // From a day's tray to the shelf, the page with all of them.
+    allStamps: "Alle Stempel",
+    // The way to the shelf beside the greeting – a little pile of stamps,
+    // read out with how many there are (features/app/stamp-shelf.tsx).
+    pile: template(
+      {
+        none: "Deine Stempel – noch keine",
+        one: "Deine Stempel – 1 Stempel",
+        many: "Deine Stempel – {n} Stempel",
+      },
+      (say) => (n: number) =>
+        n === 0 ? say.none() : n === 1 ? say.one() : say.many({ n })
+    ),
+    // Back from the shelf to the calendars.
+    backToCalendars: "Kalender",
     today: "Heute",
     prev: "Vorheriger Monat",
     next: "Nächster Monat",
@@ -398,6 +413,8 @@ const de = {
       wheel: "Das Mausrad dreht ihn.",
       turnLeft: "Nach links drehen",
       turnRight: "Nach rechts drehen",
+      // The angle between the two buttons – pressed, it is 0° again.
+      straighten: "Drehung zurücksetzen",
       inHand: "In der Hand",
       picked: "Abdruck markiert.",
       pickedKeys: "Entf oder ⌫ entfernt ihn.",
@@ -771,7 +788,7 @@ const de = {
       goneTitle: "Karte nicht mehr da",
       goneText:
         "Die Karte, die du vor dem Anmelden geöffnet hast, gibt es nicht mehr – ihr Stempel ließ sich nicht übernehmen.",
-      toShelf: "Zum Regal",
+      toShelf: "Zu deinen Stempeln",
       close: "Schließen",
     },
     account: "Konto",
@@ -1180,6 +1197,13 @@ const en: Shape<typeof de> = {
     stamps: "Your stamps",
     noStamps: "No stamps yet – draw your first one!",
     newStamp: "New stamp",
+    allStamps: "All stamps",
+    pile: {
+      none: "Your stamps – none yet",
+      one: "Your stamps – 1 stamp",
+      many: "Your stamps – {n} stamps",
+    },
+    backToCalendars: "Calendars",
     today: "Today",
     prev: "Previous month",
     next: "Next month",
@@ -1302,6 +1326,7 @@ const en: Shape<typeof de> = {
       wheel: "Scroll to turn it.",
       turnLeft: "Turn left",
       turnRight: "Turn right",
+      straighten: "Reset rotation",
       inHand: "In your hand",
       picked: "Print selected.",
       pickedKeys: "Delete or ⌫ removes it.",
@@ -1547,7 +1572,7 @@ const en: Shape<typeof de> = {
       goneTitle: "Card no longer there",
       goneText:
         "The card you opened before logging in is gone – its stamp couldn't be taken.",
-      toShelf: "To the shelf",
+      toShelf: "To your stamps",
       close: "Close",
     },
     account: "Account",

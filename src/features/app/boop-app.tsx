@@ -17,6 +17,7 @@ import { saveLocale } from "@/features/accounts/client";
 import { trackEvent } from "@/features/analytics/client";
 import type { ColorName, DayKey } from "@/features/calendar/model";
 import { hexOf, nextKey } from "@/features/calendar/palette";
+import { isCalendarView } from "@/features/calendar/prefs";
 import { GROUND, PAPER, tintOf, tintVars } from "@/features/calendar/tint";
 import {
   type CalendarView,
@@ -38,9 +39,11 @@ import {
   type Address,
   addressOf,
   calendarOf,
+  NOTHING,
   type Open,
   type Panel,
   readAddress,
+  shelfAddressOf,
   slugsOf,
   viewShown,
 } from "./address";
@@ -56,7 +59,7 @@ import { NameTag } from "./name-tag";
 import { ShareSheet } from "./share-sheet";
 import { StampDrawer } from "./stamp-drawer";
 import { StampSheet } from "./stamp-sheet";
-import { SHELF_ID, StampShelf, useShelf } from "./stamp-shelf";
+import { StampPile, StampShelf, useShelf } from "./stamp-shelf";
 import { SyncMark } from "./sync-badge";
 import { TodayView } from "./today-view";
 import { useDismiss } from "./use-dismiss";
@@ -66,26 +69,28 @@ import { YearGrid } from "./year-grid";
 /**
  * Where a history entry of the app keeps the calendar it showed – by its
  * id, so a reload or the back button finds it even when its name (and so
- * its address) has changed meanwhile.
+ * its address) has changed meanwhile – and its view. On the shelf the
+ * address names neither: the entry keeps the calendar shown before, whose
+ * color the page stays in, and to which the way back leads.
  */
 const HELD = "boop";
 
 /**
  * What the address asks for (address.ts) – only the browser knows: the
  * server's page is the same for every calendar. The calendar is the one the
- * history entry kept, where it kept one, else the one the address names.
+ * history entry kept, where it kept one, else the one the address names;
+ * the view the address's, else (on the shelf) the entry's.
  */
 const asked = (): Address => {
-  if (typeof window === "undefined") {
-    return { calendar: null, view: null, day: null, panel: null };
-  }
+  if (typeof window === "undefined") return { ...NOTHING };
   const address = readAddress(window.location.pathname);
-  const held: unknown = window.history.state?.[HELD]?.calendar;
+  const held = window.history.state?.[HELD];
+  const calendar: unknown = held?.calendar;
+  const view: unknown = held?.view;
   return {
-    calendar: typeof held === "string" ? held : address.calendar,
-    view: address.view,
-    day: address.day,
-    panel: address.panel,
+    ...address,
+    calendar: typeof calendar === "string" ? calendar : address.calendar,
+    view: address.view ?? (isCalendarView(view) ? view : null),
   };
 };
 
@@ -133,8 +138,9 @@ const PILL_ON_GROUND =
 
 /**
  * The app: the account's calendars, a month of the chosen one, a day to
- * stamp on, the 3D stamps. Everything reads the device's copy
- * (offline/store.ts) – it works the same without a connection.
+ * stamp on – and, a page of their own, the 3D stamps (the shelf, reached
+ * by the little pile beside the greeting). Everything reads the device's
+ * copy (offline/store.ts) – it works the same without a connection.
  *
  * The chosen calendar's color sets the tone – the one the account sees it
  * in (`colorOf`: its own for it, else the calendar's). Its shades are
@@ -153,12 +159,14 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   }, [locale, first, t]);
   const boop = useBoop();
   const router = useTransitionRouter();
-  // The calendar and the view showing live in the address, so a reload
-  // stays on them, and a link opens them. The calendar: its id once found,
-  // before that what the address named (a slug, or an id). The view: null
-  // for the one the calendar opens in (`viewShown`) – once it shows, held
-  // too. The server renders none – no matter: until the device's copy is
-  // open (status "loading", always so while hydrating) no calendar shows.
+  // The page, the calendar and the view showing live in the address, so a
+  // reload stays on them, and a link opens them. The calendar: its id once
+  // found, before that what the address named (a slug, or an id). The view:
+  // null for the one the calendar opens in (`viewShown`) – once it shows,
+  // held too. On the shelf (`shown.shelf`) both stay as they were: its
+  // color, and the way back. The server renders none – no matter: until the
+  // device's copy is open (status "loading", always so while hydrating)
+  // nothing shows.
   const [shown, setShown] = useState(asked);
   // A day open in the month or the year – in the address too, so a reload
   // or a link opens it again, in its month.
@@ -303,13 +311,15 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   if (calendar && (shown.calendar !== calendar.id || shown.view !== view)) {
     setShown({ ...shown, calendar: calendar.id, view });
   }
-  // The today view is a day of its own – none opens over it.
-  const openDay = view === "today" ? null : day;
-  if (asking && boop.status === "ready" && calendar) {
+  // The today view is a day of its own – none opens over it; nor over the
+  // shelf.
+  const openDay = shown.shelf || view === "today" ? null : day;
+  // Over the shelf, without a calendar too (every one may go).
+  if (asking && boop.status === "ready" && (calendar || shown.shelf)) {
     setAsking(null);
-    if (asking === "settings") setSettings(calendar.id);
+    if (asking === "settings" && calendar) setSettings(calendar.id);
     // Sharing is the owner's – for anyone else the address asks for nothing.
-    if (asking === "share" && calendar.owner === boop.me?.id) {
+    if (asking === "share" && calendar && calendar.owner === boop.me?.id) {
       setSharing(calendar.id);
     }
     if (asking === "account") setAccount(true);
@@ -355,30 +365,42 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   const color = calendar ? hexOf(colorOf(boop, calendar)) : null;
   useGround(boop.status === "ready" && color ? tintOf(color).bg : null);
 
-  // Whatever shows is in the address – /de/app/familie/heute (address.ts).
-  // A step of one's own (another calendar, the other view) is a new entry
-  // in the history (`go`, below); this sets the address right in place: the
-  // first time, for an address naming none or another calendar (one that
-  // is gone), after a rename, in the other language. The entry keeps the
-  // calendar's id besides (`HELD`). No navigation: the page stays as it is
-  // – Next learns the new path from `history` itself (usePathname), and
-  // adds its own state to ours.
+  // Whatever shows is in the address – /de/app/familie/heute, /de/app/stempel
+  // (address.ts). A step of one's own (another calendar, the other view,
+  // the other page) is a new entry in the history (`go`, `toShelf`, below);
+  // this sets the address right in place: the first time, for an address
+  // naming none or another calendar (one that is gone), after a rename, in
+  // the other language. The entry keeps the calendar's id and its view
+  // besides (`HELD`). No navigation: the page stays as it is – Next learns
+  // the new path from `history` itself (usePathname), and adds its own
+  // state to ours. The shelf's address waits for the device's copy too:
+  // until then the entry still holds the calendar shown before.
   const slug = shownId && slugs[locale].get(shownId);
+  const onShelf = shown.shelf;
+  const ready = boop.status === "ready";
   useEffect(() => {
-    if (!shownId) return;
-    const path = addressOf(locale, slug, view, { day: openDay, panel });
+    if (onShelf ? !ready : !shownId) return;
+    const path = onShelf
+      ? shelfAddressOf(locale, panel)
+      : addressOf(locale, slug, view, { day: openDay, panel });
     const { pathname, search, hash } = window.location;
     const held = window.history.state?.[HELD];
-    if (pathname === path && held?.calendar === shownId) return;
+    if (
+      pathname === path &&
+      held?.calendar === shownId &&
+      held?.view === view
+    ) {
+      return;
+    }
     // The entry of a day or a sheet stays a step of its own (`stepped`,
     // `stepTo`) – in the other language too, and from the settings on to
     // the share sheet.
     window.history.replaceState(
-      { [HELD]: { ...((openDay || panel) && held), calendar: shownId } },
+      { [HELD]: { ...((openDay || panel) && held), calendar: shownId, view } },
       "",
       `${path}${search}${hash}`
     );
-  }, [locale, shownId, slug, view, openDay, panel]);
+  }, [locale, onShelf, ready, shownId, slug, view, openDay, panel]);
 
   // Back and forth in the history: what that entry showed – a day open in
   // it too, in its month, or a sheet.
@@ -429,24 +451,56 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
 
   /**
    * Shows a calendar – in `next` view, or the one it opens in – as a step
-   * of its own: back goes to what showed before.
+   * of its own: back goes to what showed before. None (every calendar
+   * gone): the calendars' page, with what it says then.
    */
-  const go = (id: string, next: CalendarView | null) => {
-    const path = addressOf(
-      locale,
-      slugs[locale].get(id),
-      viewShown(next, prefOf(boop, id).start)
-    );
+  const go = (id: string | null, next: CalendarView | null) => {
+    const shows = viewShown(next, id ? prefOf(boop, id).start : null);
+    const path = addressOf(locale, id && slugs[locale].get(id), shows);
     const { pathname, search, hash } = window.location;
     if (pathname !== path) {
       window.history.pushState(
-        { [HELD]: { calendar: id } },
+        { [HELD]: { calendar: id, view: shows } },
         "",
         `${path}${search}${hash}`
       );
     }
-    setShown({ calendar: id, view: next, day: null, panel: null });
+    setShown({ ...NOTHING, calendar: id, view: next });
     setDay(null);
+  };
+
+  /**
+   * The shelf, as a step of its own: back goes to what showed before. A
+   * day's sheet open over the view closes on the way – its step becomes the
+   * shelf's (one that came with the address goes from it first): back is
+   * the view, without it.
+   */
+  const toShelf = () => {
+    if (shown.shelf) return;
+    const entry = { [HELD]: { calendar: shownId, view } };
+    const { search, hash } = window.location;
+    const path = `${shelfAddressOf(locale)}${search}${hash}`;
+    if (openDay && window.history.state?.[HELD]?.stepped) {
+      window.history.replaceState(entry, "", path);
+    } else {
+      if (openDay) {
+        window.history.replaceState(
+          entry,
+          "",
+          `${addressOf(locale, slug, view)}${search}${hash}`
+        );
+      }
+      window.history.pushState(entry, "", path);
+    }
+    setShown({ ...shown, shelf: true, day: null, panel: null });
+    setDay(null);
+    shelf.settle();
+  };
+
+  /** Back from the shelf: the calendar shown before, in its view. */
+  const toCalendars = () => {
+    go(calendar?.id ?? null, view);
+    shelf.settle();
   };
 
   /**
@@ -459,16 +513,18 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
   };
 
   /**
-   * A day or a sheet opens over the view – a step of its own in the
-   * history: back closes it, and closing it goes back (`closeStep`). The
-   * entry keeps what the address doesn't say (`keep`): the stamp drawn
-   * anew.
+   * A day or a sheet opens over the view, or over the shelf – a step of its
+   * own in the history: back closes it, and closing it goes back
+   * (`closeStep`). The entry keeps what the address doesn't say (`keep`):
+   * the stamp drawn anew.
    */
   const stepTo = (open: Open, keep?: { stamp: string }) => {
-    const path = addressOf(locale, slug, view, open);
+    const path = shown.shelf
+      ? shelfAddressOf(locale, open.panel)
+      : addressOf(locale, slug, view, open);
     const { search, hash } = window.location;
     window.history.pushState(
-      { [HELD]: { calendar: shownId, stepped: true, ...keep } },
+      { [HELD]: { calendar: shownId, view, stepped: true, ...keep } },
       "",
       `${path}${search}${hash}`
     );
@@ -520,6 +576,8 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     order: shelf.order,
     onOrder: shelf.pick,
     onNew: drawFromDay,
+    shelf: shelfAddressOf(locale),
+    onShelf: toShelf,
     give: handed,
     onGiven: () => setHanded(null),
   };
@@ -539,12 +597,23 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
 
   const owner = calendar && calendar.owner === me;
   const firstName = boop.me?.name.split(" ")[0] ?? "";
-  // The address in the other language – the view's word changes with it.
+  // The address in the other language – the view's word changes with it,
+  // the shelf's too.
   const addressIn = (other: Locale) =>
-    addressOf(other, calendar && slugs[other].get(calendar.id), view, {
-      day: openDay,
-      panel,
-    });
+    shown.shelf
+      ? shelfAddressOf(other, panel)
+      : addressOf(other, calendar && slugs[other].get(calendar.id), view, {
+          day: openDay,
+          panel,
+        });
+
+  // The calendar a stamp is drawn in, for the editor to offer it to its
+  // members – none from the shelf, which stands apart from the calendars
+  // (a stamp's sheet shares it with any of them).
+  const drawnIn =
+    !shown.shelf && calendar && calendar.members.length > 1
+      ? calendar.id
+      : null;
   // Something lies over the today view – its page's keys are off then.
   const covered = Boolean(
     menu ||
@@ -660,208 +729,258 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
           </div>
         </header>
 
-        <section className="-mt-2">
-          <h1 className="text-4xl sm:text-5xl">
-            {t.app.hello(firstName)}
-            <Ticks className="ml-1 inline h-[0.5em] w-[0.8em] -translate-y-[0.5em] rotate-[24deg]" />
-          </h1>
-          <p className="mt-1 font-medium text-muted">{t.app.lead}</p>
-        </section>
-
-        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="flex min-w-0 flex-col gap-4">
-            {/* On phones a row to swipe, edge to edge – sideways only: up and
-              down the swipe is the page's. A scroller cuts off all round, so
-              it pads (and margins back) room for all a pill's frame may
-              reach – its wobble, lift and focus ring, 14px and a little:
-              with less, the row would scroll up and down by what sticks
-              out. No bar – it fades where it goes on (fading-edges.ts).
-              Wider, they wrap: nothing cut, nothing masked. */}
-            <nav
-              aria-label={t.app.calendars}
-              className={cn(
-                "-m-4 flex gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain p-4 sm:m-0 sm:flex-wrap sm:overflow-visible sm:mask-none sm:p-0",
-                FADING.x
-              )}
-              ref={pills}
+        {/* The two pages take turns like the views: one fades, the other
+          settles in from a little below – at the top, wherever the one
+          before was scrolled to. */}
+        <AnimatePresence
+          initial={false}
+          mode="wait"
+          onExitComplete={() => window.scrollTo({ top: 0 })}
+        >
+          {shown.shelf ? (
+            <m.div
+              animate="shown"
+              exit="gone"
+              initial="hidden"
+              key="stamps"
+              variants={VIEW_TURN}
             >
-              {calendars.map((c) => {
-                const active = c.id === calendar?.id;
-                return (
-                  <button
-                    aria-pressed={active}
-                    className={cn(PILL, PILL_ON_GROUND)}
-                    key={c.id}
-                    onClick={() => {
-                      if (!active) go(c.id, null);
-                    }}
-                    type="button"
-                  >
-                    <span
-                      className="h-3 w-3 rounded-full border-2 border-current"
-                      style={{ background: hexOf(colorOf(boop, c)) }}
-                    />
-                    {c.name}
-                    {c.members.length > 1 && (
-                      <span
-                        className={cn(
-                          "text-xs",
-                          active ? "text-ink/70" : "text-muted"
-                        )}
-                      >
-                        · {c.members.length}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-              <button
-                className={cn(PILL, "scribble-dashed scribble-clear")}
-                onClick={() => setDialog("new")}
-                type="button"
-              >
-                + {t.app.newCalendar}
-              </button>
-            </nav>
-
-            {!calendar && (
-              // Every calendar may go, the last one too – then this.
-              <div className="flex flex-col items-start gap-3 py-10">
-                <p className="font-bold text-muted">{t.app.noCalendar}</p>
-                <Button onClick={() => setDialog("new")}>
-                  + {t.app.newCalendar}
-                </Button>
-              </div>
-            )}
-
-            {calendar && (
-              // The calendar's page: a sheet of paper in a pale shade of its
-              // color, cut out by hand – no line around it, the month's ruled
-              // table or today's page is the drawing. On a phone it reaches
-              // into the gutter, so the days stay as large as they were.
-              // Another calendar is another sheet: it comes anew, its days
-              // and prints with it.
-              <div
-                className="relative isolate -mx-3 animate-fade px-3 py-4 sm:mx-0 sm:p-6"
-                key={calendar.id}
-                style={PAPER as CSSProperties}
-              >
-                {/* The paper itself – beside what lies on it, not around it:
-                  what a frame is told (no line, here) its children hear too. */}
-                <span
-                  aria-hidden="true"
-                  className="scribble scribble-bare pointer-events-none absolute inset-0 -z-10 rounded-[28px]"
+              <StampShelf
+                back={addressOf(locale, slug, view)}
+                groups={shelf.groups}
+                locale={locale}
+                me={me}
+                onBack={toCalendars}
+                onNew={() => {
+                  stepTo({ panel: "draw" });
+                  setDrawing(true);
+                }}
+                onOpen={setOpened}
+                onOrder={shelf.pick}
+                order={shelf.order}
+                people={boop.people}
+              />
+            </m.div>
+          ) : (
+            <m.div
+              animate="shown"
+              className="flex flex-col gap-6"
+              exit="gone"
+              initial="hidden"
+              key="calendars"
+              variants={VIEW_TURN}
+            >
+              {/* The greeting – and right beside it, up top, the way to the
+                shelf: a little pile of the stamps last used. A long name
+                wraps; the pile stays where it is. */}
+              <section className="-mt-2 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h1 className="wrap-break-word text-4xl sm:text-5xl">
+                    {t.app.hello(firstName)}
+                    <Ticks className="ml-1 inline h-[0.5em] w-[0.8em] -translate-y-[0.5em] rotate-[24deg]" />
+                  </h1>
+                  <p className="mt-1 font-medium text-muted">{t.app.lead}</p>
+                </div>
+                <StampPile
+                  count={shelf.stamps.length}
+                  href={shelfAddressOf(locale)}
+                  locale={locale}
+                  onOpen={toShelf}
+                  stamps={shelf.latest}
                 />
-                <div className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-3">
-                  <h2 className="wrap-break-word min-w-0 flex-1 text-2xl">
-                    <Marked>{calendar.name}</Marked>
-                  </h2>
-                  {/* The views: beside the name – on a phone in a line of
-                    their own, under it. */}
-                  <div className="max-sm:order-last max-sm:w-full">
-                    <ViewSwitch locale={locale} onPick={pick} view={view} />
-                  </div>
-                  {/* Sharing is the owner's – the server lets no one else. */}
-                  {owner && (
-                    <NameTag id="share" text={t.app.share.title}>
-                      {({ onClick, ...anchor }) => (
-                        <button
-                          {...anchor}
-                          aria-label={t.app.share.title}
-                          className={ROUND_BUTTON}
-                          onClick={() => {
-                            onClick();
-                            stepTo({ panel: "share" });
-                            setSharing(calendar.id);
-                          }}
-                          type="button"
-                        >
-                          <PersonPlus className="h-6 w-6" />
-                        </button>
-                      )}
-                    </NameTag>
+              </section>
+
+              <div className="flex min-w-0 flex-col gap-4">
+                {/* On phones a row to swipe, edge to edge – sideways only: up
+                  and down the swipe is the page's. A scroller cuts off all
+                  round, so it pads (and margins back) room for all a pill's
+                  frame may reach – its wobble, lift and focus ring, 14px and
+                  a little: with less, the row would scroll up and down by
+                  what sticks out. No bar – it fades where it goes on
+                  (fading-edges.ts). Wider, they wrap: nothing cut, nothing
+                  masked. */}
+                <nav
+                  aria-label={t.app.calendars}
+                  className={cn(
+                    "-m-4 flex gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain p-4 sm:m-0 sm:flex-wrap sm:overflow-visible sm:mask-none sm:p-0",
+                    FADING.x
                   )}
-                  <NameTag id="settings" text={t.app.settings.title}>
-                    {({ onClick, ...anchor }) => (
+                  ref={pills}
+                >
+                  {calendars.map((c) => {
+                    const active = c.id === calendar?.id;
+                    return (
                       <button
-                        {...anchor}
-                        aria-label={t.app.settings.title}
-                        className={ROUND_BUTTON}
+                        aria-pressed={active}
+                        className={cn(PILL, PILL_ON_GROUND)}
+                        key={c.id}
                         onClick={() => {
-                          onClick();
-                          stepTo({ panel: "settings" });
-                          setSettings(calendar.id);
+                          if (!active) go(c.id, null);
                         }}
                         type="button"
                       >
-                        <Sliders className="h-6 w-6" />
+                        <span
+                          className="h-3 w-3 rounded-full border-2 border-current"
+                          style={{ background: hexOf(colorOf(boop, c)) }}
+                        />
+                        {c.name}
+                        {c.members.length > 1 && (
+                          <span
+                            className={cn(
+                              "text-xs",
+                              active ? "text-ink/70" : "text-muted"
+                            )}
+                          >
+                            · {c.members.length}
+                          </span>
+                        )}
                       </button>
-                    )}
-                  </NameTag>
-                </div>
-                <AnimatePresence initial={false} mode="wait">
-                  <m.div
-                    animate="shown"
-                    exit="gone"
-                    initial="hidden"
-                    key={view}
-                    variants={VIEW_TURN}
+                    );
+                  })}
+                  <button
+                    className={cn(PILL, "scribble-dashed scribble-clear")}
+                    onClick={() => setDialog("new")}
+                    type="button"
                   >
-                    {view === "today" && (
-                      <TodayView
-                        {...tray}
-                        calendar={calendar.id}
-                        keyboard={!(covered || inviting || arriving)}
-                        locale={locale}
-                      />
-                    )}
-                    {view === "month" && (
-                      <MonthGrid
-                        calendar={calendar.id}
-                        locale={locale}
-                        month={month}
-                        onDay={openDayAt}
-                        onMonth={setMonth}
-                      />
-                    )}
-                    {view === "year" && (
-                      // The year of the month that shows – one place in
-                      // time for both: a year picked here, the month opens
-                      // in it.
-                      <YearGrid
-                        calendar={calendar.id}
-                        locale={locale}
-                        onDay={openDayAt}
-                        onMonth={(at) => {
-                          setMonth(at);
-                          pick("month");
-                        }}
-                        onYear={(year) =>
-                          setMonth({ year, month: month.month })
-                        }
-                        year={month.year}
-                      />
-                    )}
-                  </m.div>
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
+                    + {t.app.newCalendar}
+                  </button>
+                </nav>
 
-          <StampShelf
-            groups={shelf.groups}
-            locale={locale}
-            me={me}
-            onNew={() => {
-              stepTo({ panel: "draw" });
-              setDrawing(true);
-            }}
-            onOpen={setOpened}
-            onOrder={shelf.pick}
-            order={shelf.order}
-            people={boop.people}
-          />
-        </div>
+                {!calendar && (
+                  // Every calendar may go, the last one too – then this.
+                  <div className="flex flex-col items-start gap-3 py-10">
+                    <p className="font-bold text-muted">{t.app.noCalendar}</p>
+                    <Button onClick={() => setDialog("new")}>
+                      + {t.app.newCalendar}
+                    </Button>
+                  </div>
+                )}
+
+                {calendar && (
+                  // The calendar's page: a sheet of paper in a pale shade of
+                  // its color, cut out by hand – no line around it, the
+                  // month's ruled table or today's page is the drawing. As
+                  // wide as the frame; on a phone it reaches into the gutter,
+                  // so the days stay as large as they were. Another calendar
+                  // is another sheet: it comes anew, its days and prints
+                  // with it.
+                  <div
+                    className="relative isolate -mx-3 animate-fade px-3 py-4 sm:mx-0 sm:p-6"
+                    key={calendar.id}
+                    style={PAPER as CSSProperties}
+                  >
+                    {/* The paper itself – beside what lies on it, not around
+                      it: what a frame is told (no line, here) its children
+                      hear too. */}
+                    <span
+                      aria-hidden="true"
+                      className="scribble scribble-bare pointer-events-none absolute inset-0 -z-10 rounded-[28px]"
+                    />
+                    <div className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-3">
+                      <h2 className="wrap-break-word min-w-0 flex-1 text-2xl">
+                        <Marked>{calendar.name}</Marked>
+                      </h2>
+                      {/* The views: beside the name – on a phone in a line of
+                        their own, under it. */}
+                      <div className="max-sm:order-last max-sm:w-full">
+                        <ViewSwitch locale={locale} onPick={pick} view={view} />
+                      </div>
+                      {/* Sharing is the owner's – the server lets no one
+                        else. */}
+                      {owner && (
+                        <NameTag id="share" text={t.app.share.title}>
+                          {({ onClick, ...anchor }) => (
+                            <button
+                              {...anchor}
+                              aria-label={t.app.share.title}
+                              className={ROUND_BUTTON}
+                              onClick={() => {
+                                onClick();
+                                stepTo({ panel: "share" });
+                                setSharing(calendar.id);
+                              }}
+                              type="button"
+                            >
+                              <PersonPlus className="h-6 w-6" />
+                            </button>
+                          )}
+                        </NameTag>
+                      )}
+                      <NameTag id="settings" text={t.app.settings.title}>
+                        {({ onClick, ...anchor }) => (
+                          <button
+                            {...anchor}
+                            aria-label={t.app.settings.title}
+                            className={ROUND_BUTTON}
+                            onClick={() => {
+                              onClick();
+                              stepTo({ panel: "settings" });
+                              setSettings(calendar.id);
+                            }}
+                            type="button"
+                          >
+                            <Sliders className="h-6 w-6" />
+                          </button>
+                        )}
+                      </NameTag>
+                    </div>
+                    <AnimatePresence initial={false} mode="wait">
+                      <m.div
+                        animate="shown"
+                        exit="gone"
+                        initial="hidden"
+                        key={view}
+                        variants={VIEW_TURN}
+                      >
+                        {view === "today" && (
+                          <TodayView
+                            {...tray}
+                            calendar={calendar.id}
+                            keyboard={!(covered || inviting || arriving)}
+                            locale={locale}
+                          />
+                        )}
+                        {view === "month" && (
+                          // Its days are square: across the whole sheet they
+                          // would be taller than the window. In the middle,
+                          // no wider than six weeks fit under the sheet's
+                          // top (12rem) – nor 56rem, nor under 36rem.
+                          <div className="mx-auto max-w-[min(56rem,max(36rem,calc((100dvh-12rem)*7/6)))]">
+                            <MonthGrid
+                              calendar={calendar.id}
+                              locale={locale}
+                              month={month}
+                              onDay={openDayAt}
+                              onMonth={setMonth}
+                            />
+                          </div>
+                        )}
+                        {view === "year" && (
+                          // The year of the month that shows – one place in
+                          // time for both: a year picked here, the month opens
+                          // in it.
+                          <YearGrid
+                            calendar={calendar.id}
+                            locale={locale}
+                            onDay={openDayAt}
+                            onMonth={(at) => {
+                              setMonth(at);
+                              pick("month");
+                            }}
+                            onYear={(year) =>
+                              setMonth({ year, month: month.month })
+                            }
+                            year={month.year}
+                          />
+                        )}
+                      </m.div>
+                    </AnimatePresence>
+                  </div>
+                )}
+              </div>
+            </m.div>
+          )}
+        </AnimatePresence>
 
         <SiteFooter
           className="mt-auto px-0 pt-4 sm:px-0"
@@ -902,9 +1021,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
         {showDrawer && edited && (
           <StampDrawer
             ask={askLeave}
-            calendar={
-              calendar && calendar.members.length > 1 ? calendar.id : null
-            }
+            calendar={drawnIn}
             key={`edit-${edited.id}`}
             locale={locale}
             onClose={closeStep(() => setEditing(null))}
@@ -919,9 +1036,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
         {showDrawer && !edited && (
           <StampDrawer
             ask={askLeave}
-            calendar={
-              calendar && calendar.members.length > 1 ? calendar.id : null
-            }
+            calendar={drawnIn}
             key="drawer"
             locale={locale}
             onClose={closeStep(() => setDrawing(false))}
@@ -963,7 +1078,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
             onClose={closeStep(() => setSettings(null))}
             onDeleted={() => {
               setSettings(null);
-              setShown({ calendar: null, view: null, day: null, panel: null });
+              setShown({ ...NOTHING });
             }}
             onShare={() => {
               shareNext.current = settings;
@@ -1039,11 +1154,7 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
       <Arrivals
         hold={covered || inviting}
         locale={locale}
-        onShelf={() =>
-          document
-            .getElementById(SHELF_ID)
-            ?.scrollIntoView({ behavior: "smooth", block: "start" })
-        }
+        onShelf={toShelf}
         onShowing={setArriving}
       />
     </div>

@@ -4,15 +4,10 @@ import { usePresence } from "motion/react";
 import { useEffect, useEffectEvent, useRef } from "react";
 import type * as Three from "three";
 import { cn } from "@/lib/cn";
-import {
-  buildSticker,
-  disposeSticker,
-  pivot,
-  type StickerInput,
-  stage,
-} from "./build";
+import { disposeSticker, pivot, type StickerInput, stage } from "./build";
 import { addGlitter } from "./glitter";
 import { createInk } from "./ink";
+import { buildSoftly } from "./render";
 import { createSwing, spring } from "./swing";
 
 /**
@@ -26,6 +21,10 @@ import { createSwing, spring } from "./swing";
  * Asked to (`flyBack`), it leaves the way it came: taken off the page – out
  * of an AnimatePresence – it turns face-on again and grows back onto the
  * drawing, its lines going, and fades as it lands. Only then is it gone.
+ *
+ * It takes a moment to come: its model is built a part at a time and its
+ * programs compiled out of the way (render.ts, ink.ts) – the page goes on
+ * meanwhile, the drawing under it shows.
  */
 
 /**
@@ -131,8 +130,13 @@ export const StickerView = ({
     let cleanup = () => {};
     (async () => {
       const THREE = await import("three");
+      if (off || left.current) return;
+      const sticker = await buildSoftly(THREE, stamp);
       const box = host.current;
-      if (off || left.current || !box) return;
+      if (off || left.current || !box) {
+        disposeSticker(sticker);
+        return;
+      }
       // Antialiased: the first frames, flat like the drawing, go straight
       // onto it.
       const renderer = new THREE.WebGLRenderer({
@@ -142,7 +146,6 @@ export const StickerView = ({
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       const { scene, camera } = stage(THREE);
       const ink = createInk(THREE, renderer);
-      const sticker = buildSticker(THREE, stamp);
       scene.add(sticker);
       const ball = ballOf(THREE, sticker);
       // After measuring – the sparkles may reach out of the ball.
@@ -373,23 +376,6 @@ export const StickerView = ({
         last = -1;
         frame = requestAnimationFrame(tick);
       };
-      document.addEventListener("visibilitychange", wake);
-      wake();
-
-      land.current = () => {
-        if (landing) return;
-        landing = true;
-        // Out of the hand, and held firmly all the way back.
-        if (drag && canvas.hasPointerCapture(drag.id)) {
-          canvas.releasePointerCapture(drag.id);
-        }
-        drag = null;
-        grip = 1;
-        pull = LAND;
-        // What lies under it – the drawing – takes the pointer again.
-        box.style.pointerEvents = "none";
-      };
-
       cleanup = () => {
         land.current = null;
         cancelAnimationFrame(frame);
@@ -405,6 +391,29 @@ export const StickerView = ({
         renderer.dispose();
         renderer.forceContextLoss();
         canvas.remove();
+      };
+
+      // Its programs compiled before the first frame, out of the way – the
+      // drawing under it shows meanwhile. Until that frame there is nothing
+      // to fly back.
+      await ink.warm(scene, camera, { flat: true }).catch(() => undefined);
+      // Gone meanwhile – or asked to leave, and let go (nothing flew).
+      if (off || left.current) return;
+      document.addEventListener("visibilitychange", wake);
+      wake();
+
+      land.current = () => {
+        if (landing) return;
+        landing = true;
+        // Out of the hand, and held firmly all the way back.
+        if (drag && canvas.hasPointerCapture(drag.id)) {
+          canvas.releasePointerCapture(drag.id);
+        }
+        drag = null;
+        grip = 1;
+        pull = LAND;
+        // What lies under it – the drawing – takes the pointer again.
+        box.style.pointerEvents = "none";
       };
       // No WebGL, or three.js out of reach: no 3D – what lies under the view
       // (the drawing) simply stays.

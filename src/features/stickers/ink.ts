@@ -607,6 +607,19 @@ export type Ink = {
     camera: Three.Camera,
     options: { unit: number; amount?: number; time?: number; twinkle?: boolean }
   ) => void;
+  /**
+   * Has the browser compile the programs for what is in `scene` – as
+   * `render` draws it (`flat`: also with no cartoon, straight onto the
+   * canvas) – and waits for them without holding up the page: where it can
+   * (KHR_parallel_shader_compile), the browser compiles them meanwhile, out
+   * of the way. The first frame then draws at once – compiling would
+   * otherwise stall it, a good while on some devices.
+   */
+  warm: (
+    scene: Three.Object3D,
+    camera: Three.Camera,
+    options?: { flat?: boolean }
+  ) => Promise<void>;
   dispose: () => void;
 };
 
@@ -660,6 +673,15 @@ export const createInk = (
   screen.frustumCulled = false;
   screen.layers.enableAll();
   const size = new THREE.Vector2();
+  // Copies of materials, compiled ahead to be drawn flat too – kept, or
+  // their programs would go with them.
+  const copies: Three.Material[] = [];
+  // What compiling ahead puts the materials on – drawn never.
+  const speck = new THREE.BufferGeometry();
+  speck.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0, 0, 0, 0], 3)
+  );
 
   const pass = (scene: Three.Object3D, camera: Three.Camera, layer: number) => {
     camera.layers.set(layer);
@@ -702,10 +724,44 @@ export const createInk = (
       pass(scene, camera, OVER);
       camera.layers.mask = mask;
     },
+    warm: async (scene, camera, { flat = false } = {}) => {
+      // A program is made for a material as it is drawn where it is drawn:
+      // the stamp's parts into the two images, what lies under and over it
+      // – and the ink pass – onto the canvas. Each material goes, on a
+      // speck, where it will be drawn.
+      const parts = new THREE.Group();
+      const onto = new THREE.Group();
+      // Drawn flat as well, a part goes there as a copy – a material waits
+      // for one program only; the copy shares the program all the same.
+      scene.traverse((child) => {
+        const { isMesh, layers } = child as Three.Mesh;
+        if (!isMesh) return;
+        const material = (child as Three.Mesh).material as Three.Material;
+        if (!layers.isEnabled(0)) {
+          onto.add(new THREE.Mesh(speck, material));
+          return;
+        }
+        parts.add(new THREE.Mesh(speck, material));
+        if (!flat) return;
+        const copy = material.clone();
+        copies.push(copy);
+        onto.add(new THREE.Mesh(speck, copy));
+      });
+      onto.add(new THREE.Mesh(speck, composite));
+      const before = renderer.getRenderTarget();
+      renderer.setRenderTarget(target);
+      const colors = renderer.compileAsync(parts, camera);
+      renderer.setRenderTarget(null);
+      const canvas = renderer.compileAsync(onto, camera);
+      renderer.setRenderTarget(before);
+      await Promise.all([colors, canvas]);
+    },
     dispose: () => {
       target.dispose();
       composite.dispose();
       triangle.dispose();
+      speck.dispose();
+      for (const copy of copies) copy.dispose();
     },
   };
 };
