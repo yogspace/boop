@@ -103,7 +103,7 @@ export const StampPile = ({
       whileFocus="fanned"
       whileHover="fanned"
     >
-      <span className="relative h-14 w-24 sm:h-16 sm:w-26 [&_:is(img,svg)]:animate-fade">
+      <span className="relative h-14 w-22 sm:h-16 sm:w-26 [&_:is(img,svg)]:animate-fade">
         {stamps.length === 0 ? (
           <span className="scribble scribble-dashed scribble-sm scribble-clear absolute inset-0 m-auto flex h-11 w-11 -rotate-6 items-center justify-center rounded-2xl transition-transform duration-200 group-hover:rotate-3 sm:h-13 sm:w-13">
             <Plus className="h-5 w-5" />
@@ -125,7 +125,10 @@ export const StampPile = ({
             ))
         )}
       </span>
-      <span className="whitespace-nowrap font-bold text-[11px] text-muted leading-none transition-colors group-hover:text-ink sm:text-xs">
+      {/* As wide as the pile – longer, it reaches out both ways over its
+        paper's padding: the pile and the leaf on the shelf (calendar-leaf.tsx)
+        are as wide, whatever they say. */}
+      <span className="flex w-22 justify-center whitespace-nowrap font-bold text-[11px] text-muted leading-none transition-colors group-hover:text-ink sm:w-26 sm:text-xs">
         {t.app.stamps}
         {count > 0 && ` · ${count}`}
       </span>

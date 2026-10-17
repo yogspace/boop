@@ -69,7 +69,7 @@ export const CalendarLeaf = ({
       whileFocus="fanned"
       whileHover="fanned"
     >
-      <span className="relative h-14 w-24 sm:h-16 sm:w-26">
+      <span className="relative h-14 w-22 sm:h-16 sm:w-26">
         <m.span
           className="absolute inset-0 m-auto h-14 w-13 sm:h-16 sm:w-15"
           transition={SPRING.soft}
@@ -84,8 +84,11 @@ export const CalendarLeaf = ({
           </span>
         </m.span>
       </span>
-      <span className="max-w-24 truncate whitespace-nowrap font-bold text-[11px] text-muted leading-none transition-colors group-hover:text-ink sm:max-w-26 sm:text-xs">
-        {name || t.app.backToCalendars}
+      {/* As wide as the pile's word (stamp-pile.tsx) – a long name is cut. */}
+      <span className="flex w-22 justify-center font-bold text-[11px] text-muted leading-none transition-colors group-hover:text-ink sm:w-26 sm:text-xs">
+        <span className="max-w-24 shrink-0 truncate sm:max-w-28">
+          {name || t.app.backToCalendars}
+        </span>
       </span>
     </m.a>
   );
