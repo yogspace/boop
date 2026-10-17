@@ -68,12 +68,6 @@ export type TrayProps = {
   /** Draw a new stamp – the tray's last tile. */
   onNew: () => void;
   /**
-   * The shelf (stamp-shelf.tsx), all the stamps on a page of their own: its
-   * address, for the link over the tray, and what following it does.
-   */
-  shelf: string;
-  onShelf: () => void;
-  /**
    * A stamp to take into the hand – one just drawn from here. Told with
    * `onGiven` once it is in it.
    */
@@ -95,8 +89,7 @@ export type TrayProps = {
  *
  * The tray's stamps are in the shelf's order (shelf.ts) – picked here or
  * there, it is the same choice. Its last tile draws a new one: `onNew`,
- * and back here it comes into the hand (`give`). A link over it leads to
- * the shelf (`onShelf`).
+ * and back here it comes into the hand (`give`).
  *
  * Whose a finger on the page is: with no stamp in hand, the page's and the
  * sheet's – a swipe up or down scrolls them, right across the prints
@@ -134,8 +127,6 @@ export const DayPage = ({
   order,
   onOrder,
   onNew,
-  shelf,
-  onShelf,
   give = null,
   onGiven,
   heading,
@@ -465,13 +456,11 @@ export const DayPage = ({
             locale={locale}
             onNew={onNew}
             onOrder={onOrder}
-            onShelf={onShelf}
             onSorting={setSorting}
             onTake={fromTray}
             order={order}
             print={print}
             row={tray}
-            shelf={shelf}
             stamps={stamps}
             turn={turn}
           />

@@ -4,11 +4,12 @@ import { useEffect, useEffectEvent, useRef } from "react";
 import { createPortal } from "react-dom";
 import type * as Three from "three";
 import type { ColorName } from "@/features/calendar/model";
-import { disposeSticker, type StickerInput, stage } from "./build";
+import { disposeSticker, pivot, type StickerInput, stage } from "./build";
 import { addGlitter, SPARKLE_FRAGMENT } from "./glitter";
 import { createInk, inkState, OVER } from "./ink";
 import { buildParcel, PARCEL } from "./parcel";
 import { buildSoftly, lens, pose, stickerImage } from "./render";
+import { VIEW_BOX } from "./sticker-view";
 
 /**
  * A gift unwrapped, live in 3D: over the parcel's picture on the shelf
@@ -35,28 +36,32 @@ const FADE = 180;
 /** When what happens (s from the first frame). */
 const AT = {
   /** The parcel shivers, squashed, until the lid pops. */
-  pop: 0.26,
+  pop: 0.3,
   /** The sparkles burst a moment after. */
-  burst: 0.28,
+  burst: 0.32,
   /** The stamp rises out, and round to face you. */
-  rise: [0.3, 1.1],
-  turn: [0.36, 1.1],
-  grow: [0.34, 1.1],
+  rise: [0.36, 1.3],
+  turn: [0.44, 1.3],
+  grow: [0.4, 1.3],
+  /** Landing on a drawing, larger than its picture: it grows once out. */
+  growFlat: [0.72, 1.3],
   /** The box drops away, shrinking. */
-  fall: [0.52, 0.98],
+  fall: [0.66, 1.14],
+  /** Landing on a drawing, its lines go from here (`landing`). */
+  flat: 1.12,
   /** Its picture may take over from here. */
-  land: 1.18,
+  land: 1.4,
 } as const;
 
 /** The lid's flight: off up and to the right, tumbling (units, s). */
 const FLIGHT = {
-  velocity: [1.35, 2.8, 0.4],
-  gravity: 6.5,
-  spin: 7.5,
+  velocity: [2.1, 3.6, 0.5],
+  gravity: 7,
+  spin: 8,
   axis: [0.35, 0.25, -1],
   /** It shrinks away from this long after the pop, over `gone`. */
-  shrink: 0.1,
-  gone: 0.55,
+  shrink: 0.28,
+  gone: 0.5,
 } as const;
 
 /** How high the stamp hops on its way up and round. */
@@ -86,6 +91,7 @@ export const Unwrapping = ({
   color,
   anchor,
   tilt,
+  landing,
   onShown,
   onOpened,
   onDone,
@@ -98,6 +104,13 @@ export const Unwrapping = ({
   anchor: () => HTMLElement | null;
   /** How the picture is turned there (degrees). */
   tilt: number;
+  /**
+   * Where the stamp lands. None: as its picture shows it (render.ts) – the
+   * shelf. `inset`: face-on, flat – lines and all gone – on a drawing laid
+   * that far (px) inside the box, as a live stamp starts out
+   * (sticker-view.tsx): a card's page hands over to one there.
+   */
+  landing?: { inset: number };
   /** The first frame is on screen – the parcel's picture may go. */
   onShown: () => void;
   /** The stamp lies where its picture goes – that may show now. */
@@ -113,6 +126,7 @@ export const Unwrapping = ({
   const turned = useEffectEvent(() => tilt);
   const input = useRef(stamp).current;
   const paper = useRef(color).current;
+  const flat = useRef(landing).current;
 
   useEffect(() => {
     let off = false;
@@ -124,9 +138,9 @@ export const Unwrapping = ({
     };
     (async () => {
       // Its picture is wanted at the end – on its way from now.
-      const picture = stickerImage(input, "face", { soon: true }).catch(
-        () => null
-      );
+      const picture = flat
+        ? Promise.resolve(null)
+        : stickerImage(input, "face", { soon: true }).catch(() => null);
       const THREE = await import("three");
       if (off) return;
       const sticker = await buildSoftly(THREE, input);
@@ -177,9 +191,9 @@ export const Unwrapping = ({
       const around = new THREE.Vector3(0, 0, 1);
       const shiver = new THREE.Quaternion();
       // The stamp's way: where it starts (set at the rise) and ends – just
-      // as its picture has it (render.ts `pose`).
+      // as its picture has it (render.ts `pose`), or face-on.
       const end = new THREE.Object3D();
-      pose(end, "face");
+      if (!flat) pose(end, "face");
       const from = {
         at: new THREE.Vector3(),
         turn: new THREE.Quaternion(),
@@ -211,12 +225,18 @@ export const Unwrapping = ({
       if (off) return;
 
       let size = 0;
+      let width = 1;
+      // The picture's middle in the window (CSS px) – how much room there is
+      // round it, for what flies.
+      const middle = { x: 0, y: 0 };
       /** Laid over the picture's box, as large as WIDE of it, turned like it. */
       const follow = () => {
         const target = anchored();
         if (!target) return;
-        const width = target.offsetWidth;
+        width = target.offsetWidth || width;
         const rect = target.getBoundingClientRect();
+        middle.x = rect.left + rect.width / 2;
+        middle.y = rect.top + rect.height / 2;
         const next = Math.round(width * WIDE);
         if (next !== size && next > 0) {
           size = next;
@@ -228,6 +248,20 @@ export const Unwrapping = ({
         box.style.height = `${size}px`;
         box.style.transform = `rotate(${turned()}deg)`;
       };
+
+      /** Room from the picture's middle to the window's edges (units). */
+      const room = () => {
+        const perUnit = width / view;
+        return {
+          up: middle.y / perUnit,
+          left: middle.x / perUnit,
+          right: (window.innerWidth - middle.x) / perUnit,
+        };
+      };
+      // The lid's flight and the stamp's hop, fitted to that room at the pop:
+      // up and towards the middle of the window, never out of it.
+      const velocity = new THREE.Vector3(...FLIGHT.velocity);
+      let hop = HOP;
 
       let start = -1;
       let popped = false;
@@ -265,6 +299,12 @@ export const Unwrapping = ({
         parcel.position.y = -DROP * fall * fall;
         parcel.visible = shrink > 0.001;
 
+        // How large it lands: as in its picture – or on the drawing, its
+        // face as wide as the drawing's.
+        const landsAt = flat
+          ? (view * (width - 2 * flat.inset)) / (VIEW_BOX * width)
+          : 1;
+
         // The lid flies off.
         if (t >= AT.pop && !popped) {
           popped = true;
@@ -277,10 +317,39 @@ export const Unwrapping = ({
           burst.position.copy(
             body.localToWorld(new THREE.Vector3(0, PARCEL.box.height, 0))
           );
+          const space = room();
+          const left = space.left > space.right;
+          const reach = PARCEL.lid.half * 1.2;
+          const rise = space.up - flight.at.y - reach - 0.1;
+          velocity.y = Math.min(
+            FLIGHT.velocity[1],
+            Math.sqrt(2 * FLIGHT.gravity * Math.max(0.1, rise))
+          );
+          velocity.x =
+            (left ? -1 : 1) *
+            Math.min(
+              FLIGHT.velocity[0],
+              Math.max(
+                0.3,
+                ((left ? space.left : space.right) - reach) /
+                  (FLIGHT.shrink + FLIGHT.gone)
+              )
+            );
+          // Mirrored, it tumbles the other way round.
+          if (left)
+            flight.axis
+              .set(-FLIGHT.axis[0], FLIGHT.axis[1], -FLIGHT.axis[2])
+              .normalize();
+          // The stamp's hop, its whole size above it, inside the window too
+          // – still no larger than its picture up there.
+          hop = Math.min(
+            HOP,
+            Math.max(0.12, space.up - 0.62 * Math.min(landsAt, 1) - 0.1)
+          );
         }
         if (popped) {
           const a = t - AT.pop;
-          const [vx, vy, vz] = FLIGHT.velocity;
+          const { x: vx, y: vy, z: vz } = velocity;
           lid.position.set(
             flight.at.x + vx * a,
             flight.at.y + vy * a - (FLIGHT.gravity * a * a) / 2,
@@ -314,10 +383,10 @@ export const Unwrapping = ({
         }
         if (rising) {
           const u = easeInOut(span(t, AT.rise));
-          const hop = HOP * Math.sin(Math.PI * span(t, AT.rise));
+          const above = hop * Math.sin(Math.PI * span(t, AT.rise));
           sticker.position.set(
             from.at.x * (1 - u),
-            from.at.y * (1 - u) + hop,
+            from.at.y * (1 - u) + above,
             from.at.z * (1 - u)
           );
           const w = easeInOut(span(t, AT.turn));
@@ -325,14 +394,18 @@ export const Unwrapping = ({
           sticker.quaternion.premultiply(
             twirl.setFromAxisAngle(up, 2 * Math.PI * w)
           );
-          const g = backOut(span(t, AT.grow));
-          sticker.scale.setScalar(from.size + (1 - from.size) * g);
-          if (glitter) glitter.visible = t > 0.75;
+          const g = backOut(span(t, flat ? AT.growFlat : AT.grow));
+          sticker.scale.setScalar(from.size + (landsAt - from.size) * g);
+          // Flat on the drawing, its face lies where the drawing does.
+          if (flat) pivot(sticker, 1 - w);
+          if (glitter) glitter.visible = t > 0.9 && !(flat && t > AT.flat);
         } else if (glitter) glitter.visible = false;
 
         ink.render(scene, camera, {
           unit: (size * ratio) / (WIDE * view),
           thinnest: 0,
+          // Landing on a drawing, it turns into one: its lines go.
+          amount: flat ? 1 - span(t, [AT.flat, AT.rise[1]]) : 1,
         });
         if (t === 0) shown();
 
@@ -353,7 +426,7 @@ export const Unwrapping = ({
       off = true;
       cleanup();
     };
-  }, [input, paper]);
+  }, [input, paper, flat]);
 
   return createPortal(
     <div

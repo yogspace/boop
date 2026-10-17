@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, type RefObject } from "react";
-import { ArrowRight, Plus, Sparkle } from "@/components/doodles";
+import { Plus, Sparkle } from "@/components/doodles";
 import type { ColorName } from "@/features/calendar/model";
 import { knownKey } from "@/features/calendar/palette";
 import { usePalette } from "@/features/calendar/palette-provider";
@@ -9,7 +9,6 @@ import { Sticker } from "@/features/stickers/sticker";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
-import { opensHere } from "../address";
 import { FADING } from "../fading-edges";
 import { NameTag } from "../name-tag";
 import { OrderMenu } from "../order-menu";
@@ -20,8 +19,7 @@ import { CAPTION } from "./tools";
 
 /**
  * A day's tray (day-page.tsx): the stamps, their order right beside their
- * word, to pick (one choice with the shelf's), and at the end of the line
- * the way to the shelf; a new one last. Drawn again only when what it
+ * word, to pick (one choice with the shelf's); a new one last. Drawn again only when what it
  * shows changes – not as prints are picked or moved on the page.
  */
 export const Tray = memo(function Tray({
@@ -35,8 +33,6 @@ export const Tray = memo(function Tray({
   order,
   onOrder,
   onSorting,
-  shelf,
-  onShelf,
   onNew,
   row,
 }: {
@@ -59,8 +55,6 @@ export const Tray = memo(function Tray({
   onOrder: (order: ShelfOrder) => void;
   /** Told whether the order's menu is open – Escape is its, first. */
   onSorting: (open: boolean) => void;
-  shelf: string;
-  onShelf: () => void;
   onNew: () => void;
   /** The stamps' row – where a stamp handed in is brought into sight. */
   row: (box: HTMLDivElement | null) => (() => void) | undefined;
@@ -79,20 +73,6 @@ export const Tray = memo(function Tray({
             order={order}
           />
         )}
-        <a
-          className="group ml-auto flex shrink-0 items-center gap-1 py-1 font-bold text-sm"
-          href={shelf}
-          onClick={(event) => {
-            if (!opensHere(event)) return;
-            event.preventDefault();
-            onShelf();
-          }}
-        >
-          <span className="group-hover:scribble-underline">
-            {t.app.allStamps}
-          </span>
-          <ArrowRight className="h-4 w-4 transition-transform duration-150 ease-out group-hover:translate-x-0.5" />
-        </a>
       </div>
       {stamps.length === 0 && (
         <p className="text-muted text-sm">{t.app.noStamps}</p>

@@ -61,6 +61,17 @@ A stamp is drawn on one of five shapes (circle, square, octagon, triangle, diamo
 
 A print (`placements`) records the ink pad it was made with (`ink`). It shows what stands out of the rubber: rim and doodle in ink (an inverted stamp: the face in ink, the doodle as gaps). A per-print seed makes coverage, grain and edges a little different every time.
 
+## Cards and gifts
+
+A stamp travels to people outside one's calendars as a **card** – a link to a page with it (`features/cards`) – or as a **gift from Boop**, sent to every account from the CMS or by an account with the admin box. Whoever takes one gets a copy of their own: it keeps where it came from (`origin`) and follows its original's look.
+
+Both come wrapped: a parcel in the stamp's color (`stickers/parcel.ts`) that wants a few taps – three to five, at random, each answered with a hop, a wiggle or a squash and a few ink doodles (`stickers/parcel-knock.tsx`) – before the lid flies off and the stamp rises out, live in 3D over the page (`stickers/unwrap.tsx`). On the shelf it lands as its picture; on a card's page it lands on the drawing the live stamp grows out of.
+
+- **A gift** is wrapped by the server (`wrapped` on the stamp, set by `sendGift`): a parcel up front on the shelf – by person, Boop's section first – and on top of the pile, in no day's tray; its notification leads to the shelf. Unwrapping goes one way only: a device sends `wrapped: false`, never `true`, and it counts even when the server's copy changed later. Gifts from before count as unwrapped.
+- **A card's page** wraps its stamp anew at every visit – nothing is stored; its name, words and buttons come once it is open.
+
+The shelf's order is the device's (`features/app/shelf.ts`) – by person until another is picked; the order's list is a popover placed by anchor positioning, never cut off by the page's edge.
+
 ## Calendar apps
 
 A calendar can be subscribed to in Apple Calendar, Google Calendar & co. (`features/ical`). Every day with prints or a note is one all-day event: the names of the stamps on it, each once (“Sport, Lesen”; unnamed ones counted: “3 Stempel”), the note as plain text in its description; its `UID` is made of calendar and day, `LAST-MODIFIED` is the day's latest change. The few fixed words are in the account's language.

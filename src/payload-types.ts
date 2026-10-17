@@ -1738,10 +1738,6 @@ export interface Translation {
      * DE: Neuer Stempel  ·  EN: New stamp
      */
     newStamp?: string | null;
-    /**
-     * DE: Alle Stempel  ·  EN: All stamps
-     */
-    allStamps?: string | null;
     pile?: {
       /**
        * DE: Deine Stempel – noch keine  ·  EN: Your stamps – none yet
@@ -2988,15 +2984,11 @@ export interface Translation {
        */
       gifted?: string | null;
     };
+    /**
+     * DE: Ein Geschenk von Boop – zum Auspacken antippen  ·  EN: A gift from Boop – tap to unwrap
+     */
+    parcel?: string | null;
     arrival?: {
-      /**
-       * DE: Boop schenkt dir einen Stempel  ·  EN: Boop gives you a stamp
-       */
-      giftTitle?: string | null;
-      /**
-       * DE: Er gehört jetzt dir – in einer Farbe, die sonst niemand wählen kann.  ·  EN: It's yours now – in a color nobody else can pick.
-       */
-      giftText?: string | null;
       /**
        * DE: Angekommen!  ·  EN: It's here!
        */
@@ -3206,6 +3198,24 @@ export interface Translation {
      * DE: Übernimm ihn in deine Stempel und boop ihn auf deine Tage – mit Boop, dem Doodle-Stempelkalender.  ·  EN: Take it into your stamps and boop it onto your days – with Boop, the doodle stamp calendar.
      */
     description?: string | null;
+    parcel?: {
+      /**
+       * DE: {name} schickt dir ein Päckchen  ·  EN: {name} is sending you a parcel  ·  Keeps {name}
+       */
+      named?: string | null;
+      /**
+       * DE: Ein Päckchen für dich  ·  EN: A parcel for you
+       */
+      unnamed?: string | null;
+    };
+    /**
+     * DE: Tipp drauf, bis es aufgeht  ·  EN: Tap it until it opens
+     */
+    unwrap?: string | null;
+    /**
+     * DE: Päckchen – antippen zum Auspacken  ·  EN: Parcel – tap to unwrap
+     */
+    parcelLabel?: string | null;
     /**
      * DE: Stempel speichern  ·  EN: Save stamp
      */
@@ -3782,7 +3792,6 @@ export interface TranslationsSelect<T extends boolean = true> {
         stamps?: T;
         noStamps?: T;
         newStamp?: T;
-        allStamps?: T;
         pile?:
           | T
           | {
@@ -4203,11 +4212,10 @@ export interface TranslationsSelect<T extends boolean = true> {
               boop?: T;
               gifted?: T;
             };
+        parcel?: T;
         arrival?:
           | T
           | {
-              giftTitle?: T;
-              giftText?: T;
               cardTitle?: T;
               cardText?:
                 | T
@@ -4282,6 +4290,14 @@ export interface TranslationsSelect<T extends boolean = true> {
               unnamed?: T;
             };
         description?: T;
+        parcel?:
+          | T
+          | {
+              named?: T;
+              unnamed?: T;
+            };
+        unwrap?: T;
+        parcelLabel?: T;
         take?: T;
         taken?: T;
         mine?: T;

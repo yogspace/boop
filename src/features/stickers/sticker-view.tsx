@@ -36,7 +36,7 @@ export const STAGE =
   "scribble scribble-clear relative aspect-square w-full rounded-3xl bg-card bg-[radial-gradient(var(--color-line)_1.3px,transparent_1.3px)] bg-size-[18px_18px]";
 
 /** The drawing's view box: the unit square and a little beyond (its rim). */
-const VIEW_BOX = 1.04;
+export const VIEW_BOX = 1.04;
 /** How it shows itself: the face tilted towards you, block and knob behind. */
 const SHOWCASE: [number, number, number] = [0.85, 0.55, -0.12];
 /** How wide its face is then, of the box – with room to turn every way. */

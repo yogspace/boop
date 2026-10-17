@@ -4,14 +4,15 @@ import { AnimatePresence, m, useAnimate } from "motion/react";
 import { type ComponentType, useEffect, useRef, useState } from "react";
 import { Dot, Sparkle, Star, Ticks } from "@/components/doodles";
 import type { ColorName } from "@/features/calendar/model";
-import { Parcel } from "@/features/stickers/sticker";
+import { Parcel } from "./sticker";
 
 /**
- * A gift's parcel on the shelf that wants a few taps before it opens
- * (`tapsToOpen`) – each one it answers: a hop, a wiggle, a rubbery squash,
- * a spin – a little bolder every time – and a few ink doodles fly off it.
- * The tap that opens it is the shelf's (stamp-shelf.tsx, unwrap.tsx); this
- * one only gives a tremble, as if it were about to burst.
+ * A parcel that wants a few taps before it opens (`tapsToOpen`) – a gift on
+ * the shelf (features/app/stamp-shelf.tsx), a card's stamp on its page
+ * (features/cards/ui/card-panel.tsx). Each tap it answers: a hop, a wiggle,
+ * a rubbery squash, a spin – a little bolder every time – and a few ink
+ * doodles fly off it. The tap that opens it is its page's (unwrap.tsx);
+ * this one only gives a tremble, as if it were about to burst.
  */
 
 /** How many taps a gift takes – a few, never quite the same. */

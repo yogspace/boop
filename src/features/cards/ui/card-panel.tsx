@@ -1,6 +1,7 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { m, useReducedMotion } from "motion/react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Star, Ticks } from "@/components/doodles";
 import { Button, LinkButton, Notice } from "@/components/ui";
 import { trackEvent } from "@/features/analytics/client";
@@ -8,10 +9,13 @@ import { loadCard, takeCard } from "@/features/cards/client";
 import { type CardView, cardPath } from "@/features/cards/protocol";
 import { demoStamp } from "@/features/stickers/demo";
 import { stampStl, stlName } from "@/features/stickers/export-stl";
+import { KnockedParcel, tapsToOpen } from "@/features/stickers/parcel-knock";
 import { Sticker } from "@/features/stickers/sticker";
+import { prepareUnwrap, Unwrapping } from "@/features/stickers/unwrap";
 import { useTransitionRouter } from "@/features/transitions/link";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
+import { cn } from "@/lib/cn";
 import { cardArrived, cardToTake } from "./pending";
 import { ShareLink } from "./share-link";
 import { StampShow } from "./stamp-show";
@@ -26,6 +30,12 @@ import { Wallpaper } from "./wallpaper";
  * takes it (features/app/arrivals.tsx). One button for all of it: the ways in
  * show only once it is pressed, so the stamp and the words have the page.
  * And for anyone: the stamp as a file for a 3D printer.
+ *
+ * The stamp comes wrapped, at every visit: a parcel in its color that wants
+ * a few taps (stickers/parcel-knock.tsx) – the last one unwraps it
+ * (stickers/unwrap.tsx), the stamp lands on its drawing where it is shown
+ * off, and the rest of the card – its name, the words, the wallpaper, the
+ * buttons – comes after.
  *
  * `card`: as the server read it for everyone – null for no such card,
  * undefined when it couldn't ask: then the browser asks. Who looks at it
@@ -55,6 +65,26 @@ export const CardPanel = ({
   // Not logged in, and asked to take it: the ways in.
   const [asking, setAsking] = useState(false);
   const [printing, setPrinting] = useState(false);
+  // Wrapped, until enough taps came (`wants`, at random) – then opening, the
+  // live unwrapping over the parcel (`covered` once it lies over it).
+  const [wrapped, setWrapped] = useState(true);
+  const [knocks, setKnocks] = useState(0);
+  const [wants] = useState(tapsToOpen);
+  const [opening, setOpening] = useState(false);
+  const [covered, setCovered] = useState(false);
+  const parcel = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
+  const knock = () => {
+    if (opening) return;
+    // Less motion asked for: one tap, and it is open.
+    if (reduced) {
+      setWrapped(false);
+      return;
+    }
+    if (knocks === 0) prepareUnwrap();
+    setKnocks(knocks + 1);
+    if (knocks + 1 >= wants) setOpening(true);
+  };
 
   useEffect(() => {
     const look = () => setOnline(navigator.onLine);
@@ -167,78 +197,131 @@ export const CardPanel = ({
     </LinkButton>
   );
 
+  if (wrapped) {
+    return (
+      <Paper>
+        {/* Where the stamp will be shown off – as large, and in its place. */}
+        <div
+          className="-my-3 aspect-square w-full max-w-64 self-center"
+          ref={parcel}
+        >
+          <button
+            aria-label={t.card.parcelLabel}
+            className="block h-full w-full rounded-3xl"
+            onClick={knock}
+            type="button"
+          >
+            <KnockedParcel
+              className={cn(covered && "invisible")}
+              color={stamp.color}
+              knocks={knocks}
+              opening={opening}
+            />
+          </button>
+        </div>
+        <div className="flex flex-col gap-1">
+          <h1 className="wrap-break-word text-4xl">{t.card.parcel(giver)}</h1>
+          <p className="font-bold text-muted">{t.card.unwrap}</p>
+        </div>
+        {opening && (
+          <Unwrapping
+            anchor={() => parcel.current}
+            color={stamp.color}
+            landing={{ inset: STAMP_INSET }}
+            onDone={() => setOpening(false)}
+            onOpened={() => setWrapped(false)}
+            onShown={() => setCovered(true)}
+            stamp={stamp}
+            tilt={0}
+          />
+        )}
+      </Paper>
+    );
+  }
+
   return (
     <>
       <Wallpaper seed={id} stamp={stamp} />
       <Paper>
         <StampShow className="-my-3 max-w-64 self-center" stamp={stamp} />
-        <div className="flex flex-col gap-1">
-          <h1 className="wrap-break-word text-4xl">
-            {stamp.name || t.app.stamp.untitled}
-          </h1>
-          <p className="font-bold text-muted">{t.app.stamp.origin(giver)}</p>
-        </div>
-        {card.message && (
-          // The giver's words – on a slip laid on the sheet, a little askew.
-          <p className="scribble scribble-thin scribble-soft wrap-break-word -rotate-1 whitespace-pre-line rounded-2xl px-4 py-3 text-left font-medium">
-            {card.message}
-          </p>
-        )}
-        <div className="flex flex-col gap-2.5 pt-1">
-          {viewer === "in" && card.mine ? (
-            <>
-              <div className="text-left">
-                <h2 className="font-black text-lg">{t.card.mine}</h2>
-                <p className="font-medium text-muted text-sm">
-                  {t.card.mineText}
-                </p>
-              </div>
-              <ShareLink
-                locale={locale}
-                text={t.app.stamp.card.shareText(stamp.name)}
-                url={`${window.location.origin}${cardPath(locale, id)}`}
-              />
-              {toApp}
-            </>
-          ) : viewer === "in" && card.taken ? (
-            <>
-              <Notice tone="success">{t.card.taken}</Notice>
-              {toApp}
-            </>
-          ) : asking ? (
-            ways
-          ) : (
-            <>
-              {failed && <Notice tone="error">{t.auth.failed}</Notice>}
-              <Button
-                disabled={viewer === null || busy || !online}
-                onClick={viewer === "in" ? take : () => setAsking(true)}
-                size="lg"
-              >
-                {busy ? t.auth.working : t.card.take}
-              </Button>
-              {!online && (
-                <p className="font-medium text-muted text-xs">
-                  {t.auth.offline}
-                </p>
-              )}
-            </>
+        {/* Unwrapped: the rest of the card comes up after the stamp. */}
+        <m.div
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-5"
+          initial={{ opacity: 0, y: 10 }}
+          transition={{ duration: 0.35, delay: 0.25, ease: "easeOut" }}
+        >
+          <div className="flex flex-col gap-1">
+            <h1 className="wrap-break-word text-4xl">
+              {stamp.name || t.app.stamp.untitled}
+            </h1>
+            <p className="font-bold text-muted">{t.app.stamp.origin(giver)}</p>
+          </div>
+          {card.message && (
+            // The giver's words – on a slip laid on the sheet, a little askew.
+            <p className="scribble scribble-thin scribble-soft wrap-break-word -rotate-1 whitespace-pre-line rounded-2xl px-4 py-3 text-left font-medium">
+              {card.message}
+            </p>
           )}
-          {/* For anyone, with an account or without. */}
-          <Button
-            className="self-center"
-            disabled={printing}
-            onClick={download}
-            size="sm"
-            variant="ghost"
-          >
-            {printing ? t.auth.working : t.app.stamp.print3d}
-          </Button>
-        </div>
+          <div className="flex flex-col gap-2.5 pt-1">
+            {viewer === "in" && card.mine ? (
+              <>
+                <div className="text-left">
+                  <h2 className="font-black text-lg">{t.card.mine}</h2>
+                  <p className="font-medium text-muted text-sm">
+                    {t.card.mineText}
+                  </p>
+                </div>
+                <ShareLink
+                  locale={locale}
+                  text={t.app.stamp.card.shareText(stamp.name)}
+                  url={`${window.location.origin}${cardPath(locale, id)}`}
+                />
+                {toApp}
+              </>
+            ) : viewer === "in" && card.taken ? (
+              <>
+                <Notice tone="success">{t.card.taken}</Notice>
+                {toApp}
+              </>
+            ) : asking ? (
+              ways
+            ) : (
+              <>
+                {failed && <Notice tone="error">{t.auth.failed}</Notice>}
+                <Button
+                  disabled={viewer === null || busy || !online}
+                  onClick={viewer === "in" ? take : () => setAsking(true)}
+                  size="lg"
+                >
+                  {busy ? t.auth.working : t.card.take}
+                </Button>
+                {!online && (
+                  <p className="font-medium text-muted text-xs">
+                    {t.auth.offline}
+                  </p>
+                )}
+              </>
+            )}
+            {/* For anyone, with an account or without. */}
+            <Button
+              className="self-center"
+              disabled={printing}
+              onClick={download}
+              size="sm"
+              variant="ghost"
+            >
+              {printing ? t.auth.working : t.app.stamp.print3d}
+            </Button>
+          </div>
+        </m.div>
       </Paper>
     </>
   );
 };
+
+/** How far in the shown-off stamp's drawing lies (px, stamp-show.tsx). */
+const STAMP_INSET = 12;
 
 /**
  * The page's sheet of paper, like the account pages' (accounts/forms.tsx):

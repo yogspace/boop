@@ -6,8 +6,9 @@
  * - push: the notification. Every push shows one – Safari takes a browser's
  *   permission back after pushes that show nothing.
  * - notificationclick: to the calendar (a gift: the shelf) – in an open
- *   window of the app if there is one, else in a new one. One that names no calendar (an
- *   invitation) only asks for the app: open, it stays where it is.
+ *   window of the app if there is one, else in a new one. One that names
+ *   no calendar (an invitation) only asks for the app: open, it stays where
+ *   it is.
  * - pushsubscriptionchange: the browser renewed the subscription – the
  *   server learns the new address (it keeps zone, language, account).
  */

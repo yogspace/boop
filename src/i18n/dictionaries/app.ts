@@ -56,8 +56,6 @@ const de = {
     stamps: "Deine Stempel",
     noStamps: "Noch keine Stempel – mal deinen ersten!",
     newStamp: "Neuer Stempel",
-    // From a day's tray to the shelf, the page with all of them.
-    allStamps: "Alle Stempel",
     // The way to the shelf beside the greeting – a little pile of stamps,
     // read out with how many there are (features/app/stamp-pile.tsx).
     pile: template(
@@ -197,7 +195,6 @@ const en: Shape<typeof de> = {
     stamps: "Your stamps",
     noStamps: "No stamps yet – draw your first one!",
     newStamp: "New stamp",
-    allStamps: "All stamps",
     pile: {
       none: "Your stamps – none yet",
       one: "Your stamps – 1 stamp",

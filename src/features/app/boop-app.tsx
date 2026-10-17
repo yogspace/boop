@@ -27,7 +27,7 @@ import { SITE_DEFAULTS } from "@/features/site/defaults";
 import { useTransitionRouter } from "@/features/transitions/link";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
-import { addressOf, shelfAddressOf } from "./address";
+import { addressOf } from "./address";
 import { AppHeader } from "./boop-app/app-header";
 import { CalendarPage, VIEW_TURN } from "./boop-app/calendar-page";
 import { CalendarRow } from "./boop-app/calendar-row";
@@ -180,8 +180,6 @@ export const BoopApp = ({ locale: first }: { locale: Locale }) => {
     order: shelf.order,
     onOrder: shelf.pick,
     onNew: sheets.drawFromDay,
-    shelf: shelfAddressOf(locale),
-    onShelf: place.toShelf,
     give: sheets.handed,
     onGiven: () => sheets.setHanded(null),
   };

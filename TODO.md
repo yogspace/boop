@@ -2,21 +2,13 @@
 
 Stand: 17.10.2026
 
-## Als Nächstes
-
-1. **Geschenke als 3D-Päckchen im Regal** – ein Geschenk von Boop kommt
-   eingepackt an: im Regal als Päckchen (3D, Schleife, im Ton des Stempels),
-   auf dem Stempelhaufen neben „Hallo Max!“ obenauf. Antippen → auspacken
-   (Deckel fliegt, Glitzer, der Stempel steigt heraus) → normaler Stempel.
-   Kein Popup mehr beim Öffnen der App; Push führt ins Regal. Eingepackt
-   nicht in der Ablage zum Stempeln. „Ausgepackt“ am Stempel (synct); alte
-   Geschenke gelten als ausgepackt. Karten bleiben, wie sie sind.
-
 ## Offen
 
 - **Geschenk anlegen prüfen**: In einem Probelauf (`payload run`) scheiterte
   `payload.create` für `gifts` am lokalisierten Namen („Cast to Embedded“).
-  Einmal ein Geschenk an alle schicken – klappt das, ist es erledigt.
+  Einmal ein Geschenk an alle schicken – klappt das, ist es erledigt. Dabei
+  gleich: Push tippen → Regal mit Päckchen; auf dem iPhone auspacken (nichts
+  abgeschnitten, flüssig); auf einem zweiten Gerät ist es danach ausgepackt.
 - **Monatsansicht „gradlinig“**: Gerade Linien heißt, der Zeichner
   (`components/scribble-draw.ts`) läuft nicht. Lokal und auf boop.mxwr.de
   zeichnet er – wo genau ist es aufgefallen?
@@ -54,7 +46,8 @@ eigens ausprobieren muss. Streich, was du schon gesehen hast.
 - **Stempel bearbeiten** mit Kopien bei anderen (Karte, Geschenk): ziehen
   nach, ihr Name bleibt.
 - **Karten**: Link im Messenger (Vorschaubild), abgemeldet öffnen →
-  anmelden → im Regal; „Zurückziehen“ macht den Link tot.
+  Päckchen auspacken → anmelden → im Regal; „Zurückziehen“ macht den Link
+  tot.
 - **Zwei Geräte**: Notiz gleichzeitig offline schreiben; Kalenderfarbe und
   Startansicht am Handy ändern → am Desktop gleich.
 - **Konto**: Mail ändern (Bestätigung erst auf Klick, Nachricht an die alte

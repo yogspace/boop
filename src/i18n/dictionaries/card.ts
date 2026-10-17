@@ -14,6 +14,17 @@ const de = {
     ),
     description:
       "Übernimm ihn in deine Stempel und boop ihn auf deine Tage – mit Boop, dem Doodle-Stempelkalender.",
+    // The stamp as it comes: wrapped, to tap open a few times
+    // (features/cards/ui/card-panel.tsx).
+    parcel: template(
+      {
+        named: "{name} schickt dir ein Päckchen",
+        unnamed: "Ein Päckchen für dich",
+      },
+      (say) => (name: string) => (name ? say.named({ name }) : say.unnamed())
+    ),
+    unwrap: "Tipp drauf, bis es aufgeht",
+    parcelLabel: "Päckchen – antippen zum Auspacken",
     take: "Stempel speichern",
     taken: "Schon gespeichert – er liegt bei deinen Stempeln",
     mine: "Deine Karte",
@@ -40,6 +51,12 @@ const en: Shape<typeof de> = {
     },
     description:
       "Take it into your stamps and boop it onto your days – with Boop, the doodle stamp calendar.",
+    parcel: {
+      named: "{name} is sending you a parcel",
+      unnamed: "A parcel for you",
+    },
+    unwrap: "Tap it until it opens",
+    parcelLabel: "Parcel – tap to unwrap",
     take: "Save stamp",
     taken: "Saved already – it's with your stamps",
     mine: "Your card",

@@ -15,6 +15,7 @@ import { BADGE } from "@/components/ui";
 import { type StampDoc, stampsOf } from "@/features/calendar/model";
 import { usePalette } from "@/features/calendar/palette-provider";
 import { unwrapStamp, useBoop } from "@/features/offline/store";
+import { KnockedParcel, tapsToOpen } from "@/features/stickers/parcel-knock";
 import { Sticker } from "@/features/stickers/sticker";
 import { prepareUnwrap, Unwrapping } from "@/features/stickers/unwrap";
 import type { Locale } from "@/i18n/config";
@@ -23,7 +24,6 @@ import { cn } from "@/lib/cn";
 import { CalendarLeaf } from "./calendar-leaf";
 import { NameTag } from "./name-tag";
 import { OrderMenu } from "./order-menu";
-import { KnockedParcel, tapsToOpen } from "./parcel-knock";
 import {
   FIRST_ORDER,
   keepOrder,
@@ -183,7 +183,7 @@ export const useShelf = () => {
  * wears their first name; one that came to the account (a card, a gift)
  * says from whom – in sections the heading says it; one of mine that
  * others may use too, two rings. A gift still wrapped is a parcel that
- * wants a few taps (parcel-knock.tsx) – the last unwraps it (unwrap.tsx),
+ * wants a few taps (stickers/parcel-knock.tsx) – the last unwraps it,
  * and there it is.
  */
 export const StampShelf = ({
@@ -224,7 +224,7 @@ export const StampShelf = ({
   const boxes = useRef(new Map<string, HTMLElement>());
   const reduced = useReducedMotion();
   // The taps each parcel has had, and how many it wants – a few, at random
-  // (parcel-knock.tsx); the last one opens it.
+  // (stickers/parcel-knock.tsx); the last one opens it (unwrap.tsx).
   const [knocks, setKnocks] = useState<
     ReadonlyMap<string, { count: number; wants: number }>
   >(new Map());
