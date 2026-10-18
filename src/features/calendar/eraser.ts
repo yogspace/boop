@@ -15,7 +15,7 @@ import type { Fill, Stroke } from "./model";
 
 /**
  * The eraser really takes away – nothing of it is kept, the drawing stays
- * lines and areas (after ccm's `applyEraser`):
+ * lines and areas:
  *
  * - A line it touches is cut short or in two, so far that the round ends
  *   left over stop at its edge – the line's width counts. What is gone

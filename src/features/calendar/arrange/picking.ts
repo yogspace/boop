@@ -26,9 +26,9 @@ const known = new WeakMap<Art, Groups>();
 
 /**
  * Which thing each line and area belongs to – what touches, or touches
- * something that touches, is one thing (after ccm's objects): laid on a
- * fine grid, a line as far as its round edge reaches, an area inside and
- * along its outline; two that share a cell are one. Worked out once per
+ * something that touches, is one thing: laid on a fine grid, a line as far
+ * as its round edge reaches, an area inside and along its outline; two that
+ * share a cell are one. Worked out once per
  * drawing (a drawing never changes – a change is a new one).
  */
 export const groupsOf = (art: Art): Groups => {

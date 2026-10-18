@@ -1,10 +1,10 @@
 /**
  * A calendar's color as the shades its view wears – the paper it lies on,
- * the highlighter that marks things on it. The principle of ccm's greeting
- * cards (glaze.css there): every shade has a lightness of its own and takes
- * the color's hue and a part of its strength. So whatever the color is – a
- * yellow, a navy, one changed in the CMS – one sees at a glance which it is,
- * on the paper alone too, and what is written on a shade still reads.
+ * the highlighter that marks things on it. Every shade has a lightness of
+ * its own and takes the color's hue and a part of its strength. So whatever
+ * the color is – a yellow, a navy, one changed in the CMS – one sees at a
+ * glance which it is, on the paper alone too, and what is written on a
+ * shade still reads.
  *
  * Worked out here rather than in CSS (`oklch(from …)`): no browser has to
  * know relative colors for it, and the contrasts are tested
