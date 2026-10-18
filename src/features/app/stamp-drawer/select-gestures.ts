@@ -144,6 +144,8 @@ type SelectState = {
   chooseIn: (into: Art, items: Selection | null) => void;
   /** A change shown – the selection carried along. */
   show: (next: Art, items: Selection, frame: Frame) => void;
+  /** A copy just laid down, while it is picked (use-select.ts). */
+  loose: RefObject<Selection | null>;
 };
 
 export const selectGestures = ({
@@ -163,7 +165,12 @@ export const selectGestures = ({
   choose,
   chooseIn,
   show,
+  loose,
 }: SelectState) => {
+  /** Whether what is picked is a loose copy – moved alone, whatever it touches. */
+  const isLoose = (items: Selection) =>
+    !!loose.current && sameSelection(loose.current, items);
+
   const hovering = (
     event: PointerEvent<HTMLElement>,
     point: Point,
@@ -188,7 +195,15 @@ export const selectGestures = ({
     else {
       over = thingAt(now.art, point[0], point[1], reach);
       if (over || hit?.kind === "move") cursor = "move";
-      if (over && current && holds(current.items, over)) over = null;
+      // In a loose copy's frame, only it is grabbed.
+      if (
+        over &&
+        current &&
+        (holds(current.items, over) ||
+          (hit?.kind === "move" && isLoose(current.items)))
+      ) {
+        over = null;
+      }
     }
     event.currentTarget.style.cursor = cursor;
     setHover((was) => (was && over && sameSelection(was, over) ? was : over));
@@ -283,16 +298,19 @@ export const selectGestures = ({
         return;
       }
       // Inside the frame it moves – unless the press is on another thing,
-      // which is picked instead (⇧: added or taken away).
+      // which is picked instead (⇧: added or taken away); a loose copy
+      // moves whatever it lies on.
       if (
         hit?.kind === "move" &&
         !event.shiftKey &&
-        (!thing || holds(current.items, thing))
+        (!thing || holds(current.items, thing) || isLoose(current.items))
       ) {
         gesture.current = { ...base, kind: "move", copy: event.altKey };
         return;
       }
     }
+    // Anything else picked: a loose copy is placed.
+    loose.current = null;
     if (thing) {
       const items =
         event.shiftKey && current ? toggle(current.items, thing) : thing;
@@ -362,6 +380,7 @@ export const selectGestures = ({
         if (copies) {
           g.start = copies.art;
           g.items = copies.selection;
+          loose.current = copies.selection;
           g.points = pointsOf(copies.art, copies.selection);
           g.guides = null;
         }

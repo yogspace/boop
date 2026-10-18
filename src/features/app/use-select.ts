@@ -84,6 +84,13 @@ export const useSelect = ({
   const gesture = useRef<Gesture | null>(null);
   const fingers = useRef(new Map<number, Point>());
   const clip = useRef<{ art: Art; times: number } | null>(null);
+  /**
+   * A copy just laid down – pasted, duplicated, dragged off with Alt – is
+   * loose while it stays picked: its own, whatever it touches, so it can be
+   * put in place first; a press in its frame moves it alone. Anything else
+   * picked, it is placed – from then on what touches is one again.
+   */
+  const loose = useRef<Selection | null>(null);
   const pressed = useRef({ time: 0, x: 0, y: 0 });
   // The latest drawing and selection – ahead of the render during a drag.
   const latest = useRef({ art, picked });
@@ -98,6 +105,7 @@ export const useSelect = ({
   // Leaving the tool: nothing picked, the stage's own cursor back.
   useEffect(() => {
     if (on) return;
+    loose.current = null;
     setPicked(null);
     setHover(null);
     setMarquee(null);
@@ -139,6 +147,7 @@ export const useSelect = ({
     choose,
     chooseIn,
     show,
+    loose,
   });
 
   const leave = () => setHover(null);
@@ -163,6 +172,12 @@ export const useSelect = ({
     chooseIn(next, items);
   };
 
+  /** Copies laid down, picked and loose – one step. */
+  const lay = (added: { art: Art; selection: Selection }) => {
+    change(added.art, added.selection);
+    loose.current = added.selection;
+  };
+
   return {
     picked: chosen,
     hover: on ? hover : null,
@@ -176,10 +191,19 @@ export const useSelect = ({
     cancel,
     /** Two fingers turn and size what is picked – they don't zoom. */
     pinching: () => gesture.current?.kind === "pinch",
-    clear: () => choose(null),
-    all: () => chooseIn(art, everything(art)),
+    clear: () => {
+      loose.current = null;
+      choose(null);
+    },
+    all: () => {
+      loose.current = null;
+      chooseIn(art, everything(art));
+    },
     /** These lines and areas picked – as they are, not what touches them. */
-    pick: (items: Selection) => chooseIn(art, items),
+    pick: (items: Selection) => {
+      loose.current = null;
+      chooseIn(art, items);
+    },
     remove: () => {
       if (chosen) change(remove(art, chosen.items), null);
     },
@@ -215,7 +239,7 @@ export const useSelect = ({
     duplicate: () => {
       if (!chosen) return;
       const added = addCopies(art, pick(art, chosen.items), OFFSET, OFFSET);
-      if (added) change(added.art, added.selection);
+      if (added) lay(added);
     },
     copy: () => {
       if (chosen) clip.current = { art: pick(art, chosen.items), times: 0 };
@@ -232,7 +256,7 @@ export const useSelect = ({
       held.times += 1;
       const shift = OFFSET * held.times;
       const added = addCopies(art, held.art, shift, shift);
-      if (added) change(added.art, added.selection);
+      if (added) lay(added);
       return true;
     },
   };
