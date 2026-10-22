@@ -253,7 +253,7 @@ const paint = async (subject: Subject, idle: () => boolean): Promise<Blob> => {
  * picture of before is shown for a stamp then, and those kept on the device
  * go (keep.ts).
  */
-const VERSION = 2;
+const VERSION = 3;
 
 const fresh = (key: string) => key.startsWith(`${VERSION}-`);
 

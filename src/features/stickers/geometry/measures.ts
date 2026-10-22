@@ -6,8 +6,11 @@ import { FACE } from "../../calendar/model";
  * the rubber, the block behind it, the plate on its back and the knob.
  */
 
-/** The rubber: out to the rim's outer edge, its relief this high. */
-export const RUBBER = { grow: FACE.rim / 2, thickness: 0.08, relief: 0.035 };
+/**
+ * The rubber: out to the rim's outer edge, its relief this high – printed
+ * (40 mm wide), 1.8 mm: nine layers of 0.2 mm, the ground on a layer's edge.
+ */
+export const RUBBER = { grow: FACE.rim / 2, thickness: 0.08, relief: 0.045 };
 /** The block is flush with the rubber – face-on, only the face shows. */
 export const BLOCK = { depth: 0.16, bevel: 0.04 };
 /**

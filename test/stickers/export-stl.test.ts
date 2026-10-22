@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SHAPES } from "../../src/features/calendar/shapes";
 import type { StickerInput } from "../../src/features/stickers/build";
 import { PRINT_MM, stampStl } from "../../src/features/stickers/export-stl";
+import { RUBBER } from "../../src/features/stickers/geometry/measures";
 import { fakeCanvas } from "./fake-canvas";
 
 type Triangle = [number[], number[], number[]];
@@ -136,8 +137,13 @@ describe("a stamp for the 3D printer", () => {
         })
       )
     );
-    // The dot is a hollow in the rubber, a good millimeter over the ground.
-    const hollow = all.flat().filter(([, , z]) => z > 1 && z < 1.45);
+    // The dot is a hollow in the rubber, as deep as the relief: 1.8 mm,
+    // nine whole layers of 0.2 mm.
+    const depth = RUBBER.relief * PRINT_MM;
+    expect(depth).toBeCloseTo(1.8, 6);
+    const hollow = all
+      .flat()
+      .filter(([, , z]) => z > depth - 0.4 && z < depth + 0.05);
     expect(hollow.length).toBeGreaterThan(100);
     const middle = [0, 1].map(
       (axis) =>
