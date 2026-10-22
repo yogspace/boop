@@ -8,8 +8,9 @@ import { trackEvent } from "@/features/analytics/client";
 import { loadCard, takeCard } from "@/features/cards/client";
 import { type CardView, cardPath } from "@/features/cards/protocol";
 import { demoStamp } from "@/features/stickers/demo";
-import { stampStl, stlName } from "@/features/stickers/export-stl";
+import type { PrintFile } from "@/features/stickers/export-stl";
 import { KnockedParcel, tapsToOpen } from "@/features/stickers/parcel-knock";
+import { downloadPrint } from "@/features/stickers/print-download";
 import { Sticker } from "@/features/stickers/sticker";
 import { prepareUnwrap, Unwrapping } from "@/features/stickers/unwrap";
 import { useTransitionRouter } from "@/features/transitions/link";
@@ -64,7 +65,8 @@ export const CardPanel = ({
   const [failed, setFailed] = useState(false);
   // Not logged in, and asked to take it: the ways in.
   const [asking, setAsking] = useState(false);
-  const [printing, setPrinting] = useState(false);
+  // The file for the 3D printer being made.
+  const [printing, setPrinting] = useState<PrintFile | null>(null);
   // Wrapped, until enough taps came (`wants`, at random) – then opening, the
   // live unwrapping over the parcel (`covered` once it lies over it).
   const [wrapped, setWrapped] = useState(true);
@@ -165,17 +167,12 @@ export const CardPanel = ({
   const { stamp } = card;
   const giver = card.from.split(" ")[0] ?? "";
 
-  const download = async () => {
-    setPrinting(true);
+  const download = async (file: PrintFile) => {
+    setPrinting(file);
     try {
-      const url = URL.createObjectURL(await stampStl(stamp));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = stlName(stamp.name);
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      await downloadPrint(stamp, stamp.name, file);
     } finally {
-      setPrinting(false);
+      setPrinting(null);
     }
   };
   // Logging in or signing up was the yes: the card is taken right after.
@@ -304,15 +301,24 @@ export const CardPanel = ({
               </>
             )}
             {/* For anyone, with an account or without. */}
-            <Button
-              className="self-center"
-              disabled={printing}
-              onClick={download}
-              size="sm"
-              variant="ghost"
-            >
-              {printing ? t.auth.working : t.app.stamp.print3d}
-            </Button>
+            <div className="flex flex-wrap justify-center gap-x-2">
+              <Button
+                disabled={printing !== null}
+                onClick={() => download("stl")}
+                size="sm"
+                variant="ghost"
+              >
+                {printing === "stl" ? t.auth.working : t.app.stamp.print3d}
+              </Button>
+              <Button
+                disabled={printing !== null}
+                onClick={() => download("3mf")}
+                size="sm"
+                variant="ghost"
+              >
+                {printing === "3mf" ? t.auth.working : t.app.stamp.print3mf}
+              </Button>
+            </div>
           </div>
         </m.div>
       </Paper>

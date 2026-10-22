@@ -14,7 +14,8 @@ import {
   shareStamp,
   useBoop,
 } from "@/features/offline/store";
-import { PRINT_MM, stampStl, stlName } from "@/features/stickers/export-stl";
+import { PRINT_MM, type PrintFile } from "@/features/stickers/export-stl";
+import { downloadPrint } from "@/features/stickers/print-download";
 import { STAGE, StickerView } from "@/features/stickers/sticker-view";
 import type { Locale } from "@/i18n/config";
 import { dictionaryOf } from "@/i18n/dictionaries";
@@ -77,16 +78,10 @@ export const StampSheet = ({
     void shareStamp(stamp.id, on ? [...rest, calendar] : rest);
   };
 
-  const download = async () => {
+  const download = async (file: PrintFile) => {
     setBusy(true);
     try {
-      const blob = await stampStl(input);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = stlName(stamp.name);
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      await downloadPrint(input, stamp.name, file);
     } finally {
       setBusy(false);
     }
@@ -131,8 +126,16 @@ export const StampSheet = ({
           {t.app.stamp.edit}
         </Button>
       )}
-      <Button disabled={busy} onClick={download} size="lg">
+      <Button disabled={busy} onClick={() => download("stl")} size="lg">
         {t.app.stamp.print3d}
+      </Button>
+      <Button
+        disabled={busy}
+        onClick={() => download("3mf")}
+        size="lg"
+        variant="plain"
+      >
+        {t.app.stamp.print3mf}
       </Button>
       <p className="font-medium text-muted text-xs">
         {t.app.stamp.hint(PRINT_MM)}

@@ -22,8 +22,9 @@ const de = {
     // Drawing it anew – a stamp one drew oneself.
     edit: "Bearbeiten",
     print3d: "Für den 3D-Drucker (STL)",
+    print3mf: "Als Bambu-Studio-Projekt (3MF)",
     hint: template(
-      "{mm} mm breit, mit „boop“ auf dem Rücken. Er steht auf seiner Stempelfläche, der Knauf zeigt nach oben – nur größere Vertiefungen brauchen Stützen vom Druckbett. Die Fläche ist gespiegelt, so kommt dein Abdruck richtig herum raus.",
+      "{mm} mm breit, mit „boop“ auf dem Rücken. Er steht auf seiner Stempelfläche, der Knauf zeigt nach oben – nur größere Vertiefungen brauchen Stützen vom Druckbett. Die Fläche ist gespiegelt, so kommt dein Abdruck richtig herum raus. Das 3MF öffnet sich in Bambu Studio gleich fertig eingestellt: A1, PLA, Stützen nur vom Druckbett.",
       (say) => (mm: number) => say({ mm })
     ),
     delete: "Stempel löschen",
@@ -145,7 +146,8 @@ const en: Shape<typeof de> = {
     onlyYou: "Just you so far",
     edit: "Edit",
     print3d: "For the 3D printer (STL)",
-    hint: "{mm} mm wide, with “boop” on its back. It stands on its stamp face, knob up – only bigger hollows need supports from the bed. The face is mirrored, so your print comes out the right way round.",
+    print3mf: "As a Bambu Studio project (3MF)",
+    hint: "{mm} mm wide, with “boop” on its back. It stands on its stamp face, knob up – only bigger hollows need supports from the bed. The face is mirrored, so your print comes out the right way round. The 3MF opens in Bambu Studio all set up: A1, PLA, supports from the bed only.",
     delete: "Delete stamp",
     deleteConfirm: "Delete this stamp? Its prints go too.",
     origin: { named: "from {name}", unnamed: "a gift" },
