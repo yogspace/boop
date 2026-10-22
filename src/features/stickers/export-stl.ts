@@ -99,8 +99,13 @@ export const printName = (name: string, file: PrintFile) =>
   `boop-${
     name
       .toLowerCase()
+      // Umlauts written out, as German does without them: “für” → “fuer”.
+      .replace(/ä/g, "ae")
+      .replace(/ö/g, "oe")
+      .replace(/ü/g, "ue")
+      .replace(/ß/g, "ss")
+      // Other letters lose their marks: “é” is “e” and its accent.
       .normalize("NFKD")
-      // “ü” is “u” and its dots – the dots go.
       .replace(/[̀-ͯ]/g, "")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "") || "stamp"

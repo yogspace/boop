@@ -110,7 +110,11 @@ describe("a stamp as a Bambu Studio project", () => {
   });
 
   it("is named like the stamp", () => {
-    expect(printName("Herz für Oma", "3mf")).toBe("boop-herz-fur-oma.3mf");
+    expect(printName("Herz für Oma", "3mf")).toBe("boop-herz-fuer-oma.3mf");
+    expect(printName("Äpfel, Öl & Grüße", "stl")).toBe(
+      "boop-aepfel-oel-gruesse.stl"
+    );
+    expect(printName("Café", "stl")).toBe("boop-cafe.stl");
     expect(printName("", "stl")).toBe("boop-stamp.stl");
   });
 });
