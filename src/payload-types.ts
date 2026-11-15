@@ -2790,7 +2790,11 @@ export interface Translation {
        */
       print3d?: string | null;
       /**
-       * DE: {mm} mm breit, mit „boop“ auf dem Rücken. Er steht auf seiner Stempelfläche, der Knauf zeigt nach oben – nur größere Vertiefungen brauchen Stützen vom Druckbett. Die Fläche ist gespiegelt, so kommt dein Abdruck richtig herum raus.  ·  EN: {mm} mm wide, with “boop” on its back. It stands on its stamp face, knob up – only bigger hollows need supports from the bed. The face is mirrored, so your print comes out the right way round.  ·  Keeps {mm}
+       * DE: Als Bambu-Studio-Projekt (3MF)  ·  EN: As a Bambu Studio project (3MF)
+       */
+      print3mf?: string | null;
+      /**
+       * DE: {mm} mm breit, mit „boop“ auf dem Rücken. Er steht auf seiner Stempelfläche, der Knauf zeigt nach oben – nur größere Vertiefungen brauchen Stützen vom Druckbett. Die Fläche ist gespiegelt, so kommt dein Abdruck richtig herum raus. Das 3MF öffnet sich in Bambu Studio gleich fertig eingestellt: A1, PLA, Stützen nur vom Druckbett.  ·  EN: {mm} mm wide, with “boop” on its back. It stands on its stamp face, knob up – only bigger hollows need supports from the bed. The face is mirrored, so your print comes out the right way round. The 3MF opens in Bambu Studio all set up: A1, PLA, supports from the bed only.  ·  Keeps {mm}
        */
       hint?: string | null;
       /**
@@ -4138,6 +4142,7 @@ export interface TranslationsSelect<T extends boolean = true> {
               onlyYou?: T;
               edit?: T;
               print3d?: T;
+              print3mf?: T;
               hint?: T;
               delete?: T;
               deleteConfirm?: T;

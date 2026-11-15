@@ -18,17 +18,17 @@
     "generate:importmap": "cross-env NODE_OPTIONS=--no-deprecation payload generate:importmap"
   },
   "dependencies": {
-    "@payloadcms/db-mongodb": "3.90.2",
-    "@payloadcms/email-resend": "3.90.2",
-    "@payloadcms/next": "3.90.2",
-    "@payloadcms/richtext-lexical": "3.90.2",
-    "@payloadcms/translations": "3.90.2",
-    "@payloadcms/ui": "3.90.2",
+    "@payloadcms/db-mongodb": "3.93.0",
+    "@payloadcms/email-resend": "3.93.0",
+    "@payloadcms/next": "3.93.0",
+    "@payloadcms/richtext-lexical": "3.93.0",
+    "@payloadcms/translations": "3.93.0",
+    "@payloadcms/ui": "3.93.0",
     "cross-env": "^7.0.3",
     "graphql": "^16.14.2",
     "motion": "^14.1.0",
-    "next": "16.4.2",
-    "payload": "3.90.2",
+    "next": "16.4.6",
+    "payload": "3.93.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "sharp": "0.35.5",
@@ -52,8 +52,12 @@
   },
   "pnpm": {
     "overrides": {
-      "undici@<7.29.1": "^7.29.1",
-      "dompurify@<3.4.16": "^3.4.16"
+      "dompurify@<3.4.16": "^3.4.16",
+      "mongoose@<8.24.7": "^8.24.7",
+      "happy-dom@<21.0.4": "^21.0.4",
+      "undici@<7.30.1": "^7.30.1",
+      "zod@>=4 <4.6.6": "^4.6.6",
+      "fast-uri@<3.1.9": "^3.1.9"
     }
   }
 }
